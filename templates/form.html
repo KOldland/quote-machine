@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+</head>
+<body>
+    <h1>{{ title }}</h1>
+    <form action="{{ url_for(request.endpoint) }}" method="POST">
+        <!-- Conditionally show dropdown if it's not the first page -->
+        {% if not first_page %}
+        <label for="option">Choose an Option:</label>
+        <select id="option" name="option">
+            <option value="option1">Option 1</option>
+            <option value="option2">Option 2</option>
+            <option value="option3">Option 3</option>
+        </select>
+        <br><br>
+        {% endif %}
+        
+        <!-- Show these inputs on the first page -->
+        {% if first_page %}
+        <label for="address">Address:</label>
+        <input type="text" id="address" name="address" value="{{ session.get('address', '') }}" required>
+        <br><br>
+
+        <label for="date">Date:</label>
+        <input type="date" id="date" name="date" value="{{ session.get('date', '') }}" required>
+        <br><br>
+        {% endif %}
+        
+        <!-- Button will trigger submission to move to the next form page -->
+        <input type="submit" value="Next">
+    </form>
+</body>
+</html>
