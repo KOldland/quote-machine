@@ -531,18 +531,40 @@
 					{% endfor %}
 					{% endif %}
 					
+					{% with messages = get_flashed_messages() %}
+					{% if messages %}
+					<ul class="flashes">
+						{% for message in messages %}
+						<li>{{ message }}</li>
+						{% endfor %}
+					</ul>
+					{% endif %}
+					{% endwith %}
+				
 					<!-- Navigation buttons -->
 					<div class="button-container">
+						<!-- Previous button -->
 						{% if previous_page %}
 						<button type="button" class="btn" onclick="window.location.href='{{ url_for(previous_page) }}'">Previous</button>
 						{% endif %}
+						
+						<!-- Confirm button (writes to the Google Sheet) -->
+						{% if current_page == 'review' %}
+						<button type="submit" id="confirmButton" class="btn">Confirm</button>
+						
+						<!-- Produce Quote button (disabled until Confirm is clicked) -->
+						<button type="button" id="produceButton" class="btn" disabled onclick="window.location.href='{{ url_for('trigger_production') }}'">Produce Quote</button>
+						{% else %}
+						<!-- Next button for non-review pages -->
 						<input type="submit" class="btn" value="Next">
+						{% endif %}
 					</div>
 				</form>
 			</div>
 		</div>
 	</div>
 	<script>
+		// Confirm Button Functionality
 		document.getElementById('sidebarToggle').addEventListener('click', function () {
 			const sidebar = document.getElementById('sidebar');
 			const mainContent = document.querySelector('.main-content'); // Target the main content
@@ -550,6 +572,26 @@
 			sidebar.classList.toggle('collapsed'); // Toggle sidebar visibility
 			sidebar.classList.toggle('expanded'); // Toggle sidebar visibility
 			mainContent.classList.toggle('expanded'); // Adjust the content to fill the space
+		});
+		
+		// Confirm Button Functionality
+		document.getElementById('confirmButton').addEventListener('click', function(event) {
+			event.preventDefault();  // Prevent the form from submitting immediately
+			
+		// AJAX request to confirm data and update the Google Sheet
+			fetch('{{ url_for('confirm_data') }}', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'X-CSRFToken': '{{ csrf_token() }}'  // If CSRF protection is used
+				},
+			})
+			.then(response => response.text())
+			.then(data => {
+				// On successful confirmation, enable the Produce Quote button
+				document.getElementById('produceButton').disabled = false;
+			})
+			.catch(error => console.error('Error:', error));
 		});
 	</script>
 

@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session
 from flask_session import Session
 import gspread
+import subprocess
 from google.oauth2.service_account import Credentials
 import re
 app = Flask(__name__)
@@ -124,54 +125,63 @@ def update_description_column(address, date, nb1_manual_input=None, nb2_manual_i
         # Fetch the sheet data
         sheet_data = fetch_data()
         
-        description_column_index = 10  # Define the correct column index for the description
-        unit_input_column_index = 7 
+        description_column_index = 11  # Description column (column 11)
+        dimensions_column_index = 10  # Dimensions column (column 10)
+        unit_input_column_index = 7  # Units column (column 7)
         
         # Iterate over the rows and look for the placeholders in the "Line Code" column
         for row_index, row in enumerate(sheet_data, start=2):  # Start from 2 to skip the header
             line_code = row.get('Line Code', '')
         
-        # Update the placeholders accordingly
-            if line_code == 'cd1@':
-                sheet.update_cell(row_index, description_column_index, address)
-            elif line_code == 'todays_date@':
-                sheet.update_cell(row_index, description_column_index, date)
-            elif line_code == 'nb1#' and nb1_manual_input:
-                sheet.update_cell(row_index, description_column_index, nb1_manual_input)
-            elif line_code == 'nb2#' and nb2_manual_input:
-                sheet.update_cell(row_index, description_column_index, nb2_manual_input)
-            elif line_code == 'dm1@' and dm1_manual_input:
-                sheet.update_cell(row_index, description_column_index, dm1_manual_input)
-            elif line_code == 'dm2@' and dm2_manual_input:
-                sheet.update_cell(row_index, description_column_index, dm2_manual_input)
-            elif line_code == 'dm3@' and dm3_manual_input:
-                sheet.update_cell(row_index, description_column_index, dm3_manual_input)
-            elif line_code == 'dm4@' and dm4_manual_input:
-                sheet.update_cell(row_index, description_column_index, dm4_manual_input)
-            elif line_code == 'dm5@' and dm5_manual_input:
-                sheet.update_cell(row_index, description_column_index, dm5_manual_input)
-            elif line_code == 'cs1#' and cs1_manual_input:
-                sheet.update_cell(row_index, description_column_index, cs1_manual_input)
-            elif line_code == 'id2^' and id1_manual_input:
-                sheet.update_cell(row_index, unit_input_column_index, id1_manual_input)
-            elif line_code == 'id3^' and id2_manual_input:
-                sheet.update_cell(row_index, unit_input_column_index, id2_manual_input)
-            # Additional Notes Manual Input
-            elif line_code == 'an1#' and an1_manual_input:
-                sheet.update_cell(row_index, description_column_index, an1_manual_input)
-            elif line_code == 'an2#' and an2_manual_input:
-                sheet.update_cell(row_index, description_column_index, an2_manual_input)
-            elif line_code == 'an3#' and an3_manual_input:
-                sheet.update_cell(row_index, description_column_index, an3_manual_input)
-            elif line_code == 'an4#' and an4_manual_input:
-                sheet.update_cell(row_index, description_column_index, an4_manual_input)
-            elif line_code == 'an5#' and an5_manual_input:
-                sheet.update_cell(row_index, description_column_index, an5_manual_input)
-            elif line_code == 'an6#' and an6_manual_input:
-                sheet.update_cell(row_index, description_column_index, an6_manual_input)
-            elif line_code == 'an7#' and an7_manual_input:
-                sheet.update_cell(row_index, description_column_index, an7_manual_input)
-                
+        # Update the placeholders accordingly in the correct columns
+        if line_code == 'cd1@':
+            sheet.update_cell(row_index, description_column_index, address)
+        elif line_code == 'todays_date@':
+            sheet.update_cell(row_index, description_column_index, date)
+        elif line_code == 'nb1#' and nb1_manual_input:
+            sheet.update_cell(row_index, description_column_index, nb1_manual_input)
+        elif line_code == 'nb2#' and nb2_manual_input:
+            sheet.update_cell(row_index, description_column_index, nb2_manual_input)
+        elif line_code == 'dm1@' and dm1_manual_input:
+            sheet.update_cell(row_index, dimensions_column_index, dm1_manual_input)
+        elif line_code == 'dm2@' and dm2_manual_input:
+            sheet.update_cell(row_index, dimensions_column_index, dm2_manual_input)
+        elif line_code == 'dm3@' and dm3_manual_input:
+            sheet.update_cell(row_index, dimensions_column_index, dm3_manual_input)
+        elif line_code == 'dm4@' and dm4_manual_input:
+            sheet.update_cell(row_index, dimensions_column_index, dm4_manual_input)
+        elif line_code == 'dm5@' and dm5_manual_input:
+            sheet.update_cell(row_index, dimensions_column_index, dm5_manual_input)
+        elif line_code == 'cs1#' and cs1_manual_input:
+            sheet.update_cell(row_index, description_column_index, cs1_manual_input)
+        elif line_code == 'el1' and el1_manual_input:
+            sheet.update_cell(row_index, unit_input_column_index, el1_manual_input)
+        elif line_code == 'el2' and el2_manual_input:
+            sheet.update_cell(row_index, unit_input_column_index, el2_manual_input)
+        elif line_code == 'el3' and el3_manual_input:
+            sheet.update_cell(row_index, unit_input_column_index, el3_manual_input)
+        elif line_code == 'el4' and el4_manual_input:
+            sheet.update_cell(row_index, unit_input_column_index, el4_manual_input)
+        elif line_code == 'id2^' and id1_manual_input:
+            sheet.update_cell(row_index, unit_input_column_index, id1_manual_input)
+        elif line_code == 'id3^' and id2_manual_input:
+            sheet.update_cell(row_index, unit_input_column_index, id2_manual_input)
+        # Additional Notes Manual Input
+        elif line_code == 'an1#' and an1_manual_input:
+            sheet.update_cell(row_index, description_column_index, an1_manual_input)
+        elif line_code == 'an2#' and an2_manual_input:
+            sheet.update_cell(row_index, description_column_index, an2_manual_input)
+        elif line_code == 'an3#' and an3_manual_input:
+            sheet.update_cell(row_index, description_column_index, an3_manual_input)
+        elif line_code == 'an4#' and an4_manual_input:
+            sheet.update_cell(row_index, description_column_index, an4_manual_input)
+        elif line_code == 'an5#' and an5_manual_input:
+            sheet.update_cell(row_index, description_column_index, an5_manual_input)
+        elif line_code == 'an6#' and an6_manual_input:
+            sheet.update_cell(row_index, description_column_index, an6_manual_input)
+        elif line_code == 'an7#' and an7_manual_input:
+            sheet.update_cell(row_index, description_column_index, an7_manual_input)
+                        
     except Exception as e:
         print(f"Error updating description column: {e}")
         
@@ -1469,12 +1479,6 @@ def submit():
                 [selected_sd]  # Dropdown option, so it's a single value
             )      
             
-            # Print selected variables for final check
-            print(f"Final Check: Address: {address}, Date: {date}")
-            print(f"Selected Data (e.g., Special Notes, Building Works, etc.): {combined_data}")
-            print(f"Manual Inputs (e.g., nb1, nb2, dm1, etc.): {nb1_manual_input}, {nb2_manual_input}, {dm1_manual_input}, {dm2_manual_input}, {dm3_manual_input}, {dm4_manual_input}, {cs1_manual_input}, {dm5_manual_input}")
-            print(f"Additional Notes: an1: {an1_manual_input}, an2: {an2_manual_input}, an3: {an3_manual_input}, an4: {an4_manual_input}, an5: {an5_manual_input}, an6: {an6_manual_input}, an7: {an7_manual_input}")
-            
             # Perform the batch update to the Google Sheet
             update_include_column(combined_data)  # Only update once, at the end
             
@@ -1482,22 +1486,69 @@ def submit():
             update_description_column(
                 address, date, nb1_manual_input, nb2_manual_input, 
                 dm1_manual_input, dm2_manual_input, dm3_manual_input, 
-                dm4_manual_input, cs1_manual_input, dm5_manual_input
+                dm4_manual_input, dm5_manual_input, cs1_manual_input,
+                an1_manual_input, an2_manual_input, an3_manual_input,
+                an4_manual_input, an5_manual_input, an6_manual_input,
+                an7_manual_input
             )
             
-            # Further data processing or saving for additional notes (optional)
-            # For example, you might want to update a separate column for additional notes if needed.
-            
-            # Clear session after processing
-            session.clear()
-            
-            return f"Form Submitted! Address: {address}, Date: {date}, Combined Data: {combined_data}"
+            # Return confirmation message for successful data upload
+            # Then redirect to the production script trigger
+            flash("Data uploaded successfully. You may now publish your quote.")  # Flash success message for user
+            return redirect(url_for('trigger_production'))  # Redirect to trigger the production script
+                    
         except Exception as e:
-            print(f"Error during submission: {e}")
+            print(f"Error during confirmation: {e}")
             return "Something went wrong, please try again."
         
-    return "Invalid request method. Please submit the form via POST."
+        return "Invalid request method. Please submit the form via POST."
+    
 
+#final production trigger
+@app.route('/trigger_production')
+def trigger_production():
+    try:
+        # Call the QM_Production.py script using subprocess
+        result = subprocess.run(['python3', 'QM_Production.py'], capture_output=True, text=True)
+        
+        # Check if the script ran successfully
+        if result.returncode == 0:
+            
+            # Capture the URL from the production script's stdout (extracting the part after "Document link: ")
+            output = result.stdout.strip()
+            if "Document link:" in output:
+                document_url = output.split("Document link: ")[-1].strip()
+            else:
+                document_url = "No valid document link found."
+                    
+            # If a valid URL is found, display it as a button; otherwise, show an error
+            if document_url:
+                return f"""
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Great Job!</title>
+                    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">  <!-- Link your CSS file -->
+                    </head>
+                    <body>
+                        <h2>Your document is ready!</h2>
+                        <p>
+                            <a href="{document_url}" target="_blank" class="btn">Click here to open it in a new tab</a>
+                        </p>
+                        </body>
+                        </html>
+                        """
+                
+            else:
+                    return "No valid document link found.", 500
+                
+        else:
+            return f"Error in production script: {result.stderr}", 500
+                
+    except Exception as e:
+        return f"Error: {e}", 500    
 
 if __name__ == '__main__':
     app.run(debug=True)
