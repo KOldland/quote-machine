@@ -1396,7 +1396,19 @@ def review():
     # Pass TITLE_MAPPING and other data to the template
     return render_template('form.html', review_page=True, review_data=review_with_titles, TITLE_MAPPING=TITLE_MAPPING, title="Review Page")
 
-
+# Assuming confirm_data is needed as part of validation
+@app.route('/confirm_data', methods=['POST'])
+def confirm_data():
+    # You can handle the data confirmation logic here
+    # For now, let's assume you simply return a success message
+    try:
+        # Logic to confirm data before final submission
+        # You can add logic here to validate or process session data if needed
+        return "Data confirmed successfully", 200
+    except Exception as e:
+        return f"Error: {e}", 500
+    
+    
 @app.route('/submit', methods=['POST', 'GET'])
 def submit():
     if request.method == 'POST':
@@ -1477,19 +1489,23 @@ def submit():
                 selected_gv +
                 selected_sds +
                 [selected_sd]  # Dropdown option, so it's a single value
-            )      
+            )     
             
-            # Perform the batch update to the Google Sheet
-            update_include_column(combined_data)  # Only update once, at the end
+            # Call confirm_data before proceeding to update
+            confirm_response = confirm_data()
+            if confirm_response[1] == 200:
             
-            # Update the placeholders in the Google Sheet for address, date, and manual inputs
-            update_description_column(
-                address, date, nb1_manual_input, nb2_manual_input, 
-                dm1_manual_input, dm2_manual_input, dm3_manual_input, 
-                dm4_manual_input, dm5_manual_input, cs1_manual_input,
-                an1_manual_input, an2_manual_input, an3_manual_input,
-                an4_manual_input, an5_manual_input, an6_manual_input,
-                an7_manual_input
+                # Perform the batch update to the Google Sheet
+                update_include_column(combined_data)  # Only update once, at the end
+            
+                # Update the placeholders in the Google Sheet for address, date, and manual inputs
+                update_description_column(
+                    address, date, nb1_manual_input, nb2_manual_input, 
+                    dm1_manual_input, dm2_manual_input, dm3_manual_input, 
+                    dm4_manual_input, dm5_manual_input, cs1_manual_input,
+                    an1_manual_input, an2_manual_input, an3_manual_input,
+                    an4_manual_input, an5_manual_input, an6_manual_input,
+                    an7_manual_input
             )
             
             # Return confirmation message for successful data upload
