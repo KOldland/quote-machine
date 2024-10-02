@@ -225,7 +225,7 @@ def index():
         session['address'] = request.form.get('address')
         session['date'] = request.form.get('date')
         return redirect(url_for('page_two'))
-    return render_template('form.html', first_page=True, next_page='page_two', title="Project Details")
+    return render_template('index.html', first_page=True, next_page='page_two', title="Project Details")
 
 # Second page route - Load dynamic options from Google Sheets
 @app.route('/page-two', methods=['POST', 'GET'])
@@ -269,7 +269,7 @@ def page_two():
                 preselected.append(line_code)  # Add preselected if included
             
     # Send special notes to the template
-    return render_template('form.html', second_page=True, previous_page=previous_page, next_page='page_three', title="Special Notes", data=special_notes, preselected=preselected)
+    return render_template('index.html', second_page=True, previous_page=previous_page, next_page='page_three', title="Special Notes", data=special_notes, preselected=preselected)
 
 
 # Third page route - Building Works
@@ -310,7 +310,7 @@ def page_three():
             preselected.append(line_code)
             
     # Send building works data to the template
-    return render_template('form.html', third_page=True, previous_page=previous_page, next_page='page_four', title="Building Works", data=building_works, preselected=preselected)
+    return render_template('index.html', third_page=True, previous_page=previous_page, next_page='page_four', title="Building Works", data=building_works, preselected=preselected)
 
 # Fourth page route - Boundary lines
 
@@ -379,7 +379,7 @@ def page_four():
             if include == 'Y':
                 preselected.append(line_code)
     # Render the form
-    return render_template('form.html', fourth_page=True, previous_page='page_three', next_page='page_five', 
+    return render_template('index.html', fourth_page=True, previous_page='page_three', next_page='page_five', 
             title="Boundary Lines & Planning Permissions", 
             data=boundary_lines, 
             preselected=preselected,
@@ -427,7 +427,7 @@ def page_five():
                 preselected_ew.append(line_code)
                 
     # Render the form with ew_data
-    return render_template('form.html', fifth_page=True, previous_page='page_four', next_page='submit', 
+    return render_template('index.html', fifth_page=True, previous_page='page_four', next_page='submit', 
                            title="External Wall", 
                            ew_data=ew_data, preselected_ew=preselected_ew)
 
@@ -467,7 +467,7 @@ def page_six():
                 preselected_fs.append(line_code)
                 
     # Render the form with fs_data
-    return render_template('form.html', sixth_page=True, previous_page='page_five', next_page='page_seven', 
+    return render_template('index.html', sixth_page=True, previous_page='page_five', next_page='page_seven', 
                            title="Floor Structure", 
                            fs_data=fs_data, preselected_fs=preselected_fs)
 
@@ -507,7 +507,7 @@ def page_seven():
                 preselected_ps.append(line_code)
                                             
     # Render the form with ps_data
-    return render_template('form.html', seventh_page=True, previous_page='page_six', next_page='page_eight', 
+    return render_template('index.html', seventh_page=True, previous_page='page_six', next_page='page_eight', 
                                                         title="Plastering", 
                                                         ps_data=ps_data, preselected_ps=preselected_ps)
                                                         
@@ -555,7 +555,7 @@ def page_eight():
                 preselected_id.append(line_code)
                 
     # Render the form with id_data
-    return render_template('form.html', eighth_page=True, previous_page='page_seven', next_page='page_nine', 
+    return render_template('index.html', eighth_page=True, previous_page='page_seven', next_page='page_nine', 
                            title="Internal Doors", 
                            id_data=id_data, preselected_id=preselected_id)
 
@@ -595,7 +595,7 @@ def page_nine():
                 preselected_dr.append(line_code)
                 
     # Render the form with dr_data
-    return render_template('form.html', ninth_page=True, previous_page='page_eight', next_page='page_ten', 
+    return render_template('index.html', ninth_page=True, previous_page='page_eight', next_page='page_ten', 
                            title="Drainage", 
                            dr_data=dr_data, preselected_dr=preselected_dr)
 
@@ -635,7 +635,7 @@ def page_ten():
                 preselected_wp.append(line_code)
                 
     # Render the form with wp_data
-    return render_template('form.html', tenth_page=True, previous_page='page_nine', next_page='page_eleven', 
+    return render_template('index.html', tenth_page=True, previous_page='page_nine', next_page='page_eleven', 
                            title="Waste and Parking", 
                            wp_data=wp_data, preselected_wp=preselected_wp)
 
@@ -675,7 +675,7 @@ def page_eleven():
                 preselected_dw.append(line_code)
                 
     # Render the form with dw_data
-    return render_template('form.html', eleventh_page=True, previous_page='page_ten', next_page='page_twelve', 
+    return render_template('index.html', eleventh_page=True, previous_page='page_ten', next_page='page_twelve', 
                            title="Demolition Works", 
                            dw_data=dw_data, preselected_dw=preselected_dw)
 
@@ -715,7 +715,7 @@ def page_twelve():
                 preselected_frc.append(line_code)
                 
     # Render the form with frc_data
-    return render_template('form.html', twelfth_page=True, previous_page='page_eleven', next_page='page_thirteen', 
+    return render_template('index.html', twelfth_page=True, previous_page='page_eleven', next_page='page_thirteen', 
                            title="Further Requirements & Considerations", 
                            frc_data=frc_data, preselected_frc=preselected_frc)
 
@@ -755,7 +755,7 @@ def page_thirteen():
                 preselected_ab.append(line_code)
                 
     # Render the form with ab_data
-    return render_template('form.html', thirteenth_page=True, previous_page='page_twelve', next_page='page_fourteen', 
+    return render_template('index.html', thirteenth_page=True, previous_page='page_twelve', next_page='page_fourteen', 
                            title="Additional Building Items", 
                            ab_data=ab_data, preselected_ab=preselected_ab)
 
@@ -795,7 +795,7 @@ def page_fourteen():
                 preselected_sww.append(line_code)
                 
     # Render the form with sww_data
-    return render_template('form.html', fourteenth_page=True, previous_page='page_thirteen', next_page='page_fifteen', 
+    return render_template('index.html', fourteenth_page=True, previous_page='page_thirteen', next_page='page_fifteen', 
                            title="Schedule of Works (Weeks 1-8)", 
                            sww_data=sww_data, preselected_sww=preselected_sww)
 
@@ -834,7 +834,7 @@ def page_fifteen():
                 preselected_tww.append(line_code)
                 
     # Render the form with tww_data
-    return render_template('form.html', fifteenth_page=True, previous_page='page_fourteen', next_page='page_sixteen', 
+    return render_template('index.html', fifteenth_page=True, previous_page='page_fourteen', next_page='page_sixteen', 
                            title="Schedule of Works (Week 9-12)", 
                            tww_data=tww_data, preselected_tww=preselected_tww)
 
@@ -872,7 +872,7 @@ def page_sixteen():
                 preselected_pc.append(line_code)
                 
     # Render the form with pc_data
-    return render_template('form.html', sixteenth_page=True, previous_page='page_fifteen', next_page='page_seventeen', 
+    return render_template('index.html', sixteenth_page=True, previous_page='page_fifteen', next_page='page_seventeen', 
                            title="Pricing Categories", 
                            pc_data=pc_data, preselected_pc=preselected_pc)
 
@@ -916,7 +916,7 @@ def page_seventeen():
                 preselected_el.append(line_code)
                 
     # Render the form with el_data
-    return render_template('form.html', seventeenth_page=True, previous_page='page_sixteen', next_page='page_eighteen', 
+    return render_template('index.html', seventeenth_page=True, previous_page='page_sixteen', next_page='page_eighteen', 
                            title="Electrics", 
                            el_data=el_data, preselected_el=preselected_el)
                             
@@ -956,7 +956,7 @@ def page_eighteen():
                 preselected_pl.append(line_code)
                 
     # Render the form with pl_data
-    return render_template('form.html', eighteenth_page=True, previous_page='page_seventeen', next_page='page_nineteen', 
+    return render_template('index.html', eighteenth_page=True, previous_page='page_seventeen', next_page='page_nineteen', 
                            title="Plumbing", 
                            pl_data=pl_data, preselected_pl=preselected_pl)
                             
@@ -995,7 +995,7 @@ def page_nineteen():
                 preselected_sl.append(line_code)
         
     # Render the form with sl_data
-    return render_template('form.html', nineteenth_page=True, previous_page='page_eighteen', next_page='page_twenty',      title="Skylights", 
+    return render_template('index.html', nineteenth_page=True, previous_page='page_eighteen', next_page='page_twenty',      title="Skylights", 
             sl_data=sl_data, preselected_sl=preselected_sl)
 
 # Twentieth page route - Velux Windows (vl) - Only shown if pc7 is selected
@@ -1032,7 +1032,7 @@ def page_twenty():
                 preselected_vl.append(line_code)
                 
     # Render the form with vl_data
-    return render_template('form.html', twentieth_page=True, previous_page='page_nineteen', next_page='page_twenty_one', 
+    return render_template('index.html', twentieth_page=True, previous_page='page_nineteen', next_page='page_twenty_one', 
                            title="Velux Windows", 
                            vl_data=vl_data, preselected_vl=preselected_vl)
 
@@ -1067,7 +1067,7 @@ def page_twenty_one():
                 preselected_ac.append(line_code)
                 
     # Render the form with ac_data
-    return render_template('form.html', twenty_first_page=True, previous_page='page_twenty', next_page='page_twenty_two', 
+    return render_template('index.html', twenty_first_page=True, previous_page='page_twenty', next_page='page_twenty_two', 
                            title="Aluminium Capping", 
                            ac_data=ac_data, preselected_ac=preselected_ac)
 
@@ -1102,7 +1102,7 @@ def page_twenty_two():
                 preselected_gv.append(line_code)
                 
     # Render the form with gv_data
-    return render_template('form.html', twenty_second_page=True, previous_page='page_twenty_one', next_page='page_twenty_three', 
+    return render_template('index.html', twenty_second_page=True, previous_page='page_twenty_one', next_page='page_twenty_three', 
                            title="Glass Valley", 
                            gv_data=gv_data, preselected_gv=preselected_gv)
 
@@ -1159,7 +1159,7 @@ def page_twenty_three():
             sd_options.append({'line_code': line_code, 'description': internal_description})
             
     # Render the form with the necessary data
-    return render_template('form.html', twenty_third_page=True, previous_page='page_twenty_two', next_page='page_twenty_four',
+    return render_template('index.html', twenty_third_page=True, previous_page='page_twenty_two', next_page='page_twenty_four',
                            title="Sliding Doors",
                            dm5_label=dm5_label, sds_data=sds_data, preselected_sds=preselected_sds, sd_options=sd_options)
 
@@ -1195,7 +1195,7 @@ def page_twenty_four():
                 preselected_oe.append(line_code)
                 
     # Render the form with oe_data
-    return render_template('form.html', twenty_fourth_page=True, previous_page='page_twenty_three', next_page='page_twenty_five', 
+    return render_template('index.html', twenty_fourth_page=True, previous_page='page_twenty_three', next_page='page_twenty_five', 
                            title="Optional Extras", 
                            oe_data=oe_data, preselected_oe=preselected_oe)
 
@@ -1231,7 +1231,7 @@ def page_twenty_five():
                 preselected_co.append(line_code)
                 
     # Render the form with co_data
-    return render_template('form.html', twenty_fifth_page=True, previous_page='page_twenty_four', next_page='page_twenty_six', 
+    return render_template('index.html', twenty_fifth_page=True, previous_page='page_twenty_four', next_page='page_twenty_six', 
                            title="Contingency", 
                            co_data=co_data, preselected_co=preselected_co)
                             
@@ -1268,7 +1268,7 @@ def page_twenty_six():
                 preselected_fw.append(line_code)
                 
     # Render the form with fw_data
-    return render_template('form.html', twenty_sixth_page=True, previous_page='page_twenty_five', next_page='page_twenty_seven', 
+    return render_template('index.html', twenty_sixth_page=True, previous_page='page_twenty_five', next_page='page_twenty_seven', 
                            title="Finishing Works", 
                            fw_data=fw_data, preselected_fw=preselected_fw)
 
@@ -1304,7 +1304,7 @@ def page_twenty_seven():
                 preselected_foe.append(line_code)
                 
     # Render the form with foe_data
-    return render_template('form.html', twenty_seventh_page=True, previous_page='page_twenty_six', next_page='page_twenty_eight', 
+    return render_template('index.html', twenty_seventh_page=True, previous_page='page_twenty_six', next_page='page_twenty_eight', 
                            title="Finishing Works Optional Extras", 
                            foe_data=foe_data, preselected_foe=preselected_foe)
 
@@ -1326,7 +1326,7 @@ def page_twenty_eight():
         return redirect(url_for('review'))  # Redirect to the review page
     
     # Render the form
-    return render_template('form.html', twenty_eighth_page=True, previous_page='page_twenty_seven', next_page='review', 
+    return render_template('index.html', twenty_eighth_page=True, previous_page='page_twenty_seven', next_page='review', 
                            title="Additional Notes",
                            an1_manual_input=session.get('an1_manual_input', ''),
                            an2_manual_input=session.get('an2_manual_input', ''),
@@ -1397,7 +1397,7 @@ def review():
     review_with_titles = {TITLE_MAPPING.get(key, key): value for key, value in internal_descriptions.items()}
     
     # Pass TITLE_MAPPING and other data to the template
-    return render_template('form.html', review_page=True, review_data=review_with_titles, TITLE_MAPPING=TITLE_MAPPING, title="Review Page")
+    return render_template('index.html', review_page=True, review_data=review_with_titles, TITLE_MAPPING=TITLE_MAPPING, title="Review Page")
 
 # Assuming confirm_data is needed as part of validation
 @app.route('/confirm_data', methods=['POST'])
