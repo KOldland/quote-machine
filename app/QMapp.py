@@ -1416,6 +1416,34 @@ def confirm_data():
 def submit():
     if request.method == 'POST':
         try:
+            # Ensure all session keys are initialized if they are not set
+            session.setdefault('selected_special_notes', [])
+            session.setdefault('selected_building_works', [])
+            session.setdefault('selected_boundary_lines', [])
+            session.setdefault('selected_co', [])
+            session.setdefault('selected_fw', [])
+            session.setdefault('selected_foe', [])
+            session.setdefault('selected_ew', [])
+            session.setdefault('selected_fs', [])
+            session.setdefault('selected_ps', [])
+            session.setdefault('selected_id', [])
+            session.setdefault('selected_dr', [])
+            session.setdefault('selected_wp', [])
+            session.setdefault('selected_dw', [])
+            session.setdefault('selected_frc', [])
+            session.setdefault('selected_ab', [])
+            session.setdefault('selected_sww', [])
+            session.setdefault('selected_tww', [])
+            session.setdefault('selected_pc', [])
+            session.setdefault('selected_el', [])
+            session.setdefault('selected_pl', [])
+            session.setdefault('selected_sl', [])
+            session.setdefault('selected_vl', [])
+            session.setdefault('selected_ac', [])
+            session.setdefault('selected_gv', [])
+            session.setdefault('selected_sds', [])
+            session.setdefault('selected_sd', [])
+            
             # Retrieve all session data for the final update
             selected_special_notes = session.get('selected_special_notes', [])
             selected_building_works = session.get('selected_building_works', [])
@@ -1511,16 +1539,21 @@ def submit():
                     an7_manual_input
             )
             
-            # Return confirmation message for successful data upload
-            # Then redirect to the production script trigger
-            flash("Data uploaded successfully. You may now publish your quote.")  # Flash success message for user
-            return redirect(url_for('trigger_production'))  # Redirect to trigger the production script
-                    
+                # Return confirmation message for successful data upload
+                # Then redirect to the production script trigger
+                flash("Data uploaded successfully. You may now publish your quote.")  # Flash success message for user
+                return redirect(url_for('trigger_production'))  # Redirect to trigger the production script
+            
+            else:
+                flash("Data confirmation failed. Please try again.")
+                return redirect(url_for('review'))
+        
         except Exception as e:
             print(f"Error during confirmation: {e}")
-            return "Something went wrong, please try again."
+            return "Something went wrong, please try again.", 500
         
-        return "Invalid request method. Please submit the form via POST."
+    # Handle GET request (if someone accesses submit without posting data)
+    return "Submit this form via POST request.", 400
     
 
 #final production trigger
