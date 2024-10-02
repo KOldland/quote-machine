@@ -1415,6 +1415,7 @@ def confirm_data():
 @app.route('/submit', methods=['POST', 'GET'])
 def submit():
     if request.method == 'POST':
+        print(request.form) 
         try:
             # Ensure all session keys are initialized if they are not set
             session.setdefault('selected_special_notes', [])
@@ -1549,7 +1550,7 @@ def submit():
                 return redirect(url_for('review'))
         
         except Exception as e:
-            print(f"Error during confirmation: {e}")
+            print(f"Error during confirmation: {str(e)}")  # Log the error message once
             return "Something went wrong, please try again.", 500
         
     # Handle GET request (if someone accesses submit without posting data)
