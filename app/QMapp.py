@@ -1412,7 +1412,7 @@ def confirm_data():
         return f"Error: {e}", 500
     
     
-@app.route('/submit', methods=['POST', 'GET'])
+@app.route('/submit', methods=['POST'])
 def submit():
     if request.method == 'POST':
         print(request.form) 
@@ -1552,9 +1552,6 @@ def submit():
         except Exception as e:
             print(f"Error during confirmation: {str(e)}")  # Log the error message once
             return "Something went wrong, please try again.", 500
-        
-    # Handle GET request (if someone accesses submit without posting data)
-    return "Submit this form via POST request.", 400
     
 
 #final production trigger
