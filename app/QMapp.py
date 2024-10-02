@@ -4,15 +4,18 @@ import gspread
 import subprocess
 from google.oauth2.service_account import Credentials
 import re
+from flask_wtf.csrf import CSRFProtect
+
 app = Flask(__name__)
+csrf = CSRFProtect(app)
 
 # Set a secret key for session management
-app.secret_key = 'your_secret_key'
+app.secret_key = 'S)x;:qtD5EC"'
 
 # Set up server-side session
 app.config['SESSION_TYPE'] = 'filesystem'  # Store sessions in the filesystem
 app.config['SESSION_FILE_DIR'] = './flask_session/'  # Create a directory for sessions
-app.config['SECRET_KEY'] = 'your_secret_key'
+app.config['SECRET_KEY'] = 'S)x;:qtD5EC"'
 
 # Initialize the session extension
 Session(app)

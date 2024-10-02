@@ -64,6 +64,7 @@
 				<div class="form-container">
 					<h1>{{ title }}</h1>
 					<form action="{{ url_for(request.endpoint) }}" method="POST">
+					{{ form.hidden_tag() }}  <!-- This line adds the CSRF token -->
 						<!-- First page: Project Details -->
 						{% if first_page %}
 						<label for="address">Address:</label>
