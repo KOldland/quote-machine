@@ -106,7 +106,7 @@
 					<label for="boundary_lines"><h3><b>Select Boundary Lines and Other Items:</b></h3></label><br><br>
 					{% for line_code, boundary_line in data.items() %}
 					<label class="checkbox-label">
-						<input type="checkbox" name="{{ line_code }}" value="{{ line_code }}" 
+						<input type="checkbox" name="boundary_lines" value="{{ line_code }}" 
 							{% if line_code in preselected %} checked {% endif %}>
 						<span>{{ boundary_line.description }}</span>
 					</label><br>
