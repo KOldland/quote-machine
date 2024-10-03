@@ -514,9 +514,10 @@
 							{% if previous_page %}
 							<button type="button" class="btn" onclick="window.location.href='{{ url_for(previous_page) }}'">Previous</button>
 							{% endif %}
-							
+							{% if not review_page %}
 							<!-- Next button for non-review pages -->
 							<input type="submit" class="btn" value="Next">
+							{% endif %}
 						</div>
 					</form>
 					
@@ -554,10 +555,6 @@
 					{% endif %}
 					{% endwith %}
 						<div class="button-container">
-							<!-- Previous button -->
-							{% if previous_page %}
-							<button type="button" class="btn" onclick="window.location.href='{{ url_for(previous_page) }}'">Previous</button>
-							{% endif %}
 							{% if review_page %}
 							<!-- Confirm button (writes to the Google Sheet) -->
 							<button type="submit" id="confirmButton" class="btn">Confirm</button>
