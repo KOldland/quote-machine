@@ -31,7 +31,7 @@
 					<a href="{{ url_for('page_two') }}" class="nav-link {% if request.endpoint == 'page_two' %}active{% endif %}">Special Notes</a>
 					<a href="{{ url_for('page_three') }}" class="nav-link {% if request.endpoint == 'page_three' %}active{% endif %}">Building Works</a>
 					<a href="{{ url_for('page_four') }}" class="nav-link {% if request.endpoint == 'page_four' %}active{% endif %}">Boundary Lines</a>
-					<a href="{{ url_for('page_five') }}" class="nav-link {% if request.endpoint == 'page_five' %}active{% endif %}">External Works</a>
+					<a href="{{ url_for('page_five') }}" class="nav-link {% if request.endpoint == 'page_five' %}active{% endif %}">External Wall</a>
 					<a href="{{ url_for('page_six') }}" class="nav-link {% if request.endpoint == 'page_six' %}active{% endif %}">Floor Structure</a>
 					<a href="{{ url_for('page_seven') }}" class="nav-link {% if request.endpoint == 'page_seven' %}active{% endif %}">Plastering</a>
 					<a href="{{ url_for('page_eight') }}" class="nav-link {% if request.endpoint == 'page_eight' %}active{% endif %}">Internal Doors</a>
@@ -78,7 +78,7 @@
 				
 					<!-- Second page: Special Notes -->
 					{% if second_page %}
-					<label><h3><b>Special notes to include:</b></h3></label><br>
+					<label><h3><b>Select any selected notes to be included:</b></h3></label><br>
 					{% for prefix, note in data.items() %}
 					<label class="checkbox-label">
 						<input type="checkbox" name="special_notes" value="{{ prefix }}" 
@@ -90,7 +90,7 @@
 				
 					<!-- Third page: Building Works -->
 					{% if third_page %}
-					<label><h3><b>Building works to include:</b></h3></label><br>
+					<label><h3><b>Select building works items to include:</b></h3></label><br>
 					{% for prefix, note in data.items() %}
 					<label class="checkbox-label">
 						<input type="checkbox" name="building_works" value="{{ prefix }}" 
@@ -103,7 +103,7 @@
 				
 					<!-- Fourth page: Boundary Lines -->
 					{% if fourth_page %}
-					<label for="boundary_lines"><h3><b>Select Boundary Lines and Other Items:</b></h3></label><br><br>
+					<label for="boundary_lines"><h3><b>Select the relevant boundary lines and similar items to include:</b></h3></label><br><br>
 					{% for line_code, boundary_line in data.items() %}
 					<label class="checkbox-label">
 						<input type="checkbox" name="boundary_lines" value="{{ line_code }}" 
@@ -116,33 +116,33 @@
 					<p><h3><b>Please provide values for the following fields if relevant:</b></h3></p>
 					
 					<!-- Manual input fields for nb1 and nb2 -->
-					<label for="nb1_manual_input">Neighbour Left Side (Manual Input):</label>
+					<label for="nb1_manual_input">Neighbour Left Side:</label>
 					<input type="text" name="nb1_manual_input" value="{{ nb1_manual_input }}"><br>
 					
-					<label for="nb2_manual_input">Neighbour Right Side (Manual Input):</label>
+					<label for="nb2_manual_input">Neighbour Right Side:</label>
 					<input type="text" name="nb2_manual_input" value="{{ nb2_manual_input }}"><br>
 					
 					<!-- Manual input fields for dm1, dm2, dm3, dm4 -->
-					<label for="dm1_manual_input">Extension Size (dm1):</label>
+					<label for="dm1_manual_input">Extension Size:</label>
 					<input type="text" name="dm1_manual_input" value="{{ dm1_manual_input }}"><br>
 					
-					<label for="dm2_manual_input">Rear Depth (dm2):</label>
+					<label for="dm2_manual_input">Rear Depth:</label>
 					<input type="text" name="dm2_manual_input" value="{{ dm2_manual_input }}"><br>
 					
-					<label for="dm3_manual_input">Full Width (dm3):</label>
+					<label for="dm3_manual_input">Full Width:</label>
 					<input type="text" name="dm3_manual_input" value="{{ dm3_manual_input }}"><br>
 					
-					<label for="dm4_manual_input">Side Return Width (dm4):</label>
+					<label for="dm4_manual_input">Side Return Width:</label>
 					<input type="text" name="dm4_manual_input" value="{{ dm4_manual_input }}"><br>
 					
 					<!-- Manual input for cs1 -->
-					<label for="cs1_manual_input">Council Status (cs1):</label>
+					<label for="cs1_manual_input">Council Status:</label>
 					<input type="text" name="cs1_manual_input" value="{{ cs1_manual_input }}"><br>
 					{% endif %}
 				
 					<!-- Fifth Page: External Works -->
 					{% if fifth_page %}
-					<h3><b>Select External Wall Options:</b></h3>
+					<h3><b>Select any external wall options to include:</b></h3>
 					
 					{% for line_code, item in ew_data.items() %}
 					<label class="checkbox-label">
@@ -155,7 +155,7 @@
 					
 					<!-- Sixth Page: Floor Structure -->
 					{% if sixth_page %}
-					<h3><b>Select Floor Structure Options:</b></h3>
+					<h3><b>Select any floor structure options to include:</b></h3>
 					
 					{% for line_code, item in fs_data.items() %}
 					<label class="checkbox-label">
@@ -168,7 +168,7 @@
 					
 					<!-- Seventh Page: Plastering -->
 					{% if seventh_page %}
-					<h3><b>Select Plastering Options:</b></h3>
+					<h3><b>Select any plastering options to include:</b></h3>
 					
 					{% for line_code, item in ps_data.items() %}
 					<label class="checkbox-label">
@@ -181,7 +181,7 @@
 				
 					<!-- Eighth Page: Internal Doors -->
 					{% if eighth_page %}
-					<h2>Select Internal Doors Options:</h2>
+					<h3><b>Select any internal doors options to include:</b></h3>
 					
 					{% for line_code, item in id_data.items() %}
 					<label class="checkbox-label">
@@ -190,6 +190,8 @@
 						{{ item.description }}
 					</label><br>
 					{% endfor %}
+					
+					<h3><b>Input door numbers below if relevant:</b></h3>
 					
 					<label for="id1_manual_input">No. of Fire-Doors:</label>
 					<input type="text" name="id1_manual_input" value="{{ id1_manual_input }}"><br>
@@ -200,7 +202,7 @@
 					
 					<!-- Ninth Page: Drainage -->
 					{% if ninth_page %}
-					<h2>Select Drainage Options:</h2>
+					<h3><b>Select any drainage options:</b></h3>
 					
 					{% for line_code, item in dr_data.items() %}
 					<label class="checkbox-label">
@@ -213,7 +215,7 @@
 				
 					<!-- Tenth Page: Waste and Parking -->
 					{% if tenth_page %}
-					<h2>Select Waste and Parking Options:</h2>
+					<h3><b>Select any waste and parking options:</b></h3>
 					
 					{% for line_code, item in wp_data.items() %}
 					<label class="checkbox-label">
@@ -226,7 +228,7 @@
 					
 					<!-- Eleventh Page: Demolition Works -->
 					{% if eleventh_page %}
-					<h2>Select Demolition Works Options:</h2>
+					<h3><b>Select any demolition works options:</b></h3>
 					
 					{% for line_code, item in dw_data.items() %}
 					<label class="checkbox-label">
@@ -239,7 +241,7 @@
 					
 					<!-- Twelfth Page: Further Requirements & Considerations -->
 					{% if twelfth_page %}
-					<h2>Select Further Requirements & Considerations Options:</h2>
+					<h3><b>Select Further Requirements & Considerations Options:</b></h3>
 					
 					{% for line_code, item in frc_data.items() %}
 					<label class="checkbox-label">
@@ -252,7 +254,7 @@
 				
 					<!-- Thirteenth Page: Additional Building Items -->
 					{% if thirteenth_page %}
-					<h2>Select Additional Building Items Options:</h2>
+					<h3><b>Select any additional building items options:</b></h3>
 					
 					{% for line_code, item in ab_data.items() %}
 					<label class="checkbox-label">
@@ -265,7 +267,7 @@
 					
 					<!-- Fourteenth Page: Schedule of Works (Weeks 1-8) -->
 					{% if fourteenth_page %}
-					<h2>Select Schedule of Works Options (Weeks 1-8):</h2>
+					<h3><b>Select any schedule of works options (Weeks 1-8):</b></h3>
 					
 					{% for line_code, item in sww_data.items() %}
 					<label class="checkbox-label">
@@ -278,7 +280,7 @@
 				
 					<!-- Fifteenth Page: Schedule of Works (Weeks 9-12) -->
 					{% if fifteenth_page %}
-					<h2>Select Schedule of Works Options (Weeks 9-12):</h2>
+					<h3><b>Select any schedule of works options (Weeks 9-12):</b></h3>
 					
 					<!-- Loop through the tww_data dictionary and render checkboxes -->
 					{% for line_code, item in tww_data.items() %}
@@ -292,7 +294,7 @@
 					
 					<!-- Page 16 Pricing Categories Page -->
 					{% if sixteenth_page %}
-					<h2>Pricing Categories</h2>
+					<h3><b>Please identify the pricing categories to be included</b></h3>
 					
 					<!-- Loop through the pc_data dictionary and render checkboxes -->
 					{% for line_code, item in pc_data.items() %}
@@ -306,8 +308,9 @@
 					
 					<!-- Seventeenth Electrics Page: Only visible if pc4 is checked -->
 					{% if seventeenth_page %}
-					<h2>Electrics</h2>
-					
+					<h3><b>Please enter the number of points and lights below</b></h3>
+		
+			
 					<!-- Placeholder el1: Number of kitchen points -->
 					<label for="el1_manual_input">Number of kitchen points:</label>
 					<input type="number" id="el1_manual_input" name="el1_manual_input" value="{{ el1_manual_input }}"><br>
@@ -323,12 +326,12 @@
 					<!-- Placeholder el4: Number of loft lights -->
 					<label for="el4_manual_input">Number of loft lights:</label>
 					<input type="number" id="el4_manual_input" name="el4_manual_input" value="{{ el4_manual_input }}"><br>
-					
+		
 					{% endif %}
 				
 					<!-- Page Eigtheen - Plumbing Page: Only visible if pc5 is checked -->
 					{% if eighteenth_page %}
-					<h2>Plumbing</h2>
+					<h3><b>Please select any plumbing options</b></h3>
 					
 					<!-- Loop through the pl_data dictionary and render checkboxes -->
 					{% for line_code, item in pl_data.items() %}
@@ -342,7 +345,7 @@
 					
 					<!-- Page nineteen - Skylights Page: Only visible if pc6 is checked -->
 					{% if nineteenth_page %}
-					<h2>Skylights</h2>
+					<h3><b>Please select any Skylights options</b></h3>
 					
 					<!-- Loop through the sl_data dictionary and render checkboxes -->
 					{% for line_code, item in sl_data.items() %}
@@ -356,7 +359,7 @@
 					
 					<!-- page 20 Velux Windows Page: Only visible if pc7 is checked -->
 					{% if twentieth_page %}
-					<h2>Velux Windows</h2>
+					<h3><b>Please select any Velux windows options</b></h3>
 					
 					<!-- Loop through the vl_data dictionary and render checkboxes -->
 					{% for line_code, item in vl_data.items() %}
@@ -384,7 +387,7 @@
 					
 					<!-- page 22 Glass Valley Page: Only visible if pc9 is checked -->
 					{% if twenty_second_page %}
-					<h2>Glass Valley</h2>
+					<h3><b>Please select any Glass Valley options</b></h3>
 					
 					<!-- Loop through the gv_data dictionary and render checkboxes -->
 					{% for line_code, item in gv_data.items() %}
@@ -398,14 +401,14 @@
 					
 					<!-- Page 23: Sliding doors -->
 					{% if twenty_third_page %}
-					<h2>Sliding Doors</h2>
+					<h3><b>Please select any Sliding Door options</b></h3>
 					
 					<!-- Manual Input for dm5 -->
 					<label for="dm5_manual_input">{{ dm5_label }}:</label>
 					<input type="text" id="dm5_manual_input" name="dm5_manual_input" value="{{ session.get('dm5_manual_input', '') }}"><br><br>
 					
 					<!-- Checkboxes for sds -->
-					<h3>Select Special Dimension Selections (sds)</h3>
+					<h3>Sliding Door Additional Selections</h3>
 					{% for line_code, item in sds_data.items() %}
 					<label class="checkbox-label">
 						<input type="checkbox" name="sds" value="{{ line_code }}" 
@@ -428,7 +431,7 @@
 					
 					<!-- Page 24: Optional Extras -->
 					{% if twenty_fourth_page %}
-					<h2>Optional Extras</h2>
+					<h3><b>Please select any optional extras</b></h3>
 					
 					<!-- Loop through the oe_data dictionary and render checkboxes -->
 					{% for line_code, item in oe_data.items() %}
@@ -442,7 +445,7 @@
 					
 					<!-- Page 25: Contingency -->
 					{% if twenty_fifth_page %}
-					<h2>Contingency</h2>
+					<h3><b>Please select all contingency items to include</b></h3>
 					
 					<!-- Loop through the co_data dictionary and render checkboxes -->
 					{% for line_code, item in co_data.items() %}
@@ -456,7 +459,7 @@
 				
 					<!-- Page 26: Finishing Works -->
 					{% if twenty_sixth_page %}
-					<h2>Finishing Works</h2>
+					<h3><b>Please select any finishing works items to include</b></h3>
 					
 					<!-- Loop through the fw_data dictionary and render checkboxes -->
 					{% for line_code, item in fw_data.items() %}
@@ -470,7 +473,8 @@
 					
 					<!-- Page 27: Finishing Works Optional Extras -->
 					{% if twenty_seventh_page %}
-					<h2>Finishing Works Optional Extras</h2>
+						<h3><b>Please select any finishing works optional extras</b></h3>
+
 					
 					<!-- Loop through the foe_data dictionary and render checkboxes -->
 					{% for line_code, item in foe_data.items() %}
@@ -484,7 +488,7 @@
 				
 					<!-- Page 28: Additional Notes -->
 					{% if twenty_eighth_page %}
-					<h2>Additional Notes</h2>
+					<h3><b>Please add any further notes below:</b></h3>
 					
 					<!-- Manual input fields for Additional Notes -->
 					<label for="an1_manual_input">Cellar:</label>
@@ -524,8 +528,6 @@
 					<!-- Review Page -->
 					<form action="{{ url_for('submit') }}" method="POST">
 					{% if review_page %}
-					<h2>Review Your Submission</h2>
-					
 					{% for key, value in review_data.items() %}
 					<h3>{{ TITLE_MAPPING.get(key, key.replace('_', ' ').capitalize()) }}</h3>  <!-- This handles the titles for each section -->
 					

@@ -391,7 +391,7 @@ def page_four():
             dm4_manual_input=session.get('dm4_manual_input', ''),
             cs1_manual_input=session.get('cs1_manual_input', ''))        
             
-# Fifth page route - External Works (simplified version)
+# Fifth page route - External Wall (simplified version)
 @app.route('/page-five', methods=['POST', 'GET'])
 def page_five():
     
@@ -1348,7 +1348,7 @@ def review():
         'selected_boundary_lines': session.get('selected_boundary_lines'),
         'selected_co': session.get('selected_co'),
         'selected_fw': session.get('selected_fw'),
-        'selected_fwoe': session.get('selected_fwoe'),
+        'selected_fwoe': session.get('selected_foe'),
         'selected_ew': session.get('selected_ew'),
         'selected_fs': session.get('selected_fs'),
         'selected_ps': session.get('selected_ps'),
