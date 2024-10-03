@@ -508,8 +508,20 @@
 					<label for="an7_manual_input">Further Notes:</label>
 					<input type="text" name="an7_manual_input" value="{{ an7_manual_input }}"><br>
 					{% endif %}
-				
+						<!-- Navigation buttons -->
+						<div class="button-container">
+							<!-- Previous button -->
+							{% if previous_page %}
+							<button type="button" class="btn" onclick="window.location.href='{{ url_for(previous_page) }}'">Previous</button>
+							{% endif %}
+							
+							<!-- Next button for non-review pages -->
+							<input type="submit" class="btn" value="Next">
+						</div>
+					</form>
+					
 					<!-- Review Page -->
+					<form action="{{ url_for('submit') }}" method="POST">
 					{% if review_page %}
 					<h2>Review Your Submission</h2>
 					
@@ -541,26 +553,22 @@
 					</ul>
 					{% endif %}
 					{% endwith %}
-				
-					<!-- Navigation buttons -->
-					<div class="button-container">
-						<!-- Previous button -->
-						{% if previous_page %}
-						<button type="button" class="btn" onclick="window.location.href='{{ url_for(previous_page) }}'">Previous</button>
-						{% endif %}
-						
-						<!-- Confirm button (writes to the Google Sheet) -->
-						{% if current_page == 'review' %}
-						<button type="submit" id="confirmButton" class="btn">Confirm</button>
-						
-						<!-- Produce Quote button (disabled until Confirm is clicked) -->
-						<button type="button" id="produceButton" class="btn" disabled onclick="window.location.href='{{ url_for('trigger_production') }}'">Produce Quote</button>
-						{% else %}
-						<!-- Next button for non-review pages -->
-						<input type="submit" class="btn" value="Next">
-						{% endif %}
-					</div>
-				</form>
+						<div class="button-container">
+							<!-- Previous button -->
+							{% if previous_page %}
+							<button type="button" class="btn" onclick="window.location.href='{{ url_for(previous_page) }}'">Previous</button>
+							{% endif %}
+							{% if review_page %}
+							<!-- Confirm button (writes to the Google Sheet) -->
+							<button type="submit" id="confirmButton" class="btn">Confirm</button>
+							{% endfor %}
+							
+							{% if review_page %}
+							<!-- Produce Quote button (disabled until Confirm is clicked) -->
+							<button type="button" id="produceButton" class="btn" disabled onclick="window.location.href='{{ url_for('trigger_production') }}'">Produce Quote</button>
+							{% endfor %}
+						</div>
+					</form>
 			</div>
 		</div>
 	</div>

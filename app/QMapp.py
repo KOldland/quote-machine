@@ -1397,7 +1397,7 @@ def review():
     review_with_titles = {TITLE_MAPPING.get(key, key): value for key, value in internal_descriptions.items()}
     
     # Pass TITLE_MAPPING and other data to the template
-    return render_template('index.html', review_page=True, review_data=review_with_titles, TITLE_MAPPING=TITLE_MAPPING, title="Review Page")
+    return render_template('index.html', review_page=True, review_data=review_with_titles, TITLE_MAPPING=TITLE_MAPPING, current_page='review', title="Review Page")
 
 # Assuming confirm_data is needed as part of validation
 @app.route('/confirm_data', methods=['POST'])
