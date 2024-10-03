@@ -561,12 +561,12 @@
 							{% if review_page %}
 							<!-- Confirm button (writes to the Google Sheet) -->
 							<button type="submit" id="confirmButton" class="btn">Confirm</button>
-							{% endfor %}
+							{% endif %}
 							
 							{% if review_page %}
 							<!-- Produce Quote button (disabled until Confirm is clicked) -->
 							<button type="button" id="produceButton" class="btn" disabled onclick="window.location.href='{{ url_for('trigger_production') }}'">Produce Quote</button>
-							{% endfor %}
+							{% endif %}
 						</div>
 					</form>
 			</div>
