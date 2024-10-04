@@ -1553,7 +1553,8 @@ def submit():
         
         except Exception as e:
             print(f"Error during confirmation: {str(e)}")  # Log the error message once
-            return "Something went wrong, please try again.", 500
+            flash("Something went wrong, please try again.")
+            return render_template('review.html')  # Render review page on exception
     
 
 #final production trigger
