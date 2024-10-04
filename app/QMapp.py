@@ -1526,7 +1526,10 @@ def submit():
             # Call confirm_data before proceeding to update
             confirm_response = confirm_data()
             if confirm_response[1] == 200:
-            
+                print("Data confirmed successfully.")
+            else:
+                print("Data confirmation failed.")
+                
                 # Perform the batch update to the Google Sheet
                 update_include_column(combined_data)  # Only update once, at the end
             
