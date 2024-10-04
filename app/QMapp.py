@@ -1527,9 +1527,7 @@ def submit():
             confirm_response = confirm_data()
             if confirm_response[1] == 200:
                 print("Data confirmed successfully.")
-            else:
-                print("Data confirmation failed.")
-                
+            
                 # Perform the batch update to the Google Sheet
                 update_include_column(combined_data)  # Only update once, at the end
             
@@ -1549,6 +1547,7 @@ def submit():
                 return redirect(url_for('trigger_production'))  # Redirect to trigger the production script
             
             else:
+                print("Data confirmation failed.")
                 flash("Data confirmation failed. Please try again.")
                 return redirect(url_for('review'))
         
