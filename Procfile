@@ -1,1 +1,1 @@
-web: gunicorn app.QMapp:app
+web: gunicorn QMapp:app
