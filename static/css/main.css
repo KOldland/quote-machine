@@ -1,0 +1,411 @@
+/* Main Wrapper */
+.wrapper {
+    display: flex;
+    justify-content: flex-start; /* Align content to start of available space */
+    align-items: flex-start;
+    min-height: 100vh;
+    padding-top: 150px; /* Added padding to create space from the header */
+}
+
+/* Sidebar */
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 20%;
+    height: 87vh; /* Full viewport height for scrolling */
+    padding: 100px 20px 50px 100px;
+    background-color: #1F2D3D;
+    overflow-y: auto; /* In case the sidebar gets too long */
+    overflow-x: hidden; /* Prevent horizontal scroll */
+    transition: width 0.3s ease; /* Smooth transition for sidebar toggle */
+}
+
+.sidebar .nav-link {
+    color: #ffffff;
+    text-decoration: none;
+    margin-bottom: 10px;
+    padding: 5px 30px 5px 5px;
+    display: block;
+    font-size: 16px;
+}
+
+.sidebar .nav-link:hover {
+    background-color: #2D3A4B;
+    padding-left: 10px;
+}
+
+/* Highlight the active sidebar link */
+.sidebar .nav-link.active {
+    background-color: #007BFF;  /* Highlight background color */
+    color: white;  /* Text color */
+    font-weight: bold;  /* Make text bold to emphasize */
+    border-left: 5px solid #0056b3; /* Optional border indicator */
+}
+
+
+/* Toggle sidebar */
+
+.sidebar.collapsed {
+    width: 0; /* Hide the sidebar when collapsed */
+    padding: 0; /* Remove left padding when collapsed */
+    overflow-y: hidden; /* In case the sidebar gets too long */
+    transition: width 0.3s ease; /* Smooth collapse transition */
+}
+
+/* Adjust main content when sidebar is collapsed or visible */
+.main-content {
+    flex: 1;
+    margin-left: 25% !important; /* Space for sidebar when visible */
+    width: 75% !important;  /* Main content takes up the remaining 75% */
+    justify-content: center;
+    align-items: center;
+    padding: 20px !important; /* Ensure padding is consistent */
+    transition: margin-left 0.3s ease, width 0.3s ease;
+}
+
+.main-content.expanded {
+    margin-left: 0 !important; /* Remove margin when sidebar is collapsed */
+    width: 100% !important;  /* Expand content to full width */
+}
+
+.sidebar.collapsed + .main-content {
+    margin-left: 0; /* Remove margin when sidebar is collapsed */
+    width: 100%;  /* Make main content take full width */
+}
+
+/* Sidebar Toggle Button */
+.sidebar-toggle {
+    display: block;
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 1000;
+    background-color: #1F2D3D;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    cursor: pointer;
+    font-size: 20px;
+}
+
+/* Toggle Button Position when Sidebar is Collapsed */
+.sidebar-toggle.collapsed {
+    left: 20px;
+}
+
+/* Form*/
+
+.form-container {
+    background-color: rgba(255, 255, 255, 0.9);
+    padding: 40px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    max-width: 80%;
+    width: 100%;
+    margin: 0 auto;  /* Center the form horizontally */
+}
+
+h1 {
+    text-align: center;
+    font-size: 28px;
+    margin-bottom: 20px;
+}
+
+input[type="text"], input[type="date"] {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 20px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+/* Fonts */
+body {
+    font-family: 'CynthoNextRegular', sans-serif;
+}
+
+h1 {
+    font-family: 'CynthoNextBold', sans-serif;
+}
+
+input, label {
+    font-family: 'CynthoNextRegular', sans-serif;
+}
+
+/* Header styles */
+.app-header {
+    display: flex;
+    background-color: #1F2D3D;
+    color: white;
+    padding: 50px 20%;
+    box-sizing: border-box;
+    justify-content: space-between;
+    align-items: center;
+    position: fixed;
+    width: 100%;
+    top: 0;
+    left: 0;
+    z-index: 999; /* Ensure the header stays on top */
+}
+
+/* Logo styles */
+.app-header .logo {
+    position: absolute;
+    left: 15%;
+    transform: translateX(-15%);
+}
+
+.app-header .qm-logo {
+    position: absolute;
+    right: 15%;
+    transform: translateX(15%);
+    text-align: right; /* Keeps the QM logo justified to the right */
+}
+
+.logo img, .qm-logo img {
+    max-height: 60px; /* Adjust this value to ensure the logos fit well */
+}
+
+/* Adjust image sizes */
+.app-header .logo img,
+.app-header .qm-logo img {
+    height: 40px;
+}
+
+/* Button Container */
+.button-container {
+    display: flex;
+    justify-content: space-between; /* Space buttons apart */
+    margin: 20px 0;  /* Margin around the button container */
+}
+
+/* Buttons - Merging Client's Style with Your Setup */
+.btn {
+    display: inline-block;
+    width: auto; /* Removed full-width from your button setup to match client's */
+    margin: 5px;
+    padding: 11px 35px;
+    background-color: #E8E8E8; /* Client's default color */
+    color: #5C5C5B; /* Client's text color */
+    font-family: 'CynthoNextBold', sans-serif; /* Keeping your custom font */
+    font-size: 15px;
+    line-height: 16px;
+    letter-spacing: 3px; /* Client's uppercase styling */
+    font-weight: 600;
+    text-transform: uppercase; /* Matches client’s design */
+    border: 1px solid #333333; /* Dark grey border */
+    border-radius: 0px; /* No rounding */
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+    vertical-align: middle;
+    transition: background-color 0.5s ease, color 0.5s ease;
+    outline: none;
+    box-shadow: none;
+    overflow: hidden;
+}
+
+/* Hover effect */
+.btn{
+    background-color: #CCCCCC; /* Client’s hover color */
+    color: #333333; /* Darker text on hover */
+}
+
+/* Disabled state */
+input[type="submit"]:disabled, button:disabled {
+    background-color: #6c757d; /* Grey for disabled buttons */
+    color: white; /* Keep white for disabled text */
+    cursor: not-allowed;
+}
+
+/* Checkbox hanging ident */
+.checkbox-label {
+    display: block;
+    padding-left: 30px; /* Ensure enough space for checkbox */
+    text-indent: 0; /* Align text to be in line with checkbox */
+    line-height: 1; /* Adjust the line height if necessary */
+    position: relative;
+}
+
+.checkbox-label input[type="checkbox"] {
+    position: absolute;
+    left: 0;
+    top: 0;
+}
+
+.checkbox-label span {
+    display: inline-block;
+    vertical-align: middle;
+    padding-left: 5px; /* Adjust the space between the checkbox and text */
+    text-align: justify; /* Align the text properly */
+}
+
+/* Background Image */
+
+body {
+    background-image: url('/static/images/Alternative glazing1.jpg'); /* Replace with your image path */
+    background-size: cover; /* This ensures the image covers the whole background */
+    background-repeat: no-repeat; /* Prevents the image from repeating */
+    background-attachment: fixed; /* Ensures the image stays in place while scrolling */
+    background-position: center; /* Centers the image */
+}
+
+/* Footer styles */
+.app-footer {
+    background-color: #1F2D3D;
+    color: white;
+    text-align: center;
+    padding: 15px 0;
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+}
+
+.app-footer a {
+    color: white;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.app-footer a:hover {
+    text-decoration: underline;
+}
+
+/* Checkbox label styles */
+.checkbox-label {
+    display: block;
+    margin-bottom: 10px;
+}
+
+/* Responsive Small Screens*/
+@media (max-width: 768px) {
+    .sidebar {
+            width: 0; /* Hide sidebar by default on small screens */
+            padding: 0; /* Remove padding */
+            overflow: hidden; /* Prevent content overflow */
+            position: absolute;
+            left: 0;
+            top: 0;
+            background-color: #1F2D3D;
+            z-index: 1000; /* Bring sidebar above other content */
+            transition: width 0.3s ease; /* Smooth transition for sidebar toggle */
+        }
+
+/* When the sidebar is toggled open */
+.sidebar.expanded {
+    width: 250px; /* Set the desired width when open */
+    padding: 150px 30px 20px 50px;
+    overflow-y: auto; /* Enable scrolling if content is long */
+}
+    
+    .main-content {
+            margin-left: 0; /* Remove margin when sidebar is collapsed */
+            width: 100%;  /* Expand main content to full width */
+            padding: 10px; /* Maintain padding for main content */
+            transition: margin-left 0.3s ease, width 0.3s ease, visibility 0s 0.3s; /* Smooth transition for content expansion */
+        }
+    /* Full-width buttons */
+    .btn {
+        width: 100%;  /* Full width button */
+        padding: 15px;  /* Larger padding for easier tapping */
+        font-size: 18px;  /* Slightly larger font size for readability */
+        margin-bottom: 50px;  /* Add some margin at the bottom */
+    }
+    
+    /* Button hover effect */
+    .btn:hover {
+        background-color: #0056b3;  /* Slightly darker hover color for mobile */
+        color: #ffffff;  /* Ensure text color stays readable */
+    }
+    
+    /* Additional spacing around buttons */
+    .btn{
+        padding: 20px 0;  /* Add padding around the button for a cleaner look */
+        text-align: center;  /* Center the buttons if not full width */
+    }
+    
+    /* Form container */
+    .form-container {
+        max-width: 100%; /* Full width for smaller screens */
+        padding: 20px; /* Reduce padding for mobile views */
+        box-sizing: border-box; /* Ensure padding and margin don't affect width */
+        width: 100%; /* Force it to take up 100% of the available space */
+    }
+
+/* Sidebar toggle button positioning */
+    
+.sidebar-toggle {
+    display: block; /* Show the toggle button */
+    position: fixed;
+    top: 10px; /* Adjusted to 10px for consistency */
+    left: 10px; /* Adjusted to 10px for smaller screens */
+    z-index: 1200;
+    background-color: rgba(31, 45, 61, 0.0); /* Semi-transparent background */
+    color: white; /* Ensure the icon stays visible */
+    border: none; /* Remove border for cleaner look */
+    padding: 10px 15px;
+    cursor: pointer;
+    font-size: 20px;
+    margin-right: 40px; /* Add margin to the right to create space between the button and the logo */
+}
+    
+    /* Adjust the logo's position on mobile */
+    .logo {
+        position: relative; /* Change to relative so it moves naturally with the page layout */
+        margin-left: 15px; /* Adjust margin to position it properly */
+    }
+
+    /* Ensure wrapper and main-content are full width in mobile view */
+    .wrapper, .main-content {
+        margin-top: 50px;    
+        margin-left: 0 !important; /* Reset any margin pushing content away from the left */
+        padding: 0; /* Remove unnecessary padding */
+        width: 100% !important; /* Ensure the wrapper takes full width */
+    }
+
+    /* Adjust input fields for mobile */
+    input[type="text"], input[type="date"], input[type="submit"] {
+        width: 90%; /* Ensure inputs take full width */
+        padding: 12px;
+        font-size: 16px;
+        }
+
+    /* Ensure header takes full width */
+    .app-header {
+        padding: 30px; /* Reduce padding for mobile */
+        text-align: center; /* Center the logo and text */
+        background-color: rgba(31, 45, 61, 0.2); /* Semi-transparent background */
+        z-index: 1100; /* Higher than the sidebar */
+        box-shadow: none; /* Remove any shadow to keep it clean */
+        }
+
+        
+    }
+
+/* Expanded sidebar for larger screens */
+@media (min-width: 769px) {
+    .sidebar-toggle {
+        display: true; 
+    }
+    
+    .sidebar {
+        width: 20%; /* Show sidebar by default */
+        padding: 150px 30px 20px 50px; /* Add padding back */
+        overflow-y: auto; /* Allow scrolling */
+    }
+    
+    .main-content {
+        margin-left: 25%; /* Restore margin for sidebar */
+        width: 75%;  /* Main content takes up the remaining space */
+    }
+}
+
+.image-preview {
+    display: block;            /* Puts the image on a new line */
+    width: 150px;               /* Adjust the width as needed */
+    height: auto;               /* Maintains aspect ratio */
+    margin-top: 5px;            /* Adds spacing from the input field */
+    border: 1px solid #ccc;     /* Adds a border for visibility */
+    border-radius: 4px;         /* Optional: rounded corners */
+}

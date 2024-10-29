@@ -1,0 +1,88 @@
+{% extends "index.html" %}
+
+{% block content %}
+<div class="form-container"> 
+    <h1>Review Your Submission</h1>
+
+    <!-- Display review data dynamically -->
+    <form>
+        {% for key, value in review_data.items() %}
+        <h3>{{ TITLE_MAPPING.get(key, key.replace('_', ' ').capitalize()) }}</h3> <!-- This handles the titles for each section -->
+
+        {% if value %}
+        {% if value is iterable and not value is string %}
+        <ul>
+            {% for item in value %}
+            <li>{{ item }}</li> <!-- Show list items for iterables like selected checkboxes -->
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p>{{ value }}</p> <!-- Show the manual input value directly, like Date/Address -->
+        {% endif %}
+        {% else %}
+        <p>No data entered for {{ TITLE_MAPPING.get(key, key.replace('_', ' ').capitalize()) }}</p>
+        {% endif %}
+        {% endfor %}
+        
+        <!-- Uploaded Images Section -->
+        {% if uploaded_images %}
+        <h3>Uploaded Image Previews:</h3>
+        <div class="image-previews">
+            {% for label, image_url in uploaded_images.items() %}
+            {% if image_url %}
+            <div class="image-container">
+                <h4>{{ label }}</h4>
+                <img src="{{ image_url }}" alt="{{ label }}" width="300">
+            </div>
+            {% else %}
+            <p>No image uploaded for {{ label }}</p>
+            {% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        <!-- Button container with Commit Data button -->
+        <div class="button-container">
+            <!-- Commit Data button -->
+            <button type="button" id="commitButton" class="btn">Commit Data</button>
+        </div>
+        <script>
+            document.getElementById('commitButton').addEventListener('click', function(event) {
+                event.preventDefault();  // Prevent default form submission
+                
+                // Send request to the submit route
+                fetch('{{ url_for('submit') }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token() }}'  // Ensure CSRF protection if enabled
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Show success confirmation popup
+                        alert(data.message);
+                        
+                        // On success, redirect to confirmation page
+                        window.location.href = '{{ url_for('trigger_production') }}';
+                    } else {
+                        // Show error message popup
+                        alert('Error: ' + data.message);
+                        
+                        // On error, redirect back to the review page
+                        window.location.href = '{{ url_for('review') }}';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred during submission.');
+                    
+                    // Redirect back to the review page in case of any error
+                    window.location.href = '{{ url_for('review') }}';
+                });
+            });
+        </script>
+    </form>
+</div>
+{% endblock %}

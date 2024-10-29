@@ -1,0 +1,30 @@
+<!-- production.html -->
+
+{% extends "index.html" %}
+
+{% block content %}
+<div class="form-container"> 
+    <h1>Produce your quote</h1>
+    <p>You are now ready to produce your quote. Click the button below to begin</p>
+    
+    <button type="button" id="productionButton" class="btn">Generate Document</button>
+    
+    <div id="documentLink" style="display: none;">
+        <p>Your document is ready: <a id="documentUrl" href="" target="_blank">Click here to view</a></p>
+    </div>
+    
+    <script>
+        document.getElementById('productionButton').addEventListener('click', function() {
+            fetch('{{ url_for('trigger_production') }}')
+            .then(response => response.text())
+            .then(html => {
+                document.querySelector('.production-container').innerHTML = html;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while generating the document.');
+            });
+        });
+    </script>
+</div>
+{% endblock %}

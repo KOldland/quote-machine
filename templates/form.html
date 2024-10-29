@@ -1,0 +1,476 @@
+{% extends "index.html" %}
+
+{% block content %}
+<div class="form-container">
+    <h1>{{ title }}</h1>
+    <form action="{{ url_for(request.endpoint) }}" method="POST" {% if twenty_ninth_page %}enctype="multipart/form-data"{% endif %}>
+        
+    
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <!-- First page: Project Details -->
+        {% if first_page %}
+        <label for="pd1_manual_input">Address:</label>
+        <input type="text" id="pd1_manual_input" name="pd1_manual_input" value="{{ session.get('pd1_manual_input', '') }}" required><br>
+
+        <label for="pd2_manual_input">Date:</label>
+        <input type="date" id="pd2_manual_input" name="pd2_manual_input" value="{{ session.get('pd2_manual_input', '') }}" required><br>
+        
+        <label for="pd3_manual_input">Local Council:</label>
+        <input type="text" id="pd3_manual_input" name="pd3_manual_input" value="{{ session.get('pd3_manual_input', '') }}" required><br>
+        {% endif %}
+
+        <!-- Second page: Special Notes -->
+        {% if second_page %}
+        <label><h3><b>Select any selected notes to be included:</b></h3></label><br>
+        {% for prefix, note in data.items() %}
+        <label class="checkbox-label">
+            <input type="checkbox" name="selected_special_notes" value="{{ prefix }}" 
+                {% if prefix in preselected %} checked {% endif %}> 
+            {{ note.description }}
+        </label><br>
+        {% endfor %}
+        {% endif %}
+        
+        <!-- Third page: Building Works -->
+        {% if third_page %}
+        <label><h3><b>Select building works items to include:</b></h3></label><br>
+        {% for prefix, note in data.items() %}
+        <label class="checkbox-label">
+            <input type="checkbox" name="selected_building_works" value="{{ prefix }}" 
+                {% if prefix in preselected %} checked {% endif %}> 
+            {{ note.description }}
+        </label><br>
+        {% endfor %}
+        {% endif %}
+        
+        <!-- Fourth page: Boundary Lines -->
+        {% if fourth_page %}
+        <label for="boundary_lines"><h3><b>Select the relevant boundary lines and similar items to include:</b></h3></label><br><br>
+        {% for line_code, boundary_line in data.items() %}
+        <label class="checkbox-label">
+            <input type="checkbox" name="selected_boundary_lines" value="{{ line_code }}" 
+                {% if line_code in preselected %} checked {% endif %}>
+            <span>{{ boundary_line.description }}</span>
+        </label><br>
+        {% endfor %}
+        
+        <!-- Manual input fields for nb1 and nb2 -->
+        <label for="nb1_manual_input">Neighbour Left Side:</label>
+        <input type="text" name="nb1_manual_input" value="{{ nb1_manual_input }}"><br>
+        
+        <label for="nb2_manual_input">Neighbour Right Side:</label>
+        <input type="text" name="nb2_manual_input" value="{{ nb2_manual_input }}"><br>
+        <!-- Manual input fields for dm1, dm2, dm3, dm4 -->
+        <label for="dm1_manual_input">Extension Size:</label>
+        <input type="text" name="dm1_manual_input" value="{{ dm1_manual_input }}"><br>
+        
+        <label for="dm2_manual_input">Rear Depth:</label>
+        <input type="text" name="dm2_manual_input" value="{{ dm2_manual_input }}"><br>
+        
+        <label for="dm3_manual_input">Full Width:</label>
+        <input type="text" name="dm3_manual_input" value="{{ dm3_manual_input }}"><br>
+        
+        <label for="dm4_manual_input">Side Return Width:</label>
+        <input type="text" name="dm4_manual_input" value="{{ dm4_manual_input }}"><br>
+    
+        {% endif %}
+        
+        {% if fifth_page %}
+        <h3><b>External Wall Options</b></h3>
+        {% for line_code, item in ew_data.items() %}
+        <label class="checkbox-label">
+            <input type="checkbox" name="selected_ew" value="{{ line_code }}" 
+                {% if line_code in preselected_ew %} checked {% endif %}>
+            {{ item.description }}
+        </label><br>
+        {% endfor %}
+        
+        <h3><b>Roofing Options</b></h3>
+        {% for line_code, item in er_data.items() %}
+        <label class="checkbox-label">
+            <input type="checkbox" name="selected_er" value="{{ line_code }}" 
+                {% if line_code in preselected_er %} checked {% endif %}>
+            {{ item.description }}
+        </label><br>
+        {% endfor %}
+        {% endif %}
+        
+        <!-- Sixth Page: Floor Structure -->
+        {% if sixth_page %}
+        <h3><b>Select any floor structure options to include:</b></h3>
+        {% for line_code, item in fs_data.items() %}
+        <label class="checkbox-label">
+            <input type="checkbox" name="selected_fs" value="{{ line_code }}" 
+                {% if line_code in preselected_fs %} checked {% endif %}>
+            {{ item.description }}
+        </label><br>
+        {% endfor %}
+        {% endif %}
+        
+        <!-- Seventh Page: Plastering -->
+        {% if seventh_page %}
+        <h3><b>Select any plastering options to include:</b></h3>
+        {% for line_code, item in ps_data.items() %}
+        <label class="checkbox-label">
+            <input type="checkbox" name="selected_ps" value="{{ line_code }}" 
+                {% if line_code in preselected_ps %} checked {% endif %}>
+            {{ item.description }}
+        </label><br>
+        {% endfor %}
+        {% endif %}
+        
+        <!-- Eighth Page: Internal Doors -->
+        {% if eighth_page %}
+        <h3><b>Select any internal doors options to include:</b></h3>
+        {% for line_code, item in id_data.items() %}
+        <label class="checkbox-label">
+            <input type="checkbox" name="selected_id" value="{{ line_code }}" 
+                {% if line_code in preselected_id %} checked {% endif %}>
+            {{ item.description }}
+        </label><br>
+        {% endfor %}
+        
+        <h3><b>Input door numbers below if relevant:</b></h3>
+        
+        <label for="pd4_manual_input">No. of Fire-Doors:</label>
+        <input type="text" name="pd4_manual_input" value="{{ session.get('pd4_manual_input', '') }}"><br>
+        
+        <label for="pd5_manual_input">No. of Non-Fire Proof Doors:</label>
+        <input type="text" name="pd5_manual_input" value="{{ session.get('pd5_manual_input', '') }}"><br>
+        {% endif %}
+
+        <!-- Ninth Page: Drainage -->
+        {% if ninth_page %}
+        <h3><b>Select any drainage options:</b></h3>
+        {% for line_code, item in dr_data.items() %}
+        <label class="checkbox-label">
+            <input type="checkbox" name="selected_dr" value="{{ line_code }}" 
+                {% if line_code in preselected_dr %} checked {% endif %}>
+            {{ item.description }}
+        </label><br>
+        {% endfor %}
+        {% endif %}
+        
+        <!-- Tenth Page: Waste and Parking -->
+        {% if tenth_page %}
+        <h3><b>Select any waste and parking options:</b></h3>
+        {% for line_code, item in wp_data.items() %}
+        <label class="checkbox-label">
+            <input type="checkbox" name="selected_wp" value="{{ line_code }}" 
+                {% if line_code in preselected_wp %} checked {% endif %}>
+            {{ item.description }}
+        </label><br>
+        {% endfor %}
+        {% endif %}
+        
+        <!-- Eleventh Page: Demolition Works -->
+        {% if eleventh_page %}
+        <h3><b>Select any demolition works options:</b></h3>
+        {% for line_code, item in dw_data.items() %}
+        <label class="checkbox-label">
+            <input type="checkbox" name="selected_dw" value="{{ line_code }}" 
+                {% if line_code in preselected_dw %} checked {% endif %}>
+            {{ item.description }}
+        </label><br>
+        {% endfor %}
+        {% endif %}
+        
+        <!-- Twelfth Page: Further Requirements & Considerations -->
+        {% if twelfth_page %}
+        <h3><b>Select Further Requirements & Considerations Options:</b></h3>
+        {% for line_code, item in frc_data.items() %}
+        <label class="checkbox-label">
+            <input type="checkbox" name="selected_frc" value="{{ line_code }}" 
+                {% if line_code in preselected_frc %} checked {% endif %}>
+            {{ item.description }}
+        </label><br>
+        {% endfor %}
+        {% endif %}
+        
+        <!-- Thirteenth Page: Additional Building Items -->
+        {% if thirteenth_page %}
+        <h3><b>Select any additional building items options:</b></h3>
+        {% for line_code, item in ab_data.items() %}
+        <label class="checkbox-label">
+            <input type="checkbox" name="selected_ab" value="{{ line_code }}" 
+                {% if line_code in preselected_ab %} checked {% endif %}>
+            {{ item.description }}
+        </label><br>
+        {% endfor %}
+        {% endif %}
+        
+        <!-- Fourteenth Page: Schedule of Works (Weeks 1-8) -->
+        {% if fourteenth_page %}
+        <h3><b>Select any schedule of works options (Weeks 1-8):</b></h3>
+        {% for line_code, item in sww_data.items() %}
+        <label class="checkbox-label">
+            <input type="checkbox" name="selected_sww" value="{{ line_code }}" 
+                {% if line_code in preselected_sww %} checked {% endif %}>
+            {{ item.description }}
+        </label><br>
+        {% endfor %}
+        {% endif %}
+        
+        <!-- Fifteenth Page: Schedule of Works (Weeks 9-12) -->
+        {% if fifteenth_page %}
+        <h3><b>Select any schedule of works options (Weeks 9-12):</b></h3>
+        {% for line_code, item in tww_data.items() %}
+        <label class="checkbox-label">
+            <input type="checkbox" name="selected_tww" value="{{ line_code }}" 
+                {% if line_code in preselected_tww %} checked {% endif %}>
+            {{ item.description }}
+        </label><br>
+        {% endfor %}
+        {% endif %}
+        
+        <!-- Sixteenth Page: Pricing Categories -->
+        {% if sixteenth_page %}
+        <h3><b>Please identify the pricing categories to be included</b></h3>
+        {% for line_code, item in pc_data.items() %}
+        <label class="checkbox-label">
+            <input type="checkbox" name="selected_pc" value="{{ line_code }}" 
+                {% if line_code in preselected_pc %} checked {% endif %}>
+            {{ item.description }}
+        </label><br>
+        {% endfor %}
+        {% endif %}
+        
+        <!-- Seventeenth Page: Electrics -->
+        {% if seventeenth_page %}
+        <h3><b>Select any electrical items to include:</b></h3>
+        
+        {% for line_code, item in el_data.items() %}
+        <label class="checkbox-label">
+            <input type="checkbox" name="selected_el" value="{{ line_code }}" 
+                {% if line_code in preselected_el %} checked {% endif %}>
+            {{ item.description }}
+            
+        </label><br>
+        
+        {% endfor %}<h3><b>Please enter the number of points and lights below</b></h3>
+        
+        <label for="pd6_manual_input">Number of kitchen points:</label>
+        <input type="text" id="pd6_manual_input" name="pd6_manual_input" value="{{ session.get('pd6_manual_input', '') }}"><br>
+        
+        <label for="pd7_manual_input">Number of kitchen lights:</label>
+        <input type="text" id="pd7_manual_input" name="pd7_manual_input" value="{{ session.get('pd7_manual_input', '') }}"><br>
+        
+        <label for="pd8_manual_input">Number of loft points:</label>
+        <input type="text" id="pd8_manual_input" name="pd8_manual_input" value="{{ session.get('pd8_manual_input', '') }}"><br>
+        
+        <label for="pd9_manual_input">Number of loft lights:</label>
+        <input type="text" id="pd9_manual_input" name="pd9_manual_input" value="{{ session.get('pd9_manual_input', '') }}"><br>
+        {% endif %}
+        
+        <!-- Eighteenth Page: Plumbing -->
+        {% if eighteenth_page %}
+        <h3><b>Please select any plumbing options</b></h3>
+        {% for line_code, item in pl_data.items() %}
+        <label class="checkbox-label">
+            <input type="checkbox" name="selected_pl" value="{{ line_code }}" 
+                {% if line_code in preselected_pl %} checked {% endif %}>
+            {{ item.description }}
+        </label><br>
+        {% endfor %}
+        {% endif %}
+        
+        <!-- Nineteenth Page: Skylights -->
+        {% if nineteenth_page %}
+        <h3><b>Please select any Skylights options</b></h3>
+        {% for line_code, item in sk_data.items() %}
+        <label class="checkbox-label">
+            <input type="checkbox" name="selected_sk" value="{{ line_code }}" 
+                {% if line_code in preselected_sk %} checked {% endif %}>
+            {{ item.description }}
+        </label><br>
+        {% endfor %}
+        {% endif %}
+        
+        <!-- Twentieth Page: Velux Windows -->
+        {% if twentieth_page %}
+        <h3><b>Please select any Velux windows options</b></h3>
+        {% for line_code, item in vl_data.items() %}
+        <label class="checkbox-label">
+            <input type="checkbox" name="selected_vl" value="{{ line_code }}" 
+                {% if line_code in preselected_vl %} checked {% endif %}>
+            {{ item.description }}
+        </label><br>
+        {% endfor %}
+        {% endif %}
+        
+        <!-- Twenty-First Page: Aluminium Capping -->
+        {% if twenty_first_page %}
+        <h3><b>Please select any Aluminium Capping options</b></h3>
+        {% for line_code, item in ac_data.items() %}
+        <label class="checkbox-label">
+            <input type="checkbox" name="selected_ac" value="{{ line_code }}" 
+                {% if line_code in preselected_ac %} checked {% endif %}>
+            {{ item.description }}
+        </label><br>
+        {% endfor %}
+        {% endif %}
+        
+        <!-- Twenty-Second Page: Glass Valley -->
+        {% if twenty_second_page %}
+        <h3><b>Please select any Glass Valley options</b></h3>
+        {% for line_code, item in gv_data.items() %}
+        <label class="checkbox-label">
+            <input type="checkbox" name="selected_gv" value="{{ line_code }}" 
+                {% if line_code in preselected_gv %} checked {% endif %}>
+            {{ item.description }}
+        </label><br>
+        {% endfor %}
+        {% endif %}
+        
+        <!-- Twenty-Third Page: Sliding Doors -->
+        {% if twenty_third_page %}
+        <h3><b>Please select any Sliding Door options</b></h3>
+        
+        <!-- Manual Input for dm5 -->
+        <label for="dm5_manual_input">{{ pd10_label }}</label>
+        <input type="text" id="pd10_manual_input" name="pd10_manual_input" value="{{ session.get('pd10_manual_input', '') }}"><br><br>
+        
+        <!-- Checkboxes for sds -->
+        <h3>Sliding Door Additional Selections</h3>
+        {% for line_code, item in sld_data.items() %}
+        <label class="checkbox-label">
+            <input type="checkbox" name="selected_sld" value="{{ line_code }}" 
+                {% if line_code in preselected_sld %} checked {% endif %}>
+            {{ item.description }}
+        </label><br>
+        {% endfor %}
+        
+        <!-- Dropdown for sd -->
+        <h3>Select an Option for sliding doors</h3>
+        <label for="selected_sd">Choose one:</label>
+        <select id="selected_sd" name="selected_sd">
+            {% for option in sd_options %}
+            <option value="{{ option.line_code }}" {% if option.line_code == session.get('selected_sd', '') %} selected {% endif %}>
+                {{ option.description }}
+            </option>
+            {% endfor %}
+        </select><br><br>
+        {% endif %}
+        
+        <!-- Page 24: Optional Extras -->
+        {% if twenty_fourth_page %}
+        <h3><b>Please select any optional extras</b></h3>
+        {% for line_code, item in oe_data.items() %}
+        <label class="checkbox-label">
+            <input type="checkbox" name="selected_oe" value="{{ line_code }}" 
+                {% if line_code in preselected_oe %} checked {% endif %}>
+            {{ item.description }}
+        </label><br>
+        {% endfor %}
+        {% endif %}
+        
+        <!-- Page 25: Finishing Works -->
+        {% if twenty_fifth_page %}
+        <h3><b>Please select any finishing works items to include</b></h3>
+        {% for line_code, item in fw_data.items() %}
+        <label class="checkbox-label">
+            <input type="checkbox" name="selected_fw" value="{{ line_code }}" 
+                {% if line_code in preselected_fw %} checked {% endif %}>
+            {{ item.description }}
+        </label><br>
+        {% endfor %}
+        {% endif %}
+        
+        <!-- Page 26: Contingency -->
+        {% if twenty_sixth_page %}
+        <h3><b>Please select all contingency items to include</b></h3>
+        {% for line_code, item in co_data.items() %}
+        <label class="checkbox-label">
+            <input type="checkbox" name="selected_co" value="{{ line_code }}" 
+                {% if line_code in preselected_co %} checked {% endif %}>
+            {{ item.description }}
+        </label><br>
+        {% endfor %}
+        {% endif %}
+        
+        <!-- Page 27: Finishing Works Optional Extras -->
+        {% if twenty_seventh_page %}
+        <h3><b>Please select any finishing works optional extras</b></h3>
+        {% for line_code, item in foe_data.items() %}
+        <label class="checkbox-label">
+            <input type="checkbox" name="selected_foe" value="{{ line_code }}" 
+                {% if line_code in preselected_foe %} checked {% endif %}>
+            {{ item.description }}
+        </label><br>
+        {% endfor %}
+        {% endif %}
+        
+        <!-- Page 28: Additional Notes -->
+        {% if twenty_eighth_page %}
+        <h3><b>Please add any further notes below:</b></h3>
+        
+        <!-- Manual input fields for Additional Notes -->
+        <label for="an1_manual_input">Cellar:</label>
+        <input type="text" name="an1_manual_input" value="{{ an1_manual_input }}"><br>
+        
+        <label for="an2_manual_input">Neighbours levels:</label>
+        <input type="text" name="an2_manual_input" value="{{ an2_manual_input }}"><br>
+        
+        <label for="an3_manual_input">Internal to external levels (steps):</label>
+        <input type="text" name="an3_manual_input" value="{{ an3_manual_input }}"><br>
+        
+        <label for="an4_manual_input">Internal heights:</label>
+        <input type="text" name="an4_manual_input" value="{{ an4_manual_input }}"><br>
+        
+        <label for="an5_manual_input">Outrigger Stories:</label>
+        <input type="text" name="an5_manual_input" value="{{ an5_manual_input }}"><br>
+        
+        <label for="an6_manual_input">Flush External walls:</label>
+        <input type="text" name="an6_manual_input" value="{{ an6_manual_input }}"><br>
+        
+        <label for="an7_manual_input">Further Notes:</label>
+        <input type="text" name="an7_manual_input" value="{{ an7_manual_input }}"><br>
+        {% endif %}
+        
+        <!-- Page 29: image upload -->
+        {% if twenty_ninth_page %}
+        <div class="form-container">
+            <h3>Upload Images</h3>
+                <!-- Cover Image -->
+                <label for="img1">Cover Image:</label>
+                <input type="file" name="img1" accept="image/*"><br>
+                
+                <!-- Building Works CGI -->
+                <label for="img2">Building Works CGI:</label>
+                <input type="file" name="img2" accept="image/*"><br>
+                
+                <!-- Floorplan -->
+                <label for="img3">Floorplan:</label>
+                <input type="file" name="img3" accept="image/*"><br>
+                
+                <!-- Site Images -->
+                <h4>Site Images (1-10)</h4>
+                {% for i in range(23, 33) %}
+                <label for="img{{ i }}">Site Image {{ i - 22 }}:</label>
+                <input type="file" name="img{{ i }}" accept="image/*"><br>
+                {% endfor %}
+                
+                <!-- Submit Button for Image Upload -->
+                <div class="button-container">
+                    <button type="submit" class="btn">Upload Images</button>
+                </div>
+        </div>
+        {% endif %}
+
+        {% if session.get('uploaded_image') %}
+        <h3>Preview of Uploaded Image:</h3>
+        <img src="{{ url_for('static', filename='uploads/' + session.get('uploaded_image')) }}" 
+            alt="Uploaded Image" class="image-preview">
+        {% endif %}
+        
+        <!-- Navigation buttons -->
+        <div class="button-container">
+            {% if previous_page %}
+            <button type="button" class="btn" onclick="window.location.href='{{ url_for(previous_page) }}'">Previous</button>
+            {% endif %}
+            <input type="submit" class="btn" value="Next">
+        </div>
+    </form>
+</div>
+{% endblock %}
