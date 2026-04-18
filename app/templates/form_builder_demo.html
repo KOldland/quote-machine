@@ -1,0 +1,498 @@
+{% extends "index.html" %}
+
+{% block content %}
+<style>
+  body.form-builder-page,
+  body.form-builder-page .wrapper,
+  body.form-builder-page .main-content {
+    background: #fff !important;
+    background-image: none !important;
+  }
+  .main-content {
+    background: #fff !important;
+    border-radius: 10px;
+  }
+  .builder-wrap {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px;
+    background: #fff;
+    border: 1px solid #e6e6e6;
+    border-radius: 10px;
+  }
+  #builder-form,
+  #builder-form .acc-section,
+  #builder-form .acc-body,
+  #builder-form table,
+  #builder-form thead,
+  #builder-form tbody,
+  #builder-form tr,
+  #builder-form td,
+  #builder-form input,
+  #builder-form select,
+  #builder-form textarea {
+    background: #fff !important;
+  }
+  .flow-steps { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 24px; align-items: center; }
+  .flow-step {
+    background: #f0f4ff; border: 1px solid #c0ccee; border-radius: 6px;
+    padding: 5px 10px; font-size: 12px; display: inline-flex; align-items: center; gap: 5px;
+  }
+  .flow-step .step-num {
+    background: #3a5bd9; color: #fff; border-radius: 50%;
+    width: 18px; height: 18px; display: inline-flex; align-items: center;
+    justify-content: center; font-size: 10px; font-weight: bold; flex-shrink: 0;
+  }
+  .flow-arrow { color: #aaa; font-size: 16px; }
+  .builder-section-heading {
+    font-size: 12px; font-weight: 700; color: #666; text-transform: uppercase;
+    letter-spacing: 0.05em; margin: 20px 0 8px; border-bottom: 1px solid #eee; padding-bottom: 4px;
+  }
+  .acc-section {
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    overflow: hidden;
+    background: #fff !important;
+  }
+  .acc-header {
+    width: 100%; text-align: left; background: #fff; border: none;
+    padding: 11px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
+    display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  }
+  .acc-header:hover { background: #eef0f5; }
+  .acc-body { padding: 14px 16px; display: none; background: #fff !important; }
+  .acc-body.open { display: block; }
+  .stbl { width: 100%; border-collapse: collapse; font-size: 13px; background: #fff !important; }
+  .stbl thead, .stbl tbody, .stbl tr, .stbl td { background: #fff !important; }
+  .builder-section-heading, .flow-steps { background: #fff !important; }
+  .stbl td { padding: 5px 7px; vertical-align: middle; }
+  .stbl td:first-child { width: 200px; color: #444; font-weight: 500; }
+  .stbl input[type=text], .stbl input[type=number] {
+    width: 100%; padding: 4px 7px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px;
+  }
+  .field-row td { border-top: 1px solid #f0f0f0; }
+  .tag  { background:#e8eaf6; color:#3949ab; border-radius:3px; padding:1px 5px; font-size:11px; font-family:monospace; }
+  .ttag { background:#e0f2f1; color:#00695c; border-radius:3px; padding:1px 5px; font-size:11px; }
+  .note-txt { color:#999; font-size:11px; font-style:italic; margin-top:2px; }
+  .sum-warn { color:#c62828; font-size:12px; margin-top:6px; display:none; }
+  .btn-save {
+    background:#3a5bd9; color:#fff; border:none; padding:10px 28px;
+    border-radius:5px; font-size:14px; cursor:pointer; margin-top:16px;
+  }
+  .btn-save:hover { background:#2d48b5; }
+  .flash-msg { padding:9px 13px; border-radius:5px; margin-bottom:10px; font-size:13px; }
+  .flash-msg.success { background:#e8f5e9; color:#2e7d32; border:1px solid #a5d6a7; }
+  .flash-msg.error   { background:#ffebee; color:#b71c1c; border:1px solid #ef9a9a; }
+  .nav-row { display:flex; gap:14px; margin-bottom:14px; }
+  .nav-row > div { flex:1; }
+  .nav-row label { font-size:11px; color:#888; }
+  .nav-row input { width:100%; margin-top:3px; padding:4px 7px; border:1px solid #ccc;
+                   border-radius:4px; font-size:12px; font-family:monospace; }
+  .drag-handle {
+    cursor: grab;
+    color: #bbb;
+    font-size: 18px;
+    padding: 0 10px 0 0;
+    user-select: none;
+    flex-shrink: 0;
+    line-height: 1;
+  }
+  .drag-handle:active { cursor: grabbing; }
+  body.drag-sorting {
+    cursor: grabbing;
+    user-select: none;
+  }
+  #page-settings-list .acc-section {
+    transition: transform 0.16s ease, box-shadow 0.16s ease, opacity 0.16s ease;
+  }
+  /* Original row while being dragged — becomes a ghost placeholder */
+  .acc-section.is-dragging-source {
+    opacity: 0.25;
+    border-style: dashed;
+    pointer-events: none;
+  }
+  /* Floating clone card that follows the cursor */
+  .drag-clone {
+    position: fixed;
+    pointer-events: none;
+    z-index: 9999;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.12);
+    border-radius: 8px;
+    border: 1px solid #c0ccee;
+    background: #fff;
+    opacity: 0.97;
+    transform: rotate(1.2deg) scale(1.02);
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+  }
+  /* Blue insertion-line indicator */
+  .drop-indicator {
+    height: 3px;
+    background: #3a5bd9;
+    border-radius: 3px;
+    margin: -2px 0;
+    pointer-events: none;
+    opacity: 0;
+    transform: scaleX(0.72);
+    transform-origin: left center;
+    transition: opacity 0.12s ease, transform 0.12s ease;
+  }
+  .drop-indicator.active {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+  .acc-section.drop-snap {
+    animation: dropSnap 220ms ease;
+  }
+  @keyframes dropSnap {
+    0%   { transform: scale(1.02); }
+    60%  { transform: scale(0.995); }
+    100% { transform: scale(1); }
+  }
+</style>
+
+<div class="builder-wrap">
+  <h1 style="margin-bottom:4px;">Form Builder</h1>
+  <p style="color:#777; font-size:13px; margin-bottom:16px;">Configure page titles, field labels, pricing rates, and payment plan. Saved as the active draft.</p>
+  {% if template_status %}
+  <p style="color:#667; font-size:12px; margin-top:-8px; margin-bottom:14px;">
+    Template Store: <strong>{{ template_status.template_key }}</strong>
+    · Version <strong>{{ template_status.latest_version }}</strong>
+    · Pages <strong>{{ template_status.tables.page_templates or 0 }}</strong>
+    · Questions <strong>{{ template_status.tables.question_templates or 0 }}</strong>
+    · <a href="{{ url_for('template_store_status') }}" target="_blank" rel="noopener" style="color:#3a5bd9;">View JSON status</a>
+  </p>
+  {% endif %}
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      <div class="flash-msg {{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <div class="builder-section-heading">Current Form Flow</div>
+  <div class="flow-steps">
+    <div class="flow-step"><span class="step-num">1</span> Project Details</div>
+    {% set ns = namespace(n=2) %}
+    {% for page_id, page in pages.items() %}
+      <span class="flow-arrow">›</span>
+      <div class="flow-step"><span class="step-num">{{ ns.n }}</span> {{ page.title }}</div>
+      {% set ns.n = ns.n + 1 %}
+    {% endfor %}
+    <span class="flow-arrow">›</span>
+    <div class="flow-step"><span class="step-num">{{ ns.n }}</span> Review &amp; Submit</div>
+  </div>
+
+  <form action="{{ url_for('form_builder_demo') }}" method="POST" id="builder-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <!-- PAGE SETTINGS -->
+    <div class="builder-section-heading" style="margin-top:22px;">Page Settings</div>
+    <p style="color:#999; font-size:12px; margin-bottom:10px;">Edit titles, navigation endpoints, and field labels. Navigation values must match Flask route names. <strong>Drag rows to reorder pages.</strong></p>
+    <input type="hidden" name="page_order" id="page_order_input" value="{{ pages.keys()|join(',') }}">
+
+    <div id="page-settings-list">
+    {% for page_id, page in pages.items() %}
+    <div class="acc-section" data-page-id="{{ page_id }}">
+      <button type="button" class="acc-header" onclick="toggleAcc('page_{{ page_id }}')">
+        <span class="drag-handle" title="Drag to reorder">⠿</span>
+        <span style="flex:1;">{{ page.title }} <span class="tag" style="font-weight:400;">{{ page_id }}</span></span>
+        <span>▾</span>
+      </button>
+      <div id="page_{{ page_id }}" class="acc-body" style="background:#fff;">
+        <div style="margin-bottom:10px;">
+          <label style="font-size:13px; font-weight:600;">Page Title</label><br>
+          <input type="text" name="page_title__{{ page_id }}" value="{{ page.title }}"
+                 style="width:100%; margin-top:3px; padding:5px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px;">
+        </div>
+        <div class="nav-row">
+          <div>
+            <label>← Previous endpoint</label>
+            <input type="text" name="page_prev__{{ page_id }}" value="{{ page.navigation.previous_endpoint }}">
+          </div>
+          <div>
+            <label>→ Next endpoint</label>
+            <input type="text" name="page_next__{{ page_id }}" value="{{ page.navigation.next_endpoint }}">
+          </div>
+        </div>
+        {% if page.fields %}
+        <div style="font-size:11px; font-weight:700; color:#777; margin-bottom:5px; text-transform:uppercase; letter-spacing:.03em;">Fields</div>
+        <table class="stbl" style="border:1px solid #eee; border-radius:4px;">
+          <thead style="background:#fff;">
+            <tr>
+              <td style="font-weight:700; color:#555; width:130px; padding:6px 8px;">ID</td>
+              <td style="font-weight:700; color:#555; width:110px; padding:6px 8px;">Type</td>
+              <td style="font-weight:700; color:#555; padding:6px 8px;">Label</td>
+              <td style="font-weight:700; color:#555; width:65px; padding:6px 8px;">Order</td>
+            </tr>
+          </thead>
+          <tbody>
+            {% for field in page.fields %}
+            <tr>
+              <td style="padding:6px 8px; color:#555; font-size:12px;">{{ field.id }}</td>
+              <td style="padding:6px 8px; color:#555; font-size:12px;">{{ field.type }}</td>
+              <td style="padding:6px 8px;">
+                <input type="text" name="label__{{ page_id }}__{{ loop.index0 }}" value="{{ field.label }}"
+                       style="width:100%; padding:3px 6px; border:1px solid #ddd; border-radius:3px; font-size:12px;">
+              </td>
+              <td style="padding:6px 8px;">
+                <input type="number" name="order__{{ page_id }}__{{ loop.index0 }}" value="{{ loop.index0 }}"
+                       style="width:55px; padding:3px 5px; border:1px solid #ddd; border-radius:3px; font-size:12px;">
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+    </div>
+
+    <!-- PRICING CALCULATIONS -->
+    <div class="builder-section-heading" style="margin-top:22px;">Pricing Calculations</div>
+
+    <div class="acc-section">
+      <button type="button" class="acc-header" onclick="toggleAcc('rules_pricing')">
+        <span>Pricing Rules <span style="font-weight:400; color:#999; font-size:12px;">— per-unit rates used in Additional Costs</span></span>
+        <span>▾</span>
+      </button>
+      <div id="rules_pricing" class="acc-body" style="background:#fff;">
+        <table class="stbl">
+          <tbody>
+            <tr><td>Kitchen Light Rate (£)</td><td><input type="number" step="0.01" min="0" name="rules__kitchen_light_rate" value="{{ pricing_rules.kitchen_light_rate }}"></td></tr>
+            <tr><td>Kitchen Point Rate (£)</td><td><input type="number" step="0.01" min="0" name="rules__kitchen_point_rate" value="{{ pricing_rules.kitchen_point_rate }}"></td></tr>
+            <tr><td>Loft Light Rate (£)</td><td>   <input type="number" step="0.01" min="0" name="rules__loft_light_rate"    value="{{ pricing_rules.loft_light_rate }}"></td></tr>
+            <tr><td>Loft Point Rate (£)</td><td>   <input type="number" step="0.01" min="0" name="rules__loft_point_rate"    value="{{ pricing_rules.loft_point_rate }}"></td></tr>
+            <tr><td>Rounding Precision</td><td>    <input type="number" min="0" max="4"     name="rules__rounding_precision" value="{{ pricing_rules.rounding_precision }}"></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="acc-section">
+      <button type="button" class="acc-header" onclick="toggleAcc('rules_payment')">
+        <span>Payment Plan Rules <span style="font-weight:400; color:#999; font-size:12px;">— deposit and stage schedule</span></span>
+        <span>▾</span>
+      </button>
+      <div id="rules_payment" class="acc-body" style="background:#fff;">
+        <table class="stbl">
+          <tbody>
+            <tr><td>Deposit (%)</td><td><input type="number" step="0.01" min="0" max="100" name="rules__deposit_percent" value="{{ payment_plan_rules.deposit_percent }}" oninput="checkStageSum()"></td></tr>
+            {% for stage in payment_plan_rules.stages %}
+            <tr class="field-row"><td>Stage {{ loop.index }} — Name</td>   <td><input type="text"   name="rules__stage_{{ loop.index }}_name"    value="{{ stage.name }}"></td></tr>
+            <tr>                  <td>Stage {{ loop.index }} — Percent (%)</td><td><input type="number" step="0.01" min="0" max="100" name="rules__stage_{{ loop.index }}_percent" value="{{ stage.percent }}" oninput="checkStageSum()"></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <div id="sum-warn" class="sum-warn"></div>
+        <p class="note-txt">Deposit + all stage percentages must total 100%. Validated on save.</p>
+      </div>
+    </div>
+
+    <div style="margin-top:20px; display:flex; gap:10px; align-items:center;">
+      <button type="submit" class="btn btn-primary" style="padding:10px 28px; font-size:14px; font-weight:600;">Save Changes</button>
+      <span id="save-ok" style="display:none; color:#2a7a2a; font-size:13px;">✓ Saved</span>
+    </div>
+  </form>
+</div>
+
+<script>
+document.body.classList.add('form-builder-page');
+// --- Page drag-and-drop reorder (floating-card style) ---
+(function () {
+  var list       = document.getElementById('page-settings-list');
+  if (!list) return;
+
+  var src        = null;
+  var clone      = null;
+  var indicator  = null;
+  var offsetX    = 0, offsetY = 0;
+  var cloneW     = 0;
+  var targetX    = 0, targetY = 0;
+  var visualX    = 0, visualY = 0;
+  var followRaf  = null;
+  var pointerY   = 0;
+  var autoScrollSpeed = 0;
+
+  function getItems() {
+    return Array.from(list.querySelectorAll('.acc-section[data-page-id]'));
+  }
+
+  function writeOrder() {
+    var ids = getItems().map(function (el) { return el.getAttribute('data-page-id'); });
+    document.getElementById('page_order_input').value = ids.join(',');
+  }
+
+  function createIndicator() {
+    indicator = document.createElement('div');
+    indicator.className = 'drop-indicator';
+    indicator.style.display = 'none';
+    list.appendChild(indicator);
+  }
+
+  function moveIndicator(target, insertBefore) {
+    if (!indicator) return;
+    indicator.style.display = 'block';
+    indicator.classList.add('active');
+    if (insertBefore) {
+      list.insertBefore(indicator, target);
+    } else {
+      list.insertBefore(indicator, target.nextSibling);
+    }
+  }
+
+  function removeIndicator() {
+    if (indicator && indicator.parentNode) {
+      indicator.parentNode.removeChild(indicator);
+    }
+    indicator = null;
+  }
+
+  function updateDropTarget(clientY) {
+    var items = getItems().filter(function (el) { return el !== src; });
+    var target = null;
+    var insertBefore = false;
+    for (var i = 0; i < items.length; i++) {
+      var r = items[i].getBoundingClientRect();
+      if (clientY >= r.top && clientY <= r.bottom) {
+        target = items[i];
+        insertBefore = clientY < r.top + r.height / 2;
+        break;
+      }
+    }
+    if (target) {
+      moveIndicator(target, insertBefore);
+    } else if (indicator) {
+      indicator.style.display = 'none';
+      indicator.classList.remove('active');
+    }
+  }
+
+  function updateAutoScroll(clientY) {
+    var edgeZone = 110;
+    var maxSpeed = 18;
+    if (clientY < edgeZone) {
+      autoScrollSpeed = -Math.min(maxSpeed, Math.ceil((edgeZone - clientY) / 6));
+    } else if (clientY > window.innerHeight - edgeZone) {
+      autoScrollSpeed = Math.min(maxSpeed, Math.ceil((clientY - (window.innerHeight - edgeZone)) / 6));
+    } else {
+      autoScrollSpeed = 0;
+    }
+  }
+
+  function followClone() {
+    if (!clone) return;
+    visualX += (targetX - visualX) * 0.34;
+    visualY += (targetY - visualY) * 0.34;
+    clone.style.left = visualX + 'px';
+    clone.style.top = visualY + 'px';
+
+    if (autoScrollSpeed !== 0) {
+      window.scrollBy(0, autoScrollSpeed);
+      updateDropTarget(pointerY);
+    }
+
+    followRaf = requestAnimationFrame(followClone);
+  }
+
+  function stopFollowClone() {
+    if (followRaf) {
+      cancelAnimationFrame(followRaf);
+      followRaf = null;
+    }
+  }
+
+  function onMouseDown(e) {
+    if (!e.target.closest('.drag-handle')) return;
+    e.preventDefault();
+    src = e.currentTarget;
+
+    var rect = src.getBoundingClientRect();
+    offsetX  = e.clientX - rect.left;
+    offsetY  = e.clientY - rect.top;
+    cloneW   = rect.width;
+
+    clone = src.cloneNode(true);
+    clone.className += ' drag-clone';
+    clone.style.width = cloneW + 'px';
+    targetY = e.clientY - offsetY;
+    targetX = e.clientX - offsetX;
+    visualY = targetY;
+    visualX = targetX;
+    pointerY = e.clientY;
+    clone.style.top   = targetY + 'px';
+    clone.style.left  = targetX + 'px';
+    clone.querySelectorAll('.acc-body').forEach(function (b) { b.style.display = 'none'; });
+    document.body.appendChild(clone);
+
+    src.classList.add('is-dragging-source');
+    document.body.classList.add('drag-sorting');
+    createIndicator();
+    followRaf = requestAnimationFrame(followClone);
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup',   onMouseUp);
+  }
+
+  function onMouseMove(e) {
+    if (!clone) return;
+    pointerY = e.clientY;
+    targetY = e.clientY - offsetY;
+    targetX = e.clientX - offsetX;
+    updateAutoScroll(e.clientY);
+    updateDropTarget(e.clientY);
+  }
+
+  function onMouseUp() {
+    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mouseup',   onMouseUp);
+    stopFollowClone();
+    autoScrollSpeed = 0;
+
+    if (clone) { document.body.removeChild(clone); clone = null; }
+    if (src)   { src.classList.remove('is-dragging-source'); }
+    document.body.classList.remove('drag-sorting');
+
+    if (indicator && indicator.parentNode) {
+      list.insertBefore(src, indicator);
+      src.classList.add('drop-snap');
+      setTimeout(function () {
+        if (src) src.classList.remove('drop-snap');
+      }, 240);
+    }
+    removeIndicator();
+    writeOrder();
+    src = null;
+  }
+
+  function init() {
+    getItems().forEach(function (el) {
+      el.addEventListener('mousedown', onMouseDown);
+    });
+    writeOrder();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+// --- End drag-and-drop ---
+
+function toggleAcc(id) {
+  var el = document.getElementById(id);
+  if (el) el.classList.toggle('open');
+}
+function checkStageSum() {
+  var dep = parseFloat(document.querySelector('[name="rules__deposit_percent"]').value) || 0;
+  var total = dep;
+  document.querySelectorAll('[name^="rules__stage_"][name$="_percent"]').forEach(function(i){ total += parseFloat(i.value)||0; });
+  var w = document.getElementById('sum-warn');
+  if (Math.abs(total - 100) > 0.01) {
+    w.style.display='block'; w.textContent='⚠ Current total: '+total.toFixed(2)+'%. Must equal 100%.';
+  } else { w.style.display='none'; }
+}
+</script>
+{% endblock %}
