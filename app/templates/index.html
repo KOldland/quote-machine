@@ -1,609 +1,68 @@
 <!DOCTYPE html>
 <html lang="en">
 
-	<head>
-		<meta charset="UTF-8">
-		<meta name="viewport" content="width=device-width, initial-scale=1.0">
-		<link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">        
-		<title>{{ title }}</title>
-	</head>
-	<body>
-		<!-- Sidebar Toggle Button -->
-		<button id="sidebarToggle" class="sidebar-toggle">
-			☰ <!-- This can be an icon for a hamburger menu -->
-		</button>
-		
-		<!-- Header goes here -->
-		<header class="app-header">
-			<div class="logo">
-				<img src="{{ url_for('static', filename='/images/logo-white-plus-rooms.png') }}" alt="Plus Rooms Logo">
-			</div>
-			<div class="qm-logo">
-				<img src="{{ url_for('static', filename='/images/qmlogo.png') }}" alt="Quote Machine Logo">
-			</div>
-		</header>
-		
-		<div class="wrapper">
-			<!-- Sidebar Navigation -->
-			<div id="sidebar" class="sidebar">  <!-- Added id="sidebar" for JavaScript targeting -->
-				<nav class="nav flex-column">
-					<a href="{{ url_for('index') }}" class="nav-link {% if request.endpoint == 'index' %}active{% endif %}">Project Details</a>
-					<a href="{{ url_for('page_two') }}" class="nav-link {% if request.endpoint == 'page_two' %}active{% endif %}">Special Notes</a>
-					<a href="{{ url_for('page_three') }}" class="nav-link {% if request.endpoint == 'page_three' %}active{% endif %}">Building Works</a>
-					<a href="{{ url_for('page_four') }}" class="nav-link {% if request.endpoint == 'page_four' %}active{% endif %}">Boundary Lines</a>
-					<a href="{{ url_for('page_five') }}" class="nav-link {% if request.endpoint == 'page_five' %}active{% endif %}">External Wall</a>
-					<a href="{{ url_for('page_six') }}" class="nav-link {% if request.endpoint == 'page_six' %}active{% endif %}">Floor Structure</a>
-					<a href="{{ url_for('page_seven') }}" class="nav-link {% if request.endpoint == 'page_seven' %}active{% endif %}">Plastering</a>
-					<a href="{{ url_for('page_eight') }}" class="nav-link {% if request.endpoint == 'page_eight' %}active{% endif %}">Internal Doors</a>
-					<a href="{{ url_for('page_nine') }}" class="nav-link {% if request.endpoint == 'page_nine' %}active{% endif %}">Drainage</a>
-					<a href="{{ url_for('page_ten') }}" class="nav-link {% if request.endpoint == 'page_ten' %}active{% endif %}">Waste and Parking</a>
-					<a href="{{ url_for('page_eleven') }}" class="nav-link {% if request.endpoint == 'page_eleven' %}active{% endif %}">Demolition Works</a>
-					<a href="{{ url_for('page_twelve') }}" class="nav-link {% if request.endpoint == 'page_twelve' %}active{% endif %}">Further Requirements</a>
-					<a href="{{ url_for('page_thirteen') }}" class="nav-link {% if request.endpoint == 'page_thirteen' %}active{% endif %}">Additional Building Items</a>
-					<a href="{{ url_for('page_fourteen') }}" class="nav-link {% if request.endpoint == 'page_fourteen' %}active{% endif %}">Schedule of Works (Weeks 1-8)</a>
-					<a href="{{ url_for('page_fifteen') }}" class="nav-link {% if request.endpoint == 'page_fifteen' %}active{% endif %}">Schedule of Works (Weeks 9-12)</a>
-					<a href="{{ url_for('page_sixteen') }}" class="nav-link {% if request.endpoint == 'page_sixteen' %}active{% endif %}">Pricing Categories</a>
-					<a href="{{ url_for('page_seventeen') }}" class="nav-link {% if request.endpoint == 'page_seventeen' %}active{% endif %}">Electrics</a>
-					<a href="{{ url_for('page_eighteen') }}" class="nav-link {% if request.endpoint == 'page_eighteen' %}active{% endif %}">Plumbing</a>
-					<a href="{{ url_for('page_nineteen') }}" class="nav-link {% if request.endpoint == 'page_nineteen' %}active{% endif %}">Skylights</a>
-					<a href="{{ url_for('page_twenty') }}" class="nav-link {% if request.endpoint == 'page_twenty' %}active{% endif %}">Velux Windows</a>
-					<a href="{{ url_for('page_twenty_one') }}" class="nav-link {% if request.endpoint == 'page_twenty_one' %}active{% endif %}">Aluminium Capping</a>
-					<a href="{{ url_for('page_twenty_two') }}" class="nav-link {% if request.endpoint == 'page_twenty_two' %}active{% endif %}">Glass Valley</a>
-					<a href="{{ url_for('page_twenty_three') }}" class="nav-link {% if request.endpoint == 'page_twenty_three' %}active{% endif %}">Sliding Doors</a>
-					<a href="{{ url_for('page_twenty_four') }}" class="nav-link {% if request.endpoint == 'page_twenty_four' %}active{% endif %}">Optional Extras</a>
-					<a href="{{ url_for('page_twenty_five') }}" class="nav-link {% if request.endpoint == 'page_twenty_five' %}active{% endif %}">Contingency</a>
-					<a href="{{ url_for('page_twenty_six') }}" class="nav-link {% if request.endpoint == 'page_twenty_six' %}active{% endif %}">Finishing Works</a>
-					<a href="{{ url_for('page_twenty_seven') }}" class="nav-link {% if request.endpoint == 'page_twenty_seven' %}active{% endif %}">Finishing Works Optional Extras</a>
-					<a href="{{ url_for('page_twenty_eight') }}" class="nav-link {% if request.endpoint == 'page_twenty_eight' %}active{% endif %}">Additional Notes</a>
-					<a href="{{ url_for('review') }}" class="nav-link {% if request.endpoint == 'review' %}active{% endif %}">Review</a>
-				</nav>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <title>{{ title }}</title>
+</head>
 
-			</div>
-			<!-- Main content and form section -->
-			<div class="main-content">
-				<div class="form-container">
-					<h1>{{ title }}</h1>
-					<form action="{{ url_for(request.endpoint) }}" method="POST">
-						<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-						<!-- First page: Project Details -->
-						{% if first_page %}
-						<label for="address">Address:</label>
-						<input type="text" id="address" name="address" value="{{ session.get('address', '') }}" required>
-						<br><br>
-						
-						<label for="date">Date:</label>
-						<input type="date" id="date" name="date" value="{{ session.get('date', '') }}" required>
-						<br><br>
-						{% endif %}
-				
-					<!-- Second page: Special Notes -->
-					{% if second_page %}
-					<label><h3><b>Select any selected notes to be included:</b></h3></label><br>
-					{% for prefix, note in data.items() %}
-					<label class="checkbox-label">
-						<input type="checkbox" name="special_notes" value="{{ prefix }}" 
-							{% if prefix in preselected %} checked {% endif %}> 
-						{{ note.description }}
-					</label><br>
-					{% endfor %}
-					{% endif %}
-				
-					<!-- Third page: Building Works -->
-					{% if third_page %}
-					<label><h3><b>Select building works items to include:</b></h3></label><br>
-					{% for prefix, note in data.items() %}
-					<label class="checkbox-label">
-						<input type="checkbox" name="building_works" value="{{ prefix }}" 
-							{% if prefix in preselected %} checked {% endif %}> 
-						{{ note.description }}
-					</label><br>
-					{% endfor %}
-					{% endif %}
-					<br><br>
-				
-					<!-- Fourth page: Boundary Lines -->
-					{% if fourth_page %}
-					<label for="boundary_lines"><h3><b>Select the relevant boundary lines and similar items to include:</b></h3></label><br><br>
-					{% for line_code, boundary_line in data.items() %}
-					<label class="checkbox-label">
-						<input type="checkbox" name="boundary_lines" value="{{ line_code }}" 
-							{% if line_code in preselected %} checked {% endif %}>
-						<span>{{ boundary_line.description }}</span>
-					</label><br>
-					{% endfor %}
-					
-					<!-- Guidance Text -->
-					<p><h3><b>Please provide values for the following fields if relevant:</b></h3></p>
-					
-					<!-- Manual input fields for nb1 and nb2 -->
-					<label for="nb1_manual_input">Neighbour Left Side:</label>
-					<input type="text" name="nb1_manual_input" value="{{ nb1_manual_input }}"><br>
-					
-					<label for="nb2_manual_input">Neighbour Right Side:</label>
-					<input type="text" name="nb2_manual_input" value="{{ nb2_manual_input }}"><br>
-					
-					<!-- Manual input fields for dm1, dm2, dm3, dm4 -->
-					<label for="dm1_manual_input">Extension Size:</label>
-					<input type="text" name="dm1_manual_input" value="{{ dm1_manual_input }}"><br>
-					
-					<label for="dm2_manual_input">Rear Depth:</label>
-					<input type="text" name="dm2_manual_input" value="{{ dm2_manual_input }}"><br>
-					
-					<label for="dm3_manual_input">Full Width:</label>
-					<input type="text" name="dm3_manual_input" value="{{ dm3_manual_input }}"><br>
-					
-					<label for="dm4_manual_input">Side Return Width:</label>
-					<input type="text" name="dm4_manual_input" value="{{ dm4_manual_input }}"><br>
-					
-					<!-- Manual input for cs1 -->
-					<label for="cs1_manual_input">Council Status:</label>
-					<input type="text" name="cs1_manual_input" value="{{ cs1_manual_input }}"><br>
-					{% endif %}
-				
-					<!-- Fifth Page: External Works -->
-					{% if fifth_page %}
-					<h3><b>Select any external wall options to include:</b></h3>
-					
-					{% for line_code, item in ew_data.items() %}
-					<label class="checkbox-label">
-						<input type="checkbox" name="ew" value="{{ line_code }}" 
-							{% if line_code in preselected_ew %} checked {% endif %}>
-						{{ item.description }}
-					</label><br>
-					{% endfor %}
-					{% endif %}
-					
-					<!-- Sixth Page: Floor Structure -->
-					{% if sixth_page %}
-					<h3><b>Select any floor structure options to include:</b></h3>
-					
-					{% for line_code, item in fs_data.items() %}
-					<label class="checkbox-label">
-						<input type="checkbox" name="fs" value="{{ line_code }}" 
-							{% if line_code in preselected_fs %} checked {% endif %}>
-						{{ item.description }}
-					</label><br>
-					{% endfor %}
-					{% endif %}
-					
-					<!-- Seventh Page: Plastering -->
-					{% if seventh_page %}
-					<h3><b>Select any plastering options to include:</b></h3>
-					
-					{% for line_code, item in ps_data.items() %}
-					<label class="checkbox-label">
-						<input type="checkbox" name="ps" value="{{ line_code }}" 
-							{% if line_code in preselected_ps %} checked {% endif %}>
-						{{ item.description }}
-					</label><br>
-					{% endfor %}
-					{% endif %}
-				
-					<!-- Eighth Page: Internal Doors -->
-					{% if eighth_page %}
-					<h3><b>Select any internal doors options to include:</b></h3>
-					
-					{% for line_code, item in id_data.items() %}
-					<label class="checkbox-label">
-						<input type="checkbox" name="id" value="{{ line_code }}" 
-							{% if line_code in preselected_id %} checked {% endif %}>
-						{{ item.description }}
-					</label><br>
-					{% endfor %}
-					
-					<h3><b>Input door numbers below if relevant:</b></h3>
-					
-					<label for="id1_manual_input">No. of Fire-Doors:</label>
-					<input type="text" name="id1_manual_input" value="{{ id1_manual_input }}"><br>
-					
-					<label for="id2_manual_input">No. of Non-Fire Proof Doors:</label>
-					<input type="text" name="id2_manual_input" value="{{ id2_manual_input }}"><br>
-					{% endif %}
-					
-					<!-- Ninth Page: Drainage -->
-					{% if ninth_page %}
-					<h3><b>Select any drainage options:</b></h3>
-					
-					{% for line_code, item in dr_data.items() %}
-					<label class="checkbox-label">
-						<input type="checkbox" name="dr" value="{{ line_code }}" 
-							{% if line_code in preselected_dr %} checked {% endif %}>
-						{{ item.description }}
-					</label><br>
-					{% endfor %}
-					{% endif %}
-				
-					<!-- Tenth Page: Waste and Parking -->
-					{% if tenth_page %}
-					<h3><b>Select any waste and parking options:</b></h3>
-					
-					{% for line_code, item in wp_data.items() %}
-					<label class="checkbox-label">
-						<input type="checkbox" name="wp" value="{{ line_code }}" 
-							{% if line_code in preselected_wp %} checked {% endif %}>
-						{{ item.description }}
-					</label><br>
-					{% endfor %}
-					{% endif %}            
-					
-					<!-- Eleventh Page: Demolition Works -->
-					{% if eleventh_page %}
-					<h3><b>Select any demolition works options:</b></h3>
-					
-					{% for line_code, item in dw_data.items() %}
-					<label class="checkbox-label">
-						<input type="checkbox" name="dw" value="{{ line_code }}" 
-							{% if line_code in preselected_dw %} checked {% endif %}>
-						{{ item.description }}
-					</label><br>
-					{% endfor %}
-					{% endif %}
-					
-					<!-- Twelfth Page: Further Requirements & Considerations -->
-					{% if twelfth_page %}
-					<h3><b>Select Further Requirements & Considerations Options:</b></h3>
-					
-					{% for line_code, item in frc_data.items() %}
-					<label class="checkbox-label">
-						<input type="checkbox" name="frc" value="{{ line_code }}" 
-							{% if line_code in preselected_frc %} checked {% endif %}>
-						{{ item.description }}
-					</label><br>
-					{% endfor %}
-					{% endif %}
-				
-					<!-- Thirteenth Page: Additional Building Items -->
-					{% if thirteenth_page %}
-					<h3><b>Select any additional building items options:</b></h3>
-					
-					{% for line_code, item in ab_data.items() %}
-					<label class="checkbox-label">
-						<input type="checkbox" name="ab" value="{{ line_code }}" 
-							{% if line_code in preselected_ab %} checked {% endif %}>
-						{{ item.description }}
-					</label><br>
-					{% endfor %}
-					{% endif %}
-					
-					<!-- Fourteenth Page: Schedule of Works (Weeks 1-8) -->
-					{% if fourteenth_page %}
-					<h3><b>Select any schedule of works options (Weeks 1-8):</b></h3>
-					
-					{% for line_code, item in sww_data.items() %}
-					<label class="checkbox-label">
-						<input type="checkbox" name="sww" value="{{ line_code }}" 
-							{% if line_code in preselected_sww %} checked {% endif %}>
-						{{ item.description }}
-					</label><br>
-					{% endfor %}
-					{% endif %}
-				
-					<!-- Fifteenth Page: Schedule of Works (Weeks 9-12) -->
-					{% if fifteenth_page %}
-					<h3><b>Select any schedule of works options (Weeks 9-12):</b></h3>
-					
-					<!-- Loop through the tww_data dictionary and render checkboxes -->
-					{% for line_code, item in tww_data.items() %}
-					<label class="checkbox-label">
-						<input type="checkbox" name="tww" value="{{ line_code }}" 
-							{% if line_code in preselected_tww %} checked {% endif %}>
-						{{ item.description }}
-					</label><br>
-					{% endfor %}
-					{% endif %}
-					
-					<!-- Page 16 Pricing Categories Page -->
-					{% if sixteenth_page %}
-					<h3><b>Please identify the pricing categories to be included</b></h3>
-					
-					<!-- Loop through the pc_data dictionary and render checkboxes -->
-					{% for line_code, item in pc_data.items() %}
-					<label class="checkbox-label">
-						<input type="checkbox" name="pc" value="{{ line_code }}" 
-							{% if line_code in preselected_pc %} checked {% endif %}>
-						{{ item.description }}
-					</label><br>
-					{% endfor %}
-					{% endif %}
-					
-					<!-- Seventeenth Electrics Page: Only visible if pc4 is checked -->
-					{% if seventeenth_page %}
-					<h3><b>Please enter the number of points and lights below</b></h3>
-		
-			
-					<!-- Placeholder el1: Number of kitchen points -->
-					<label for="el1_manual_input">Number of kitchen points:</label>
-					<input type="number" id="el1_manual_input" name="el1_manual_input" value="{{ el1_manual_input }}"><br>
-					
-					<!-- Placeholder el2: Number of kitchen lights -->
-					<label for="el2_manual_input">Number of kitchen lights:</label>
-					<input type="number" id="el2_manual_input" name="el2_manual_input" value="{{ el2_manual_input }}"><br>
-					
-					<!-- Placeholder el3: Number of loft points -->
-					<label for="el3_manual_input">Number of loft points:</label>
-					<input type="number" id="el3_manual_input" name="el3_manual_input" value="{{ el3_manual_input }}"><br>
-					
-					<!-- Placeholder el4: Number of loft lights -->
-					<label for="el4_manual_input">Number of loft lights:</label>
-					<input type="number" id="el4_manual_input" name="el4_manual_input" value="{{ el4_manual_input }}"><br>
-		
-					{% endif %}
-				
-					<!-- Page Eigtheen - Plumbing Page: Only visible if pc5 is checked -->
-					{% if eighteenth_page %}
-					<h3><b>Please select any plumbing options</b></h3>
-					
-					<!-- Loop through the pl_data dictionary and render checkboxes -->
-					{% for line_code, item in pl_data.items() %}
-					<label class="checkbox-label">
-						<input type="checkbox" name="pl" value="{{ line_code }}" 
-							{% if line_code in preselected_pl %} checked {% endif %}>
-						{{ item.description }}
-					</label><br>
-					{% endfor %}
-					{% endif %}
-					
-					<!-- Page nineteen - Skylights Page: Only visible if pc6 is checked -->
-					{% if nineteenth_page %}
-					<h3><b>Please select any Skylights options</b></h3>
-					
-					<!-- Loop through the sl_data dictionary and render checkboxes -->
-					{% for line_code, item in sl_data.items() %}
-					<label class="checkbox-label">
-						<input type="checkbox" name="sl" value="{{ line_code }}" 
-							{% if line_code in preselected_sl %} checked {% endif %}>
-						{{ item.description }}
-					</label><br>
-					{% endfor %}
-					{% endif %}
-					
-					<!-- page 20 Velux Windows Page: Only visible if pc7 is checked -->
-					{% if twentieth_page %}
-					<h3><b>Please select any Velux windows options</b></h3>
-					
-					<!-- Loop through the vl_data dictionary and render checkboxes -->
-					{% for line_code, item in vl_data.items() %}
-					<label class="checkbox-label">
-						<input type="checkbox" name="vl" value="{{ line_code }}" 
-							{% if line_code in preselected_vl %} checked {% endif %}>
-						<span>{{ item.description }}</span>
-					</label><br>
-					{% endfor %}
-					{% endif %}
-				
-					<!-- page 21 Aluminium Capping Page: Only visible if pc8 is checked -->
-					{% if twenty_first_page %}
-					<h2>Aluminium Capping</h2>
-					
-					<!-- Loop through the ac_data dictionary and render checkboxes -->
-					{% for line_code, item in ac_data.items() %}
-					<label class="checkbox-label">
-						<input type="checkbox" name="ac" value="{{ line_code }}" 
-							{% if line_code in preselected_ac %} checked {% endif %}>
-						{{ item.description }}
-					</label><br>
-					{% endfor %}
-					{% endif %}
-					
-					<!-- page 22 Glass Valley Page: Only visible if pc9 is checked -->
-					{% if twenty_second_page %}
-					<h3><b>Please select any Glass Valley options</b></h3>
-					
-					<!-- Loop through the gv_data dictionary and render checkboxes -->
-					{% for line_code, item in gv_data.items() %}
-					<label class="checkbox-label">
-						<input type="checkbox" name="gv" value="{{ line_code }}" 
-							{% if line_code in preselected_gv %} checked {% endif %}>
-						{{ item.description }}
-					</label><br>
-					{% endfor %}
-					{% endif %}
-					
-					<!-- Page 23: Sliding doors -->
-					{% if twenty_third_page %}
-					<h3><b>Please select any Sliding Door options</b></h3>
-					
-					<!-- Manual Input for dm5 -->
-					<label for="dm5_manual_input">{{ dm5_label }}:</label>
-					<input type="text" id="dm5_manual_input" name="dm5_manual_input" value="{{ session.get('dm5_manual_input', '') }}"><br><br>
-					
-					<!-- Checkboxes for sds -->
-					<h3>Sliding Door Additional Selections</h3>
-					{% for line_code, item in sds_data.items() %}
-					<label class="checkbox-label">
-						<input type="checkbox" name="sds" value="{{ line_code }}" 
-							{% if line_code in preselected_sds %} checked {% endif %}>
-						{{ item.description }}
-					</label><br>
-					{% endfor %}
-				
-					<!-- Dropdown for sd -->
-					<h3>Select an Option for sliding doors</h3>
-					<label for="selected_sd">Choose one:</label>
-					<select id="selected_sd" name="selected_sd">
-						{% for option in sd_options %}
-						<option value="{{ option.line_code }}" {% if option.line_code == session.get('selected_sd', '') %} selected {% endif %}>
-							{{ option.description }}
-						</option>
-						{% endfor %}
-					</select><br><br>
-					{% endif %}
-					
-					<!-- Page 24: Optional Extras -->
-					{% if twenty_fourth_page %}
-					<h3><b>Please select any optional extras</b></h3>
-					
-					<!-- Loop through the oe_data dictionary and render checkboxes -->
-					{% for line_code, item in oe_data.items() %}
-					<label class="checkbox-label">
-						<input type="checkbox" name="oe" value="{{ line_code }}" 
-							{% if line_code in preselected_oe %} checked {% endif %}>
-						{{ item.description }}
-					</label><br>
-					{% endfor %}
-					{% endif %}
-					
-					<!-- Page 25: Contingency -->
-					{% if twenty_fifth_page %}
-					<h3><b>Please select all contingency items to include</b></h3>
-					
-					<!-- Loop through the co_data dictionary and render checkboxes -->
-					{% for line_code, item in co_data.items() %}
-					<label class="checkbox-label">
-						<input type="checkbox" name="co" value="{{ line_code }}" 
-							{% if line_code in preselected_co %} checked {% endif %}>
-						{{ item.description }}
-					</label><br>
-					{% endfor %}
-					{% endif %}
-				
-					<!-- Page 26: Finishing Works -->
-					{% if twenty_sixth_page %}
-					<h3><b>Please select any finishing works items to include</b></h3>
-					
-					<!-- Loop through the fw_data dictionary and render checkboxes -->
-					{% for line_code, item in fw_data.items() %}
-					<label class="checkbox-label">
-						<input type="checkbox" name="fw" value="{{ line_code }}" 
-							{% if line_code in preselected_fw %} checked {% endif %}>
-						{{ item.description }}
-					</label><br>
-					{% endfor %}
-					{% endif %}
-					
-					<!-- Page 27: Finishing Works Optional Extras -->
-					{% if twenty_seventh_page %}
-						<h3><b>Please select any finishing works optional extras</b></h3>
+<body>
+    <!-- Sidebar Toggle Button -->
+    <button id="sidebarToggle" class="sidebar-toggle">☰</button>
 
-					
-					<!-- Loop through the foe_data dictionary and render checkboxes -->
-					{% for line_code, item in foe_data.items() %}
-					<label class="checkbox-label">
-						<input type="checkbox" name="foe" value="{{ line_code }}" 
-							{% if line_code in preselected_foe %} checked {% endif %}>
-						{{ item.description }}
-					</label><br>
-					{% endfor %}
-					{% endif %}
-				
-					<!-- Page 28: Additional Notes -->
-					{% if twenty_eighth_page %}
-					<h3><b>Please add any further notes below:</b></h3>
-					
-					<!-- Manual input fields for Additional Notes -->
-					<label for="an1_manual_input">Cellar:</label>
-					<input type="text" name="an1_manual_input" value="{{ an1_manual_input }}"><br>
-					
-					<label for="an2_manual_input">Neighbours levels:</label>
-					<input type="text" name="an2_manual_input" value="{{ an2_manual_input }}"><br>
-					
-					<label for="an3_manual_input">Internal to external levels (steps):</label>
-					<input type="text" name="an3_manual_input" value="{{ an3_manual_input }}"><br>
-					
-					<label for="an4_manual_input">Internal heights:</label>
-					<input type="text" name="an4_manual_input" value="{{ an4_manual_input }}"><br>
-					
-					<label for="an5_manual_input">Outrigger Stories:</label>
-					<input type="text" name="an5_manual_input" value="{{ an5_manual_input }}"><br>
-					
-					<label for="an6_manual_input">Flush External walls:</label>
-					<input type="text" name="an6_manual_input" value="{{ an6_manual_input }}"><br>
-					
-					<label for="an7_manual_input">Further Notes:</label>
-					<input type="text" name="an7_manual_input" value="{{ an7_manual_input }}"><br>
-					{% endif %}
-						<!-- Navigation buttons -->
-						<div class="button-container">
-							<!-- Previous button -->
-							{% if previous_page %}
-							<button type="button" class="btn" onclick="window.location.href='{{ url_for(previous_page) }}'">Previous</button>
-							{% endif %}
-							{% if not review_page %}
-							<!-- Next button for non-review pages -->
-							<input type="submit" class="btn" value="Next">
-							{% endif %}
-						</div>
-					</form>
-					
-					<!-- Review Page -->
-					<form action="{{ url_for('submit') }}" method="POST">
-					{% if review_page %}
-					{% for key, value in review_data.items() %}
-					<h3>{{ TITLE_MAPPING.get(key, key.replace('_', ' ').capitalize()) }}</h3>  <!-- This handles the titles for each section -->
-					
-					{% if value %}
-					{% if value is iterable and not value is string %}
-					<ul>
-						{% for item in value %}
-						<li>{{ item }}</li> <!-- Show list items for iterables like selected checkboxes -->
-						{% endfor %}
-					</ul>
-					{% else %}
-					<p>{{ value }}</p>  <!-- Show the manual input value directly, just like Date/Address -->
-					{% endif %}
-					{% else %}
-					<p>No data entered for {{ TITLE_MAPPING.get(key, key.replace('_', ' ').capitalize()) }}</p>
-					{% endif %}
-					{% endfor %}
-					{% endif %}
-					
-					{% with messages = get_flashed_messages() %}
-					{% if messages %}
-					<ul class="flashes">
-						{% for message in messages %}
-						<li>{{ message }}</li>
-						{% endfor %}
-					</ul>
-					{% endif %}
-					{% endwith %}
-						<div class="button-container">
-							{% if review_page %}
-							<!-- Confirm button (writes to the Google Sheet) -->
-							<button type="submit" id="confirmButton" class="btn">Confirm</button>
-							{% endif %}
-							
-							{% if review_page %}
-							<!-- Produce Quote button (disabled until Confirm is clicked) -->
-							<button type="button" id="produceButton" class="btn" disabled onclick="window.location.href='{{ url_for('trigger_production') }}'">Produce Quote</button>
-							{% endif %}
-						</div>
-					</form>
-			</div>
-		</div>
-	</div>
-	<script>
-		// Confirm Button Functionality
-		document.getElementById('sidebarToggle').addEventListener('click', function () {
-			const sidebar = document.getElementById('sidebar');
-			const mainContent = document.querySelector('.main-content'); // Target the main content
-			
-			sidebar.classList.toggle('collapsed'); // Toggle sidebar visibility
-			sidebar.classList.toggle('expanded'); // Toggle sidebar visibility
-			mainContent.classList.toggle('expanded'); // Adjust the content to fill the space
-		});
-		
-		// Confirm Button Functionality
-		document.getElementById('confirmButton').addEventListener('click', function(event) {
-			event.preventDefault();  // Prevent the form from submitting immediately
-			
-		// AJAX request to confirm data and update the Google Sheet
-			fetch('{{ url_for('confirm_data') }}', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					'X-CSRFToken': '{{ csrf_token() }}'  // If CSRF protection is used
-				},
-			})
-			.then(response => response.text())
-			.then(data => {
-				// On successful confirmation, enable the Produce Quote button
-				document.getElementById('produceButton').disabled = false;
-			})
-			.catch(error => console.error('Error:', error));
-		});
-	</script>
+    <!-- Header -->
+    <header class="app-header">
+        <div class="logo">
+            <img src="{{ url_for('static', filename='images/logo-white-plus-rooms.png') }}" alt="Plus Rooms Logo">
+        </div>
+        <div class="qm-logo">
+            <img src="{{ url_for('static', filename='images/qmlogo.png') }}" alt="Quote Machine Logo">
+        </div>
+    </header>
 
+    <div class="wrapper">
+        <!-- Sidebar Navigation -->
+        <div id="sidebar" class="sidebar">  
+            <nav class="nav flex-column">
+                <a href="{{ url_for('index') }}" class="nav-link {% if request.endpoint == 'index' %}active{% endif %}">Project Details</a>
+                <a href="{{ url_for('special_notes_page') }}" class="nav-link {% if request.endpoint == 'special_notes_page' %}active{% endif %}">Special Notes</a>
+                <a href="{{ url_for('summary_page') }}" class="nav-link {% if request.endpoint == 'summary_page' %}active{% endif %}">Summary</a>
+                <a href="{{ url_for('materials_page') }}" class="nav-link {% if request.endpoint == 'materials_page' %}active{% endif %}">Extension Details & Material Summary</a>
+                <a href="{{ url_for('further_requirements_page') }}" class="nav-link {% if request.endpoint == 'further_requirements_page' %}active{% endif %}">Further Requirements</a>
+                <a href="{{ url_for('additional_building_work_page') }}" class="nav-link {% if request.endpoint == 'additional_building_work_page' %}active{% endif %}">Additional Building Works</a>
+                <a href="{{ url_for('additional_costs_page') }}" class="nav-link {% if request.endpoint == 'additional_costs_page' %}active{% endif %}">Additional Costs</a>
+                <a href="{{ url_for('optional_extras_page') }}" class="nav-link {% if request.endpoint == 'optional_extras_page' %}active{% endif %}">Optional Extras & Finishing Works</a>
+                <a href="{{ url_for('image_upload_page') }}" class="nav-link {% if request.endpoint == 'image_upload' %}active{% endif %}">Upload Images</a>
+                <a href="{{ url_for('review') }}" class="nav-link {% if request.endpoint == 'review' %}active{% endif %}">Review</a>
+                <a href="{{ url_for('trigger_production_page') }}" class="nav-link {% if request.endpoint == 'trigger_production_page' %}active{% endif %}">Production</a>
+                {% if session.get('role') == 'admin' %}
+                <a href="{{ url_for('form_builder_demo') }}" class="nav-link {% if request.endpoint == 'form_builder_demo' %}active{% endif %}">Form Builder</a>
+                <a href="{{ url_for('builder_beta_home') }}" class="nav-link {% if request.endpoint in ['builder_beta_home', 'builder_beta_page_editor'] %}active{% endif %}">Block Builder (Beta)</a>
+                {% endif %}
+            </nav>
+            {% if session.get('username') %}
+            <div class="nav-user" style="padding: 1rem; border-top: 1px solid rgba(255,255,255,.15); font-size: .85rem; color: rgba(255,255,255,.7);">
+                <span>{{ session['username'] }} ({{ session.get('role','') }})</span>
+                <form method="POST" action="{{ url_for('logout') }}" style="margin-top:.4rem;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" style="background:none;border:1px solid rgba(255,255,255,.4);color:rgba(255,255,255,.8);padding:.25rem .6rem;border-radius:3px;cursor:pointer;font-size:.8rem;">Log out</button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Main content block -->
+        <div class="main-content">
+            {% block content %}
+            {% endblock %}
+        </div>
+    </div>
+
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    
 </body>
-	
+
 </html>
-	

@@ -1,0 +1,1005 @@
+{
+  "builder_beta": {
+    "pages": {
+      "additional_building_work_page": {
+        "blocks": [
+          {
+            "block_type": "checkbox_group",
+            "id": "additional_building_work_page__selected_ab",
+            "logic_options": {
+              "depends_on_field": "",
+              "depends_on_value": "",
+              "visibility": "always"
+            },
+            "output_options": {
+              "group": "General",
+              "include_in_output": true,
+              "output_label": "Additional building works",
+              "sort_order": 0,
+              "value_mode": "show_value"
+            },
+            "pricing_options": {
+              "enabled": false,
+              "entered_key": "",
+              "fixed_amount": 0.0,
+              "mode": "none",
+              "percent_of_subtotal": 0.0,
+              "quantity_key": "",
+              "rate": 0.0
+            },
+            "standard": {
+              "dropdown_choices": [],
+              "help_text": "",
+              "label": "Additional building works",
+              "name": "selected_ab",
+              "placeholder": "",
+              "required": false,
+              "source_prefix": "ab",
+              "static_content": "",
+              "static_variant": "body"
+            }
+          }
+        ],
+        "id": "additional_building_work_page",
+        "navigation": {
+          "next_endpoint": "additional_costs_page",
+          "previous_endpoint": "further_requirements_page"
+        },
+        "title": "Additional Building Works"
+      },
+      "additional_costs_page": {
+        "blocks": [
+          {
+            "block_type": "static_text_heading",
+            "id": "additional_costs_page__electrics_section",
+            "logic_options": {
+              "depends_on_field": "",
+              "depends_on_value": "",
+              "visibility": "always"
+            },
+            "output_options": {
+              "group": "General",
+              "include_in_output": true,
+              "output_label": "Electrics (Kitchen and Loft)",
+              "sort_order": 0,
+              "value_mode": "show_value"
+            },
+            "pricing_options": {
+              "enabled": false,
+              "entered_key": "",
+              "fixed_amount": 0.0,
+              "mode": "none",
+              "percent_of_subtotal": 0.0,
+              "quantity_key": "",
+              "rate": 0.0
+            },
+            "standard": {
+              "dropdown_choices": [],
+              "help_text": "Rates are controlled via Pricing Rules settings below",
+              "label": "Electrics (Kitchen and Loft)",
+              "name": "electrics_section",
+              "placeholder": "",
+              "required": false,
+              "source_prefix": "",
+              "static_content": "",
+              "static_variant": "body"
+            }
+          },
+          {
+            "block_type": "number_currency_input",
+            "id": "additional_costs_page__other_demolition_cost",
+            "logic_options": {
+              "depends_on_field": "",
+              "depends_on_value": "",
+              "visibility": "always"
+            },
+            "output_options": {
+              "group": "General",
+              "include_in_output": true,
+              "output_label": "Other Demolition Cost",
+              "sort_order": 1,
+              "value_mode": "show_value"
+            },
+            "pricing_options": {
+              "enabled": false,
+              "entered_key": "",
+              "fixed_amount": 0.0,
+              "mode": "none",
+              "percent_of_subtotal": 0.0,
+              "quantity_key": "",
+              "rate": 0.0
+            },
+            "standard": {
+              "dropdown_choices": [],
+              "help_text": "",
+              "label": "Other Demolition Cost",
+              "name": "other_demolition_cost",
+              "placeholder": "",
+              "required": false,
+              "source_prefix": "",
+              "static_content": "",
+              "static_variant": "body"
+            }
+          }
+        ],
+        "id": "additional_costs_page",
+        "navigation": {
+          "next_endpoint": "optional_extras_page",
+          "previous_endpoint": "additional_building_work_page"
+        },
+        "title": "Additional Costs"
+      },
+      "further_requirements_page": {
+        "blocks": [
+          {
+            "block_type": "checkbox_group",
+            "id": "further_requirements_page__selected_fr",
+            "logic_options": {
+              "depends_on_field": "",
+              "depends_on_value": "",
+              "visibility": "always"
+            },
+            "output_options": {
+              "group": "General",
+              "include_in_output": true,
+              "output_label": "Further requirements",
+              "sort_order": 0,
+              "value_mode": "show_value"
+            },
+            "pricing_options": {
+              "enabled": false,
+              "entered_key": "",
+              "fixed_amount": 0.0,
+              "mode": "none",
+              "percent_of_subtotal": 0.0,
+              "quantity_key": "",
+              "rate": 0.0
+            },
+            "standard": {
+              "dropdown_choices": [],
+              "help_text": "",
+              "label": "Further requirements",
+              "name": "selected_fr",
+              "placeholder": "",
+              "required": false,
+              "source_prefix": "fr",
+              "static_content": "",
+              "static_variant": "body"
+            }
+          }
+        ],
+        "id": "further_requirements_page",
+        "navigation": {
+          "next_endpoint": "additional_building_work_page",
+          "previous_endpoint": "materials_page"
+        },
+        "title": "Further Requirements and Considerations"
+      },
+      "image_upload_page": {
+        "blocks": [
+          {
+            "block_type": "static_text_heading",
+            "id": "image_upload_page__site_image",
+            "logic_options": {
+              "depends_on_field": "",
+              "depends_on_value": "",
+              "visibility": "always"
+            },
+            "output_options": {
+              "group": "General",
+              "include_in_output": true,
+              "output_label": "Site / Property Image",
+              "sort_order": 0,
+              "value_mode": "show_value"
+            },
+            "pricing_options": {
+              "enabled": false,
+              "entered_key": "",
+              "fixed_amount": 0.0,
+              "mode": "none",
+              "percent_of_subtotal": 0.0,
+              "quantity_key": "",
+              "rate": 0.0
+            },
+            "standard": {
+              "dropdown_choices": [],
+              "help_text": "",
+              "label": "Site / Property Image",
+              "name": "site_image",
+              "placeholder": "",
+              "required": false,
+              "source_prefix": "",
+              "static_content": "",
+              "static_variant": "body"
+            }
+          },
+          {
+            "block_type": "dropdown_select",
+            "id": "image_upload_page__layout_template",
+            "logic_options": {
+              "depends_on_field": "",
+              "depends_on_value": "",
+              "visibility": "always"
+            },
+            "output_options": {
+              "group": "General",
+              "include_in_output": true,
+              "output_label": "Layout Template",
+              "sort_order": 1,
+              "value_mode": "show_value"
+            },
+            "pricing_options": {
+              "enabled": false,
+              "entered_key": "",
+              "fixed_amount": 0.0,
+              "mode": "none",
+              "percent_of_subtotal": 0.0,
+              "quantity_key": "",
+              "rate": 0.0
+            },
+            "standard": {
+              "dropdown_choices": [],
+              "help_text": "",
+              "label": "Layout Template",
+              "name": "layout_template",
+              "placeholder": "",
+              "required": false,
+              "source_prefix": "",
+              "static_content": "",
+              "static_variant": "body"
+            }
+          }
+        ],
+        "id": "image_upload_page",
+        "navigation": {
+          "next_endpoint": "review",
+          "previous_endpoint": "optional_extras_page"
+        },
+        "title": "Image Upload"
+      },
+      "materials_page": {
+        "blocks": [
+          {
+            "block_type": "checkbox_group",
+            "id": "materials_page__selected_ew",
+            "logic_options": {
+              "depends_on_field": "",
+              "depends_on_value": "",
+              "visibility": "always"
+            },
+            "output_options": {
+              "group": "General",
+              "include_in_output": true,
+              "output_label": "External Walls",
+              "sort_order": 0,
+              "value_mode": "show_value"
+            },
+            "pricing_options": {
+              "enabled": false,
+              "entered_key": "",
+              "fixed_amount": 0.0,
+              "mode": "none",
+              "percent_of_subtotal": 0.0,
+              "quantity_key": "",
+              "rate": 0.0
+            },
+            "standard": {
+              "dropdown_choices": [],
+              "help_text": "",
+              "label": "External Walls",
+              "name": "selected_ew",
+              "placeholder": "",
+              "required": false,
+              "source_prefix": "ew",
+              "static_content": "",
+              "static_variant": "body"
+            }
+          },
+          {
+            "block_type": "checkbox_group",
+            "id": "materials_page__selected_er",
+            "logic_options": {
+              "depends_on_field": "",
+              "depends_on_value": "",
+              "visibility": "always"
+            },
+            "output_options": {
+              "group": "General",
+              "include_in_output": true,
+              "output_label": "External Roof",
+              "sort_order": 1,
+              "value_mode": "show_value"
+            },
+            "pricing_options": {
+              "enabled": false,
+              "entered_key": "",
+              "fixed_amount": 0.0,
+              "mode": "none",
+              "percent_of_subtotal": 0.0,
+              "quantity_key": "",
+              "rate": 0.0
+            },
+            "standard": {
+              "dropdown_choices": [],
+              "help_text": "",
+              "label": "External Roof",
+              "name": "selected_er",
+              "placeholder": "",
+              "required": false,
+              "source_prefix": "er",
+              "static_content": "",
+              "static_variant": "body"
+            }
+          },
+          {
+            "block_type": "checkbox_group",
+            "id": "materials_page__selected_id",
+            "logic_options": {
+              "depends_on_field": "",
+              "depends_on_value": "",
+              "visibility": "always"
+            },
+            "output_options": {
+              "group": "General",
+              "include_in_output": true,
+              "output_label": "Internal Doors",
+              "sort_order": 2,
+              "value_mode": "show_value"
+            },
+            "pricing_options": {
+              "enabled": false,
+              "entered_key": "",
+              "fixed_amount": 0.0,
+              "mode": "none",
+              "percent_of_subtotal": 0.0,
+              "quantity_key": "",
+              "rate": 0.0
+            },
+            "standard": {
+              "dropdown_choices": [],
+              "help_text": "",
+              "label": "Internal Doors",
+              "name": "selected_id",
+              "placeholder": "",
+              "required": false,
+              "source_prefix": "id",
+              "static_content": "",
+              "static_variant": "body"
+            }
+          },
+          {
+            "block_type": "checkbox_group",
+            "id": "materials_page__selected_dr",
+            "logic_options": {
+              "depends_on_field": "",
+              "depends_on_value": "",
+              "visibility": "always"
+            },
+            "output_options": {
+              "group": "General",
+              "include_in_output": true,
+              "output_label": "Drainage",
+              "sort_order": 3,
+              "value_mode": "show_value"
+            },
+            "pricing_options": {
+              "enabled": false,
+              "entered_key": "",
+              "fixed_amount": 0.0,
+              "mode": "none",
+              "percent_of_subtotal": 0.0,
+              "quantity_key": "",
+              "rate": 0.0
+            },
+            "standard": {
+              "dropdown_choices": [],
+              "help_text": "",
+              "label": "Drainage",
+              "name": "selected_dr",
+              "placeholder": "",
+              "required": false,
+              "source_prefix": "dr",
+              "static_content": "",
+              "static_variant": "body"
+            }
+          },
+          {
+            "block_type": "checkbox_group",
+            "id": "materials_page__selected_wp",
+            "logic_options": {
+              "depends_on_field": "",
+              "depends_on_value": "",
+              "visibility": "always"
+            },
+            "output_options": {
+              "group": "General",
+              "include_in_output": true,
+              "output_label": "Waste and Parking",
+              "sort_order": 4,
+              "value_mode": "show_value"
+            },
+            "pricing_options": {
+              "enabled": false,
+              "entered_key": "",
+              "fixed_amount": 0.0,
+              "mode": "none",
+              "percent_of_subtotal": 0.0,
+              "quantity_key": "",
+              "rate": 0.0
+            },
+            "standard": {
+              "dropdown_choices": [],
+              "help_text": "",
+              "label": "Waste and Parking",
+              "name": "selected_wp",
+              "placeholder": "",
+              "required": false,
+              "source_prefix": "wp",
+              "static_content": "",
+              "static_variant": "body"
+            }
+          }
+        ],
+        "id": "materials_page",
+        "navigation": {
+          "next_endpoint": "further_requirements_page",
+          "previous_endpoint": "summary_page"
+        },
+        "title": "Materials and Details"
+      },
+      "optional_extras_page": {
+        "blocks": [
+          {
+            "block_type": "checkbox_group",
+            "id": "optional_extras_page__selected_oe",
+            "logic_options": {
+              "depends_on_field": "",
+              "depends_on_value": "",
+              "visibility": "always"
+            },
+            "output_options": {
+              "group": "General",
+              "include_in_output": true,
+              "output_label": "Optional extras to include",
+              "sort_order": 0,
+              "value_mode": "show_value"
+            },
+            "pricing_options": {
+              "enabled": false,
+              "entered_key": "",
+              "fixed_amount": 0.0,
+              "mode": "none",
+              "percent_of_subtotal": 0.0,
+              "quantity_key": "",
+              "rate": 0.0
+            },
+            "standard": {
+              "dropdown_choices": [],
+              "help_text": "",
+              "label": "Optional extras to include",
+              "name": "selected_oe",
+              "placeholder": "",
+              "required": false,
+              "source_prefix": "oe",
+              "static_content": "",
+              "static_variant": "body"
+            }
+          }
+        ],
+        "id": "optional_extras_page",
+        "navigation": {
+          "next_endpoint": "image_upload_page",
+          "previous_endpoint": "additional_costs_page"
+        },
+        "title": "Optional Extras"
+      },
+      "special_notes_page": {
+        "blocks": [
+          {
+            "block_type": "checkbox_group",
+            "id": "special_notes_page__selected_special_notes",
+            "logic_options": {
+              "depends_on_field": "",
+              "depends_on_value": "",
+              "visibility": "always"
+            },
+            "output_options": {
+              "group": "General",
+              "include_in_output": true,
+              "output_label": "Select any selected notes to be included:",
+              "sort_order": 0,
+              "value_mode": "show_value"
+            },
+            "pricing_options": {
+              "enabled": false,
+              "entered_key": "",
+              "fixed_amount": 0.0,
+              "mode": "none",
+              "percent_of_subtotal": 0.0,
+              "quantity_key": "",
+              "rate": 0.0
+            },
+            "standard": {
+              "dropdown_choices": [],
+              "help_text": "",
+              "label": "Select any selected notes to be included:",
+              "name": "selected_special_notes",
+              "placeholder": "",
+              "required": false,
+              "source_prefix": "sn",
+              "static_content": "",
+              "static_variant": "body"
+            }
+          },
+          {
+            "block_type": "dropdown_select",
+            "id": "special_notes_page__dropdown_select_1776533277456",
+            "logic_options": {
+              "depends_on_field": "",
+              "depends_on_value": "",
+              "visibility": "always"
+            },
+            "output_options": {
+              "group": "General",
+              "include_in_output": true,
+              "output_label": "New dropdown select",
+              "sort_order": 1,
+              "value_mode": "show_value"
+            },
+            "pricing_options": {
+              "enabled": false,
+              "entered_key": "",
+              "fixed_amount": 0.0,
+              "mode": "none",
+              "percent_of_subtotal": 0.0,
+              "quantity_key": "",
+              "rate": 0.0
+            },
+            "standard": {
+              "dropdown_choices": [
+                "Planning",
+                "Structure",
+                "Finishes"
+              ],
+              "help_text": "",
+              "label": "Quote Stage",
+              "name": "special_notes_page__dropdown_select_1776533277456",
+              "placeholder": "",
+              "required": false,
+              "source_prefix": "",
+              "static_content": "",
+              "static_variant": "body"
+            }
+          },
+          {
+            "block_type": "static_text_heading",
+            "id": "special_notes_page__static_text_heading_1776533361267",
+            "logic_options": {
+              "depends_on_field": "",
+              "depends_on_value": "",
+              "visibility": "always"
+            },
+            "output_options": {
+              "group": "General",
+              "include_in_output": true,
+              "output_label": "New static text",
+              "sort_order": 2,
+              "value_mode": "show_value"
+            },
+            "pricing_options": {
+              "enabled": false,
+              "entered_key": "",
+              "fixed_amount": 0.0,
+              "mode": "none",
+              "percent_of_subtotal": 0.0,
+              "quantity_key": "",
+              "rate": 0.0
+            },
+            "standard": {
+              "dropdown_choices": [],
+              "help_text": "",
+              "label": "Project Scope Header",
+              "name": "special_notes_page__static_text_heading_1776533361267",
+              "placeholder": "",
+              "required": false,
+              "source_prefix": "",
+              "static_content": "Project Scope Selection",
+              "static_variant": "heading"
+            }
+          },
+          {
+            "id": "special_notes_page__dropdown_select_1776539171191",
+            "block_type": "dropdown_select",
+            "standard": {
+              "label": "testing the drop down.",
+              "name": "special_notes_page__dropdown_select_1776539171191",
+              "required": false,
+              "help_text": "THi sis the testing for drop downs.",
+              "source_prefix": "",
+              "placeholder": "",
+              "dropdown_choices": [
+                "test line one",
+                "test line two"
+              ],
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "New dropdown select",
+              "group": "General",
+              "sort_order": 3,
+              "value_mode": "show_value"
+            }
+          }
+        ],
+        "id": "special_notes_page",
+        "navigation": {
+          "next_endpoint": "summary_page",
+          "previous_endpoint": "index"
+        },
+        "title": "Special Notes"
+      },
+      "summary_page": {
+        "blocks": [
+          {
+            "block_type": "checkbox_group",
+            "id": "summary_page__selected_building_works",
+            "logic_options": {
+              "depends_on_field": "",
+              "depends_on_value": "",
+              "visibility": "always"
+            },
+            "output_options": {
+              "group": "General",
+              "include_in_output": true,
+              "output_label": "Select items to include:",
+              "sort_order": 0,
+              "value_mode": "show_value"
+            },
+            "pricing_options": {
+              "enabled": false,
+              "entered_key": "",
+              "fixed_amount": 0.0,
+              "mode": "none",
+              "percent_of_subtotal": 0.0,
+              "quantity_key": "",
+              "rate": 0.0
+            },
+            "standard": {
+              "dropdown_choices": [],
+              "help_text": "",
+              "label": "Select items to include:",
+              "name": "selected_building_works",
+              "placeholder": "",
+              "required": false,
+              "source_prefix": "bw",
+              "static_content": "",
+              "static_variant": "body"
+            }
+          }
+        ],
+        "id": "summary_page",
+        "navigation": {
+          "next_endpoint": "materials_page",
+          "previous_endpoint": "special_notes_page"
+        },
+        "title": "Summary Page"
+      }
+    },
+    "question_types": {
+      "checkbox_group": {
+        "default_label": "New checkbox group",
+        "label": "Checkbox Group",
+        "supports": {
+          "logic": true,
+          "output": true,
+          "pricing": true
+        }
+      },
+      "dropdown_select": {
+        "default_label": "New dropdown select",
+        "label": "Dropdown Select",
+        "supports": {
+          "logic": true,
+          "output": true,
+          "pricing": true
+        }
+      },
+      "number_currency_input": {
+        "default_label": "New number/currency input",
+        "label": "Number/Currency Input",
+        "supports": {
+          "logic": true,
+          "output": true,
+          "pricing": true
+        }
+      },
+      "static_text_heading": {
+        "default_label": "New static text",
+        "label": "Static Text/Heading",
+        "supports": {
+          "logic": false,
+          "output": true,
+          "pricing": false
+        }
+      },
+      "text_input": {
+        "default_label": "New text input",
+        "label": "Text Input",
+        "supports": {
+          "logic": true,
+          "output": true,
+          "pricing": true
+        }
+      }
+    },
+    "version": 1
+  },
+  "pages": {
+    "additional_building_work_page": {
+      "fields": [
+        {
+          "id": "selected_ab",
+          "label": "Additional building works",
+          "name": "selected_ab",
+          "source": {
+            "prefix": "ab",
+            "suffix": "digits",
+            "type": "sheet_prefix"
+          },
+          "type": "checkbox_group"
+        }
+      ],
+      "id": "additional_building_work_page",
+      "navigation": {
+        "next_endpoint": "additional_costs_page",
+        "previous_endpoint": "further_requirements_page"
+      },
+      "title": "Additional Building Works"
+    },
+    "additional_costs_page": {
+      "fields": [
+        {
+          "id": "electrics_section",
+          "label": "Electrics (Kitchen and Loft)",
+          "name": "electrics_section",
+          "note": "Rates are controlled via Pricing Rules settings below",
+          "type": "composite"
+        },
+        {
+          "id": "other_demolition_cost",
+          "label": "Other Demolition Cost",
+          "name": "other_demolition_cost",
+          "type": "currency_input"
+        }
+      ],
+      "id": "additional_costs_page",
+      "navigation": {
+        "next_endpoint": "optional_extras_page",
+        "previous_endpoint": "additional_building_work_page"
+      },
+      "title": "Additional Costs"
+    },
+    "further_requirements_page": {
+      "fields": [
+        {
+          "id": "selected_fr",
+          "label": "Further requirements",
+          "name": "selected_fr",
+          "source": {
+            "prefix": "fr",
+            "suffix": "digits",
+            "type": "sheet_prefix"
+          },
+          "type": "checkbox_group"
+        }
+      ],
+      "id": "further_requirements_page",
+      "navigation": {
+        "next_endpoint": "additional_building_work_page",
+        "previous_endpoint": "materials_page"
+      },
+      "title": "Further Requirements and Considerations"
+    },
+    "image_upload_page": {
+      "fields": [
+        {
+          "id": "site_image",
+          "label": "Site / Property Image",
+          "name": "site_image",
+          "type": "file_upload"
+        },
+        {
+          "id": "layout_template",
+          "label": "Layout Template",
+          "name": "layout_template",
+          "type": "template_selector"
+        }
+      ],
+      "id": "image_upload_page",
+      "navigation": {
+        "next_endpoint": "review",
+        "previous_endpoint": "optional_extras_page"
+      },
+      "title": "Image Upload"
+    },
+    "materials_page": {
+      "fields": [
+        {
+          "id": "selected_ew",
+          "label": "External Walls",
+          "name": "selected_ew",
+          "source": {
+            "prefix": "ew",
+            "suffix": "digits",
+            "type": "sheet_prefix"
+          },
+          "type": "checkbox_group"
+        },
+        {
+          "id": "selected_er",
+          "label": "External Roof",
+          "name": "selected_er",
+          "source": {
+            "prefix": "er",
+            "suffix": "digits",
+            "type": "sheet_prefix"
+          },
+          "type": "checkbox_group"
+        },
+        {
+          "id": "selected_id",
+          "label": "Internal Doors",
+          "name": "selected_id",
+          "source": {
+            "prefix": "id",
+            "suffix": "digits",
+            "type": "sheet_prefix"
+          },
+          "type": "checkbox_group"
+        },
+        {
+          "id": "selected_dr",
+          "label": "Drainage",
+          "name": "selected_dr",
+          "source": {
+            "prefix": "dr",
+            "suffix": "digits",
+            "type": "sheet_prefix"
+          },
+          "type": "checkbox_group"
+        },
+        {
+          "id": "selected_wp",
+          "label": "Waste and Parking",
+          "name": "selected_wp",
+          "source": {
+            "prefix": "wp",
+            "suffix": "digits",
+            "type": "sheet_prefix"
+          },
+          "type": "checkbox_group"
+        }
+      ],
+      "id": "materials_page",
+      "navigation": {
+        "next_endpoint": "further_requirements_page",
+        "previous_endpoint": "summary_page"
+      },
+      "title": "Materials and Details"
+    },
+    "optional_extras_page": {
+      "fields": [
+        {
+          "id": "selected_oe",
+          "label": "Optional extras to include",
+          "name": "selected_oe",
+          "source": {
+            "prefix": "oe",
+            "suffix": "digits",
+            "type": "sheet_prefix"
+          },
+          "type": "checkbox_group"
+        }
+      ],
+      "id": "optional_extras_page",
+      "navigation": {
+        "next_endpoint": "image_upload_page",
+        "previous_endpoint": "additional_costs_page"
+      },
+      "title": "Optional Extras"
+    },
+    "special_notes_page": {
+      "fields": [
+        {
+          "id": "selected_special_notes",
+          "label": "Select any selected notes to be included:",
+          "name": "selected_special_notes",
+          "source": {
+            "prefix": "sn",
+            "suffix": "digits",
+            "type": "sheet_prefix"
+          },
+          "storage": {
+            "key": "selected_special_notes",
+            "kind": "checkbox_data"
+          },
+          "type": "checkbox_group"
+        }
+      ],
+      "id": "special_notes_page",
+      "navigation": {
+        "next_endpoint": "summary_page",
+        "previous_endpoint": "index"
+      },
+      "title": "Special Notes"
+    },
+    "summary_page": {
+      "fields": [
+        {
+          "id": "selected_building_works",
+          "label": "Select items to include:",
+          "name": "selected_building_works",
+          "source": {
+            "prefix": "bw",
+            "suffix": "digits",
+            "type": "sheet_prefix"
+          },
+          "storage": {
+            "key": "selected_building_works",
+            "kind": "checkbox_data"
+          },
+          "type": "checkbox_group"
+        }
+      ],
+      "id": "summary_page",
+      "navigation": {
+        "next_endpoint": "materials_page",
+        "previous_endpoint": "special_notes_page"
+      },
+      "title": "Summary Page"
+    }
+  },
+  "settings": {
+    "payment_plan_rules": {
+      "deposit_percent": 10.0,
+      "stages": [
+        {
+          "name": "Weeks 1-8",
+          "percent": 50.0
+        },
+        {
+          "name": "Weeks 9-12",
+          "percent": 30.0
+        },
+        {
+          "name": "Completion",
+          "percent": 10.0
+        }
+      ]
+    },
+    "pricing_rules": {
+      "kitchen_light_rate": 30.0,
+      "kitchen_point_rate": 65.0,
+      "loft_light_rate": 30.0,
+      "loft_point_rate": 65.0,
+      "rounding_precision": 2
+    }
+  },
+  "version": 1
+}

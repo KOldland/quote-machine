@@ -1,0 +1,110 @@
+{% extends "index.html" %}
+
+{% block content %}
+<div class="form-container"> 
+    <h1>Review Your Submission</h1>
+    
+    
+    {% for section, items in review_data.items() %}
+    <div class="accordion-section">
+        <button type="button" class="accordion-header" onclick="toggleAccordion('section{{ loop.index }}');">
+            {{ section }}
+        </button>
+        <div id="section{{ loop.index }}" class="accordion-body">
+            {% if items is mapping %}
+            <ul>
+                {% for key, value in items.items() %}
+                {% if value and value is iterable and not value is string %}
+                <li><strong>{{ TITLE_MAPPING.get(key, key) }}:</strong>
+                    <ul>
+                        {% for item in value %}
+                        <li>{{ item }}</li>
+                        {% endfor %}
+                    </ul>
+                </li>
+                {% elif value %}
+                <li><strong>{{ TITLE_MAPPING.get(key, key) }}:</strong>
+                    <ul>
+                        <li>{{ value }}</li> 
+                    </ul>
+                </li>
+                {% else %}
+                    <li><strong>{{ TITLE_MAPPING.get(key, key) }}:</strong> 
+                        <ul>Not required for this project</ul>
+                    </li>
+                {% endif %}
+                {% endfor %}
+            </ul>
+            <br><br>
+            {% else %}
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+
+    
+
+
+    <!-- Uploaded Images Section -->
+    {% if uploaded_images %}
+    <h3>Uploaded Image Previews:</h3>
+        <div class="image-previews">
+            {% for label, image_url in uploaded_images.items() %}
+                {% if image_url %}
+                    <div class="image-container">
+                        <h4>{{ label }}</h4>
+                        <img src="{{ image_url }}" alt="{{ label }}" width="300">
+                    </div>
+                {% else %}
+                    <p>No image uploaded for {{ label }}</p>
+                {% endif %}
+            {% endfor %}
+        </div>
+    {% endif %}
+            
+    <!-- Button container with Commit Data button -->
+    <div class="button-container">
+        <!-- Commit Data button -->
+        <button type="button" id="commitButton" class="btn">Commit Data</button>
+    </div>
+        
+    <script>
+        document.getElementById('commitButton').addEventListener('click', function(event) {
+            event.preventDefault();  // Prevent default form submission
+            
+            // Send request to the submit route
+            fetch('{{ url_for('submit') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'  // Ensure CSRF protection if enabled
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Show success confirmation popup
+                    alert(data.message);
+                    
+                    // On success, redirect to confirmation page
+                    window.location.href = '{{ url_for('trigger_production') }}';
+                } else {
+                    // Show error message popup
+                    alert('Error: ' + data.message);
+                    
+                    // On error, redirect back to the review page
+                    window.location.href = '{{ url_for('review') }}';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred during submission.');
+                
+                // Redirect back to the review page in case of any error
+                window.location.href = '{{ url_for('review') }}';
+            });
+        });
+    </script>
+
+</div>
+{% endblock %}

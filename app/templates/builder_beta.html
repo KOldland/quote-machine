@@ -1,0 +1,368 @@
+{% extends "index.html" %}
+
+{% block content %}
+<style>
+  body.form-builder-page,
+  body.form-builder-page .wrapper,
+  body.form-builder-page .main-content {
+    background: #fff !important;
+    background-image: none !important;
+  }
+  .beta-wrap {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    background: #fff;
+    border: 1px solid #dfe4ed;
+    border-radius: 10px;
+  }
+  .beta-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .beta-header h2 {
+    margin: 0;
+    font-size: 20px;
+    color: #20324d;
+  }
+  .beta-header a {
+    color: #2f49b3;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .beta-grid {
+    display: grid;
+    grid-template-columns: 250px 1fr 380px;
+    gap: 14px;
+  }
+  .panel {
+    border: 1px solid #dfe4ed;
+    border-radius: 8px;
+    background: #fff;
+    padding: 12px;
+  }
+  .panel h3 {
+    margin: 0 0 10px;
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #4f5f74;
+  }
+  .page-list a {
+    display: block;
+    margin: 0 0 6px;
+    padding: 8px;
+    border: 1px solid #e5e9f2;
+    border-radius: 6px;
+    text-decoration: none;
+    color: #21344f;
+    font-size: 13px;
+  }
+  .page-list a.active {
+    background: #eef2ff;
+    border-color: #bac8f7;
+    font-weight: 600;
+  }
+  .type-form {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .type-form select,
+  .edit-form input,
+  .edit-form textarea {
+    width: 100%;
+    border: 1px solid #cfd8e6;
+    border-radius: 5px;
+    padding: 7px 8px;
+    font-size: 12px;
+    background: #fff;
+  }
+  .type-form button,
+  .block-actions button,
+  .edit-form button {
+    border: 1px solid #2f49b3;
+    background: #2f49b3;
+    color: #fff;
+    border-radius: 5px;
+    padding: 7px 10px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .block-actions button.secondary {
+    background: #fff;
+    color: #2f49b3;
+  }
+  .block-list {
+    display: grid;
+    gap: 8px;
+  }
+  .block-item {
+    border: 1px solid #e4e9f3;
+    border-radius: 6px;
+    padding: 9px;
+  }
+  .block-item.active {
+    border-color: #9eb1f0;
+    background: #f7f9ff;
+  }
+  .block-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #26374f;
+  }
+  .block-sub {
+    color: #6a7586;
+    font-size: 11px;
+    margin: 2px 0 8px;
+    font-family: monospace;
+  }
+  .block-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .edit-form {
+    display: grid;
+    gap: 8px;
+  }
+  .edit-form label {
+    font-size: 11px;
+    color: #5d6e84;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+  .field-help {
+    margin-top: -4px;
+    font-size: 11px;
+    line-height: 1.45;
+    color: #6a7586;
+  }
+  .flash-msg { padding: 9px 13px; border-radius: 5px; margin-bottom: 10px; font-size: 13px; }
+  .flash-msg.success { background:#e8f5e9; color:#2e7d32; border:1px solid #a5d6a7; }
+  .flash-msg.error   { background:#ffebee; color:#b71c1c; border:1px solid #ef9a9a; }
+  pre {
+    margin: 0;
+    background: #f8fbff;
+    border: 1px solid #e4eaf7;
+    border-radius: 6px;
+    padding: 9px;
+    font-size: 11px;
+    max-height: 220px;
+    overflow: auto;
+  }
+  @media (max-width: 1100px) {
+    .beta-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<div class="beta-wrap">
+  <div class="beta-header">
+    <h2>Builder Beta: {{ current_page.title }}</h2>
+    <div style="display:flex; gap:10px; align-items:center;">
+      <a href="{{ url_for('builder_beta_runtime_render', page_id=current_page_id) }}">Open Runtime Preview</a>
+      <a href="{{ url_for('form_builder_demo') }}">Back to Existing Builder</a>
+    </div>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="flash-msg {{ category }}">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <div class="beta-grid">
+    <div class="panel">
+      <h3>Pages</h3>
+      <div class="page-list">
+        {% for pid, pg in all_pages.items() %}
+          <a href="{{ url_for('builder_beta_page_editor', page_id=pid) }}" class="{% if pid == current_page_id %}active{% endif %}">{{ pg.title }}</a>
+        {% endfor %}
+      </div>
+
+      <h3 style="margin-top:14px;">Question Bank</h3>
+      <form method="post" class="type-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+        <input type="hidden" name="action" value="add_block" />
+        <input type="hidden" name="selected_block_id" value="{{ selected_block_id }}" />
+        <label for="new_block_type_select">Block Type</label>
+        <select id="new_block_type_select" name="new_block_type">
+          {% for type_key, type_meta in builder_state.question_types.items() %}
+            <option value="{{ type_key }}">{{ type_meta.label }} ({{ type_key }})</option>
+          {% endfor %}
+        </select>
+        <button type="submit">Add Block</button>
+      </form>
+    </div>
+
+    <div class="panel">
+      <h3>Canvas Blocks</h3>
+      <div class="block-list">
+        {% for block in current_page.blocks %}
+          <div class="block-item {% if block.id == selected_block_id %}active{% endif %}">
+            <div class="block-title">{{ loop.index }}. {{ block.standard.label }}</div>
+            <div class="block-sub">{{ block.block_type }} / {{ block.id }}</div>
+            <div class="block-actions">
+              <a href="{{ url_for('builder_beta_page_editor', page_id=current_page_id, selected_block_id=block.id) }}">Edit</a>
+
+              <form method="post" style="display:inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                <input type="hidden" name="action" value="move_block_up" />
+                <input type="hidden" name="block_id" value="{{ block.id }}" />
+                <input type="hidden" name="selected_block_id" value="{{ block.id }}" />
+                <button type="submit" class="secondary">Up</button>
+              </form>
+
+              <form method="post" style="display:inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                <input type="hidden" name="action" value="move_block_down" />
+                <input type="hidden" name="block_id" value="{{ block.id }}" />
+                <input type="hidden" name="selected_block_id" value="{{ block.id }}" />
+                <button type="submit" class="secondary">Down</button>
+              </form>
+
+              <form method="post" style="display:inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                <input type="hidden" name="action" value="delete_block" />
+                <input type="hidden" name="block_id" value="{{ block.id }}" />
+                <input type="hidden" name="selected_block_id" value="{{ selected_block_id }}" />
+                <button type="submit">Delete</button>
+              </form>
+            </div>
+          </div>
+        {% else %}
+          <div>No blocks on this page yet.</div>
+        {% endfor %}
+      </div>
+
+      <h3 style="margin-top:14px;">Compiled Runtime Preview (Phase 1)</h3>
+      <pre>{{ compiled_preview | tojson(indent=2) }}</pre>
+      <div style="margin-top:8px; font-size:12px;">
+        JSON endpoint: <a href="{{ url_for('builder_beta_preview_json', page_id=current_page_id) }}" target="_blank">Open preview JSON</a>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Inspector</h3>
+      {% if selected_block %}
+        {% set block_prefix = selected_block.id %}
+        <form method="post" class="edit-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+          <input type="hidden" name="action" value="save_block" />
+          <input type="hidden" name="block_id" value="{{ selected_block.id }}" />
+          <input type="hidden" name="selected_block_id" value="{{ selected_block.id }}" />
+
+          <label for="{{ block_prefix }}__standard_label">Label</label>
+          <input id="{{ block_prefix }}__standard_label" type="text" name="standard_label" value="{{ selected_block.standard.label }}" />
+
+          <label for="{{ block_prefix }}__standard_name">Name</label>
+          <input id="{{ block_prefix }}__standard_name" type="text" name="standard_name" value="{{ selected_block.standard.name }}" />
+
+          <label for="{{ block_prefix }}__standard_help_text">Help Text</label>
+          <textarea id="{{ block_prefix }}__standard_help_text" name="standard_help_text" rows="2">{{ selected_block.standard.help_text }}</textarea>
+
+          <label for="{{ block_prefix }}__standard_source_prefix">Source Prefix</label>
+          <input id="{{ block_prefix }}__standard_source_prefix" type="text" name="standard_source_prefix" value="{{ selected_block.standard.source_prefix }}" />
+          {% if selected_block.block_type == 'checkbox_group' %}
+            <div class="field-help">
+              Used only for sheet-backed checkbox groups. This filters Google Sheet line codes by prefix, for example <strong>bw</strong>, <strong>sn</strong>, or <strong>ab</strong>.
+            </div>
+          {% else %}
+            <div class="field-help">
+              Currently not used for this block type. Leave blank unless this block is later converted to a sheet-backed checkbox group.
+            </div>
+          {% endif %}
+
+          {% if selected_block.block_type in ['text_input', 'number_currency_input'] %}
+            <label for="{{ block_prefix }}__standard_placeholder">Placeholder</label>
+            <input id="{{ block_prefix }}__standard_placeholder" type="text" name="standard_placeholder" value="{{ selected_block.standard.placeholder or '' }}" />
+          {% endif %}
+
+          {% if selected_block.block_type == 'dropdown_select' %}
+            <label for="{{ block_prefix }}__standard_dropdown_choices">Dropdown Choices (one per line)</label>
+            <textarea id="{{ block_prefix }}__standard_dropdown_choices" name="standard_dropdown_choices" rows="4">{{ (selected_block.standard.dropdown_choices or []) | join('\n') }}</textarea>
+          {% endif %}
+
+          {% if selected_block.block_type == 'static_text_heading' %}
+            <label for="{{ block_prefix }}__standard_static_variant">Static Variant</label>
+            <input id="{{ block_prefix }}__standard_static_variant" type="text" name="standard_static_variant" value="{{ selected_block.standard.static_variant or 'body' }}" list="static-variant-list" />
+            <datalist id="static-variant-list">
+              <option value="heading"></option>
+              <option value="subheading"></option>
+              <option value="body"></option>
+              <option value="note"></option>
+            </datalist>
+
+            <label for="{{ block_prefix }}__standard_static_content">Static Content</label>
+            <textarea id="{{ block_prefix }}__standard_static_content" name="standard_static_content" rows="4">{{ selected_block.standard.static_content or '' }}</textarea>
+          {% endif %}
+
+          <label for="{{ block_prefix }}__standard_required"><input id="{{ block_prefix }}__standard_required" type="checkbox" name="standard_required" {% if selected_block.standard.required %}checked{% endif %} /> Required</label>
+
+          <label for="{{ block_prefix }}__logic_visibility">Logic Visibility</label>
+          <input id="{{ block_prefix }}__logic_visibility" type="text" name="logic_visibility" value="{{ selected_block.logic_options.visibility }}" />
+
+          <label for="{{ block_prefix }}__logic_depends_on_field">Depends On Field</label>
+          <input id="{{ block_prefix }}__logic_depends_on_field" type="text" name="logic_depends_on_field" value="{{ selected_block.logic_options.depends_on_field }}" />
+
+          <label for="{{ block_prefix }}__logic_depends_on_value">Depends On Value</label>
+          <input id="{{ block_prefix }}__logic_depends_on_value" type="text" name="logic_depends_on_value" value="{{ selected_block.logic_options.depends_on_value }}" />
+
+          <label for="{{ block_prefix }}__pricing_enabled"><input id="{{ block_prefix }}__pricing_enabled" type="checkbox" name="pricing_enabled" {% if selected_block.pricing_options.enabled %}checked{% endif %} /> Pricing Enabled</label>
+
+          <label for="{{ block_prefix }}__pricing_mode">Pricing Mode</label>
+          <input id="{{ block_prefix }}__pricing_mode" type="text" name="pricing_mode" value="{{ selected_block.pricing_options.mode }}" list="pricing-mode-list" />
+          <datalist id="pricing-mode-list">
+            {% for mode in pricing_modes %}
+              <option value="{{ mode }}"></option>
+            {% endfor %}
+          </datalist>
+
+          <label for="{{ block_prefix }}__pricing_fixed_amount">Fixed Amount</label>
+          <input id="{{ block_prefix }}__pricing_fixed_amount" type="number" step="0.01" name="pricing_fixed_amount" value="{{ selected_block.pricing_options.fixed_amount }}" />
+
+          <label for="{{ block_prefix }}__pricing_entered_key">Entered Amount Key</label>
+          <input id="{{ block_prefix }}__pricing_entered_key" type="text" name="pricing_entered_key" value="{{ selected_block.pricing_options.entered_key }}" />
+
+          <label for="{{ block_prefix }}__pricing_rate">Rate</label>
+          <input id="{{ block_prefix }}__pricing_rate" type="number" step="0.01" name="pricing_rate" value="{{ selected_block.pricing_options.rate }}" />
+
+          <label for="{{ block_prefix }}__pricing_quantity_key">Quantity Key</label>
+          <input id="{{ block_prefix }}__pricing_quantity_key" type="text" name="pricing_quantity_key" value="{{ selected_block.pricing_options.quantity_key }}" />
+
+          <label for="{{ block_prefix }}__pricing_percent_of_subtotal">Percent Of Subtotal</label>
+          <input id="{{ block_prefix }}__pricing_percent_of_subtotal" type="number" step="0.01" name="pricing_percent_of_subtotal" value="{{ selected_block.pricing_options.percent_of_subtotal }}" />
+
+          <label for="{{ block_prefix }}__output_include_in_output"><input id="{{ block_prefix }}__output_include_in_output" type="checkbox" name="output_include_in_output" {% if selected_block.output_options.include_in_output %}checked{% endif %} /> Include In Output</label>
+
+          <label for="{{ block_prefix }}__output_label">Output Label</label>
+          <input id="{{ block_prefix }}__output_label" type="text" name="output_label" value="{{ selected_block.output_options.output_label }}" />
+
+          <label for="{{ block_prefix }}__output_group">Output Group</label>
+          <input id="{{ block_prefix }}__output_group" type="text" name="output_group" value="{{ selected_block.output_options.group }}" />
+
+          <label for="{{ block_prefix }}__output_sort_order">Output Sort Order</label>
+          <input id="{{ block_prefix }}__output_sort_order" type="number" name="output_sort_order" value="{{ selected_block.output_options.sort_order }}" />
+
+          <label for="{{ block_prefix }}__output_value_mode">Output Value Mode</label>
+          <input id="{{ block_prefix }}__output_value_mode" type="text" name="output_value_mode" value="{{ selected_block.output_options.value_mode }}" />
+
+          <button type="submit">Save Block</button>
+        </form>
+      {% else %}
+        <div>Select a block to edit.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

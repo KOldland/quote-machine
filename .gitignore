@@ -1,0 +1,21 @@
+.DS_Store
+__pycache__/
+*.pyc
+
+# Virtual environments
+.venv/
+venv/
+
+# Local runtime/session artifacts
+flask_session/
+app/flask_session/
+app/static/uploads/
+
+# Secrets and local config
+QM_credentials.json
+app/QM_credentials.json
+.env
+
+# Editor and logs
+.vscode/
+*.log

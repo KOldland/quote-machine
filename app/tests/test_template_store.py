@@ -73,12 +73,66 @@ class TemplateStoreTests(unittest.TestCase):
             "question_templates",
             "logic_rules",
             "template_rule_bindings",
+            "option_sets",
+            "option_items",
         }
         cur.execute("SELECT name FROM sqlite_master WHERE type='table'")
         names = {row[0] for row in cur.fetchall()}
         conn.close()
 
         self.assertTrue(expected.issubset(names))
+
+    def test_catalog_import_and_load_parity(self):
+        """Importing sheet rows then loading via load_option_set must match
+        the result of filtering the same rows in Python (the legacy path)."""
+        from template_store import import_sheet_rows_to_catalog, load_option_set  # noqa: WPS433
+
+        # Bootstrap a minimal template so a version row exists.
+        payload = {"pages": {"special_notes_page": {"title": "SN", "navigation": {}, "fields": []}}}
+        self.initialize_template_store(payload, template_key="parity_test_template")
+
+        # Build a representative sheet dataset covering two prefixes.
+        sheet_rows = [
+            {"Line Code": "sn1", "Internal Description": "Special note A", "Include": "Y"},
+            {"Line Code": "sn2", "Internal Description": "Special note B", "Include": "N"},
+            {"Line Code": "sn3", "Internal Description": "Special note C", "Include": "Y"},
+            {"Line Code": "bw1", "Internal Description": "Building works A", "Include": "N"},
+            {"Line Code": "bw2", "Internal Description": "Building works B", "Include": "Y"},
+        ]
+
+        result = import_sheet_rows_to_catalog(
+            sheet_rows,
+            template_key="parity_test_template",
+        )
+        self.assertEqual(result["prefixes_written"], 2)
+        self.assertEqual(result["items_written"], 5)
+
+        # --- parity check for prefix 'sn' ---
+        db_sn = load_option_set("sn", template_key="parity_test_template")
+        self.assertIsNotNone(db_sn)
+
+        # Legacy path: filter sheet_rows by startswith('sn')
+        legacy_sn = [
+            {"value": r["Line Code"], "label": r["Internal Description"], "is_included": r["Include"] == "Y"}
+            for r in sheet_rows
+            if r["Line Code"].startswith("sn")
+        ]
+
+        self.assertEqual(len(db_sn), len(legacy_sn))
+        for db_item, legacy_item in zip(db_sn, legacy_sn):
+            self.assertEqual(db_item["value"], legacy_item["value"])
+            self.assertEqual(db_item["label"], legacy_item["label"])
+            self.assertEqual(db_item["is_included"], legacy_item["is_included"])
+
+        # --- parity check for prefix 'bw' ---
+        db_bw = load_option_set("bw", template_key="parity_test_template")
+        self.assertIsNotNone(db_bw)
+        self.assertEqual(len(db_bw), 2)
+        self.assertFalse(db_bw[0]["is_included"])  # bw1 is N
+        self.assertTrue(db_bw[1]["is_included"])   # bw2 is Y
+
+        # --- missing prefix returns None ---
+        self.assertIsNone(load_option_set("xx", template_key="parity_test_template"))
 
 
 if __name__ == "__main__":

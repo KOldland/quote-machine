@@ -140,6 +140,29 @@ def _create_schema(conn: sqlite3.Connection) -> None:
             FOREIGN KEY (form_template_version_id) REFERENCES form_template_versions(id) ON DELETE CASCADE,
             FOREIGN KEY (rule_id) REFERENCES logic_rules(id) ON DELETE CASCADE
         );
+
+        CREATE TABLE IF NOT EXISTS option_sets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            form_template_version_id INTEGER NOT NULL,
+            prefix TEXT NOT NULL,
+            label TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE (form_template_version_id, prefix),
+            FOREIGN KEY (form_template_version_id) REFERENCES form_template_versions(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS option_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            option_set_id INTEGER NOT NULL,
+            line_code TEXT NOT NULL,
+            label TEXT NOT NULL,
+            is_included INTEGER NOT NULL DEFAULT 0,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            metadata_json TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE (option_set_id, line_code),
+            FOREIGN KEY (option_set_id) REFERENCES option_sets(id) ON DELETE CASCADE
+        );
         """
     )
 
@@ -526,3 +549,172 @@ def get_template_store_overview() -> Dict[str, Any]:
         for row in rows
     ]
     return overview
+
+
+# ---------------------------------------------------------------------------
+# Catalog / option-set layer
+# ---------------------------------------------------------------------------
+
+import re as _re
+
+
+def _extract_prefix(line_code: str) -> str:
+    """Return the leading letter group of an alphanumeric line code.
+
+    Examples: 'bw1' -> 'bw', 'sn3' -> 'sn', 'frc1' -> 'frc', 'rro1' -> 'rro'
+    """
+    alphanumeric = _re.sub(r"[^a-zA-Z0-9]", "", line_code).lower()
+    match = _re.match(r"^([a-z]+)", alphanumeric)
+    return match.group(1) if match else ""
+
+
+def _get_latest_version_id(conn: sqlite3.Connection, template_key: str) -> Optional[int]:
+    row = conn.execute(
+        """
+        SELECT ftv.id
+        FROM form_template_versions ftv
+        JOIN form_templates ft ON ft.id = ftv.form_template_id
+        WHERE ft.key = ?
+        ORDER BY ftv.version DESC
+        LIMIT 1
+        """,
+        (template_key,),
+    ).fetchone()
+    return int(row["id"]) if row else None
+
+
+def import_sheet_rows_to_catalog(
+    sheet_rows: Iterable[Dict[str, Any]],
+    template_key: str = "first_client_template_v1",
+    db_path: Optional[Path] = None,
+) -> Dict[str, Any]:
+    """Import sheet row data into the option_sets / option_items catalog tables.
+
+    Each row must have at minimum:
+        'Line Code'           - e.g. 'bw1'
+        'Internal Description'- human-readable label
+        'Include'             - 'Y' or 'N'
+
+    Rows are grouped by the leading letter group of their line code (the
+    *prefix*).  Any existing option data for the target template version is
+    replaced on a per-prefix basis (upsert semantics on line_code).
+
+    Returns a summary dict with counts of sets and items written.
+    """
+    resolved_path = db_path or _default_db_path()
+    if not resolved_path.exists():
+        raise FileNotFoundError(f"Template store DB not found at {resolved_path}")
+
+    rows_list = list(sheet_rows)
+
+    # Group by prefix
+    prefix_groups: Dict[str, list] = {}
+    for row in rows_list:
+        raw_code = str(row.get("Line Code", "")).strip()
+        if not raw_code:
+            continue
+        prefix = _extract_prefix(raw_code)
+        if not prefix:
+            continue
+        prefix_groups.setdefault(prefix, []).append(row)
+
+    sets_written = 0
+    items_written = 0
+
+    with _connect(resolved_path) as conn:
+        version_id = _get_latest_version_id(conn, template_key)
+        if version_id is None:
+            raise ValueError(
+                f"No template version found for key '{template_key}'. "
+                "Run initialize_template_store first."
+            )
+
+        for prefix, group_rows in sorted(prefix_groups.items()):
+            # Upsert option_set for this prefix
+            conn.execute(
+                """
+                INSERT INTO option_sets (form_template_version_id, prefix, label)
+                VALUES (?, ?, ?)
+                ON CONFLICT(form_template_version_id, prefix) DO UPDATE SET
+                    label = excluded.label
+                """,
+                (version_id, prefix, prefix.upper()),
+            )
+            set_row = conn.execute(
+                "SELECT id FROM option_sets WHERE form_template_version_id = ? AND prefix = ?",
+                (version_id, prefix),
+            ).fetchone()
+            set_id = int(set_row["id"])
+            sets_written += 1
+
+            for sort_order, row in enumerate(group_rows):
+                line_code = str(row.get("Line Code", "")).strip()
+                label = str(row.get("Internal Description", "")).strip()
+                is_included = 1 if str(row.get("Include", "N")).strip().upper() == "Y" else 0
+
+                conn.execute(
+                    """
+                    INSERT INTO option_items
+                        (option_set_id, line_code, label, is_included, sort_order)
+                    VALUES (?, ?, ?, ?, ?)
+                    ON CONFLICT(option_set_id, line_code) DO UPDATE SET
+                        label = excluded.label,
+                        is_included = excluded.is_included,
+                        sort_order = excluded.sort_order
+                    """,
+                    (set_id, line_code, label, is_included, sort_order),
+                )
+                items_written += 1
+
+        conn.commit()
+
+    return {
+        "template_key": template_key,
+        "version_id": version_id,
+        "prefixes_written": sets_written,
+        "items_written": items_written,
+    }
+
+
+def load_option_set(
+    prefix: str,
+    template_key: str = "first_client_template_v1",
+    db_path: Optional[Path] = None,
+) -> Optional[list]:
+    """Return option items for *prefix* from the catalog tables.
+
+    Returns a list of dicts with keys ``value``, ``label``, ``is_included``,
+    matching the shape produced by ``_builder_beta_checkbox_options``.
+
+    Returns ``None`` if no catalog data exists for this prefix (so the caller
+    can fall back to the sheet-data path).
+    """
+    resolved_path = db_path or _default_db_path()
+    if not resolved_path.exists():
+        return None
+
+    with _connect(resolved_path) as conn:
+        rows = conn.execute(
+            """
+            SELECT oi.line_code, oi.label, oi.is_included
+            FROM option_items oi
+            JOIN option_sets os ON os.id = oi.option_set_id
+            JOIN form_template_versions ftv ON ftv.id = os.form_template_version_id
+            JOIN form_templates ft ON ft.id = ftv.form_template_id
+            WHERE ft.key = ? AND os.prefix = ?
+            ORDER BY oi.sort_order ASC, oi.line_code ASC
+            """,
+            (template_key, prefix),
+        ).fetchall()
+
+    if not rows:
+        return None
+
+    return [
+        {
+            "value": row["line_code"],
+            "label": row["label"],
+            "is_included": bool(row["is_included"]),
+        }
+        for row in rows
+    ]
