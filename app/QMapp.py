@@ -43,6 +43,10 @@ def is_truthy_env(name: str) -> bool:
 
 TEST_MODE = is_truthy_env('QM_TEST_MODE')
 SHEETS_DISABLED = is_truthy_env('QM_DISABLE_SHEETS')
+# QM_CATALOG_SOURCE: 'auto' (default) = DB first, Sheets fallback;
+#                    'db'   = DB only (demo-safe, no Sheets needed);
+#                    'sheets' = live Sheets always (debug/override)
+CATALOG_SOURCE = os.getenv('QM_CATALOG_SOURCE', 'auto').strip().lower()
 
 # ---------------------------------------------------------------------------
 # Auth / Role system
@@ -1405,12 +1409,74 @@ def fetch_data():
 		print(f"Error fetching Google Sheets data: {e}")
 		return None
 	
+def fetch_catalog_from_db() -> list:
+	"""Read all catalog rows from SQLite option_sets/option_items.
+
+	Returns rows in the same dict format as fetch_data():
+	    [{'Line Code': 'bw1', 'Internal Description': '...', 'Include': 'Y'}, ...]
+	Returns [] if the DB has no rows for the current template key.
+	"""
+	try:
+		import sqlite3 as _sqlite3
+		db_path = os.path.join(os.path.dirname(__file__), 'template_store.sqlite3')
+		conn = _sqlite3.connect(db_path)
+		conn.row_factory = _sqlite3.Row
+		rows = conn.execute(
+			"""
+			SELECT oi.line_code, oi.label, oi.is_included
+			FROM option_items oi
+			JOIN option_sets os ON os.id = oi.option_set_id
+			JOIN form_template_versions ftv ON ftv.id = os.form_template_version_id
+			JOIN form_templates ft ON ft.id = ftv.form_template_id
+			WHERE ft.key = ?
+			ORDER BY os.prefix ASC, oi.sort_order ASC
+			""",
+			(TEMPLATE_STORE_KEY,),
+		).fetchall()
+		conn.close()
+		return [
+			{
+				'Line Code': row['line_code'],
+				'Internal Description': row['label'],
+				'Include': 'Y' if row['is_included'] else 'N',
+			}
+			for row in rows
+		]
+	except Exception as e:
+		print(f'[catalog_db] Error reading catalog from DB: {e}')
+		return []
+
+
+def get_catalog() -> list:
+	"""Catalog source router — respects QM_CATALOG_SOURCE env var.
+
+	  auto   (default) — DB first; falls back to Sheets if DB is empty.
+	  db     — DB only. Safe for demo / offline use.
+	  sheets — Live Sheets always. Bypasses DB entirely.
+	"""
+	if CATALOG_SOURCE == 'sheets':
+		return fetch_data() or []
+
+	if CATALOG_SOURCE == 'db':
+		rows = fetch_catalog_from_db()
+		if not rows:
+			print('[catalog] DB empty and QM_CATALOG_SOURCE=db — returning []')
+		return rows
+
+	# auto: try DB first, fall back to Sheets
+	rows = fetch_catalog_from_db()
+	if rows:
+		return rows
+	print('[catalog] DB empty — falling back to Google Sheets')
+	return fetch_data() or []
+
+
 def allowed_file(filename):
 	return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # Function to check if a line code is included (i.e., marked with 'Y')
 def is_included(line_code):
-	sheet_data = fetch_data()
+	sheet_data = get_catalog()
 	for row in sheet_data:
 		if row.get('Line Code') == line_code and row.get('Include') == 'Y':
 			return True
@@ -1602,7 +1668,7 @@ def update_description_column(**submit_to_description_function):
 	
 	try:
 		# Fetch the sheet data
-		sheet_data = fetch_data()
+		sheet_data = get_catalog()
 		if not sheet_data:
 			print("⚠ ERROR: No data fetched from Google Sheets.")
 			return
@@ -1767,7 +1833,7 @@ def update_include_column(combined_data, description_column_includes=None):
 	processed_codes = []
 	
 	try:
-		sheet_data = fetch_data()
+		sheet_data = get_catalog()
 		updates = [] 
 		
 		if not sheet_data:
@@ -1841,7 +1907,7 @@ def cleanup_include_column(processed_codes):
 		return
 	
 	try:		
-		sheet_data = fetch_data()
+		sheet_data = get_catalog()
 		updates = []
 		
 		if not sheet_data:
@@ -2029,7 +2095,7 @@ def special_notes_page():
 		session.modified = True
 		return redirect(url_for('summary_page'))
 	
-	sheet_data = fetch_data()
+	sheet_data = get_catalog()
 	page_schema = build_page_schema_context('special_notes_page', sheet_data, checkbox_data)
 				
 	return render_template(
@@ -2092,7 +2158,7 @@ def summary_page():
 		session.modified = True
 		return redirect(url_for('materials_page'))
 
-	sheet_data = fetch_data()
+	sheet_data = get_catalog()
 	page_schema = build_page_schema_context('summary_page', sheet_data, session.get('checkbox_data', {}))
 	preselected_bw = session.get('checkbox_data', {}).get('selected_building_works', {}).get('preselected', [])
 	preselected_bll = session.get('checkbox_data', {}).get('selected_bll', {}).get('preselected', [])
@@ -2528,7 +2594,7 @@ def builder_beta_preview_json(page_id):
 @app.route('/builder_beta/runtime_payload_json/<page_id>', methods=['GET'])
 @require_role('admin')
 def builder_beta_runtime_payload_json(page_id):
-	sheet_data = fetch_data()
+	sheet_data = get_catalog()
 	builder_beta_answers = session.setdefault('builder_beta_answers', {})
 	page_answers = builder_beta_answers.get(page_id, {}) if isinstance(builder_beta_answers, dict) else {}
 	runtime_page = build_builder_beta_runtime_context(page_id, sheet_data, page_answers)
@@ -2542,7 +2608,7 @@ def builder_beta_runtime_payload_json(page_id):
 @app.route('/builder_beta/render/<page_id>', methods=['GET', 'POST'])
 @require_role('admin')
 def builder_beta_runtime_render(page_id):
-	sheet_data = fetch_data()
+	sheet_data = get_catalog()
 	builder_beta_answers = session.setdefault('builder_beta_answers', {})
 	page_answers = builder_beta_answers.setdefault(page_id, {})
 
@@ -2673,7 +2739,7 @@ def materials_page():
 	
 	# Load Data from Google Sheets
 	
-	sheet_data = fetch_data()
+	sheet_data = get_catalog()
 	line_code_descriptions = {row['Line Code']: row['Internal Description'] for row in sheet_data}
 	
 	# Fetch preselected values from session
@@ -2892,7 +2958,7 @@ def further_requirements_page():
 	}
 	
 	# Load data from Google Sheets
-	sheet_data = fetch_data()
+	sheet_data = get_catalog()
 	line_code_descriptions = {row['Line Code']: row['Internal Description'] for row in sheet_data}
 	
 	
@@ -3000,7 +3066,7 @@ def additional_building_work_page():
 		return redirect(url_for('additional_costs_page'))  # Update this placeholder when renaming other pages
 	
 	# Load data from Google Sheets
-	sheet_data = fetch_data()
+	sheet_data = get_catalog()
 	preselected_ab = session.get('checkbox_data', {}).get('selected_ab', {}).get('preselected', [])
 	
 	data = {
@@ -3167,7 +3233,7 @@ def additional_costs_page():
 	selected_sd = session.get("data", {}).get("selected_sd", "")
 	
 	# Load data from Google Sheets
-	sheet_data = fetch_data() or [] 
+	sheet_data = get_catalog() or [] 
 	
 	# Initialize the `data` structure for this page
 	data = {
@@ -3323,7 +3389,7 @@ def optional_extras_page():
 	preselected_fw = session.get('checkbox_data', {}).get('selected_fw', {}).get('preselected', [])
 	
 	# Load and filter sheet data
-	sheet_data = fetch_data() or []
+	sheet_data = get_catalog() or []
 	
 	data = {
 		"selected_fw": {"data": {}, "preselected": preselected_fw.copy()},
@@ -3638,7 +3704,7 @@ def review():
 	
 	# Fetch data from Google Sheets for descriptions
 
-	fetched_data = fetch_data() or []
+	fetched_data = get_catalog() or []
 	line_code_descriptions = {row['Line Code']: row['Internal Description'] for row in fetched_data}
 	
 	if session.get('checkbox_data') and 'other_council' in session['checkbox_data'] and not other_council:
@@ -3904,7 +3970,7 @@ def submit():
 	if request.method == 'POST':
 		
 		data = session.get('checkbox_data', {})
-		sheet_data = fetch_data()
+		sheet_data = get_catalog()
 		combined_data = []
 		
 		if sheet_data:

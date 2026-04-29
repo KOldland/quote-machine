@@ -36,5 +36,5 @@ echo ""
 echo "Starting app on port $PORT..."
 echo "Visit: http://127.0.0.1:$PORT/login"
 echo ""
-export QM_TEST_MODE=1 QM_DISABLE_SHEETS=1 PORT="$PORT" FLASK_DEBUG=0 QM_ADMIN_PASSWORD=admin123
+export QM_TEST_MODE=1 QM_DISABLE_SHEETS=1 QM_CATALOG_SOURCE=db PORT="$PORT" FLASK_DEBUG=0 QM_ADMIN_PASSWORD=admin123
 exec python3 QMapp.py
