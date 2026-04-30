@@ -65,9 +65,10 @@
 
                 {% for option in field.options %}
                     {# Per-option overrides #}
-                    {% set opt_override = (field.option_overrides or {})[option.value] if field.option_overrides else {} %}
-                    {% set opt_label = opt_override.label_override if opt_override.label_override else option.label %}
-                    {% set opt_hidden = opt_override.hidden if opt_override.hidden is defined else false %}
+                    {% set option_overrides_map = field.option_overrides if field.option_overrides is mapping else {} %}
+                    {% set opt_override = option_overrides_map.get(option.value, {}) %}
+                    {% set opt_label = opt_override.get('label_override', option.label) if opt_override is mapping else option.label %}
+                    {% set opt_hidden = opt_override.get('hidden', false) if opt_override is mapping else false %}
                     {# In runtime mode: skip hidden options #}
                     {% if not edit_mode and opt_hidden %}
                         {# hidden option — skip #}
