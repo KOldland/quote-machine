@@ -2721,7 +2721,7 @@ def builder_beta_runtime_render(page_id):
 @app.route('/materials_page', methods=['POST', 'GET'])
 def materials_page():
 	# Store the current page in the session
-	previous_page = session.get('last_visited', url_for('summary_page'))
+	previous_page = session.get('last_visited', 'summary_page')
 	session['last_visited'] = 'summary_page'
 	
 	if request.method == 'POST':
@@ -2926,7 +2926,7 @@ def materials_page():
 @app.route('/further_requirements_page', methods=['POST', 'GET'])
 def further_requirements_page():
 	# Store the current page in the session
-	previous_page = session.get('last_visited', url_for('materials_page'))
+	previous_page = session.get('last_visited', 'materials_page')
 	session['last_visited'] = 'further_requirements_page'
 	
 	if request.method == 'POST':
@@ -3417,7 +3417,7 @@ def additional_costs_page():
 def optional_extras_page():
 	
 	# Store the current page in the session
-	previous_page = session.get('last_visited', url_for('additional_costs_page'))
+	previous_page = session.get('last_visited', 'additional_costs_page')
 	session['last_visited'] = 'optional_extras_page'
 	
 	if request.method == 'POST':
