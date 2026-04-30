@@ -70,8 +70,14 @@
                     {% set opt_override = option_overrides_map.get(option.value, {}) %}
                     {% set opt_label = opt_override.get('label_override', option.label) if opt_override is mapping else option.label %}
                     {% set opt_hidden = opt_override.get('hidden', false) if opt_override is mapping else false %}
+                    {% set opt_deleted = opt_override.get('deleted', false) if opt_override is mapping else false %}
+                    {% set opt_pricing = opt_override.get('pricing_options', {}) if opt_override is mapping else {} %}
+                    {% set opt_output = opt_override.get('output_options', {}) if opt_override is mapping else {} %}
+                    {% set opt_line_title = opt_output.get('line_title', opt_label) %}
+                    {% set opt_line_description = opt_output.get('line_description', '') %}
+                    {% set opt_line_notes = opt_output.get('line_additional_notes', '') %}
                     {# In runtime mode: skip hidden options #}
-                    {% if not edit_mode and opt_hidden %}
+                    {% if (not edit_mode and (opt_hidden or opt_deleted)) or opt_deleted %}
                         {# hidden option — skip #}
                     {% else %}
                     <div class="schema-option-row{% if edit_mode %} edit-option-row{% endif %}{% if opt_hidden %} option-hidden{% endif %}"
@@ -83,12 +89,13 @@
                             {% if edit_mode and opt_hidden %}<s>{{ opt_label }}</s>{% else %}{{ opt_label }}{% endif %}
                         </label>
                         {% if edit_mode %}
-                        <input type="text" class="option-label-input" value="{{ opt_label }}"
-                               placeholder="Option label"
-                               style="font-size:.8rem;padding:.15rem .35rem;border:1px solid #ccc;border-radius:3px;width:180px;"
-                               data-field-id="{{ field.id or field.name }}"
-                               data-option-value="{{ option.value }}"
-                               data-page-id="{{ page_schema.id | default('') }}">
+                        <button type="button" class="btn-option-edit"
+                                data-field-id="{{ field.id or field.name }}"
+                                data-option-value="{{ option.value }}"
+                                data-page-id="{{ page_schema.id | default('') }}"
+                                style="font-size:.72rem;padding:.15rem .4rem;border:1px solid #007bff;color:#007bff;background:#fff;border-radius:3px;cursor:pointer;">
+                            Edit
+                        </button>
                         <button type="button" class="btn-option-hide"
                                 data-field-id="{{ field.id or field.name }}"
                                 data-option-value="{{ option.value }}"
@@ -97,6 +104,92 @@
                                 style="font-size:.72rem;padding:.15rem .4rem;border:1px solid {% if opt_hidden %}#28a745{% else %}#dc3545{% endif %};color:{% if opt_hidden %}#28a745{% else %}#dc3545{% endif %};background:#fff;border-radius:3px;cursor:pointer;">
                             {% if opt_hidden %}Show{% else %}Hide{% endif %}
                         </button>
+                        <button type="button" class="btn-option-delete"
+                                data-field-id="{{ field.id or field.name }}"
+                                data-option-value="{{ option.value }}"
+                                data-page-id="{{ page_schema.id | default('') }}"
+                                style="font-size:.72rem;padding:.15rem .4rem;border:1px solid #b23a48;color:#b23a48;background:#fff;border-radius:3px;cursor:pointer;">
+                            Delete
+                        </button>
+
+                        <div class="option-edit-panel" style="display:none;width:100%;margin-top:.35rem;border:1px solid #d8d8d8;border-radius:4px;background:#fafafa;"
+                             data-field-id="{{ field.id or field.name }}"
+                             data-option-value="{{ option.value }}"
+                             data-page-id="{{ page_schema.id | default('') }}">
+                            <div class="option-edit-tabs" style="display:flex;gap:.25rem;padding:.4rem .45rem;border-bottom:1px solid #e0e0e0;background:#f2f2f2;">
+                                <button type="button" class="btn-option-tab active" data-tab="description"
+                                        style="font-size:.75rem;padding:.2rem .5rem;border:1px solid #007bff;color:#007bff;background:#fff;border-radius:3px;cursor:pointer;">
+                                    Description
+                                </button>
+                                <button type="button" class="btn-option-tab" data-tab="pricing"
+                                        style="font-size:.75rem;padding:.2rem .5rem;border:1px solid #a0a0a0;color:#555;background:#fff;border-radius:3px;cursor:pointer;">
+                                    Pricing
+                                </button>
+                            </div>
+
+                            <div class="option-tab-content option-tab-description" style="padding:.5rem .6rem;">
+                                <label style="display:block;font-size:.8rem;margin-bottom:.3rem;">Title
+                                    <input type="text" class="option-desc-title"
+                                           value="{{ opt_line_title }}"
+                                           style="display:block;width:100%;margin-top:.12rem;font-size:.8rem;padding:.2rem .35rem;border:1px solid #ccc;border-radius:3px;">
+                                </label>
+                                <label style="display:block;font-size:.8rem;margin-bottom:.3rem;">Description
+                                    <input type="text" class="option-desc-description"
+                                           value="{{ opt_line_description }}"
+                                           style="display:block;width:100%;margin-top:.12rem;font-size:.8rem;padding:.2rem .35rem;border:1px solid #ccc;border-radius:3px;">
+                                </label>
+                                <label style="display:block;font-size:.8rem;margin-bottom:.3rem;">Additional Notes
+                                    <input type="text" class="option-desc-notes"
+                                           value="{{ opt_line_notes }}"
+                                           style="display:block;width:100%;margin-top:.12rem;font-size:.8rem;padding:.2rem .35rem;border:1px solid #ccc;border-radius:3px;">
+                                </label>
+                                <button type="button" class="btn-option-description-save"
+                                        style="font-size:.75rem;padding:.2rem .55rem;border:1px solid #1b3a6b;color:#1b3a6b;background:#fff;border-radius:3px;cursor:pointer;">
+                                    Save Description
+                                </button>
+                            </div>
+
+                            <div class="option-tab-content option-tab-pricing" style="display:none;padding:.5rem .6rem;">
+                                <label style="display:block;font-size:.8rem;margin-bottom:.3rem;">Mode
+                                    <select class="option-pricing-mode"
+                                            style="display:block;width:220px;margin-top:.12rem;font-size:.8rem;padding:.2rem .35rem;border:1px solid #ccc;border-radius:3px;">
+                                        <option value="fixed" {% if opt_pricing.get('mode', 'fixed') == 'fixed' %}selected{% endif %}>Fixed Price</option>
+                                        <option value="entered" {% if opt_pricing.get('mode') == 'entered' %}selected{% endif %}>User Entry</option>
+                                        <option value="quantity_rate" {% if opt_pricing.get('mode') == 'quantity_rate' %}selected{% endif %}>Cost Per Unit</option>
+                                        <option value="percent_subtotal" {% if opt_pricing.get('mode') == 'percent_subtotal' %}selected{% endif %}>Percentage</option>
+                                    </select>
+                                </label>
+                                <label style="display:block;font-size:.8rem;margin-bottom:.3rem;">Fixed Price
+                                    <input type="number" step="0.01" class="option-pricing-fixed"
+                                           value="{{ opt_pricing.get('fixed_amount', 0) }}"
+                                           style="display:block;width:160px;margin-top:.12rem;font-size:.8rem;padding:.2rem .35rem;border:1px solid #ccc;border-radius:3px;">
+                                </label>
+                                <label style="display:block;font-size:.8rem;margin-bottom:.3rem;">User Entry Key
+                                    <input type="text" class="option-pricing-entered-key"
+                                           value="{{ opt_pricing.get('entered_key', '') }}"
+                                           style="display:block;width:220px;margin-top:.12rem;font-size:.8rem;padding:.2rem .35rem;border:1px solid #ccc;border-radius:3px;">
+                                </label>
+                                <label style="display:block;font-size:.8rem;margin-bottom:.3rem;">Cost Per Unit (Rate)
+                                    <input type="number" step="0.01" class="option-pricing-rate"
+                                           value="{{ opt_pricing.get('rate', 0) }}"
+                                           style="display:block;width:160px;margin-top:.12rem;font-size:.8rem;padding:.2rem .35rem;border:1px solid #ccc;border-radius:3px;">
+                                </label>
+                                <label style="display:block;font-size:.8rem;margin-bottom:.3rem;">Quantity Key
+                                    <input type="text" class="option-pricing-quantity-key"
+                                           value="{{ opt_pricing.get('quantity_key', '') }}"
+                                           style="display:block;width:220px;margin-top:.12rem;font-size:.8rem;padding:.2rem .35rem;border:1px solid #ccc;border-radius:3px;">
+                                </label>
+                                <label style="display:block;font-size:.8rem;margin-bottom:.3rem;">Percentage
+                                    <input type="number" step="0.01" class="option-pricing-percent"
+                                           value="{{ opt_pricing.get('percent_of_subtotal', 0) }}"
+                                           style="display:block;width:160px;margin-top:.12rem;font-size:.8rem;padding:.2rem .35rem;border:1px solid #ccc;border-radius:3px;">
+                                </label>
+                                <button type="button" class="btn-option-pricing-save"
+                                        style="font-size:.75rem;padding:.2rem .55rem;border:1px solid #1b3a6b;color:#1b3a6b;background:#fff;border-radius:3px;cursor:pointer;">
+                                    Save Pricing
+                                </button>
+                            </div>
+                        </div>
                         {% endif %}
                     </div><br>
                     {% endif %}
@@ -1633,19 +1726,141 @@
         });
     });
 
-    document.querySelectorAll('.option-label-input').forEach(function (input) {
-        async function save() {
-            const pageId = input.dataset.pageId;
-            const fieldId = input.dataset.fieldId;
-            const optVal = input.dataset.optionValue;
-            await saveFieldOverride({
+    document.querySelectorAll('.btn-option-edit').forEach(function (btn) {
+        btn.addEventListener('click', async function () {
+            const row = btn.closest('.schema-option-row');
+            const panel = row ? row.querySelector('.option-edit-panel') : null;
+            if (!panel) { return; }
+            const isOpen = panel.style.display !== 'none';
+            panel.style.display = isOpen ? 'none' : 'block';
+            btn.textContent = isOpen ? 'Edit' : 'Close';
+        });
+    });
+
+    document.querySelectorAll('.option-edit-panel').forEach(function (panel) {
+        panel.querySelectorAll('.btn-option-tab').forEach(function (tabBtn) {
+            tabBtn.addEventListener('click', function () {
+                const tab = tabBtn.dataset.tab;
+                panel.querySelectorAll('.btn-option-tab').forEach(function (btn) {
+                    btn.classList.remove('active');
+                    btn.style.borderColor = '#a0a0a0';
+                    btn.style.color = '#555';
+                });
+                tabBtn.classList.add('active');
+                tabBtn.style.borderColor = '#007bff';
+                tabBtn.style.color = '#007bff';
+
+                const description = panel.querySelector('.option-tab-description');
+                const pricing = panel.querySelector('.option-tab-pricing');
+                if (description && pricing) {
+                    description.style.display = tab === 'description' ? 'block' : 'none';
+                    pricing.style.display = tab === 'pricing' ? 'block' : 'none';
+                }
+            });
+        });
+    });
+
+    document.querySelectorAll('.btn-option-description-save').forEach(function (btn) {
+        btn.addEventListener('click', async function () {
+            const panel = btn.closest('.option-edit-panel');
+            if (!panel) { return; }
+            const pageId = panel.dataset.pageId;
+            const fieldId = panel.dataset.fieldId;
+            const optVal = panel.dataset.optionValue;
+            const titleInput = panel.querySelector('.option-desc-title');
+            const descriptionInput = panel.querySelector('.option-desc-description');
+            const notesInput = panel.querySelector('.option-desc-notes');
+
+            const title = titleInput ? titleInput.value : '';
+            const description = descriptionInput ? descriptionInput.value : '';
+            const notes = notesInput ? notesInput.value : '';
+
+            const ok = await saveFieldOverride({
                 page_id: pageId,
                 field_id: fieldId,
-                option_overrides: { [optVal]: { label_override: input.value } },
+                option_overrides: {
+                    [optVal]: {
+                        label_override: title,
+                        output_options: {
+                            line_title: title,
+                            line_description: description,
+                            line_additional_notes: notes,
+                        },
+                    },
+                },
             });
-        }
-        input.addEventListener('blur', save);
-        input.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); save(); } });
+
+            if (ok) {
+                const rowLabel = panel.closest('.schema-option-row') && panel.closest('.schema-option-row').querySelector('.checkbox-label');
+                if (rowLabel) {
+                    const textNode = rowLabel.childNodes[rowLabel.childNodes.length - 1];
+                    if (textNode && textNode.nodeType === Node.TEXT_NODE) {
+                        textNode.textContent = ' ' + title;
+                    }
+                }
+                btn.textContent = 'Saved';
+                setTimeout(function () { btn.textContent = 'Save Description'; }, 1300);
+            }
+        });
+    });
+
+    document.querySelectorAll('.btn-option-pricing-save').forEach(function (btn) {
+        btn.addEventListener('click', async function () {
+            const panel = btn.closest('.option-edit-panel');
+            if (!panel) { return; }
+            const pageId = panel.dataset.pageId;
+            const fieldId = panel.dataset.fieldId;
+            const optVal = panel.dataset.optionValue;
+
+            const modeEl = panel.querySelector('.option-pricing-mode');
+            const fixedEl = panel.querySelector('.option-pricing-fixed');
+            const enteredEl = panel.querySelector('.option-pricing-entered-key');
+            const rateEl = panel.querySelector('.option-pricing-rate');
+            const quantityEl = panel.querySelector('.option-pricing-quantity-key');
+            const percentEl = panel.querySelector('.option-pricing-percent');
+
+            const ok = await saveFieldOverride({
+                page_id: pageId,
+                field_id: fieldId,
+                option_overrides: {
+                    [optVal]: {
+                        pricing_options: {
+                            mode: modeEl ? modeEl.value : 'fixed',
+                            fixed_amount: parseFloat(fixedEl && fixedEl.value) || 0,
+                            entered_key: enteredEl ? enteredEl.value : '',
+                            rate: parseFloat(rateEl && rateEl.value) || 0,
+                            quantity_key: quantityEl ? quantityEl.value : '',
+                            percent_of_subtotal: parseFloat(percentEl && percentEl.value) || 0,
+                        },
+                    },
+                },
+            });
+
+            if (ok) {
+                btn.textContent = 'Saved';
+                setTimeout(function () { btn.textContent = 'Save Pricing'; }, 1300);
+            }
+        });
+    });
+
+    document.querySelectorAll('.btn-option-delete').forEach(function (btn) {
+        btn.addEventListener('click', async function () {
+            if (!confirm('Delete this line item?')) { return; }
+            const pageId = btn.dataset.pageId;
+            const fieldId = btn.dataset.fieldId;
+            const optVal = btn.dataset.optionValue;
+            const ok = await saveFieldOverride({
+                page_id: pageId,
+                field_id: fieldId,
+                option_overrides: { [optVal]: { deleted: true, hidden: true } },
+            });
+            if (ok) {
+                const row = btn.closest('.schema-option-row');
+                if (row) {
+                    row.style.display = 'none';
+                }
+            }
+        });
     });
 
     document.querySelectorAll('.btn-inspector-pricing-save').forEach(function (btn) {

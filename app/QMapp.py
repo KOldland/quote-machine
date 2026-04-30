@@ -457,12 +457,18 @@ def save_field_override(
 			entry = existing.setdefault(str(val), {})
 			if 'hidden' in overrides:
 				entry['hidden'] = bool(overrides['hidden'])
+			if 'deleted' in overrides:
+				entry['deleted'] = bool(overrides['deleted'])
 			if 'label_override' in overrides:
 				entry['label_override'] = str(overrides['label_override']).strip()
 			if 'format_options' in overrides and isinstance(overrides['format_options'], dict):
 				entry['format_options'] = dict(overrides['format_options'])
 			elif 'format' in overrides and isinstance(overrides['format'], dict):
 				entry['format_options'] = dict(overrides['format'])
+			if 'pricing_options' in overrides and isinstance(overrides['pricing_options'], dict):
+				entry['pricing_options'] = dict(overrides['pricing_options'])
+			if 'output_options' in overrides and isinstance(overrides['output_options'], dict):
+				entry['output_options'] = dict(overrides['output_options'])
 
 	save_page_schemas()
 	return True
@@ -1344,6 +1350,8 @@ def build_schema_checkbox_group(field_schema, sheet_data, checkbox_data):
 	if TEMPLATE_STORE_READ_ENABLED and prefix:
 		db_options = load_option_set(prefix, TEMPLATE_STORE_KEY)
 		if db_options is not None:
+			for opt in db_options:
+				opt.setdefault('output_role_default', infer_output_role(opt.get('value', ''), opt.get('label', '')))
 			field_schema['options'] = db_options
 			for opt in db_options:
 				if not preselected and opt['is_included'] and opt['value'] not in preselected:
@@ -1364,7 +1372,9 @@ def build_schema_checkbox_group(field_schema, sheet_data, checkbox_data):
 		options.append({
 			'value': line_code,
 			'label': internal_description,
-			'is_included': include == 'Y'
+			'is_included': include == 'Y',
+			'output_role_default': infer_output_role(line_code, internal_description),
+			'format_options': parse_line_code_format(line_code).get('format_options', {}),
 		})
 
 		if not preselected and include == 'Y' and line_code not in preselected:
@@ -1542,6 +1552,19 @@ def is_primary_numeric_code(line_code: str, prefix: str) -> bool:
 	if parsed['raw_code'] != parsed['base_code']:
 		return False
 	return line_code_matches_source(line_code, prefix, 'digits')
+
+
+def infer_output_role(line_code: str, label: str = '') -> str:
+	"""Infer output role from legacy markers/labels."""
+	parsed = parse_line_code_format(line_code)
+	markers = parsed.get('markers', '')
+	label_norm = str(label or '').lower()
+
+	if '(advisory)' in label_norm or '*' in markers:
+		return 'additional_notes'
+	if '(notes)' in label_norm or '#' in markers or '@' in markers or '^' in markers:
+		return 'description'
+	return 'title'
 
 # Function to handle SINGLE dropdown selections (stored in session['data'])
 def handle_single_dropdown_session(session, dropdown_key):
