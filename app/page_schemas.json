@@ -762,7 +762,23 @@
             "suffix": "digits",
             "type": "sheet_prefix"
           },
-          "type": "checkbox_group"
+          "type": "checkbox_group",
+          "label_override": "Smoke Label",
+          "pricing_options": {
+            "enabled": true,
+            "mode": "entered",
+            "fixed_amount": 0.0,
+            "entered_key": "smoke_entered_amount",
+            "quantity_key": "",
+            "rate": 0.0
+          },
+          "output_options": {
+            "include_in_output": true,
+            "output_label": "Smoke Out",
+            "group": "Smoke",
+            "sort_order": 0,
+            "value_mode": "show_value"
+          }
         }
       ],
       "id": "additional_building_work_page",
@@ -939,7 +955,18 @@
             "key": "selected_special_notes",
             "kind": "checkbox_data"
           },
-          "type": "checkbox_group"
+          "type": "checkbox_group",
+          "format_options": {
+            "block_type": "list_item",
+            "line_break_mode": "single"
+          },
+          "option_overrides": {
+            "sn1": {
+              "format_options": {
+                "bullet": true
+              }
+            }
+          }
         }
       ],
       "id": "special_notes_page",
@@ -999,6 +1026,11 @@
       "loft_light_rate": 30.0,
       "loft_point_rate": 65.0,
       "rounding_precision": 2
+    },
+    "last_publish": {
+      "published_at": "2026-04-29T23:51:14.193582Z",
+      "published_by": "admin",
+      "db_version": 1
     }
   },
   "version": 1

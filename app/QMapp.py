@@ -419,8 +419,15 @@ def save_page_schemas():
 		print(f"Template store sync skipped after save: {exc}")
 
 
-def save_field_override(page_id: str, field_id: str, hidden: Optional[bool] = None, label_override: Optional[str] = None, option_overrides: Optional[dict] = None) -> bool:
-	"""Patch hidden/label_override/option_overrides onto a field in page_schemas['pages'].
+def save_field_override(
+	page_id: str,
+	field_id: str,
+	hidden: Optional[bool] = None,
+	label_override: Optional[str] = None,
+	option_overrides: Optional[dict] = None,
+	format_options: Optional[dict] = None,
+) -> bool:
+	"""Patch hidden/label_override/option_overrides/format_options onto a field in page_schemas['pages'].
 
 	Returns True if the field was found and saved, False if page/field not found.
 	"""
@@ -442,6 +449,8 @@ def save_field_override(page_id: str, field_id: str, hidden: Optional[bool] = No
 		target_field['hidden'] = bool(hidden)
 	if label_override is not None:
 		target_field['label_override'] = label_override.strip()
+	if format_options is not None:
+		target_field['format_options'] = dict(format_options)
 	if option_overrides is not None:
 		existing = target_field.setdefault('option_overrides', {})
 		for val, overrides in option_overrides.items():
@@ -450,6 +459,10 @@ def save_field_override(page_id: str, field_id: str, hidden: Optional[bool] = No
 				entry['hidden'] = bool(overrides['hidden'])
 			if 'label_override' in overrides:
 				entry['label_override'] = str(overrides['label_override']).strip()
+			if 'format_options' in overrides and isinstance(overrides['format_options'], dict):
+				entry['format_options'] = dict(overrides['format_options'])
+			elif 'format' in overrides and isinstance(overrides['format'], dict):
+				entry['format_options'] = dict(overrides['format'])
 
 	save_page_schemas()
 	return True
@@ -1077,15 +1090,10 @@ def _builder_beta_checkbox_options(field_schema, sheet_data):
 
 	for row in sheet_data:
 		line_code = row.get('Line Code', '').strip()
-		alphanumeric_code = to_alphanumeric_code(line_code)
 		internal_description = row.get('Internal Description', '').strip()
 		include = row.get('Include', '').strip()
 
-		if not alphanumeric_code.startswith(prefix):
-			continue
-
-		suffix = alphanumeric_code[len(prefix):]
-		if source.get('suffix') == 'digits' and not suffix.isdigit():
+		if not line_code_matches_source(line_code, prefix, source.get('suffix')):
 			continue
 
 		options.append({
@@ -1347,15 +1355,10 @@ def build_schema_checkbox_group(field_schema, sheet_data, checkbox_data):
 
 	for row in sheet_data:
 		line_code = row.get('Line Code', '').strip()
-		alphanumeric_code = to_alphanumeric_code(line_code)
 		internal_description = row.get('Internal Description', '').strip()
 		include = row.get('Include', '').strip()
 
-		if not alphanumeric_code.startswith(prefix):
-			continue
-
-		suffix = alphanumeric_code[len(prefix):]
-		if source.get('suffix') == 'digits' and not suffix.isdigit():
+		if not line_code_matches_source(line_code, prefix, source.get('suffix')):
 			continue
 
 		options.append({
@@ -1486,6 +1489,59 @@ def is_included(line_code):
 def to_alphanumeric_code(line_code):
 	# Remove all non-alphanumeric characters
 	return re.sub(r'[^a-zA-Z0-9]', '', line_code) 
+
+
+def parse_line_code_format(line_code: str) -> dict:
+	"""Split a line code into base code + trailing legacy format markers.
+
+	Legacy markers are kept for compatibility with QM_Production.py:
+	  ^ bullet, # single break, * remove preceding break, @ no break
+	"""
+	raw_code = str(line_code or '').strip()
+	base_code = raw_code
+	markers = ''
+	while base_code and base_code[-1] in '#*^@':
+		markers = base_code[-1] + markers
+		base_code = base_code[:-1]
+
+	return {
+		'raw_code': raw_code,
+		'base_code': base_code,
+		'markers': markers,
+		'format_options': {
+			'bullet': '^' in markers,
+			'single_break': '#' in markers,
+			'remove_preceding_break': '*' in markers,
+			'no_break': '@' in markers,
+		},
+	}
+
+
+def line_code_matches_source(line_code: str, prefix: str, suffix_rule: Optional[str] = None) -> bool:
+	"""Marker-aware prefix/suffix matching used by schema and page filters.
+
+	Matches against the base code (marker suffixes removed).
+	"""
+	parsed = parse_line_code_format(line_code)
+	base = parsed['base_code'].lower()
+	prefix_norm = str(prefix or '').lower()
+
+	if prefix_norm and not base.startswith(prefix_norm):
+		return False
+
+	suffix = base[len(prefix_norm):] if prefix_norm else base
+	if suffix_rule == 'digits':
+		return suffix.isdigit()
+
+	return True
+
+
+def is_primary_numeric_code(line_code: str, prefix: str) -> bool:
+	"""True for base numeric codes only (e.g. oe1, fw12), excluding marker variants."""
+	parsed = parse_line_code_format(line_code)
+	if parsed['raw_code'] != parsed['base_code']:
+		return False
+	return line_code_matches_source(line_code, prefix, 'digits')
 
 # Function to handle SINGLE dropdown selections (stored in session['data'])
 def handle_single_dropdown_session(session, dropdown_key):
@@ -2194,7 +2250,7 @@ def summary_page():
 		internal_description = row.get('Internal Description', '')
 		include = row.get('Include', '')
 
-		if alphanumeric_code.startswith('bw') and alphanumeric_code[2:].isdigit():
+		if is_primary_numeric_code(line_code, 'bw'):
 			data["selected_building_works"]["data"][line_code] = {
 				"description": internal_description,
 				"is_included": include == 'Y'
@@ -2427,8 +2483,16 @@ def admin_field_override():
 	    "field_id": "selected_sn",
 	    "hidden": false,                         // optional — field-level hide
 	    "label_override": "Custom label",        // optional — empty string to clear
+	    "format_options": {                     // optional — structured formatting metadata
+	      "block_type": "list_item",
+	      "line_break_mode": "single"
+	    },
 	    "option_overrides": {                    // optional — per-option overrides
-	      "sn1": {"hidden": true, "label_override": "Custom note A"}
+	      "sn1": {
+	        "hidden": true,
+	        "label_override": "Custom note A",
+	        "format_options": {"bullet": true}
+	      }
 	    }
 	  }
 	"""
@@ -2441,12 +2505,15 @@ def admin_field_override():
 
 	hidden = body.get('hidden')         # may be None (not provided)
 	label_override = body.get('label_override')
+	format_options = body.get('format_options')
 	option_overrides = body.get('option_overrides')
 
 	if hidden is not None:
 		hidden = bool(hidden)
 	if label_override is not None:
 		label_override = str(label_override)
+	if format_options is not None and not isinstance(format_options, dict):
+		return jsonify({'error': 'format_options must be an object.'}), 400
 	if option_overrides is not None and not isinstance(option_overrides, dict):
 		return jsonify({'error': 'option_overrides must be an object.'}), 400
 
@@ -2456,6 +2523,7 @@ def admin_field_override():
 		hidden=hidden,
 		label_override=label_override,
 		option_overrides=option_overrides,
+		format_options=format_options,
 	)
 	if not saved:
 		return jsonify({'error': f'Field "{field_id}" not found on page "{page_id}".'}), 404
@@ -2780,7 +2848,7 @@ def materials_page():
 		include = row.get('Include', '')
 		
 		#  Populate External Walls Data
-		if alphanumeric_code.startswith('ew') and alphanumeric_code[-1].isdigit():
+		if is_primary_numeric_code(line_code, 'ew'):
 			data["selected_ew"]["data"][line_code] = {
 				"description": internal_description,
 				"is_included": include == 'Y'
@@ -2789,7 +2857,7 @@ def materials_page():
 				data["selected_ew"]["preselected"].append(line_code)
 					
 		#  Populate External Roof Data
-		elif alphanumeric_code.startswith('er') and alphanumeric_code[-1].isdigit():
+		elif is_primary_numeric_code(line_code, 'er'):
 			data["selected_er"]["data"][line_code] = {
 				"description": internal_description,
 				"is_included": include == 'Y'
@@ -2807,13 +2875,13 @@ def materials_page():
 				data["pitched_roof_option"]["preselected"].append(line_code)
 	
 		# Internal Doors
-		elif alphanumeric_code.startswith('id') and alphanumeric_code[-1].isdigit():
+		elif is_primary_numeric_code(line_code, 'id'):
 			data["selected_id"]["data"][line_code] = {"description": internal_description, "is_included": include == 'Y'}
 			if line_code in preselected_id:
 				data["selected_id"]["preselected"].append(line_code)
 		
 		# Drainage
-		elif alphanumeric_code.startswith('dr') and alphanumeric_code[-1].isdigit():  
+		elif is_primary_numeric_code(line_code, 'dr'):
 			data["selected_dr"]["data"][line_code] = {
 				"description": internal_description,
 				"is_included": include == 'Y'
@@ -2822,7 +2890,7 @@ def materials_page():
 				data["selected_dr"]["preselected"].append(line_code)
 				
 		# Waste & Parking:
-		elif alphanumeric_code.startswith('wp') and alphanumeric_code[-1].isdigit():
+		elif is_primary_numeric_code(line_code, 'wp'):
 			data["selected_wp"]["data"][line_code] = {"description": internal_description, "is_included": include == 'Y'}
 			if line_code in preselected_wp and line_code not in data["selected_wp"]["preselected"]:
 				data["selected_wp"]["preselected"].append(line_code)
@@ -2969,7 +3037,7 @@ def further_requirements_page():
 		internal_description = row.get('Internal Description', '')
 		include = row.get('Include', '')
 		
-		if alphanumeric_code.startswith('frc') and alphanumeric_code[-1].isdigit():  
+		if is_primary_numeric_code(line_code, 'frc'):
 			data["selected_frc"]["data"][line_code] = {
 				"description": internal_description,
 				"is_included": include == 'Y'
@@ -2996,7 +3064,7 @@ def further_requirements_page():
 					data["selected_dw"]["preselected"].append(line_code)
 	
 		# Floor Structure Data
-		elif alphanumeric_code.startswith('fs') and alphanumeric_code[-1].isdigit():  
+		elif is_primary_numeric_code(line_code, 'fs'):
 			data["selected_fs"]["data"][line_code] = {
 				"description": internal_description,
 				"is_included": include == 'Y'
@@ -3005,14 +3073,14 @@ def further_requirements_page():
 					data["selected_fs"]["preselected"].append(line_code)
 				
 		# Handle Glass Valley (gv)
-		elif alphanumeric_code.startswith('gv') and alphanumeric_code[-1].isdigit():  
+		elif is_primary_numeric_code(line_code, 'gv'):
 			data["selected_gv"]["data"][line_code] = {"description": internal_description, "is_included": include == 'Y'}
 			if line_code in preselected_gv and line_code not in data["selected_gv"]["preselected"]:
 					data["selected_gv"]["preselected"].append(line_code)
 				
 				
 		# Rear Reception Opening (RRO)
-		elif alphanumeric_code.startswith('rro') and alphanumeric_code[-1].isdigit():
+		elif is_primary_numeric_code(line_code, 'rro'):
 			data["selected_rro"]["data"][line_code] = {
 				"description": internal_description,
 				"is_included": include == 'Y'
@@ -3021,7 +3089,7 @@ def further_requirements_page():
 					data["selected_rro"]["preselected"].append(line_code)
 		
 		# Internal Walls (`iw1# - iw5#`)
-		elif alphanumeric_code.startswith('iw') and alphanumeric_code[-1].isdigit():
+		elif is_primary_numeric_code(line_code, 'iw'):
 			data["selected_iw"]["data"][line_code] = {
 				"description": internal_description,
 				"is_included": include == 'Y'
@@ -3081,7 +3149,7 @@ def additional_building_work_page():
 		
 		alphanumeric_code = to_alphanumeric_code(line_code)
 		
-		if alphanumeric_code.startswith('ab') and alphanumeric_code[-1].isdigit():
+		if is_primary_numeric_code(line_code, 'ab'):
 			data["selected_ab"]["data"][line_code] = {
 				"description": internal_description,
 				"is_included": include == 'Y'
@@ -3281,7 +3349,7 @@ def additional_costs_page():
 		
 		
 		# Kitchen Electrics
-		if alphanumeric_code.startswith('elk') and alphanumeric_code[-1].isdigit():
+		if is_primary_numeric_code(line_code, 'elk'):
 			data["selected_kitchen_el"]["data"][line_code] = {
 				"description": internal_description,
 				"is_included": include == 'Y'
@@ -3290,7 +3358,7 @@ def additional_costs_page():
 				data["selected_kitchen_el"]["preselected"].append(line_code)
 				
 		# Loft Electrics
-		elif alphanumeric_code.startswith('ell') and alphanumeric_code[-1].isdigit():
+		elif is_primary_numeric_code(line_code, 'ell'):
 			data["selected_loft_el"]["data"][line_code] = {
 				"description": internal_description,
 				"is_included": include == 'Y'
@@ -3298,27 +3366,27 @@ def additional_costs_page():
 			if line_code in preselected_loft_el and line_code not in data["selected_loft_el"]["preselected"]:
 				data["selected_loft_el"]["preselected"].append(line_code)
 				
-		elif alphanumeric_code.startswith('pl') and alphanumeric_code[-1].isdigit():
+		elif is_primary_numeric_code(line_code, 'pl'):
 			data["selected_pl"]["data"][line_code] = {"description": internal_description, "is_included": include == 'Y'}
 			if include == 'Y':
 				data["selected_pl"]["preselected"].append(line_code)
 				
-		elif alphanumeric_code.startswith('sk') and alphanumeric_code[-1].isdigit():
+		elif is_primary_numeric_code(line_code, 'sk'):
 			data["selected_sk"]["data"][line_code] = {"description": internal_description, "is_included": include == 'Y'}
 			if line_code in preselected_sk and line_code not in data["selected_sk"]["preselected"]:
 				data["selected_sk"]["preselected"].append(line_code)
 
-		elif alphanumeric_code.startswith('vl') and alphanumeric_code[-1].isdigit():
+		elif is_primary_numeric_code(line_code, 'vl'):
 			data["selected_vl"]["data"][line_code] = {"description": internal_description, "is_included": include == 'Y'}
 			if line_code in preselected_vl and line_code not in data["selected_vl"]["preselected"]:
 				data["selected_vl"]["preselected"].append(line_code)
 				
-		elif alphanumeric_code.startswith('ac') and alphanumeric_code[-1].isdigit():
+		elif is_primary_numeric_code(line_code, 'ac'):
 			data["selected_ac"]["data"][line_code] = {"description": internal_description, "is_included": include == 'Y'}
 			if line_code in preselected_ac and line_code not in data["selected_ac"]["preselected"]:
 				data["selected_ac"]["preselected"].append(line_code)
 				
-		if alphanumeric_code.startswith("sd") and alphanumeric_code != "sd_total#" and line_code:
+		if line_code_matches_source(line_code, 'sd') and parse_line_code_format(line_code).get('base_code') != 'sd_total' and line_code:
 			data["selected_sd"]["data"][line_code] = {
 				"line_code": line_code,
 				"description": internal_description 
@@ -3410,7 +3478,7 @@ def optional_extras_page():
 		include = row.get('Include', '').strip()
 		
 		# Optional Extras: codes starting 'oe' 
-		if alphanumeric_code.startswith('oe') and alphanumeric_code[2:].isdigit():
+		if is_primary_numeric_code(line_code, 'oe'):
 			data["selected_oe"]["data"][line_code] = {
 				"description": internal_description,
 				"is_included": include == 'Y'
@@ -3419,7 +3487,7 @@ def optional_extras_page():
 				data["selected_oe"]["preselected"].append(line_code)
 				
 		# Finishing Works: codes starting 'fw'
-		elif alphanumeric_code.startswith('fw') and alphanumeric_code[2:].isdigit():
+		elif is_primary_numeric_code(line_code, 'fw'):
 			data["selected_fw"]["data"][line_code] = {
 				"description": internal_description,
 				"is_included": include == 'Y'
