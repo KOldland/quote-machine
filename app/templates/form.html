@@ -8,6 +8,7 @@
     <div class="edit-mode-bar" style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem;padding:.5rem .75rem;background:{% if edit_mode %}#fff8e1{% else %}#f0f0f0{% endif %};border-radius:5px;border:1px solid {% if edit_mode %}#ffe082{% else %}#ddd{% endif %};">
         {% if edit_mode %}
         <span style="font-size:.85rem;font-weight:600;color:#856404;">&#9998; Edit Mode active</span>
+        <span id="edit-action-status" style="font-size:.78rem;color:#6c757d;">Draft mode (auto-save)</span>
         <button type="button" id="btn-publish-draft"
                 style="font-size:.78rem;padding:.3rem .7rem;border:1px solid #2e7d32;border-radius:3px;color:#2e7d32;background:#fff;cursor:pointer;margin-left:auto;">
             &#10003; Publish draft
@@ -1494,7 +1495,6 @@
         </div>
     </form>
 </div>
-{% endblock %}
 
 <!-------------------------------------------------------------------------------------------------------------------------->
 <!----------------                             Flash Messages                                  ------------------------->
@@ -1514,7 +1514,6 @@
 <!-------------------------------------------------------------------------------------------------------------------------->
 <!----------------                                 JS Call                                         ------------------------->
 <!-------------------------------------------------------------------------------------------------------------------------->
-{% block scripts %}
 <script src="{{ url_for('static', filename='js/script.js') }}" defer></script>
 <script>
     document.addEventListener("DOMContentLoaded", function() {
@@ -1535,8 +1534,16 @@
 
     const CSRF_TOKEN = document.querySelector('[name="csrf_token"]')
         ? document.querySelector('[name="csrf_token"]').value : '';
+    const editStatus = document.getElementById('edit-action-status');
+
+    function setEditStatus(message, color) {
+        if (!editStatus) { return; }
+        editStatus.textContent = message;
+        editStatus.style.color = color || '#6c757d';
+    }
 
     async function saveFieldOverride(payload) {
+        setEditStatus('Saving...', '#856404');
         const res = await fetch('/admin/field_override', {
             method: 'POST',
             headers: {
@@ -1548,6 +1555,9 @@
         if (!res.ok) {
             const body = await res.json().catch(() => ({}));
             alert('Save failed: ' + (body.error || res.status));
+            setEditStatus('Save failed', '#c62828');
+        } else {
+            setEditStatus('Saved', '#2e7d32');
         }
         return res.ok;
     }
@@ -1574,7 +1584,17 @@
             const fieldId = btn.dataset.fieldId;
             const hidden = btn.dataset.hidden !== 'true';
             const ok = await saveFieldOverride({ page_id: pageId, field_id: fieldId, hidden: hidden });
-            if (ok) { location.reload(); }
+            if (ok) {
+                btn.dataset.hidden = hidden ? 'true' : 'false';
+                btn.textContent = hidden ? 'Show' : 'Hide';
+                btn.style.borderColor = hidden ? '#28a745' : '#dc3545';
+                btn.style.color = hidden ? '#28a745' : '#dc3545';
+                const block = btn.closest('.schema-field-block');
+                if (block) {
+                    block.classList.toggle('field-hidden', hidden);
+                    block.style.opacity = hidden ? '.45' : '';
+                }
+            }
         });
     });
 
@@ -1599,7 +1619,17 @@
                 field_id: fieldId,
                 option_overrides: { [optVal]: { hidden: hidden } },
             });
-            if (ok) { location.reload(); }
+            if (ok) {
+                btn.dataset.hidden = hidden ? 'true' : 'false';
+                btn.textContent = hidden ? 'Show' : 'Hide';
+                btn.style.borderColor = hidden ? '#28a745' : '#dc3545';
+                btn.style.color = hidden ? '#28a745' : '#dc3545';
+                const row = btn.closest('.schema-option-row');
+                if (row) {
+                    row.classList.toggle('option-hidden', hidden);
+                    row.style.opacity = hidden ? '.45' : '';
+                }
+            }
         });
     });
 
@@ -1665,6 +1695,7 @@
     if (btnPublish) {
         btnPublish.addEventListener('click', async function () {
             if (!confirm('Publish current draft as the live version?')) { return; }
+            setEditStatus('Publishing...', '#856404');
             const res = await fetch('/admin/publish_draft', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
@@ -1672,9 +1703,10 @@
             });
             const data = await res.json().catch(function () { return {}; });
             if (res.ok) {
-                alert('Published! ' + (data.published_at || ''));
+                setEditStatus('Published ' + (data.published_at || ''), '#2e7d32');
             } else {
                 alert('Publish failed: ' + (data.error || res.status));
+                setEditStatus('Publish failed', '#c62828');
             }
         });
     }
@@ -1683,6 +1715,7 @@
     if (btnRollback) {
         btnRollback.addEventListener('click', async function () {
             if (!confirm('Roll back to the last published snapshot? Unsaved draft changes will be lost.')) { return; }
+            setEditStatus('Rolling back...', '#856404');
             const res = await fetch('/admin/rollback', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
@@ -1690,16 +1723,18 @@
             });
             const data = await res.json().catch(function () { return {}; });
             if (res.ok) {
-                alert('Rolled back!');
+                setEditStatus('Rolled back to published snapshot', '#2e7d32');
                 location.reload();
             } else {
                 alert('Rollback failed: ' + (data.error || res.status));
+                setEditStatus('Rollback failed', '#c62828');
             }
         });
     }
 }());
 </script>
 {% endif %}
+
 {% endblock %}
 
         
