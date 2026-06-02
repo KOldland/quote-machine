@@ -964,9 +964,15 @@
             "sn1": {
               "format_options": {
                 "bullet": true
-              }
+              },
+              "label_override": "CLIENT SITE PREPARATION",
+              "hidden": false
+            },
+            "sn3": {
+              "label_override": "EXISTING DECKING & FENCES"
             }
-          }
+          },
+          "hidden": false
         }
       ],
       "id": "special_notes_page",
@@ -1028,7 +1034,7 @@
       "rounding_precision": 2
     },
     "last_publish": {
-      "published_at": "2026-04-29T23:51:14.193582Z",
+      "published_at": "2026-04-30T08:29:43.533173Z",
       "published_by": "admin",
       "db_version": 1
     }
