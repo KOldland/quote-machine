@@ -81,6 +81,64 @@ class SubmitProductionFlowTests(unittest.TestCase):
         self.assertIn("Building Works", html)
         self.assertIn('name="selected_building_works"', html)
 
+    def test_full_form_completion_flow_posts_review_and_redirects(self):
+        page_sequence = [
+            ("/", {"client_address": "123 Test Lane", "Date": "2026-06-02"}),
+            ("/special_notes_page", {}),
+            ("/summary_page", {}),
+            ("/materials_page", {}),
+            ("/further_requirements_page", {}),
+            ("/additional_costs_page", {}),
+            ("/optional_extras_page", {}),
+        ]
+
+        for route, payload in page_sequence:
+            response = self.client.get(route)
+            self.assertEqual(response.status_code, 200, msg=f"Failed GET {route}")
+            html = response.get_data(as_text=True)
+            csrf_token = extract_csrf_token(html)
+            self.assertIsNotNone(csrf_token, msg=f"Missing CSRF token on {route}")
+
+            form_data = {"csrf_token": csrf_token}
+            form_data.update(payload)
+            post_response = self.client.post(route, data=form_data, follow_redirects=False)
+            self.assertIn(post_response.status_code, (200, 302), msg=f"Failed POST {route}")
+
+        review_response = self.client.get("/review")
+        self.assertEqual(review_response.status_code, 200)
+        review_html = review_response.get_data(as_text=True)
+        csrf_token = extract_csrf_token(review_html)
+        self.assertIsNotNone(csrf_token, msg="Missing CSRF token on review page")
+
+        json_response = self.client.post(
+            "/submit",
+            json={"csrf_token": csrf_token},
+            headers={"X-CSRFToken": csrf_token},
+        )
+        self.assertEqual(json_response.status_code, 200)
+        self.assertEqual(json_response.get_json().get("status"), "success")
+
+        image_upload_response = self.client.get("/image_upload_page")
+        self.assertEqual(image_upload_response.status_code, 200)
+
+        fallback_response = self.client.post(
+            "/submit",
+            data={"csrf_token": csrf_token},
+            follow_redirects=False,
+        )
+        self.assertEqual(fallback_response.status_code, 302)
+        self.assertIn("/trigger_production", fallback_response.headers.get("Location", ""))
+
+    def test_review_page_shows_uploaded_images_preview(self):
+        with self.client.session_transaction() as session_data:
+            session_data['uploaded_images'] = {'final_output_1.jpg': '/static/uploads/test/final_output_1.jpg'}
+
+        response = self.client.get('/review')
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertIn('Uploaded Image Previews:', html)
+        self.assertIn('/static/uploads/test/final_output_1.jpg', html)
+
     def test_form_builder_demo_page_available(self):
         response = self.client.get("/form_builder_demo")
         self.assertEqual(response.status_code, 200)

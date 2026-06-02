@@ -64,43 +64,43 @@
             
     <!-- Button container with Commit Data button -->
     <div class="button-container">
-        <!-- Commit Data button -->
-        <button type="button" id="commitButton" class="btn">Commit Data</button>
+        <form id="commit-form" method="POST" action="{{ url_for('submit') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" id="commitButton" class="btn">Commit Data</button>
+        </form>
     </div>
         
     <script>
-        document.getElementById('commitButton').addEventListener('click', function(event) {
+        document.getElementById('commit-form').addEventListener('submit', function(event) {
             event.preventDefault();  // Prevent default form submission
-            
-            // Send request to the submit route
+
+            const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+            if (!csrfToken) {
+                alert('Missing CSRF token. Please refresh the page and try again.');
+                return;
+            }
+
             fetch('{{ url_for('submit') }}', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token() }}'  // Ensure CSRF protection if enabled
-                }
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({ csrf_token: csrfToken })
             })
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
-                    // Show success confirmation popup
                     alert(data.message);
-                    
-                    // On success, redirect to confirmation page
                     window.location.href = '{{ url_for('trigger_production') }}';
                 } else {
-                    // Show error message popup
-                    alert('Error: ' + data.message);
-                    
-                    // On error, redirect back to the review page
+                    alert('Error: ' + (data.message || 'Submission failed.'));
                     window.location.href = '{{ url_for('review') }}';
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
                 alert('An error occurred during submission.');
-                
-                // Redirect back to the review page in case of any error
                 window.location.href = '{{ url_for('review') }}';
             });
         });

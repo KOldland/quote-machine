@@ -120,6 +120,10 @@ def main(base_url):
         },
     )
 
+    html, csrf_token = get_form(session, base_url, "/additional_costs_page")
+    html, csrf_token = get_form(session, base_url, "/optional_extras_page")
+    html, csrf_token = get_form(session, base_url, "/image_upload_page")
+
     html, csrf_token = get_form(session, base_url, "/review")
     submit_response = session.post(
         f"{base_url}/submit",

@@ -1911,6 +1911,19 @@ def update_include_column(combined_data, description_column_includes=None):
 	row_index = None  # Initialize row_index to avoid errors if it's referenced in an exception
 	processed_codes = []
 	
+	def flatten_values(values):
+		flattened = []
+		for value in values:
+			if isinstance(value, (list, tuple, set)):
+				flattened.extend(flatten_values(value))
+			elif value is None:
+				continue
+			elif isinstance(value, dict):
+				continue
+			else:
+				flattened.append(value)
+		return flattened
+	
 	try:
 		sheet_data = get_catalog()
 		updates = [] 
@@ -1963,9 +1976,10 @@ def update_include_column(combined_data, description_column_includes=None):
 							updates.append({'range': f'E{child_row_index}', 'values': [['Y']]})
 							processed_codes.append(child_code) 	
 							
-		processed_codes.extend(combined_data)  
-		processed_codes.extend(description_column_includes)
-		processed_codes = list(set(processed_codes))
+		processed_codes.extend(flatten_values(combined_data))  
+		processed_codes.extend(flatten_values(description_column_includes))
+		processed_codes = [str(code) for code in processed_codes if code is not None]
+		processed_codes = list(dict.fromkeys(processed_codes))
 		
 		if updates:
 			sheet.batch_update(updates) 
@@ -4046,15 +4060,16 @@ def review():
 		elif isinstance(value, str):  # For single manual input values
 			review_data[key] = TITLE_MAPPING.get(value, value)
 	
-	# Pass TITLE_MAPPING and other data to the template
-	return render_template('review.html', review_page=True, review_data=review_data, TITLE_MAPPING=TITLE_MAPPING, current_page='review', title="Review Page")
-
-
-#####################################################################################################################################
-
-														# Submit route
-
-#####################################################################################################################################
+	# Pass TITLE_MAPPING and uploaded images to the template
+	return render_template(
+		'review.html',
+		review_page=True,
+		review_data=review_data,
+		TITLE_MAPPING=TITLE_MAPPING,
+		uploaded_images=session.get('uploaded_images', {}),
+		current_page='review',
+		title="Review Page"
+	)
 
 @app.route('/submit', methods=['POST'])
 def submit():
@@ -4252,7 +4267,12 @@ def submit():
 		# Pass BOTH checkbox selections & updated descriptions to update_include_column()
 		update_include_column(combined_data, description_column_includes)
 	
-		return jsonify({'status': 'success', 'message': 'Data successfully updated!'})
+		success_payload = {'status': 'success', 'message': 'Data successfully updated!'}
+		if request.is_json:
+			return jsonify(success_payload)
+	
+		flash('Data successfully updated. Generating document...', 'success')
+		return redirect(url_for('trigger_production'))
 	
 
 #####################################################################################################################################
