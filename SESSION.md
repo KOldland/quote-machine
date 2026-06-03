@@ -33,10 +33,7 @@ All paths are relative to the VS Code workspace root (`QM_web_app/`):
   * `QMapp.py` `summary_page` — `edit_mode` branch fully wired
 
 ## Immediate Next Blocker / Task
-1. **Fix unclosed `<form>` tag in `form.html` edit_mode block** (structural HTML bug):
-   - In the `{% if edit_mode %}` branch (around line 35), a `<form>` is opened but **never closed** before the properties panel macro is called.
-   - This causes the `render_properties_panel` form to be **nested inside the outer form** — browsers silently drop nested forms, making all checkboxes in the properties panel non-functional/invisible.
-   - **Fix**: Close the outer `<form>` before calling `render_properties_panel`, OR remove the outer form entirely from the edit_mode branch (the canvas content uses its own form for submission, and the properties panel has its own form).
+1. ~~**Fix unclosed `<form>` tag in `form.html` edit_mode block**~~ ✅ **DONE (03/06/26)** — Added `</form>` before `</div>` closing `builder-canvas`, so `render_properties_panel` is no longer nested inside the canvas form.
 2. **Extend edit_mode to remaining routes**: `materials_page`, `further_requirements_page`, `additional_costs_page`, `image_upload_page` need the `if edit_mode: ... else: ...` pattern.
 3. **CSS checkbox audit**: `main.css` has `.hidden-checkbox { display: none; }` — verify no global rule is clipping builder sidebar checkboxes.
 

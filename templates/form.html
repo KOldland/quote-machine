@@ -33,8 +33,8 @@
         <div class="builder-canvas">
             <h1>{{ title }}</h1>
             <form action="{{ url_for(request.endpoint) }}" method="POST" {% if twenty_ninth_page %}enctype="multipart/form-data"{% endif %}>
-
             {{ builder_macros.render_canvas_content(current_page, selected_block_id) }}
+            </form>
         </div>
         {{ builder_macros.render_properties_panel(selected_block, current_page.blocks, pricing_modes, current_page_id) }}
     </div>
