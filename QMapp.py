@@ -3119,6 +3119,32 @@ def materials_page():
 			data["selected_ew"]["preselected"].append('ew5')
 	
 		
+	edit_requested = request.args.get('edit', '').lower() in {'1', 'true', 'yes'}
+	edit_mode = session.get('role') == 'admin' and edit_requested
+	if edit_mode:
+		builder_state = get_builder_beta_state()
+		current_page_id = 'materials_page'
+		current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
+		selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
+		selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
+		return render_template(
+			'form.html',
+			materials_page=True,
+			previous_page=previous_page,
+			next_page='further_requirements_page',
+			title="Materials and Details",
+			data=data,
+			wall_height_metres=data.get('wall_height_metres', ''),
+			wall_height_centimetres=data.get('wall_height_centimetres', ''),
+			fire_doors_number=data.get('fire_doors_number', ''),
+			non_fire_doors_number=data.get('non_fire_doors_number', ''),
+			builder_state=builder_state,
+			current_page={'id': current_page_id, 'title': "Materials and Details", 'blocks': current_page_blocks},
+			current_page_id=current_page_id,
+			selected_block_id=selected_block_id,
+			selected_block=selected_block,
+			pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
+		)
 	return render_template(
 		'form.html',
 		materials_page=True,
@@ -3313,6 +3339,30 @@ def further_requirements_page():
 					data["selected_iw"]["preselected"].append(line_code)
 	
 	# Render the form with the updated data structure
+	edit_requested = request.args.get('edit', '').lower() in {'1', 'true', 'yes'}
+	edit_mode = session.get('role') == 'admin' and edit_requested
+	if edit_mode:
+		builder_state = get_builder_beta_state()
+		current_page_id = 'further_requirements_page'
+		current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
+		selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
+		selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
+		return render_template(
+			'form.html',
+			further_requirements_page=True,
+			previous_page=previous_page,
+			next_page='additional_building_work_page',
+			title="Further Requirements & Considerations",
+			data=data,
+			iw_sqm_values=data.get('iw_sqm_values', {}),
+			iw_fixed_values=data.get('iw_fixed_values', {}),
+			builder_state=builder_state,
+			current_page={'id': current_page_id, 'title': "Further Requirements & Considerations", 'blocks': current_page_blocks},
+			current_page_id=current_page_id,
+			selected_block_id=selected_block_id,
+			selected_block=selected_block,
+			pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
+		)
 	return render_template(
 		'form.html',
 		further_requirements_page=True,
@@ -3608,6 +3658,31 @@ def additional_costs_page():
 			}
 	
 				
+	edit_requested = request.args.get('edit', '').lower() in {'1', 'true', 'yes'}
+	edit_mode = session.get('role') == 'admin' and edit_requested
+	if edit_mode:
+		builder_state = get_builder_beta_state()
+		current_page_id = 'additional_costs_page'
+		current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
+		selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
+		selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
+		return render_template(
+			'form.html',
+			additional_costs_page=True,
+			previous_page=previous_page,
+			next_page='optional_extras_page',
+			title="Additional Costs",
+			data=data,
+			selected_kitchen_option_data=data.get("selected_kitchen_option_data", {}),
+			selected_loft_option_data=data.get("selected_loft_option_data", {}),
+			pd10_label="Specify sliding door width (mm):",
+			builder_state=builder_state,
+			current_page={'id': current_page_id, 'title': "Additional Costs", 'blocks': current_page_blocks},
+			current_page_id=current_page_id,
+			selected_block_id=selected_block_id,
+			selected_block=selected_block,
+			pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
+		)
 	return render_template(
 		'form.html',
 		additional_costs_page=True,
@@ -3931,6 +4006,30 @@ def image_upload_page():
 		session['uploaded_images'] = uploaded_images
 		session.modified = True
 	
+	edit_requested = request.args.get('edit', '').lower() in {'1', 'true', 'yes'}
+	edit_mode = session.get('role') == 'admin' and edit_requested
+	if edit_mode:
+		builder_state = get_builder_beta_state()
+		current_page_id = 'image_upload_page'
+		current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
+		selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
+		selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
+		return render_template(
+			'image_upload.html',
+			image_upload_page=True,
+			previous_page='optional_extras_page',
+			next_page='review',
+			open_accordion=open_accordion,
+			title="Upload Quote-Specific Images",
+			uploaded_images=uploaded_images,
+			template_plan=session.get('site_image_plan', []),
+			builder_state=builder_state,
+			current_page={'id': current_page_id, 'title': "Upload Quote-Specific Images", 'blocks': current_page_blocks},
+			current_page_id=current_page_id,
+			selected_block_id=selected_block_id,
+			selected_block=selected_block,
+			pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
+		)
 	return render_template(
 		'image_upload.html',
 		image_upload_page=True,
