@@ -28,15 +28,16 @@ All paths are relative to the VS Code workspace root (`QM_web_app/`):
   * `_builder_macros.html` — Jinja2 macros (`render_question_palette`, `render_properties_panel`, `render_canvas_content`)
   * `form.html` — conditionally renders builder sidebar when `edit_mode` is True
   * `builder.js` — drag-and-drop, block CRUD, undo/redo, properties panel
-  * `QMapp.py` `index` route — `edit_mode` branch fully wired
-  * `QMapp.py` `special_notes_page` — copy-paste bug FIXED (`build_page_schema_context` now passes `'special_notes_page'`)
-  * `QMapp.py` `summary_page` — `edit_mode` branch fully wired
+   * `QMapp.py` `index` route — `edit_mode` branch fully wired + **FIXED missing `edit_requested`/`edit_mode` local vars (03/06/26)**
+   * `QMapp.py` `special_notes_page` — copy-paste bug FIXED (`build_page_schema_context` now passes `'special_notes_page'`)
+   * `QMapp.py` `summary_page` — `edit_mode` branch fully wired
 
 ## Immediate Next Blocker / Task
 1. ~~**Fix unclosed `<form>` tag in `form.html` edit_mode block**~~ ✅ **DONE (03/06/26)**
 2. ~~**Extend edit_mode to remaining routes**~~ ✅ **DONE (03/06/26)** — Added `if edit_mode: ... return render_template(..., builder_state=..., current_page=...) / return render_template(...)` pattern to `materials_page`, `further_requirements_page`, `additional_costs_page`, `image_upload_page`.
-3. **CSS checkbox audit**: `main.css` has `.hidden-checkbox { display: none; }` — verify no global rule is clipping builder sidebar checkboxes.
-4. **Fix `index` route missing local `edit_mode` variable** — `index` route uses `if edit_mode:` but never computes `edit_requested`/`edit_mode` locally (context_processor injects it into templates but Python function body needs it as a local var). Add `edit_requested`/`edit_mode` lines before the `if edit_mode:` block in `index`.
+3. ~~**CSS checkbox audit**~~ ✅ **DONE (03/06/26)** — `.hidden-checkbox` class found nowhere in codebase; no clipping risk. Removed from active concerns.
+4. ~~**Fix `index` route missing local `edit_mode` variable**~~ ✅ **DONE (03/06/26)** — Added `edit_requested`/`edit_mode` computation before `if edit_mode:` block in `index`, matching all other routes.
+5. **Next: Test inline builder end-to-end** — navigate the form as admin with `?edit=1` on each page; verify sidebar replaces standard sidebar, blocks render, and properties panel checkboxes function.
 
 ## Known Issues
 * `QMapp.py` is very large (~4500 lines). Use **small, precise `replace_in_file` search blocks** (2-3 lines) to avoid mismatches.
