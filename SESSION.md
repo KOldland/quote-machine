@@ -37,12 +37,19 @@ All paths are relative to the VS Code workspace root (`QM_web_app/`):
 2. ~~**Extend edit_mode to remaining routes**~~ ✅ **DONE (03/06/26)** — Added `if edit_mode: ... return render_template(..., builder_state=..., current_page=...) / return render_template(...)` pattern to `materials_page`, `further_requirements_page`, `additional_costs_page`, `image_upload_page`.
 3. ~~**CSS checkbox audit**~~ ✅ **DONE (03/06/26)** — `.hidden-checkbox` class found nowhere in codebase; no clipping risk. Removed from active concerns.
 4. ~~**Fix `index` route missing local `edit_mode` variable**~~ ✅ **DONE (03/06/26)** — Added `edit_requested`/`edit_mode` computation before `if edit_mode:` block in `index`, matching all other routes.
-5. **Next: Test inline builder end-to-end** — navigate the form as admin with `?edit=1` on each page; verify sidebar replaces standard sidebar, blocks render, and properties panel checkboxes function.
+5. **Fix Jinja2 `unexpected char '\\' at 2962`** — `form.html` edit_mode JS block contains a stray backslash character causing 500 on 6/7 routes. `image_upload_page` returns 200 (confirmed working). Need to locate the `\` in lines ~1638-1966 and remove it. After fix, re-test all 7 routes end-to-end.
 
 ## Known Issues
 * `QMapp.py` is very large (~4500 lines). Use **small, precise `replace_in_file` search blocks** (2-3 lines) to avoid mismatches.
+* `form.html` has a Jinja2 compilation error (`unexpected char '\\' at 2962`) in the edit_mode JS block — causes 500 on `/`, `/special_notes_page`, `/summary_page`, `/materials_page`, `/further_requirements_page`, `/additional_costs_page`.
+* Port 5000 is hijacked by macOS AirPlay Receiver — use port 5002+ for local testing.
 
-## Session History
+## Session History (03/06/26)
+* Fixed `form.html` unclosed `{% if edit_mode %}` at line 28 — added closing `{% endif %}` after normal form rendering block.
+* Fixed `form.html` import path: `._builder_macros.html` → `_builder_macros.html` (stray leading dot).
+* Test server running on port 5003 with `QM_TEST_MODE=1`. Login succeeds (admin/admin123). `image_upload_page?edit=1` returns 200. 6 other routes return 500 due to `unexpected char '\\' at 2962`.
+* Committed: `fix: repair form.html template syntax — unclosed {% if edit_mode %} and _builder_macros import path` (4 files, a4cf68e)
+* **Next**: locate and remove the stray `\` in the edit_mode JS block (~line 1638-1966) causing Jinja2 `unexpected char` error.
 * Initialized the Layered Memory System.
 * Implemented core drag-and-drop form builder; debugged CSRF, Jinja2 filter errors, server issues.
 * Created `_builder_macros.html`, `builder.js`; refactored `form.html` and `builder_beta.html`.
