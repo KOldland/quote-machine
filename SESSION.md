@@ -4,9 +4,8 @@
 * **VS Code workspace root**: `/Users/krisoldland/Documents/QM_web_app/`
 * **Git repo root**: `/Users/krisoldland/Documents/QM_web_app/app/` — all git commands must be run from here
 * **Branch**: `master`
-* **Remote**: `heroku` → `https://git.heroku.com/quote-machine.git`
 * **Context archive**: `app/context_archive/` (old .md docs archived here)
-* **No GitHub `origin` remote** — push target is Heroku only
+* **GitHub Repository**: Linked to `https://github.com/KOldland/quote-machine` as primary `origin` remote.
 
 ## Current Goal
 * Integrate the form builder into existing pages as an inline sidebar, replacing the standalone `/builder_beta` page. Admin users see an "Edit Page" button; clicking it stays on the same page but replaces the sidebar with the builder editor (question palette + block properties panel).
@@ -28,9 +27,10 @@ All paths are relative to the VS Code workspace root (`QM_web_app/`):
   * `_builder_macros.html` — Jinja2 macros (`render_question_palette`, `render_properties_panel`, `render_canvas_content`)
   * `form.html` — conditionally renders builder sidebar when `edit_mode` is True
   * `builder.js` — drag-and-drop, block CRUD, undo/redo, properties panel
-   * `QMapp.py` `index` route — `edit_mode` branch fully wired + **FIXED missing `edit_requested`/`edit_mode` local vars (03/06/26)**
-   * `QMapp.py` `special_notes_page` — copy-paste bug FIXED (`build_page_schema_context` now passes `'special_notes_page'`)
-   * `QMapp.py` `summary_page` — `edit_mode` branch fully wired
+  * `QMapp.py` `index` route — `edit_mode` branch fully wired + **FIXED missing `edit_requested`/`edit_mode` local vars (03/06/26)**
+  * `QMapp.py` `special_notes_page` — copy-paste bug FIXED (`build_page_schema_context` now passes `'special_notes_page'`)
+  * `QMapp.py` `summary_page` — `edit_mode` branch fully wired
+* **Git Infrastructure Upgraded (03/06/26)**: Obsolete Heroku remote scrubbed. Local tracking branch successfully synchronized and pushed up to GitHub `origin master` (510 objects).
 
 ## Immediate Next Blocker / Task
 1. ~~**Fix unclosed `<form>` tag in `form.html` edit_mode block**~~ ✅ **DONE (03/06/26)**
@@ -41,7 +41,6 @@ All paths are relative to the VS Code workspace root (`QM_web_app/`):
 
 ## Known Issues
 * `QMapp.py` is very large (~4500 lines). Use **small, precise `replace_in_file` search blocks** (2-3 lines) to avoid mismatches.
-* Git remote is Heroku only. No GitHub `origin` — do not attempt `git push origin`.
 
 ## Session History
 * Initialized the Layered Memory System.
@@ -49,4 +48,5 @@ All paths are relative to the VS Code workspace root (`QM_web_app/`):
 * Created `_builder_macros.html`, `builder.js`; refactored `form.html` and `builder_beta.html`.
 * Integrated `edit_mode` into `index`, `special_notes_page`, `summary_page` routes.
 * Fixed `special_notes_page` copy-paste bug (`build_page_schema_context` page_id).
-* **Workspace restructured** — git repo root moved to `app/` directory, branch renamed `master`, Heroku-only remote. SESSION.md updated to reflect new layout.
+* **Workspace restructured** — git repo root moved to `app/` directory, branch renamed `master`. 
+* **Remote Cleaned** — Removed obsolete Heroku remote pointers. Configured and validated global `origin` link to GitHub repository to securely sync all session logs moving forward.

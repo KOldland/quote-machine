@@ -3,7 +3,7 @@
 {% block content %}
 
 
-{% import "._builder_macros.html" as builder_macros %}
+{% import "_builder_macros.html" as builder_macros %}
 
 <div class="form-container {% if edit_mode %}builder-edit-mode{% endif %}">
     {% if is_admin %}
@@ -1603,6 +1603,7 @@
         </div>
     </form>
 </div>
+{% endif %}
 
 <!-------------------------------------------------------------------------------------------------------------------------->
 <!----------------                             Flash Messages                                  ------------------------->
