@@ -1,0 +1,273 @@
+{% macro render_question_palette(builder_state) %}
+    <div class="sidebar-section">
+        <div class="sidebar-section-title">Question Types</div>
+        <div class="question-type-palette">
+            {% for type, meta in builder_state.question_types.items() %}
+            <div class="question-type-item" draggable="true" data-type="{{ type }}">
+                <span class="question-type-icon">{{ meta.icon or "?" }}</span> {# Assuming icons are added to question_types #}
+                <div>
+                    <div class="question-type-label">{{ meta.label }}</div>
+                    <div class="question-type-desc">{{ meta.description or "" }}</div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+{% endmacro %}
+
+{% macro render_properties_panel(selected_block, blocks, pricing_modes, current_page_id) %}
+    <div class="builder-properties">
+        <div class="properties-header">Block Properties</div>
+        <div class="properties-content" id="properties-content">
+            {% if selected_block %}
+                <form id="block-properties-form" method="POST" action="{{ url_for("builder_beta_page_editor", page_id=current_page_id) }}">
+                    <input type="hidden" name="action" value="save_block">
+                    <input type="hidden" name="block_id" value="{{ selected_block.id }}">
+                    
+                    <div class="prop-section" id="prop-fields">
+                        <div class="prop-section-header" onclick="toggleSection(\'prop-fields\')">
+                            <span>📝 Question Fields</span>
+                            <span class="prop-section-toggle">▾</span>
+                        </div>
+                        <div class="prop-section-body">
+                            <div class="form-group">
+                                <label>Label</label>
+                                <input type="text" name="standard_label" value="{{ selected_block.standard.label }}">
+                            </div>
+                            <div class="form-group">
+                                <label>Name (unique identifier)</label>
+                                <input type="text" name="standard_name" value="{{ selected_block.standard.name }}">
+                            </div>
+                            <div class="form-group">
+                                <label>Help Text</label>
+                                <textarea name="standard_help_text">{{ selected_block.standard.help_text }}</textarea>
+                            </div>
+                            <div class="form-group checkbox-group">
+                                <input type="checkbox" name="standard_required" {% if selected_block.standard.required %}checked{% endif %}>
+                                <label>Required</label>
+                            </div>
+                            
+                            {% if selected_block.block_type == \'text_input\' or selected_block.block_type == \'number_currency_input\' %}
+                            <div class="form-group">
+                                <label>Placeholder</label>
+                                <input type="text" name="standard_placeholder" value="{{ selected_block.standard.placeholder }}">
+                            </div>
+                            {% elif selected_block.block_type == \'dropdown_select\' or selected_block.block_type == \'checkbox_group\' %}
+                            <div class="form-group">
+                                <label>Choices (one per line)</label>
+                                <textarea name="standard_dropdown_choices" rows="4">{{ selected_block.standard.dropdown_choices|join("\n") }}</textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>Source Prefix</label>
+                                <input type="text" name="standard_source_prefix" value="{{ selected_block.standard.source_prefix }}">
+                            </div>
+                            {% elif selected_block.block_type == \'static_text_heading\' %}
+                            <div class="form-group">
+                                <label>Content</label>
+                                <textarea name="standard_static_content" rows="3">{{ selected_block.standard.static_content }}</textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>Variant</label>
+                                <select name="standard_static_variant">
+                                    <option value="body" {% if selected_block.standard.static_variant == \'body\' %}selected{% endif %}>Body</option>
+                                    <option value="heading" {% if selected_block.standard.static_variant == \'heading\' %}selected{% endif %}>Heading</option>
+                                    <option value="subheading" {% if selected_block.standard.static_variant == \'subheading\' %}selected{% endif %}>Subheading</option>
+                                    <option value="note" {% if selected_block.standard.static_variant == \'note\' %}selected{% endif %}>Note</option>
+                                </select>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="prop-section" id="prop-logic">
+                        <div class="prop-section-header" onclick="toggleSection(\'prop-logic\')">
+                            <span>⚡ Logic</span>
+                            <span class="prop-section-toggle">▾</span>
+                        </div>
+                        <div class="prop-section-body">
+                            <div class="form-group">
+                                <label>Visibility</label>
+                                <select name="logic_visibility">
+                                    <option value="always" {% if selected_block.logic_options.visibility == \'always\' %}selected{% endif %}>Always show</option>
+                                    <option value="conditional" {% if selected_block.logic_options.visibility == \'conditional\' %}selected{% endif %}>Show conditionally</option>
+                                </select>
+                            </div>
+                            <div id="logic-conditions" style="display: {% if selected_block.logic_options.visibility == \'conditional\' %}block{% else %}none{% endif %};">
+                                <div class="logic-condition">
+                                    <select name="logic_depends_on_field">
+                                        <option value="">Select field...</option>
+                                        {% for block_item in blocks %}
+                                            {% if block_item.id != selected_block.id %}
+                                            <option value="{{ block_item.id }}" {% if block_item.id == selected_block.logic_options.depends_on_field %}selected{% endif %}>{{ block_item.standard.label }}</option>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="logic-condition">
+                                    <input type="text" name="logic_depends_on_value" value="{{ selected_block.logic_options.depends_on_value }}" placeholder="Required value...">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="prop-section" id="prop-pricing">
+                        <div class="prop-section-header" onclick="toggleSection(\'prop-pricing\')">
+                            <span>💰 Pricing</span>
+                            <span class="prop-section-toggle">▾</span>
+                        </div>
+                        <div class="prop-section-body">
+                            <div class="form-group">
+                                <label>Enabled</label>
+                                <div class="form-group checkbox-group">
+                                    <input type="checkbox" name="pricing_enabled" {% if selected_block.pricing_options.enabled %}checked{% endif %}>
+                                    <label>Enable pricing</label>
+                                </div>
+                            </div>
+                            <div class="form-group pricing-mode-select">
+                                <label>Mode</label>
+                                <select name="pricing_mode" onchange="updatePricingFields(this.value)">
+                                    {% for mode in pricing_modes %}
+                                    <option value="{{ mode }}" {% if selected_block.pricing_options.mode == mode %}selected{% endif %}>{{ mode.replace("_", " ").title() }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div id="pricing-fields" class="pricing-fields {% if selected_block.pricing_options.enabled %}active{% endif %}">
+                                {% if selected_block.pricing_options.mode == \'fixed\' %}
+                                <div class="form-group">
+                                    <label>Fixed Amount (£)</label>
+                                    <input type="number" step="0.01" min="0" name="pricing_fixed_amount" value="{{ selected_block.pricing_options.fixed_amount }}">
+                                </div>
+                                {% elif selected_block.pricing_options.mode == \'entered\' %}
+                                <div class="form-group">
+                                    <label>Reference Field</label>
+                                    <select name="pricing_entered_key">
+                                        <option value="">Select field...</option>
+                                        {% for block_item in blocks %}
+                                            <option value="{{ block_item.id }}" {% if block_item.id == selected_block.pricing_options.entered_key %}selected{% endif %}>{{ block_item.standard.label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                {% elif selected_block.pricing_options.mode == \'quantity_rate\' %}
+                                <div class="form-group">
+                                    <label>Quantity Field</label>
+                                    <select name="pricing_quantity_key">
+                                        <option value="">Select field...</option>
+                                        {% for block_item in blocks %}
+                                            <option value="{{ block_item.id }}" {% if block_item.id == selected_block.pricing_options.quantity_key %}selected{% endif %}>{{ block_item.standard.label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Rate (£ per unit)</label>
+                                    <input type="number" step="0.01" min="0" name="pricing_rate" value="{{ selected_block.pricing_options.rate }}">
+                                </div>
+                                {% elif selected_block.pricing_options.mode == \'percent_subtotal\' %}
+                                <div class="form-group">
+                                    <label>Percentage (%)</label>
+                                    <input type="number" step="0.01" min="0" max="100" name="pricing_percent_of_subtotal" value="{{ selected_block.pricing_options.percent_of_subtotal }}">
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="prop-section" id="prop-output">
+                        <div class="prop-section-header" onclick="toggleSection(\'prop-output\')">
+                            <span>📊 Output</span>
+                            <span class="prop-section-toggle">▾</span>
+                        </div>
+                        <div class="prop-section-body">
+                            <div class="form-group checkbox-group">
+                                <input type="checkbox" name="output_include_in_output" {% if selected_block.output_options.include_in_output %}checked{% endif %}>
+                                <label>Include in Output</label>
+                            </div>
+                            <div class="form-group">
+                                <label>Output Label</label>
+                                <input type="text" name="output_label" value="{{ selected_block.output_options.output_label }}">
+                            </div>
+                            <div class="form-group">
+                                <label>Output Group</label>
+                                <input type="text" name="output_group" value="{{ selected_block.output_options.group }}">
+                            </div>
+                            <div class="form-group">
+                                <label>Value Mode</label>
+                                <select name="output_value_mode">
+                                    <option value="show_value" {% if selected_block.output_options.value_mode == \'show_value\' %}selected{% endif %}>Show Value</option>
+                                    <option value="show_label" {% if selected_block.output_options.value_mode == \'show_label\' %}selected{% endif %}>Show Label Only</option>
+                                    <option value="hide_value" {% if selected_block.output_options.value_mode == \'hide_value\' %}selected{% endif %}>Hide Value</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">Save Block</button>
+                </form>
+            {% else %}
+                <div class="properties-empty">
+                    <div class="properties-empty-icon">🔲</div>
+                    <p>Select a question to edit its properties</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+{% endmacro %}
+
+{% macro render_canvas_content(current_page, selected_block_id) %}
+    <div class="builder-canvas" id="builder-canvas">
+        <div class="canvas-page-selector">
+            <h2 id="canvas-page-title">{{ current_page.title }}</h2>
+            <button type="button" class="btn btn-primary" id="btn-add-block">+ Add Question</button>
+        </div>
+        <div class="canvas-content" id="canvas-content">
+            {% if current_page.blocks %}
+                {% for block in current_page.blocks %}
+                <div class="question-block {{ \'selected\' if block.id == selected_block_id else \'\' }}" 
+                     data-block-id="{{ block.id }}" 
+                     data-type="{{ block.block_type }}"
+                     draggable="true">
+                    <div class="question-block-header">
+                        <span class="drag-handle">⠿</span>
+                        <span class="block-type-badge">{{ block.block_type }}</span>
+                        <span class="block-title">{{ block.standard.label }}</span>
+                        <div class="block-actions">
+                            <button type="button" class="block-action-btn" data-action="edit" title="Edit">✎</button>
+                            <button type="button" class="block-action-btn delete" data-action="delete" title="Delete">🗑️</button>
+                        </div>
+                    </div>
+                    <div class="question-block-body">
+                        {% if block.block_type == \'checkbox_group\' %}
+                        <div class="checkbox-options">
+                            {% for choice in block.standard.dropdown_choices %}
+                            <div class="checkbox-option">
+                                <input type="checkbox" id="{{ block.id }}_opt_{{ loop.index }}" checked>
+                                <label for="{{ block.id }}_opt_{{ loop.index }}">{{ choice }}</label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% elif block.block_type == \'text_input\' %}
+                        <div style="padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem; color: #666;">
+                            {{ block.standard.placeholder or \'Enter text...\' }}
+                        </div>
+                        {% elif block.block_type == \'number_currency_input\' %}
+                        <div style="padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem; color: #666;">
+                            £{{ block.standard.placeholder or \'0.00\' }}
+                        </div>
+                        {% elif block.block_type == \'dropdown_select\' %}
+                        <select style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem;">
+                            {% for choice in block.standard.dropdown_choices %}<option>{{ choice }}</option>{% endfor %}
+                        </select>
+                        {% elif block.block_type == \'static_text_heading\' %}
+                            {% set variant_tag = \'h3\' if block.standard.static_variant == \'heading\' else \'h4\' if block.standard.static_variant == \'subheading\' else \'p\' %}
+                            <{{ variant_tag }} style="margin: 0; color: #333;">{{ block.standard.static_content or block.standard.label }}</{{ variant_tag }}>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+            <div class="canvas-empty">
+                <div class="canvas-empty-icon">📋</div>
+                <p>No questions yet. Click "+ Add Question" or drag a question type from the sidebar.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+{% endmacro %}

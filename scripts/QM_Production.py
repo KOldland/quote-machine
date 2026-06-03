@@ -5,6 +5,8 @@ import pandas as pd
 from PIL import Image
 from io import BytesIO
 import requests
+import os
+from pathlib import Path
 
 # Define the scopes for both Google Sheets and Google Docs APIs
 SCOPES = [
@@ -13,8 +15,15 @@ SCOPES = [
     'https://www.googleapis.com/auth/drive'
 ]
 
-# Path to your service account JSON file
-SERVICE_ACCOUNT_FILE = '/Users/krisoldland/Desktop/Quote_Machine/QM_web_app/app/QM_credentials.json'
+# Load credentials path from environment first, with local app fallback
+SERVICE_ACCOUNT_FILE = os.getenv(
+    'QM_CREDENTIALS_PATH',
+    str(Path(__file__).resolve().parents[1] / 'QM_credentials.json')
+)
+if not os.path.exists(SERVICE_ACCOUNT_FILE):
+    raise FileNotFoundError(
+        'Google credentials file not found. Set QM_CREDENTIALS_PATH or place QM_credentials.json in the app directory.'
+    )
 
 # Authenticate and create the service
 print("Authenticating...")
@@ -25,7 +34,7 @@ drive_service = build('drive', 'v3', credentials=credentials)
 print("Authenticated successfully.")
 
 # Open the Google Sheets document by ID
-spreadsheet_id = '1gscALSOGoaEYyuUN0zyu_pRAMvjjJvWjv3ZnAFCd5rQ'
+spreadsheet_id = os.getenv('QM_SPREADSHEET_ID', '1gscALSOGoaEYyuUN0zyu_pRAMvjjJvWjv3ZnAFCd5rQ')
 print("Loading data from Google Sheets...")
 sheet = gc.open_by_key(spreadsheet_id).sheet1
 data = pd.DataFrame(sheet.get_all_records())

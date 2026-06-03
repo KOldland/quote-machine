@@ -1,0 +1,13 @@
+QM_credentials.json
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+build/
+flask_session/
+.continue
+.DS_Store
+*.log

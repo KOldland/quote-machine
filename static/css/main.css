@@ -97,7 +97,7 @@
 /* Form*/
 
 .form-container {
-    background-color: rgba(255, 255, 255, 0.9);
+    background-color: #ffffff;
     padding: 40px;
     border-radius: 8px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
@@ -186,15 +186,15 @@ input, label {
     width: auto; /* Removed full-width from your button setup to match client's */
     margin: 5px;
     padding: 11px 35px;
-    background-color: #E8E8E8; /* Client's default color */
-    color: #5C5C5B; /* Client's text color */
+    background-color: #1F2D3D;
+    color: #ffffff;
     font-family: 'CynthoNextBold', sans-serif; /* Keeping your custom font */
     font-size: 15px;
     line-height: 16px;
     letter-spacing: 3px; /* Client's uppercase styling */
     font-weight: 600;
     text-transform: uppercase; /* Matches client’s design */
-    border: 1px solid #333333; /* Dark grey border */
+    border: 1px solid #1F2D3D;
     border-radius: 0px; /* No rounding */
     text-align: center;
     text-decoration: none;
@@ -207,9 +207,10 @@ input, label {
 }
 
 /* Hover effect */
-.btn{
-    background-color: #CCCCCC; /* Client’s hover color */
-    color: #333333; /* Darker text on hover */
+.btn:hover,
+.btn:focus {
+    background-color: #ffffff;
+    color: #1F2D3D;
 }
 
 /* Disabled state */
@@ -408,4 +409,259 @@ body {
     margin-top: 5px;            /* Adds spacing from the input field */
     border: 1px solid #ccc;     /* Adds a border for visibility */
     border-radius: 4px;         /* Optional: rounded corners */
+}
+
+
+/*** ACCORDIAN STYLNG ***/
+
+/* Accordion Section Styling */
+.accordion-section {
+    margin-bottom: 15px;
+}
+
+.accordion-body ul {
+    margin-top: 10px;
+    margin-bottom: 15px; /* Adds space between list and next heading */
+}
+
+.accordion-body ul li {
+    margin-bottom: 5px; /* Space between list items */
+}
+
+/* Optional: Add consistent padding inside the accordion headers and bodies */
+.accordion-header {
+    padding: 10px; /* Same padding for all headers */
+}
+
+.accordion-body {
+    padding: 10px; /* Same padding for all body content */
+}
+
+/* Header Styling */
+.accordion-header {
+    width: 100%;
+    background-color: #f0f0f0;
+    border: none;
+    padding: 10px;
+    text-align: left;
+    font-size: 16px;
+    cursor: pointer;
+    font-weight: bold;
+    outline: none;
+    border-radius: 5px;
+    transition: background-color 0.3s ease;
+}
+
+.accordion-header:hover {
+    background-color: #e0e0e0;
+}
+
+/* Body Styling (Initially Hidden) */
+.accordion-body {
+    display: none; /* Hidden by default */
+    padding: 10px;
+    background-color: #ffffff;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    margin-top: 5px;
+}
+
+.hidden-dropdown {
+    margin-top: 5x; /* Adjust the top margin */
+    margin-bottom: 15px; /* Add proper spacing below */
+    display: none; /* Hidden by default */
+}
+
+/* OPen Txt field Styling */
+input[type="text"], input[type="date"], textarea, select {
+    width: 100%; /* Ensure all inputs are full-width within the form container */
+    max-width: 100%; /* Prevent the input from exceeding the container's width */
+    box-sizing: border-box; /* Include padding and border in the width calculation */
+    padding: 10px;
+    margin-bottom: 20px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.hidden {
+    display: none;
+}
+
+/* Image processing */
+
+.uploaded-images-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.image-thumb {
+    width: 120px;
+    text-align: center;
+    margin: 5px; /* Ensures consistent spacing even if wrapping */
+}
+
+.image-thumb img {
+    width: 100%;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.filename {
+    font-size: 0.75rem;
+    color: #555;
+    margin-top: 4px;
+    word-break: break-word;
+}
+
+/* Final output image (composed template) - A4-safe container */
+.template-output {
+    max-width: 800px;        /* Approx A4 width at 96dpi */
+    margin: 40px auto;        /* 1-inch top/bottom margin, centered horizontally */
+    padding: 10px;
+    border: 1px solid #ddd;
+    background: #fff;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+}
+
+.template-output img {
+    width: 100%;
+    height: auto;
+    max-height: 80vh;
+    object-fit: contain;
+}
+
+.image-thumb.selected {
+    border: 3px solid #2B7DAA;
+    box-shadow: 0 0 10px rgba(0,0,0,0.2);
+}
+
+.hidden-checkbox {
+    display: none;
+}
+
+.selected-template {
+    border: 3px solid #007bff;
+    box-shadow: 0 0 10px rgba(0, 123, 255, 0.6);
+    cursor: pointer;
+}
+
+.template-preview-img {
+    max-width: 300px;
+    height: auto;
+    object-fit: contain;
+    display: block;
+    margin: 0 auto;
+}
+
+.template-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+.button-row {
+    display: flex;
+    gap: 20px;
+    align-items: flex-end;
+    margin-top: 1rem;
+}
+
+.upload-wrapper {
+    margin-bottom: 1.5rem;
+}
+
+.styled-upload-button {
+    display: inline-block;
+    padding: 12px 24px;
+    background-color: #ccc;
+    border: 1px solid #333;
+    border-radius: 4px;
+    font-weight: bold;
+    font-size: 1rem;
+    letter-spacing: 0.15rem;
+    text-transform: uppercase;
+    text-align: center;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    margin-bottom: 1rem;
+    width: 100%;
+    max-width: 320px;
+}
+
+.styled-upload-button:hover {
+    background-color: #bbb;
+}
+
+.styled-upload-button input[type="file"] {
+    display: none;
+}
+
+.flash-container {
+    margin-top: 10px;
+    margin-bottom: 20px;
+}
+
+.flash {
+    padding: 12px 18px;
+    border: 1px solid #ccc;
+    background-color: #f9f9f9;
+    font-size: 14px;
+    font-weight: 600;
+    border-left: 6px solid #666;
+    color: #333;
+}
+
+.flash-success {
+    border-color: #3c763d;
+    background-color: #dff0d8;
+    color: #3c763d;
+}
+
+.flash-danger {
+    border-color: #a94442;
+    background-color: #f2dede;
+    color: #a94442;
+}
+
+.layout-preview-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 60px;
+    margin-top: 40px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+}
+
+.current-layout {
+    flex: 1 1 60%;
+    text-align: center;
+}
+
+.final-preview-img {
+    max-width: 100%;
+    width: 100%;
+    max-height: 900px;
+    object-fit: contain;
+    border: 1px solid #ccc;
+}
+
+.alternate-templates {
+    flex: 1 1 30%;
+}
+
+.template-option {
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.template-thumb {
+    max-width: 100%;
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+    border: 1px solid #999;
 }

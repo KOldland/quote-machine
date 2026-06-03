@@ -1,0 +1,22 @@
+# Cline Workspace & Memory Rules
+
+## 1. Context Synchronization
+- Before attempting ANY assigned task or command, you must read 'SESSION.md' and '.continue/prompts/context.md' to align with the core architecture, active files, and current milestone boundaries.
+- Restrict your focus entirely to the files listed under 'Active Files for Context' and the problem described in 'Immediate Next Blocker'. Do not wander outside this scope.
+
+## 2. Strict 5-Request Budget Constraint
+- You operate under a hard ceiling of 5 sequential API requests, tool calls, or autonomous terminal/file actions per task assignment.
+- Mentally break your execution path down into a maximum of 3 to 4 micro-steps to stay within this limit.
+- TEMPORAL CIRCUIT BREAKER: You have a maximum thinking/execution limit of 90 seconds per turn. If a terminal command, script, or internal thinking process takes longer than 90 seconds without producing a concrete file update or user-facing response, you must abort the active loop, report your current layout state, and ask the user for input to re-engage.
+- If you reach your 5th total tool call or request before the task is fully completed, you MUST immediately halt execution. Do not request or execute a 6th step. Summarize your exact progress, update 'SESSION.md' to reflect where you stopped, and explicitly ask the user for manual permission to proceed.
+
+## 3. Git & Environment Discipline
+- Respect the '.gitignore' file perfectly. Never read, stage, or modify files, temporary logs, or credentials isolated inside '.gitignore'.
+- Never commit directly to the 'main' or 'master' branch. Ensure you are working on a dedicated feature branch.
+
+## 4. Automated Task Finish Routine
+- Once you have successfully completed a task and verified the code behaves correctly, you must run this workspace save routine:
+  1. Update 'SESSION.md' by logging what you completed in 'What Works', setting the new 'Immediate Next Blocker', and updating the 'Active Files for Context' list for the next phase.
+  2. Use your terminal tool to run: git add .
+  3. Automatically execute a standard commit using conventional prefixes based on the work done (e.g., git commit -m "feat: [summary]" or git commit -m "fix: [summary]").
+  4. Explicitly print out a message notifying the user that the workspace is safely committed, and instruct them to run 'git push' and press 'Cmd+K' to clear the chat session history.

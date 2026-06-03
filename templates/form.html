@@ -1,407 +1,1565 @@
 {% extends "index.html" %}
 
 {% block content %}
-<div class="form-container">
-    <h1>{{ title }}</h1>
-    <form action="{{ url_for(request.endpoint) }}" method="POST" {% if twenty_ninth_page %}enctype="multipart/form-data"{% endif %}>
+
+
+{% import "._builder_macros.html" as builder_macros %}
+
+<div class="form-container {% if edit_mode %}builder-edit-mode{% endif %}">
+    {% if is_admin %}
+    <div class="edit-mode-bar">
+        {% if edit_mode %}
+        <span style="font-size:.85rem;font-weight:600;color:#856404;">&#9998; Edit Mode active</span>
+        <span id="edit-action-status" style="font-size:.78rem;color:#6c757d;">Draft mode (auto-save)</span>
+        <button type="button" id="btn-publish-draft" class="btn btn-success btn-sm">
+            &#10003; Publish draft
+        </button>
+        <button type="button" id="btn-rollback" class="btn btn-warning btn-sm">
+            &#8635; Rollback
+        </button>
+        <a href="{{ request.path }}" class="btn btn-secondary btn-sm">Exit Edit Mode</a>
+        {% else %}
+        <span style="font-size:.85rem;color:#555;">Admin view</span>
+        <a href="{{ request.path }}?edit=1" class="btn btn-info btn-sm">&#9998; Edit Page</a>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if edit_mode %}
+    <div class="builder-container">
+        <div class="builder-sidebar">
+            {{ builder_macros.render_question_palette(builder_state) }}
+        </div>
+        <div class="builder-canvas">
+            <h1>{{ title }}</h1>
+            <form action="{{ url_for(request.endpoint) }}" method="POST" {% if twenty_ninth_page %}enctype="multipart/form-data"{% endif %}>
+
+            {{ builder_macros.render_canvas_content(current_page, selected_block_id) }}
+        </div>
+        {{ builder_macros.render_properties_panel(selected_block, current_page.blocks, pricing_modes, current_page_id) }}
+    </div>
+    {% else %}
+        <h1>{{ title }}</h1>
+        <form action="{{ url_for(request.endpoint) }}" method="POST" {% if twenty_ninth_page %}enctype="multipart/form-data"{% endif %}>
         
     
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
+        {% if page_schema and schema_render_mode|default('full') == 'full' %}
+        {% for field in page_schema.fields %}
+            {# Determine effective label (label_override wins when set) #}
+            {% set eff_label = field.label_override if field.label_override else field.label %}
+            {# In runtime mode: skip hidden fields entirely #}
+            {% if not edit_mode and field.hidden %}
+                {# hidden — do not render #}
+            {% elif field.type == 'checkbox_group' %}
+            <div class="schema-field-block{% if edit_mode %} edit-field-block{% endif %}{% if field.hidden %} field-hidden{% endif %}"
+                 data-field-id="{{ field.id or field.name }}"
+                 data-page-id="{{ page_schema.id | default('') }}"
+                 style="{% if edit_mode and field.hidden %}opacity:.45;{% endif %}">
+
+                {# Field header with edit controls #}
+                {% if edit_mode %}
+                <div class="field-edit-bar" style="display:flex;align-items:center;gap:.5rem;margin-bottom:.3rem;padding:.3rem .5rem;background:#fafafa;border:1px solid #e0e0e0;border-radius:4px;">
+                    <span style="font-size:.75rem;color:#888;font-weight:600;">FIELD</span>
+                    <input type="text" class="field-label-input" value="{{ eff_label }}"
+                           placeholder="Field label"
+                           style="flex:1;font-size:.85rem;padding:.2rem .4rem;border:1px solid #ccc;border-radius:3px;"
+                           data-field-id="{{ field.id or field.name }}"
+                           data-page-id="{{ page_schema.id | default('') }}">
+                    <button type="button" class="btn-field-hide"
+                            data-field-id="{{ field.id or field.name }}"
+                            data-page-id="{{ page_schema.id | default('') }}"
+                            data-hidden="{{ 'true' if field.hidden else 'false' }}"
+                            style="font-size:.75rem;padding:.2rem .5rem;border:1px solid {% if field.hidden %}#28a745{% else %}#dc3545{% endif %};color:{% if field.hidden %}#28a745{% else %}#dc3545{% endif %};background:#fff;border-radius:3px;cursor:pointer;">
+                        {% if field.hidden %}Show{% else %}Hide{% endif %}
+                    </button>
+                </div>
+                {% endif %}
+
+                <label><h3><b>{% if edit_mode and field.hidden %}<s>{{ eff_label }}</s>{% else %}{{ eff_label }}{% endif %}</b></h3></label><br>
+
+                {% for option in field.options %}
+                    {# Per-option overrides #}
+                    {% set option_overrides_map = field.option_overrides if field.option_overrides is mapping else {} %}
+                    {% set opt_override = option_overrides_map.get(option.value, {}) %}
+                    {% set opt_label = opt_override.get('label_override', option.label) if opt_override is mapping else option.label %}
+                    {% set opt_hidden = opt_override.get('hidden', false) if opt_override is mapping else false %}
+                    {% set opt_deleted = opt_override.get('deleted', false) if opt_override is mapping else false %}
+                    {% set opt_pricing = opt_override.get('pricing_options', {}) if opt_override is mapping else {} %}
+                    {% set opt_output = opt_override.get('output_options', {}) if opt_override is mapping else {} %}
+                    {% set opt_line_title = opt_output.get('line_title', opt_label) %}
+                    {% set opt_line_description = opt_output.get('line_description', '') %}
+                    {% set opt_line_notes = opt_output.get('line_additional_notes', '') %}
+                    {# In runtime mode: skip hidden options #}
+                    {% if (not edit_mode and (opt_hidden or opt_deleted)) or opt_deleted %}
+                        {# hidden option — skip #}
+                    {% else %}
+                    <div class="schema-option-row{% if edit_mode %} edit-option-row{% endif %}{% if opt_hidden %} option-hidden{% endif %}"
+                         style="{% if edit_mode and opt_hidden %}opacity:.45;{% endif %}display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;">
+                        <label class="checkbox-label" style="margin:0;flex:1;">
+                            <input type="checkbox" name="{{ field.name }}" value="{{ option.value }}"
+                                {% if option.value in field.preselected %} checked {% endif %}
+                                {% if opt_hidden and not edit_mode %} disabled {% endif %}>
+                            {% if edit_mode and opt_hidden %}<s>{{ opt_label }}</s>{% else %}{{ opt_label }}{% endif %}
+                        </label>
+                        {% if edit_mode %}
+                        <button type="button" class="btn-option-edit"
+                                data-field-id="{{ field.id or field.name }}"
+                                data-option-value="{{ option.value }}"
+                                data-page-id="{{ page_schema.id | default('') }}"
+                                style="font-size:.72rem;padding:.15rem .4rem;border:1px solid #007bff;color:#007bff;background:#fff;border-radius:3px;cursor:pointer;">
+                            Edit
+                        </button>
+                        <button type="button" class="btn-option-hide"
+                                data-field-id="{{ field.id or field.name }}"
+                                data-option-value="{{ option.value }}"
+                                data-page-id="{{ page_schema.id | default('') }}"
+                                data-hidden="{{ 'true' if opt_hidden else 'false' }}"
+                                style="font-size:.72rem;padding:.15rem .4rem;border:1px solid {% if opt_hidden %}#28a745{% else %}#dc3545{% endif %};color:{% if opt_hidden %}#28a745{% else %}#dc3545{% endif %};background:#fff;border-radius:3px;cursor:pointer;">
+                            {% if opt_hidden %}Show{% else %}Hide{% endif %}
+                        </button>
+                        <button type="button" class="btn-option-delete"
+                                data-field-id="{{ field.id or field.name }}"
+                                data-option-value="{{ option.value }}"
+                                data-page-id="{{ page_schema.id | default('') }}"
+                                style="font-size:.72rem;padding:.15rem .4rem;border:1px solid #b23a48;color:#b23a48;background:#fff;border-radius:3px;cursor:pointer;">
+                            Delete
+                        </button>
+
+                        <div class="option-edit-panel" style="display:none;width:100%;margin-top:.35rem;border:1px solid #d8d8d8;border-radius:4px;background:#fafafa;"
+                             data-field-id="{{ field.id or field.name }}"
+                             data-option-value="{{ option.value }}"
+                             data-page-id="{{ page_schema.id | default('') }}">
+                            <div class="option-edit-tabs" style="display:flex;gap:.25rem;padding:.4rem .45rem;border-bottom:1px solid #e0e0e0;background:#f2f2f2;">
+                                <button type="button" class="btn-option-tab active" data-tab="description"
+                                        style="font-size:.75rem;padding:.2rem .5rem;border:1px solid #007bff;color:#007bff;background:#fff;border-radius:3px;cursor:pointer;">
+                                    Description
+                                </button>
+                                <button type="button" class="btn-option-tab" data-tab="pricing"
+                                        style="font-size:.75rem;padding:.2rem .5rem;border:1px solid #a0a0a0;color:#555;background:#fff;border-radius:3px;cursor:pointer;">
+                                    Pricing
+                                </button>
+                            </div>
+
+                            <div class="option-tab-content option-tab-description" style="padding:.5rem .6rem;">
+                                <label style="display:block;font-size:.8rem;margin-bottom:.3rem;">Title
+                                    <input type="text" class="option-desc-title"
+                                           value="{{ opt_line_title }}"
+                                           style="display:block;width:100%;margin-top:.12rem;font-size:.8rem;padding:.2rem .35rem;border:1px solid #ccc;border-radius:3px;">
+                                </label>
+                                <label style="display:block;font-size:.8rem;margin-bottom:.3rem;">Description
+                                    <input type="text" class="option-desc-description"
+                                           value="{{ opt_line_description }}"
+                                           style="display:block;width:100%;margin-top:.12rem;font-size:.8rem;padding:.2rem .35rem;border:1px solid #ccc;border-radius:3px;">
+                                </label>
+                                <label style="display:block;font-size:.8rem;margin-bottom:.3rem;">Additional Notes
+                                    <input type="text" class="option-desc-notes"
+                                           value="{{ opt_line_notes }}"
+                                           style="display:block;width:100%;margin-top:.12rem;font-size:.8rem;padding:.2rem .35rem;border:1px solid #ccc;border-radius:3px;">
+                                </label>
+                                <button type="button" class="btn-option-description-save"
+                                        style="font-size:.75rem;padding:.2rem .55rem;border:1px solid #1b3a6b;color:#1b3a6b;background:#fff;border-radius:3px;cursor:pointer;">
+                                    Save Description
+                                </button>
+                            </div>
+
+                            <div class="option-tab-content option-tab-pricing" style="display:none;padding:.5rem .6rem;">
+                                <label style="display:block;font-size:.8rem;margin-bottom:.3rem;">Mode
+                                    <select class="option-pricing-mode"
+                                            style="display:block;width:220px;margin-top:.12rem;font-size:.8rem;padding:.2rem .35rem;border:1px solid #ccc;border-radius:3px;">
+                                        <option value="fixed" {% if opt_pricing.get('mode', 'fixed') == 'fixed' %}selected{% endif %}>Fixed Price</option>
+                                        <option value="entered" {% if opt_pricing.get('mode') == 'entered' %}selected{% endif %}>User Entry</option>
+                                        <option value="quantity_rate" {% if opt_pricing.get('mode') == 'quantity_rate' %}selected{% endif %}>Cost Per Unit</option>
+                                        <option value="percent_subtotal" {% if opt_pricing.get('mode') == 'percent_subtotal' %}selected{% endif %}>Percentage</option>
+                                    </select>
+                                </label>
+                                <label style="display:block;font-size:.8rem;margin-bottom:.3rem;">Fixed Price
+                                    <input type="number" step="0.01" class="option-pricing-fixed"
+                                           value="{{ opt_pricing.get('fixed_amount', 0) }}"
+                                           style="display:block;width:160px;margin-top:.12rem;font-size:.8rem;padding:.2rem .35rem;border:1px solid #ccc;border-radius:3px;">
+                                </label>
+                                <label style="display:block;font-size:.8rem;margin-bottom:.3rem;">User Entry Key
+                                    <input type="text" class="option-pricing-entered-key"
+                                           value="{{ opt_pricing.get('entered_key', '') }}"
+                                           style="display:block;width:220px;margin-top:.12rem;font-size:.8rem;padding:.2rem .35rem;border:1px solid #ccc;border-radius:3px;">
+                                </label>
+                                <label style="display:block;font-size:.8rem;margin-bottom:.3rem;">Cost Per Unit (Rate)
+                                    <input type="number" step="0.01" class="option-pricing-rate"
+                                           value="{{ opt_pricing.get('rate', 0) }}"
+                                           style="display:block;width:160px;margin-top:.12rem;font-size:.8rem;padding:.2rem .35rem;border:1px solid #ccc;border-radius:3px;">
+                                </label>
+                                <label style="display:block;font-size:.8rem;margin-bottom:.3rem;">Quantity Key
+                                    <input type="text" class="option-pricing-quantity-key"
+                                           value="{{ opt_pricing.get('quantity_key', '') }}"
+                                           style="display:block;width:220px;margin-top:.12rem;font-size:.8rem;padding:.2rem .35rem;border:1px solid #ccc;border-radius:3px;">
+                                </label>
+                                <label style="display:block;font-size:.8rem;margin-bottom:.3rem;">Percentage
+                                    <input type="number" step="0.01" class="option-pricing-percent"
+                                           value="{{ opt_pricing.get('percent_of_subtotal', 0) }}"
+                                           style="display:block;width:160px;margin-top:.12rem;font-size:.8rem;padding:.2rem .35rem;border:1px solid #ccc;border-radius:3px;">
+                                </label>
+                                <button type="button" class="btn-option-pricing-save"
+                                        style="font-size:.75rem;padding:.2rem .55rem;border:1px solid #1b3a6b;color:#1b3a6b;background:#fff;border-radius:3px;cursor:pointer;">
+                                    Save Pricing
+                                </button>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div><br>
+                    {% endif %}
+                {% endfor %}
+            {% if edit_mode %}
+            {# Inspector drawer — pricing and output settings #}
+            {% set po = field.pricing_options or {} %}
+            {% set oo = field.output_options or {} %}
+            <details class="field-inspector-drawer" style="margin-top:.5rem;border:1px solid #d0d0d0;border-radius:4px;background:#f9f9f9;">
+                <summary style="cursor:pointer;padding:.35rem .6rem;font-size:.8rem;font-weight:600;color:#444;list-style:none;">
+                    &#9881; Inspector — pricing &amp; output
+                </summary>
+                <div class="inspector-body" style="padding:.6rem .8rem;border-top:1px solid #e0e0e0;"
+                     data-field-id="{{ field.id or field.name }}"
+                     data-page-id="{{ page_schema.id | default('') }}">
+
+                    <fieldset style="border:1px solid #ccc;border-radius:3px;padding:.5rem;margin-bottom:.6rem;">
+                        <legend style="font-size:.75rem;font-weight:600;padding:0 .3rem;">Pricing</legend>
+                        <label style="font-size:.82rem;display:block;margin-bottom:.3rem;">
+                            Mode:
+                            <select class="inspector-pricing-mode" style="font-size:.82rem;padding:.2rem .4rem;border:1px solid #ccc;border-radius:3px;">
+                                {% for m in ['none','fixed','entered','quantity_rate','percent_subtotal'] %}
+                                <option value="{{ m }}" {% if po.get('mode', 'none') == m %}selected{% endif %}>{{ m }}</option>
+                                {% endfor %}
+                            </select>
+                        </label>
+                        <div class="inspector-pricing-params" style="font-size:.82rem;">
+                            <label style="display:block;margin-bottom:.25rem;">Fixed amount (£):
+                                <input type="number" step="0.01" class="inspector-fixed-amount" value="{{ po.get('fixed_amount', 0) }}"
+                                       style="width:100px;padding:.2rem .4rem;border:1px solid #ccc;border-radius:3px;">
+                            </label>
+                            <label style="display:block;margin-bottom:.25rem;">Rate (per unit):
+                                <input type="number" step="0.01" class="inspector-rate" value="{{ po.get('rate', 0) }}"
+                                       style="width:100px;padding:.2rem .4rem;border:1px solid #ccc;border-radius:3px;">
+                            </label>
+                            <label style="display:block;margin-bottom:.25rem;">Entered key (session field):
+                                <input type="text" class="inspector-entered-key" value="{{ po.get('entered_key', '') }}"
+                                       style="width:160px;padding:.2rem .4rem;border:1px solid #ccc;border-radius:3px;">
+                            </label>
+                        </div>
+                        <button type="button" class="btn-inspector-pricing-save"
+                                style="font-size:.78rem;padding:.25rem .6rem;margin-top:.4rem;border:1px solid #1b3a6b;color:#1b3a6b;background:#fff;border-radius:3px;cursor:pointer;">
+                            Save pricing
+                        </button>
+                    </fieldset>
+
+                    <fieldset style="border:1px solid #ccc;border-radius:3px;padding:.5rem;">
+                        <legend style="font-size:.75rem;font-weight:600;padding:0 .3rem;">Output</legend>
+                        <label style="font-size:.82rem;display:block;margin-bottom:.25rem;">
+                            <input type="checkbox" class="inspector-include-output" {% if oo.get('include_in_output', true) %}checked{% endif %}>
+                            Include in output
+                        </label>
+                        <label style="font-size:.82rem;display:block;margin-bottom:.25rem;">Output label:
+                            <input type="text" class="inspector-output-label" value="{{ oo.get('output_label', '') }}"
+                                   style="width:200px;padding:.2rem .4rem;border:1px solid #ccc;border-radius:3px;">
+                        </label>
+                        <label style="font-size:.82rem;display:block;margin-bottom:.25rem;">Group / section:
+                            <input type="text" class="inspector-group" value="{{ oo.get('group', '') }}"
+                                   style="width:160px;padding:.2rem .4rem;border:1px solid #ccc;border-radius:3px;">
+                        </label>
+                        <button type="button" class="btn-inspector-output-save"
+                                style="font-size:.78rem;padding:.25rem .6rem;margin-top:.4rem;border:1px solid #1b3a6b;color:#1b3a6b;background:#fff;border-radius:3px;cursor:pointer;">
+                            Save output
+                        </button>
+                    </fieldset>
+                </div>
+            </details>
+            {% endif %}
+            {# Phase 6: 'entered' pricing mode — show user an amount input at runtime #}
+            {% if not edit_mode and field.pricing_options and field.pricing_options.get('mode') == 'entered' %}
+            <div class="entered-pricing-input" style="margin-top:.4rem;">
+                {% set entered_key = field.pricing_options.get('entered_key') or (field.id or field.name) %}
+                <label style="font-size:.9rem;">
+                    Enter amount (£):
+                    <input type="number" step="0.01" min="0" name="{{ entered_key }}"
+                           style="width:130px;padding:.25rem .4rem;border:1px solid #ccc;border-radius:3px;">
+                </label>
+            </div>
+            {% endif %}
+            </div>
+        {% endif %}
+        {% endfor %}
+        {% endif %}
+
         <!-- First page: Project Details -->
         {% if first_page %}
-        <label for="pd1_manual_input">Address:</label>
-        <input type="text" id="pd1_manual_input" name="pd1_manual_input" value="{{ session.get('pd1_manual_input', '') }}" required><br>
+        <label for="client_address">Address:</label>
+        <input type="text" id="client_address" name="client_address" value="{{ client_address }}" required><br>
+        
+        <label for="Date">Date:</label>
+        <input type="date" id="Date" name="Date" value="{{ proposal_date }}" required><br>
+        
+        {% endif %}
+<!-------------------------------------------------------------------------------------------------------------------------->
+<!----------------------------                       Page: Special Notes                            ------------------------>
+<!-------------------------------------------------------------------------------------------------------------------------->
 
-        <label for="pd2_manual_input">Date:</label>
-        <input type="date" id="pd2_manual_input" name="pd2_manual_input" value="{{ session.get('pd2_manual_input', '') }}" required><br>
+{% if special_notes_page and not page_schema %}
+    {% if data is defined and data['selected_special_notes'] is defined %}
+    <label><h3><b>Select any selected notes to be included:</b></h3></label><br>
         
-        <label for="pd3_manual_input">Local Council:</label>
-        <input type="text" id="pd3_manual_input" name="pd3_manual_input" value="{{ session.get('pd3_manual_input', '') }}" required><br>
-        {% endif %}
+        {% for prefix, note in data['selected_special_notes']['data'].items() %}
+            <label class="checkbox-label">
+                <input type="checkbox" name="selected_special_notes" value="{{ prefix }}" 
+                    {% if prefix in data['selected_special_notes']['preselected'] %} checked {% endif %}>
+                {{ note.description }}
+            </label><br>
+        {% endfor %}
+    {% endif %}
+{% endif %}      
 
-        <!-- Second page: Special Notes -->
-        {% if second_page %}
-        <label><h3><b>Select any selected notes to be included:</b></h3></label><br>
-        {% for prefix, note in data.items() %}
-        <label class="checkbox-label">
-            <input type="checkbox" name="selected_special_notes" value="{{ prefix }}" 
-                {% if prefix in preselected %} checked {% endif %}> 
-            {{ note.description }}
-        </label><br>
-        {% endfor %}
-        {% endif %}
-        
-        <!-- Third page: Building Works -->
-        {% if third_page %}
-        <label><h3><b>Select building works items to include:</b></h3></label><br>
-        {% for prefix, note in data.items() %}
-        <label class="checkbox-label">
-            <input type="checkbox" name="selected_building_works" value="{{ prefix }}" 
-                {% if prefix in preselected %} checked {% endif %}> 
-            {{ note.description }}
-        </label><br>
-        {% endfor %}
-        {% endif %}
-        
-        <!-- Fourth page: Boundary Lines -->
-        {% if fourth_page %}
-        <label for="boundary_lines"><h3><b>Select the relevant boundary lines and similar items to include:</b></h3></label><br><br>
-        {% for line_code, boundary_line in data.items() %}
-        <label class="checkbox-label">
-            <input type="checkbox" name="selected_boundary_lines" value="{{ line_code }}" 
-                {% if line_code in preselected %} checked {% endif %}>
-            <span>{{ boundary_line.description }}</span>
-        </label><br>
-        {% endfor %}
-        
-        <!-- Manual input fields for nb1 and nb2 -->
-        <label for="nb1_manual_input">Neighbour Left Side:</label>
-        <input type="text" name="nb1_manual_input" value="{{ nb1_manual_input }}"><br>
-        
-        <label for="nb2_manual_input">Neighbour Right Side:</label>
-        <input type="text" name="nb2_manual_input" value="{{ nb2_manual_input }}"><br>
-        <!-- Manual input fields for dm1, dm2, dm3, dm4 -->
-        <label for="dm1_manual_input">Extension Size:</label>
-        <input type="text" name="dm1_manual_input" value="{{ dm1_manual_input }}"><br>
-        
-        <label for="dm2_manual_input">Rear Depth:</label>
-        <input type="text" name="dm2_manual_input" value="{{ dm2_manual_input }}"><br>
-        
-        <label for="dm3_manual_input">Full Width:</label>
-        <input type="text" name="dm3_manual_input" value="{{ dm3_manual_input }}"><br>
-        
-        <label for="dm4_manual_input">Side Return Width:</label>
-        <input type="text" name="dm4_manual_input" value="{{ dm4_manual_input }}"><br>
+<!-------------------------------------------------------------------------------------------------------------------------->
+<!---------------------------                        Page: Building Works                            ----------------------->
+<!-------------------------------------------------------------------------------------------------------------------------->
+
+{% if summary_page %}
+
+<label><h3><b>Select items to include:</b></h3></label><br>
     
-        {% endif %}
-        
-        {% if fifth_page %}
-        <h3><b>External Wall Options</b></h3>
-        {% for line_code, item in ew_data.items() %}
-        <label class="checkbox-label">
-            <input type="checkbox" name="selected_ew" value="{{ line_code }}" 
-                {% if line_code in preselected_ew %} checked {% endif %}>
-            {{ item.description }}
-        </label><br>
-        {% endfor %}
-        
-        <h3><b>Roofing Options</b></h3>
-        {% for line_code, item in er_data.items() %}
-        <label class="checkbox-label">
-            <input type="checkbox" name="selected_er" value="{{ line_code }}" 
-                {% if line_code in preselected_er %} checked {% endif %}>
-            {{ item.description }}
-        </label><br>
-        {% endfor %}
-        {% endif %}
-        
-        <!-- Sixth Page: Floor Structure -->
-        {% if sixth_page %}
-        <h3><b>Select any floor structure options to include:</b></h3>
-        {% for line_code, item in fs_data.items() %}
-        <label class="checkbox-label">
-            <input type="checkbox" name="selected_fs" value="{{ line_code }}" 
-                {% if line_code in preselected_fs %} checked {% endif %}>
-            {{ item.description }}
-        </label><br>
-        {% endfor %}
-        {% endif %}
-        
-        <!-- Seventh Page: Plastering -->
-        {% if seventh_page %}
-        <h3><b>Select any plastering options to include:</b></h3>
-        {% for line_code, item in ps_data.items() %}
-        <label class="checkbox-label">
-            <input type="checkbox" name="selected_ps" value="{{ line_code }}" 
-                {% if line_code in preselected_ps %} checked {% endif %}>
-            {{ item.description }}
-        </label><br>
-        {% endfor %}
-        {% endif %}
-        
-        <!-- Eighth Page: Internal Doors -->
-        {% if eighth_page %}
-        <h3><b>Select any internal doors options to include:</b></h3>
-        {% for line_code, item in id_data.items() %}
-        <label class="checkbox-label">
-            <input type="checkbox" name="selected_id" value="{{ line_code }}" 
-                {% if line_code in preselected_id %} checked {% endif %}>
-            {{ item.description }}
-        </label><br>
-        {% endfor %}
-        
-        <h3><b>Input door numbers below if relevant:</b></h3>
-        
-        <label for="pd4_manual_input">No. of Fire-Doors:</label>
-        <input type="text" name="pd4_manual_input" value="{{ session.get('pd4_manual_input', '') }}"><br>
-        
-        <label for="pd5_manual_input">No. of Non-Fire Proof Doors:</label>
-        <input type="text" name="pd5_manual_input" value="{{ session.get('pd5_manual_input', '') }}"><br>
+<!-- Accordion for Building Works -->
+<div class="accordion-section">
+    <button type="button" class="accordion-header" onclick="toggleAccordion('buildingWorksSection')">
+        Building Works
+    </button>
+    
+    <div id="buildingWorksSection" class="accordion-body">
+        {% set ns = namespace(schema_bw=None) %}
+        {% if page_schema and page_schema.fields %}
+            {% for field in page_schema.fields %}
+                {% if field.id == 'selected_building_works' %}
+                    {% set ns.schema_bw = field %}
+                {% endif %}
+            {% endfor %}
         {% endif %}
 
-        <!-- Ninth Page: Drainage -->
-        {% if ninth_page %}
-        <h3><b>Select any drainage options:</b></h3>
-        {% for line_code, item in dr_data.items() %}
+        {% if ns.schema_bw %}
+            {% for option in ns.schema_bw.options %}
+            <label class="checkbox-label">
+                <input type="checkbox" name="{{ ns.schema_bw.name }}" value="{{ option.value }}"
+                    {% if option.value in ns.schema_bw.preselected %} checked {% endif %}>
+                {{ option.label }}
+            </label><br>
+            {% endfor %}
+
+            <!-- Checkbox for Courtyard Lightwell -->
+            <label class="checkbox-label">
+                <input type="checkbox" id="courtyardLightwellCheckbox" name="selected_building_works" value="bw4^"
+                    {% if 'bw4^' in ns.schema_bw.preselected %} checked {% endif %}
+                    onchange="toggleVisibility('courtyardLightwellCheckbox', 'lightwellInputContainer', 'lightwell_dimensions')">
+                Create a courtyard lightwell
+            </label><br>
+            <p>Test print: {{ lightwell_dimensions_input }}</p>
+        
+            <!-- Hidden manual input for Courtyard Lightwell Dimensions -->
+            <div id="lightwellInputContainer" style="display: {{ 'block' if lightwell_dimensions_input else 'none' }}; margin-top: 10px;">
+                <label for="lightwell_dimensions_input">Enter dimensions:</label>
+                <input type="text" id="lightwell_dimensions_input" name="lightwell_dimensions_input" value="{{ lightwell_dimensions_input }}">
+            </div>
+        {% elif data is defined and data['selected_building_works'] is defined %}
+            {% for prefix, note in data['selected_building_works']['data'].items() %}
+            {% if prefix != 'bw4^' %} <!-- Exclude 'bw4' to avoid duplication -->
+            <label class="checkbox-label">
+                <input type="checkbox" name="selected_building_works" value="{{ prefix }}" 
+                    {% if prefix in data['selected_building_works']['preselected'] %} checked {% endif %}>
+                {{ note.description }}
+            </label><br>
+            {% endif %}
+            {% endfor %}
+                        
+            <!-- Checkbox for Courtyard Lightwell -->
+            <label class="checkbox-label">
+                <input type="checkbox" id="courtyardLightwellCheckbox" name="selected_building_works" value="bw4^"
+                    {% if 'bw4^' in data['selected_building_works']['preselected'] %} checked {% endif %}
+                    onchange="toggleVisibility('courtyardLightwellCheckbox', 'lightwellInputContainer', 'lightwell_dimensions')">
+                Create a courtyard lightwell
+            </label><br>
+            <p>Test print: {{ lightwell_dimensions_input }}</p>
+        
+            <!-- Hidden manual input for Courtyard Lightwell Dimensions -->
+            <div id="lightwellInputContainer" style="display: {{ 'block' if lightwell_dimensions_input else 'none' }}; margin-top: 10px;">
+                <label for="lightwell_dimensions_input">Enter dimensions:</label>
+                <input type="text" id="lightwell_dimensions_input" name="lightwell_dimensions_input" value="{{ lightwell_dimensions_input }}">
+            </div>
+        {% endif %}
+    </div> 
+</div> 
+    
+
+<!-- Accordion for Boundary Lines -->
+<div class="accordion-section">
+    <button type="button" class="accordion-header" onclick="toggleAccordion('boundaryLinesSection')">
+        Boundary Lines
+    </button>
+
+    <div id="boundaryLinesSection" class="accordion-body">
+        {% if data is defined and data['boundary_lines_bll'] is defined and data['boundary_lines_blr'] is defined %}
+
+            {% for prefix, note in data['boundary_lines_bll']['data'].items() %}
+            
+            <!-- Exclude child items of bll and blr from being displayed as standalone checkboxes -->
+                {% if not (data['boundary_lines_bll']['data'].get(prefix) or 
+                data['boundary_lines_blr']['data'].get(prefix)) %}
+                <label class="checkbox-label">
+                    <input type="checkbox" name="selected_boundary_lines" value="{{ prefix }}"
+                        {% if prefix in data['boundary_lines_bll']['preselected'] or 
+                        prefix in data['boundary_lines_blr']['preselected'] %} checked {% endif %}>
+                    {{ note.description }}
+                </label><br>
+                {% endif %}
+            {% endfor %}
+        
+            <!-- Checkbox for Wall Construction: Left Side (bll) -->
+            <label class="checkbox-label">
+                <input type="checkbox" id="bllCheckbox" name="selected_boundary_lines" value="bll"
+                    {% if 'bll' in preselected_bll_checkbox %} checked {% endif %}
+                    onchange="toggleVisibility('bllCheckbox', 'boundarySizeDropdownLeft', 'selected_bll')">
+                Wall Construction: Left Side
+            </label><br>
+            
+            <!-- Hidden Dropdown for Wall Construction: Left Side (bll) -->
+            <div class="hidden-dropdown" id="boundarySizeDropdownLeft" style="display: none; margin-top: 10px;">
+                <label for="selected_bll">Wall Construction: Left Side</label>
+                <select id="selected_bll" name="selected_bll" multiple>
+                    <option value="">-- Please select one or more options --</option>
+                    {% for prefix, note in data['boundary_lines_bll']['data'].items() %}
+                        <option value="{{ prefix }}" {% if prefix in data['boundary_lines_bll']['preselected'] %} selected {% endif %}>
+                                {{ note.description }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <!-- Checkbox for Wall Construction: Right Side (blr) -->
+            <label class="checkbox-label">
+                <input type="checkbox" id="blrCheckbox" name="selected_boundary_lines" value="blr"
+                    {% if 'blr' in preselected_blr_checkbox %} checked {% endif %}
+                    onchange="toggleVisibility('blrCheckbox', 'boundarySizeDropdownRight', 'selected_blr')">
+                Wall Construction: Right Side
+            </label><br>
+            
+            <!-- Hidden Dropdown for Wall Construction: Right Side (blr) -->
+            <div class="hidden-dropdown" id="boundarySizeDropdownRight" style="display: none; margin-top: 10px;">
+                <label for="selected_blr">Wall Construction: Right Side</label>
+                <select id="selected_blr" name="selected_blr" multiple>
+                    <option value="">-- Please select one or more options --</option>
+                    {% for prefix, note in data['boundary_lines_blr']['data'].items() %}
+                        <option value="{{ prefix }}" {% if prefix in data['boundary_lines_blr']['preselected'] %} selected {% endif %}>
+                                {{ note.description }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        {% else %}
+        {% endif %}
+    </div>
+</div>
+        
+    
+<!-- Accordion for Planning Permission -->
+<div class="accordion-section">
+    <button type="button" class="accordion-header" onclick="toggleAccordion('planningPermissionSection')">
+        Planning Permission Status
+    </button>
+    <br>
+    <div id="planningPermissionSection" class="accordion-body">
+        {% if data is defined and data['selected_pp'] is defined %}
+        <label for="selected_pp"><b>Planning Permission Status:</b></label><br>
+        <select id="selected_pp" name="selected_pp">
+            <option value="">-- Please select --</option>
+            {% if 'selected_pp' in data and 'data' in data['selected_pp'] %}
+            {% for prefix, note in data['selected_pp']['data'].items() %}
+            {% if prefix != 'ppx' %} <!-- Ensures 'ppx' is not included -->
+            <option value="{{ prefix }}" 
+                {% if prefix in data.get('selected_pp', {}).get('preselected', []) %} selected {% endif %}>
+                {{ note.description }}
+            </option>
+            {% endif %}
+            {% endfor %}
+            {% endif %}
+        </select>
+        <br>
+        {% else %}
+            <p style="color: red; font-weight: bold;">Error: Missing data for Planning Permission section.</p>
+            <p>Debug Info: 
+                {% if data is not defined %} 
+                `data` is not defined. 
+                {% elif data['selected_pp'] is not defined %}
+                `data['selected_pp']` is not defined. 
+                {% endif %}
+            </p>
+        {% endif %}
+    </div>
+</div>
+        
+<!-- Accordion for Basement -->
+<div class="accordion-section">
+    <button type="button" class="accordion-header" onclick="toggleAccordion('basementSection')">
+        Basement
+    </button>
+    <div id="basementSection" class="accordion-body">
+        {% if data is defined and data['selected_basement'] is defined %}
+            <!-- Yes Checkbox -->
+            {% if 'bs1@' in data['selected_basement']['data'] %}
+                <label class="checkbox-label">
+                    <input type="checkbox" id="bs1Checkbox" name="selected_basement" value="bs1@"
+                        {% if 'bs1@' in data['selected_basement']['preselected'] %} checked {% endif %}>
+                    {{ data['selected_basement']['data']['bs1@'].description }}
+                </label><br>
+            {% endif %}
+            
+            <!-- No Checkbox -->
+            {% if 'bs2@' in data['selected_basement']['data'] %}
+                <label class="checkbox-label">
+                    <input type="checkbox" id="bs2Checkbox" name="selected_basement" value="bs2@"
+                        {% if 'bs2@' in data['selected_basement']['preselected'] %} checked {% endif %}>
+                    {{ data['selected_basement']['data']['bs2@'].description }}
+                </label><br>
+            {% endif %}
+        {% else %}
+        {% endif %}
+    </div>
+</div>
+    
+<!-- Accordion for Council -->
+<div class="accordion-section">
+    <button type="button" class="accordion-header" onclick="toggleAccordion('councilSection')">
+        Location
+    </button>
+    <div id="councilSection" class="accordion-body">
+        {% if data is defined and data['conservation_status'] is defined and data['selected_council'] is defined %}
+
+            <!-- Yes/No: Conservation Area -->
+            <label><b>Is the property located in a conservation area?</b></label><br><br>
+            
+            <!-- Yes Checkbox -->
+            {% if 'cs8^' in data['conservation_status']['data'] %}
+            <label class="checkbox-label">
+                <input type="checkbox" id="cs8Checkbox" name="conservation_status" value="cs8^"
+                    {% if 'cs8^' in data['conservation_status']['preselected'] %} checked {% endif %}>
+                {{ data['conservation_status']['data']['cs8^'].description }}
+            </label><br>
+            {% endif %}
+
+        
+            <!-- No Checkbox -->
+            {% if 'cs9^' in data['conservation_status']['data'] %}
+            <label class="checkbox-label">
+                <input type="checkbox" id="cs9Checkbox" name="conservation_status" value="cs9^"
+                    {% if 'cs9^' in data['conservation_status']['preselected'] %} checked {% endif %}>
+                {{ data['conservation_status']['data']['cs9^'].description }}
+            </label><br>
+            {% endif %}
+
+            
+            <!-- Dropdown for Local Council -->
+            <label><b>Local Council:</b></label><br>
+            <select id="selected_council" name="selected_council" onchange="toggleVisibility('selected_council', 'otherCouncilInput','cs0')">
+                <option value="">-- Please select --</option>
+                
+                {% for prefix, note in data['selected_council']['data'].items() %}
+                <option value="{{ prefix }}" 
+                    {% if data['selected_council']['preselected'] and prefix in data['selected_council']['preselected'] %} selected {% endif %}>
+                    {{ "Other" if prefix == 'cs0' else note.description }}
+                </option>
+                {% endfor %}
+            </select><br>
+            
+            <!-- Input for "Other" -->
+            <div id="otherCouncilInput" style="display: none; margin-top: 10px;">
+                <label for="other_council">If "Other", please specify:</label>
+                <input type="text" id="other_council" name="other_council" 
+                    value="{{ other_council }}">
+            </div>
+        {% else %}
+            <p style="color: red; font-weight: bold;">Error: Missing data for Council section.</p>
+            <p>Debug Info: 
+                {% if data is not defined %} 
+                `data` is not defined. 
+                {% elif data['selected_council_area'] is not defined %}
+                `data['selected_council_area']` is not defined. 
+                {% elif data['selected_council'] is not defined %}
+                `data['selected_council']` is not defined. 
+                {% endif %}
+            </p>
+        {% endif %}
+    </div>
+</div>
+
+{% endif %}
+
+        
+<!-------------------------------------------------------------------------------------------------------------------------->
+<!----------------                              PAGE: Materials                                    ------------------------->
+<!-------------------------------------------------------------------------------------------------------------------------->
+
+        
+        
+{% if materials_page %}
+
+<!-- Accordion for External Wall Options -->
+<div class="accordion-section">
+    <button type="button" class="accordion-header" onclick="toggleAccordion('externalWallSection')">
+        External Wall Options
+    </button>
+    <div id="externalWallSection" class="accordion-body">
+        {% if data is defined and data['selected_ew'] is defined %}    
+            {% for line_code, item in data['selected_ew']['data'].items() %}
+                {% if line_code not in ['ew0', 'ew4', 'ew5'] %} <!-- Exclude Wall Height Metres and Centimetres -->
+                <label class="checkbox-label">
+                    <input type="checkbox" name="selected_ew" value="{{ line_code }}" 
+                        {% if line_code in data['selected_ew']['preselected'] %} checked {% endif %}>
+                    {{ item.description }}
+                </label><br>
+                {% endif %}
+            {% endfor %}
+            
+            <!-- Wall Height -->
+            <label class="checkbox-label">
+                <input type="checkbox" id="wallHeightCheckbox" name="selected_ew" value="ew0"
+                    {% if 'ew0' in data['selected_ew']['preselected'] %} checked {% endif %}
+                    onchange="toggleVisibility('wallHeightCheckbox', 'wallHeightInput')">
+                External Wall Height
+            </label><br>
+            <div id="wallHeightInput" style="display: none; margin-top: 10px;">
+                <label for="wall_height_metres">Metres:</label>
+                <select id="wall_height_metres" name="wall_height_metres">
+                    {% for m in range(2, 4) %}
+                    <option value="{{ m }}" {% if wall_height_metres == m|string %} selected {% elif m == 2 %} selected {% endif %}>
+                        {{ m }}m
+                    </option>
+                    {% endfor %}
+                </select>
+                <label for="wall_height_centimetres">Centimetres:</label>
+                <select id="wall_height_centimetres" name="wall_height_centimetres">
+                    {% for cm in range(0, 100, 5) %}
+                    <option value="{{ cm }}" {% if wall_height_centimetres == cm|string %} selected {% elif cm == 30 %} selected {% endif %}>
+                        {{ cm }}cm
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        {% else %}
+            <p style="color: red; font-weight: bold;">Error: Missing data for External Wall section.</p>
+            <p>Debug Info: 
+                {% if data is not defined %} 
+                `data` is not defined. 
+                {% elif data['selected_ew'] is not defined %}
+                `data['selected_ew']` is not defined. 
+                {% endif %}
+            </p>
+        {% endif %}
+    </div>
+</div>
+        
+        
+<!-- Accordion for Roofing Options -->
+<div class="accordion-section">
+    <button type="button" class="accordion-header" onclick="toggleAccordion('roofingOptionsSection')">
+        Roofing Options
+    </button>
+    <div id="roofingOptionsSection" class="accordion-body">
+        
+        {% if data is defined and data['selected_er'] is defined %}
+        {% for line_code, item in data['selected_er']['data'].items() %}
+        
+        <!-- Parent Checkbox for Pitched Roof -->
+        {% if line_code == 'er1#' %}
         <label class="checkbox-label">
-            <input type="checkbox" name="selected_dr" value="{{ line_code }}" 
-                {% if line_code in preselected_dr %} checked {% endif %}>
+            <input type="checkbox" id="pitchedRoofCheckbox" name="selected_er" value="{{ line_code }}"
+                {% if line_code in data['selected_er']['preselected'] %} checked {% endif %}
+                onchange="toggleVisibilityCheckbox('pitchedRoofCheckbox', 'pitchedRoofDropdown')">
+                {{ item.description }}
+        </label>
+        <br>
+        
+        <!-- Dropdown for Roof Finish (Appears if 'er1#' is checked) -->
+        <div id="pitchedRoofDropdown" style="display: none; margin-top: 10px;">
+            <label for="pitchedRoofOptions">Choose Roofing Finish:</label>
+            <select id="pitchedRoofOptions" name="pitched_roof_option"
+                onchange="toggleVisibility('pitchedRoofOptions', 'otherRoofingInput', 'er7^')">
+                <option value="">--Select Option--</option>
+                
+                {% for prefix, note in data['pitched_roof_option']['data'].items() %}
+                {% if prefix in ['er4^', 'er5^', 'er6^', 'er7^'] %}
+                <option value="{{ prefix }}"
+                    {% if prefix in data.get('pitched_roof_option', {}).get('preselected', []) %} selected {% endif %}>
+                    {{ "Other" if prefix == "er7^" else note.description }}
+                </option>
+                {% endif %}
+                {% endfor %}
+            </select>
+            
+            <!-- Input for "Other" Roofing Finish (Appears if 'er7^' is selected) -->
+            <div id="otherRoofingInput" style="display: {% if 'er7^' in data.get('pitched_roof_option', {}).get('preselected', []) %} block {% else %} none {% endif %}; margin-top: 10px;">
+                <label for="otherRoofingText">Please Specify:</label>
+                <input type="text" id="otherRoofingText" name="other_roofing_description"
+                    value="{{ data.get('other_roofing_description', '') }}"> 
+            </div>
+        </div>
+        
+        {% elif line_code not in ['er4^', 'er5^', 'er6^', 'er7^'] %}
+        
+        <!-- Other Roofing Checkboxes (Non-Dropdown) -->
+        <label class="checkbox-label">
+            <input type="checkbox" name="selected_er" value="{{ line_code }}"
+                {% if line_code in data['selected_er']['preselected'] %} checked {% endif %}>
             {{ item.description }}
         </label><br>
-        {% endfor %}
-        {% endif %}
         
-        <!-- Tenth Page: Waste and Parking -->
-        {% if tenth_page %}
-        <h3><b>Select any waste and parking options:</b></h3>
-        {% for line_code, item in wp_data.items() %}
+        {% endif %}
+        {% endfor %}
+        {% else %}
+        <p style="color red; font-weight: bold;">Error: Missing data for Roofing Options section.</p>
+        <p>Debug Info: 
+            {% if data is not defined %} 
+            `data` is not defined. 
+            {% elif 'selected_er' not in data %}
+            `data['selected_er']` is not defined. 
+            {% endif %}
+        </p>
+        {% endif %} <!-- Closes Roofing Options Section Check -->
+        
+    </div>
+</div>
+
+
+<!-- Accordian for Internal Doors  -->
+<div class="accordion-section">
+    <button type="button" class="accordion-header" onclick="toggleAccordion('internalDoorsSection')">
+        Internal Doors
+    </button>
+    <div id="internalDoorsSection" class="accordion-body">
+        
+        <!-- Manual Input Fields -->
+        <label for="fire_doors_number">Number of Fire Doors:</label>
+        <input type="number" id="fire_doors_number" name="fire_doors_number"
+            value="{{ data.get('fire_doors_number', '') or '0' }}" min="0" 
+            style="margin-bottom: 10px; padding: 5px; display: block;"><br>
+        
+        <label for="non_fire_doors_number">Number of Non-Fire Doors:</label>
+        <input type="number" id="non_fire_doors_number" name="non_fire_doors_number"
+            value="{{ data.get('non_fire_doors_number', '') or '0' }}" min="0" 
+            style="margin-bottom: 10px; padding: 5px; display: block;"><br>
+
+        
+
+        <!-- Checkboxes -->
+        {% for prefix, note in data['selected_id']['data'].items() %}
+            <label class="checkbox-label">
+                <input type="checkbox" name="selected_id" value="{{ prefix }}" 
+                    {% if prefix in data['selected_id']['preselected'] %} checked {% endif %}>
+                {{ note.description }}
+            </label><br>
+         {% endfor %}
+    </div>
+</div>
+
+<!-- Drainage Works Accordion -->
+<div class="accordion-section">
+    <button type="button" class="accordion-header" onclick="toggleAccordion('drainageWorksSection')">
+        Drainage Works
+    </button>
+    
+    <div id="drainageWorksSection" class="accordion-body">
+        {% if data is defined and data['selected_dr'] is defined %}
+        {% for prefix, note in data['selected_dr']['data'].items() %}
+        {% if prefix != 'dr4^' %}
         <label class="checkbox-label">
-            <input type="checkbox" name="selected_wp" value="{{ line_code }}" 
-                {% if line_code in preselected_wp %} checked {% endif %}>
-            {{ item.description }}
+            <input type="checkbox" name="selected_dr" value="{{ prefix }}" 
+                {% if prefix in data['selected_dr']['preselected'] %} checked {% endif %}>
+            {{ note.description }}
         </label><br>
-        {% endfor %}
         {% endif %}
+        {% endfor %}
         
-        <!-- Eleventh Page: Demolition Works -->
-        {% if eleventh_page %}
-        <h3><b>Select any demolition works options:</b></h3>
-        {% for line_code, item in dw_data.items() %}
+        <!-- SINGLE checkbox block -->
         <label class="checkbox-label">
-            <input type="checkbox" name="selected_dw" value="{{ line_code }}" 
-                {% if line_code in preselected_dw %} checked {% endif %}>
-            {{ item.description }}
+            <input type="checkbox" id="drainageOtherCheckbox" name="selected_dr" value="dr4^"
+                {% if 'dr4^' in data['selected_dr']['preselected'] %} checked {% endif %}
+                onchange="toggleVisibility('drainageOtherCheckbox', 'drainageOtherInputContainer', 'drainage_other_input')">
+            Specify other drainage works
         </label><br>
-        {% endfor %}
-        {% endif %}
         
-        <!-- Twelfth Page: Further Requirements & Considerations -->
-        {% if twelfth_page %}
-        <h3><b>Select Further Requirements & Considerations Options:</b></h3>
-        {% for line_code, item in frc_data.items() %}
+        <!-- Unified input + cost field container -->
+        <div id="drainageOtherInputContainer" style="display: none; margin-top: 10px;">
+            <label for="drainage_other_input">Enter drainage details:</label>
+            <input type="text" id="drainage_other_input" name="drainage_other_input" 
+                value="{{ data.get('drainage_other_input', '') }}">
+            
+            <label for="drainage_other_cost" style="margin-top: 10px; display: block;">Cost (£):</label>
+            <input type="number" step="0.01" id="drainage_other_cost" name="drainage_other_cost" 
+                value="{{ data.get('drainage_other_cost', '0.00') }}">
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+
+
+<!-- Waste & Parking Accordion -->
+
+<div class="accordion-section">
+    <button type="button" class="accordion-header" onclick="toggleAccordion('wasteParkingSection')">
+        Waste & Parking
+    </button>
+    <div id="wasteParkingSection" class="accordion-body">
+        {% if data is defined and data['selected_wp'] is defined %}
+            {% for line_code, item in data['selected_wp']['data'].items() %}
+            <label class="checkbox-label">
+                <input type="checkbox" name="selected_wp" value="{{ line_code }}" 
+                    {% if line_code in data['selected_wp']['preselected'] %} checked {% endif %}>
+                {{ item.description }}
+            </label><br>
+            {% endfor %}
+        {% else %}
+        <p style="color: red; font-weight: bold;">Error: Missing data for Waste & Parking section.</p>
+        <p>Debug Info: 
+            {% if data is not defined %} 
+            `data` is not defined. 
+            {% elif data['selected_wp'] is not defined %}
+            `data['selected_wp']` is not defined. 
+            {% endif %}
+        </p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+        
+<!-------------------------------------------------------------------------------------------------------------------------->
+<!----------------                          PAGE Further Requirements Page                         ------------------------->
+<!-------------------------------------------------------------------------------------------------------------------------->
+
+<!-- Further Requirements & Considerations -->
+{% if further_requirements_page %}
+<div class="accordion-section">
+    <button type="button" class="accordion-header" onclick="toggleAccordion('furtherRequirementsSection')">
+        Further Requirements & Considerations
+    </button>
+    <div id="furtherRequirementsSection" class="accordion-body">
+        {% for line_code, item in data['selected_frc']['data'].items() %}
         <label class="checkbox-label">
             <input type="checkbox" name="selected_frc" value="{{ line_code }}" 
-                {% if line_code in preselected_frc %} checked {% endif %}>
+                {% if line_code in data['selected_frc']['preselected'] %} checked {% endif %}>
             {{ item.description }}
         </label><br>
         {% endfor %}
-        {% endif %}
-        
-        <!-- Thirteenth Page: Additional Building Items -->
-        {% if thirteenth_page %}
-        <h3><b>Select any additional building items options:</b></h3>
-        {% for line_code, item in ab_data.items() %}
-        <label class="checkbox-label">
-            <input type="checkbox" name="selected_ab" value="{{ line_code }}" 
-                {% if line_code in preselected_ab %} checked {% endif %}>
-            {{ item.description }}
-        </label><br>
-        {% endfor %}
-        {% endif %}
-        
-        <!-- Fourteenth Page: Schedule of Works (Weeks 1-8) -->
-        {% if fourteenth_page %}
-        <h3><b>Select any schedule of works options (Weeks 1-8):</b></h3>
-        {% for line_code, item in sww_data.items() %}
-        <label class="checkbox-label">
-            <input type="checkbox" name="selected_sww" value="{{ line_code }}" 
-                {% if line_code in preselected_sww %} checked {% endif %}>
-            {{ item.description }}
-        </label><br>
-        {% endfor %}
-        {% endif %}
-        
-        <!-- Fifteenth Page: Schedule of Works (Weeks 9-12) -->
-        {% if fifteenth_page %}
-        <h3><b>Select any schedule of works options (Weeks 9-12):</b></h3>
-        {% for line_code, item in tww_data.items() %}
-        <label class="checkbox-label">
-            <input type="checkbox" name="selected_tww" value="{{ line_code }}" 
-                {% if line_code in preselected_tww %} checked {% endif %}>
-            {{ item.description }}
-        </label><br>
-        {% endfor %}
-        {% endif %}
-        
-        <!-- Sixteenth Page: Pricing Categories -->
-        {% if sixteenth_page %}
-        <h3><b>Please identify the pricing categories to be included</b></h3>
-        {% for line_code, item in pc_data.items() %}
-        <label class="checkbox-label">
-            <input type="checkbox" name="selected_pc" value="{{ line_code }}" 
-                {% if line_code in preselected_pc %} checked {% endif %}>
-            {{ item.description }}
-        </label><br>
-        {% endfor %}
-        {% endif %}
-        
-        <!-- Seventeenth Page: Electrics -->
-        {% if seventeenth_page %}
-        <h3><b>Select any electrical items to include:</b></h3>
-        
-        {% for line_code, item in el_data.items() %}
-        <label class="checkbox-label">
-            <input type="checkbox" name="selected_el" value="{{ line_code }}" 
-                {% if line_code in preselected_el %} checked {% endif %}>
-            {{ item.description }}
+    </div>
+</div>
+
+
+<!-- Accordion for Demolition Works -->
+<div class="accordion-section">
+    <button type="button" class="accordion-header" onclick="toggleAccordion('demolitionWorksSection')">
+        Demolition Works
+        </button>
+        <div id="demolitionWorksSection" class="accordion-body">
+            {% if data is defined and data['selected_dw'] is defined %}
+            <br>
+            <legend><b><u>Demolition Options - Existing Extension</u></b></legend>
+            <br>    
+            <!-- Demolition Works Checkbox and Dropdown -->
+            {% for prefix, note in data['selected_dw']['data'].items() %}
+            {% if prefix == "dw0" %}
+            <label class="checkbox-label">
+                <input type="checkbox" id="demolitionCheckbox"
+                    onchange="toggleVisibility('demolitionCheckbox', 'demolitionSizeDropdown', 'selected_dw')"
+                    name="selected_dw" value="{{ prefix }}"
+                    {% if prefix in data['selected_dw']['preselected'] %} checked {% endif %}>
+                {{ note.description }}
+            </label><br>
+            {% endif %}
+            {% endfor %}
             
-        </label><br>
+            <div id="demolitionSizeDropdown" 
+                style="display: {% if 'dw0' in data['selected_dw']['preselected'] %}block{% else %}none{% endif %}; margin-top: 10px;">
+                <label for="selected_dw">Select size:</label>
+                <select id="selected_dw" name="selected_dw" 
+                    onchange="updateDemolitionInputs();">
+                    
+                    <option value="">-- Please select --</option>
+                    {% for prefix, note in data['selected_dw']['data'].items() %}
+                    {% if prefix in ['dw1#', 'dw2#', 'dw3#'] %} 
+                    <option value="{{ prefix }}" {% if prefix in data['selected_dw']['preselected'] %} selected {% endif %}>
+                        {{ note.description }}
+                    </option>
+                    {% endif %}
+                    {% endfor %}
+                    <option value="dw6#" {% if 'dw6#' in data['selected_dw']['preselected'] %} selected {% endif %}>Other Demolition Option</option>
+                </select>
+            </div>
         
-        {% endfor %}<h3><b>Please enter the number of points and lights below</b></h3>
+            <!-- unified toggling for demolition additional -->
+            <div id="otherDemolitionInputs" style="display: none; margin-top: 10px;">
+                <label for="other_demolition_option">Demolition work required:</label>
+                <input type="text" id="other_demolition_option" name="other_demolition_option" 
+                    value="{{ data.get('other_demolition_option', '') }}">
+                
+                <label for="other_demolition_cost" style="margin-top: 10px; display: block;">Cost (£):</label>
+                <input type="number" step="0.01" id="other_demolition_cost" name="other_demolition_cost" 
+                    value="{{ data.get('other_demolition_cost', '') }}">
+            </div>
+
+
         
-        <label for="pd6_manual_input">Number of kitchen points:</label>
-        <input type="text" id="pd6_manual_input" name="pd6_manual_input" value="{{ session.get('pd6_manual_input', '') }}"><br>
+            <!-- Floor Structure Retention-->
+            <br>
+            <legend><b><u>Demolition Options - Floor Structure Retention</u></b></legend>
+            <br><br>
+            <label class="checkbox-label">
+                <input type="checkbox" name="selected_dw" value="dw7" onchange="toggleFloorStructure()"
+                    {% if 'dw7' in data['selected_dw']['preselected'] %} checked {% endif %}>
+                {{ data['selected_dw']['data'].get('dw7', {}).get('description', 'Demolish entirely & remove existing floor') }}
+            </label><br>
         
-        <label for="pd7_manual_input">Number of kitchen lights:</label>
-        <input type="text" id="pd7_manual_input" name="pd7_manual_input" value="{{ session.get('pd7_manual_input', '') }}"><br>
+            {% for prefix, note in data['selected_dw']['data'].items() %}
+            {% if prefix in ['dw8', 'dw9', 'dw10'] %}
+            <label class="checkbox-label">
+                <input type="checkbox" name="selected_dw" value="{{ prefix }}" onchange="toggleFloorStructure()"
+                    {% if prefix in data['selected_dw']['preselected'] %} checked {% endif %}>
+                {{ note.description }}
+            </label><br>
+            {% endif %}
+            {% endfor %}
+            
+            <!-- Checkbox for Demolishing the Garden Wall (dw4) -->
+            <br>
+            <legend><b><u>Other Demolition Requirements</u></b></legend>
+            <br><br>
+            <label class="checkbox-label">
+                <input type="checkbox" name="selected_dw" value="dw4#"
+                    {% if 'dw4#' in data['selected_dw']['preselected'] %} checked {% endif %}>
+                Demolish the garden wall
+            </label><br>
+        </div>
+    <br><br>
         
-        <label for="pd8_manual_input">Number of loft points:</label>
-        <input type="text" id="pd8_manual_input" name="pd8_manual_input" value="{{ session.get('pd8_manual_input', '') }}"><br>
         
-        <label for="pd9_manual_input">Number of loft lights:</label>
-        <input type="text" id="pd9_manual_input" name="pd9_manual_input" value="{{ session.get('pd9_manual_input', '') }}"><br>
-        {% endif %}
+    <!-- Floor Structure Section -->
+    <div class="accordion-section">
+        <button type="button" class="accordion-header" onclick="toggleAccordion('floorStructureSection')">
+            Floor Structure
+        </button>
+        <div id="floorStructureSection" class="accordion-body">
+            {% if data is defined and data['selected_fs'] is defined %}
+            {% for prefix, item in data['selected_fs']['data'].items() %}
+            <label class="checkbox-label">
+                <input type="checkbox" id="{{ prefix }}" name="selected_fs" value="{{ prefix }}"
+                    {% if prefix in data['selected_fs']['preselected'] %} checked {% endif %}>
+                {{ item.description }}
+            </label><br>
+            {% endfor %}
+            
+            {% else %}
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+{% endif %}
         
-        <!-- Eighteenth Page: Plumbing -->
-        {% if eighteenth_page %}
-        <h3><b>Please select any plumbing options</b></h3>
-        {% for line_code, item in pl_data.items() %}
-        <label class="checkbox-label">
-            <input type="checkbox" name="selected_pl" value="{{ line_code }}" 
-                {% if line_code in preselected_pl %} checked {% endif %}>
-            {{ item.description }}
-        </label><br>
-        {% endfor %}
-        {% endif %}
-        
-        <!-- Nineteenth Page: Skylights -->
-        {% if nineteenth_page %}
-        <h3><b>Please select any Skylights options</b></h3>
-        {% for line_code, item in sk_data.items() %}
-        <label class="checkbox-label">
-            <input type="checkbox" name="selected_sk" value="{{ line_code }}" 
-                {% if line_code in preselected_sk %} checked {% endif %}>
-            {{ item.description }}
-        </label><br>
-        {% endfor %}
-        {% endif %}
-        
-        <!-- Twentieth Page: Velux Windows -->
-        {% if twentieth_page %}
-        <h3><b>Please select any Velux windows options</b></h3>
-        {% for line_code, item in vl_data.items() %}
-        <label class="checkbox-label">
-            <input type="checkbox" name="selected_vl" value="{{ line_code }}" 
-                {% if line_code in preselected_vl %} checked {% endif %}>
-            {{ item.description }}
-        </label><br>
-        {% endfor %}
-        {% endif %}
-        
-        <!-- Twenty-First Page: Aluminium Capping -->
-        {% if twenty_first_page %}
-        <h3><b>Please select any Aluminium Capping options</b></h3>
-        {% for line_code, item in ac_data.items() %}
-        <label class="checkbox-label">
-            <input type="checkbox" name="selected_ac" value="{{ line_code }}" 
-                {% if line_code in preselected_ac %} checked {% endif %}>
-            {{ item.description }}
-        </label><br>
-        {% endfor %}
-        {% endif %}
-        
-        <!-- Twenty-Second Page: Glass Valley -->
-        {% if twenty_second_page %}
-        <h3><b>Please select any Glass Valley options</b></h3>
-        {% for line_code, item in gv_data.items() %}
+<!-- Accordion for Glass Valley -->
+<div class="accordion-section">
+    <button type="button" class="accordion-header" onclick="toggleAccordion('glassValleySection')">
+        Glass Valley
+    </button>
+    <div id="glassValleySection" class="accordion-body">
+        {% if data is defined and data['selected_gv'] is defined %}
+        <legend><b><u>Glass Valley options</u></b></legend>
+        <br><br>
+        {% for line_code, item in data['selected_gv']['data'].items() %}
         <label class="checkbox-label">
             <input type="checkbox" name="selected_gv" value="{{ line_code }}" 
-                {% if line_code in preselected_gv %} checked {% endif %}>
+                {% if line_code in data['selected_gv']['preselected'] %} checked {% endif %}>
             {{ item.description }}
         </label><br>
         {% endfor %}
+        {% else %}
+        <p>No Glass Valley options available.</p>
         {% endif %}
-        
-        <!-- Twenty-Third Page: Sliding Doors -->
-        {% if twenty_third_page %}
-        <h3><b>Please select any Sliding Door options</b></h3>
-        
-        <!-- Manual Input for dm5 -->
-        <label for="dm5_manual_input">{{ pd10_label }}</label>
-        <input type="text" id="pd10_manual_input" name="pd10_manual_input" value="{{ session.get('pd10_manual_input', '') }}"><br><br>
-        
-        <!-- Checkboxes for sds -->
-        <h3>Sliding Door Additional Selections</h3>
-        {% for line_code, item in sld_data.items() %}
-        <label class="checkbox-label">
-            <input type="checkbox" name="selected_sld" value="{{ line_code }}" 
-                {% if line_code in preselected_sld %} checked {% endif %}>
-            {{ item.description }}
-        </label><br>
-        {% endfor %}
-        
-        <!-- Dropdown for sd -->
-        <h3>Select an Option for sliding doors</h3>
-        <label for="selected_sd">Choose one:</label>
-        <select id="selected_sd" name="selected_sd">
-            {% for option in sd_options %}
-            <option value="{{ option.line_code }}" {% if option.line_code == session.get('selected_sd', '') %} selected {% endif %}>
-                {{ option.description }}
-            </option>
+    </div>
+</div>
+
+    <!-- Accordion for Other Reception Opening -->
+    <div class="accordion-section">
+        <button type="button" class="accordion-header" onclick="toggleAccordion('otherReceptionOpeningSection')">
+            Rear Reception Opening
+        </button>
+        <div id="otherReceptionOpeningSection" class="accordion-body">
+            
+            <!-- Checkbox to enable the dropdown -->
+            <label class="checkbox-label">
+                <input type="checkbox" id="receptionOpeningCheckbox" name="selected_rro" value="rro0"
+                    {% if 'rro0' in data['selected_rro']['preselected'] %} checked {% endif %}
+                    onchange="toggleVisibility('receptionOpeningCheckbox', 'receptionOpeningDropdown')">
+                Rear Reception Opening Requirements
+            </label><br>
+            
+            <!-- Hidden Dropdown (Populated Dynamically) -->
+            <div id="receptionOpeningDropdown" style="display: {% if 'rro0' in data['selected_rro']['preselected'] %}block{% else %}none{% endif %}; margin-top: 10px;">
+                <label for="selected_rro">Select an option:</label>
+                <select id="selected_rro" name="selected_rro">
+                    <option value="">-- Please select --</option>
+                    
+                    {% for prefix, note in data['selected_rro']['data'].items() %}
+                    {% if prefix != 'rro0' %} 
+                    <option value="{{ prefix }}" 
+                        {% if data['selected_rro']['preselected'] and prefix in data['selected_rro']['preselected'] %} selected {% endif %}>
+                        {{ note.description }}
+                    </option>
+                    {% endif %}
+                    {% endfor %}
+                </select>
+            </div> 
+            
+        </div> 
+    </div> 
+
+    <!-- Internal Walls Section -->
+    <div class="accordion-section">
+        <button type="button" class="accordion-header" onclick="toggleAccordion('internalWallsSection')">
+            Internal Wall Details
+        </button>
+        <div id="internalWallsSection" class="accordion-body">
+            {% for line_code, item in data['selected_iw']['data'].items() %}
+            <label class="checkbox-label">
+                <input type="checkbox" name="selected_iw" value="{{ line_code }}" 
+                    id="iwCheckbox_{{ line_code }}"
+                    {% if line_code in data['selected_iw']['preselected'] %} checked {% endif %}
+                    onchange="toggleVisibility(this.id, 'iwDropdown_{{ line_code }}')">
+                {{ item.description }}
+            </label><br>
+            
+            <!-- Hidden Dropdown for Square Meterage / Fixed Cost -->
+            <!-- Hidden Dropdown (conditionally shown) -->
+            <div id="iwDropdown_{{ line_code }}" class="hidden-dropdown"
+                style="display: {% if line_code in data['selected_iw']['preselected'] %}block{% else %}none{% endif %};">
+                <label for="iwType_{{ line_code }}">Select Input Type:</label>
+                <select id="iwType_{{ line_code }}" name="iwType_{{ line_code }}" onchange="toggleIWInputs('{{ line_code }}')">
+                    <option value="">-- Please select --</option>
+                    <option value="sqm" {% if data['iw_input_type_values'].get(line_code) == 'sqm' %} selected {% endif %}>Square Meterage</option>
+                    <option value="fixed" {% if data['iw_input_type_values'].get(line_code) == 'fixed' %} selected {% endif %}>Fixed Cost</option>
+                </select>
+                
+                <!-- Hidden Input for Square Meterage -->
+                <div id="iwSqmInput_{{ line_code }}" style="display: none;">
+                    <label for="iwSqmValue_{{ line_code }}">Enter Square Meterage:</label>
+                    <input type="number" step="0.1" id="iwSqmValue_{{ line_code }}" name="iwSqmValue_{{ line_code }}" value="{{ data['iw_sqm_values'].get(line_code, '') }}">
+                </div>
+                
+                <!-- Hidden Input for Fixed Cost -->
+                <div id="iwFixedInput_{{ line_code }}" style="display: none;">
+                    <label for="iwFixedValue_{{ line_code }}">Enter Fixed Cost (£):</label>
+                    <input type="number" step="0.01" id="iwFixedValue_{{ line_code }}" name="iwFixedValue_{{ line_code }}" value="{{ data['iw_fixed_values'].get(line_code, '') }}">
+                </div>
+            </div>
             {% endfor %}
-        </select><br><br>
-        {% endif %}
+        </div>
+    </div>
+
+    
+</div>
+{% endif %}
+
         
-        <!-- Page 24: Optional Extras -->
-        {% if twenty_fourth_page %}
-        <h3><b>Please select any optional extras</b></h3>
-        {% for line_code, item in oe_data.items() %}
-        <label class="checkbox-label">
-            <input type="checkbox" name="selected_oe" value="{{ line_code }}" 
-                {% if line_code in preselected_oe %} checked {% endif %}>
-            {{ item.description }}
-        </label><br>
-        {% endfor %}
-        {% endif %}
         
-        <!-- Page 25: Finishing Works -->
-        {% if twenty_fifth_page %}
-        <h3><b>Please select any finishing works items to include</b></h3>
-        {% for line_code, item in fw_data.items() %}
-        <label class="checkbox-label">
-            <input type="checkbox" name="selected_fw" value="{{ line_code }}" 
-                {% if line_code in preselected_fw %} checked {% endif %}>
-            {{ item.description }}
-        </label><br>
-        {% endfor %}
-        {% endif %}
+<!-------------------------------------------------------------------------------------------------------------------------->
+<!----------------                       PAGE - Additional Building Works                          ------------------------->
+<!-------------------------------------------------------------------------------------------------------------------------->
+
+        {% if additional_building_work_page %}
+        {% if data is defined and data['selected_ab'] is defined %}
         
-        <!-- Page 26: Contingency -->
-        {% if twenty_sixth_page %}
-        <h3><b>Please select all contingency items to include</b></h3>
-        {% for line_code, item in co_data.items() %}
-        <label class="checkbox-label">
-            <input type="checkbox" name="selected_co" value="{{ line_code }}" 
-                {% if line_code in preselected_co %} checked {% endif %}>
-            {{ item.description }}
-        </label><br>
-        {% endfor %}
-        {% endif %}
+        <!-- Chimney Breasts Accordion -->
+        <div class="accordion-section">
+            <button type="button" class="accordion-header" onclick="toggleAccordion('chimneyBreastSection')">
+                Chimney Breasts
+            </button>
+            <div id="chimneyBreastSection" class="accordion-body">
+                {% for prefix, note in data['selected_ab']['data'].items() %}
+                {% if prefix in ['ab1#', 'ab2#', 'ab3#', 'ab4#', 'ab5#', 'ab6#'] %}
+                <label class="checkbox-label">
+                    <input type="checkbox" name="selected_ab" value="{{ prefix }}" 
+                        {% if prefix in data['selected_ab']['preselected'] %} checked {% endif %}>
+                    {{ note.description }}
+                </label><br>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
         
-        <!-- Page 27: Finishing Works Optional Extras -->
-        {% if twenty_seventh_page %}
-        <h3><b>Please select any finishing works optional extras</b></h3>
-        {% for line_code, item in foe_data.items() %}
-        <label class="checkbox-label">
-            <input type="checkbox" name="selected_foe" value="{{ line_code }}" 
-                {% if line_code in preselected_foe %} checked {% endif %}>
-            {{ item.description }}
-        </label><br>
-        {% endfor %}
-        {% endif %}
+        <!-- Rear Reception Options Accordion -->
+        <div class="accordion-section">
+            <button type="button" class="accordion-header" onclick="toggleAccordion('rearReceptionSection')">
+                Rear Reception Options
+            </button>
+            <div id="rearReceptionSection" class="accordion-body">
+                {% for prefix, note in data['selected_ab']['data'].items() %}
+                {% if prefix in ['ab7#', 'ab16#', 'ab17#', 'ab18#'] %}
+                <label class="checkbox-label">
+                    <input type="checkbox" name="selected_ab" value="{{ prefix }}" 
+                        {% if prefix in data['selected_ab']['preselected'] %} checked {% endif %}>
+                    {{ note.description }}
+                </label><br>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        <!-- WC Options Accordion -->
+        <div class="accordion-section">
+            <button type="button" class="accordion-header" onclick="toggleAccordion('wcOptionsSection')">
+                WC Options
+            </button>
+            <div id="wcOptionsSection" class="accordion-body">
+                {% for prefix, note in data['selected_ab']['data'].items() %}
+                {% if prefix in ['ab11#', 'ab12#'] %}
+                <label class="checkbox-label">
+                    <input type="checkbox" name="selected_ab" value="{{ prefix }}" 
+                        {% if prefix in data['selected_ab']['preselected'] %} checked {% endif %}>
+                    {{ note.description }}
+                </label><br>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
         
-        <!-- Page 28: Additional Notes -->
+        <!-- Concealment Options Accordion -->
+        <div class="accordion-section">
+            <button type="button" class="accordion-header" onclick="toggleAccordion('concealmentOptionsSection')">
+                Concealment Options
+            </button>
+            <div id="concealmentOptionsSection" class="accordion-body">
+                {% for prefix, note in data['selected_ab']['data'].items() %}
+                {% if prefix in ['ab13#', 'ab14#'] %}
+                <label class="checkbox-label">
+                    <input type="checkbox" name="selected_ab" value="{{ prefix }}" 
+                        {% if prefix in data['selected_ab']['preselected'] %} checked {% endif %}>
+                    {{ note.description }}
+                </label><br>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- Other Additional Building Works Options Accordion -->
+        <div class="accordion-section">
+            <button type="button" class="accordion-header" onclick="toggleAccordion('otherAdditionalOptionsSection')">
+                Other Additional Building Works Options
+            </button>
+            <div id="otherAdditionalOptionsSection" class="accordion-body">
+                {% for prefix, note in data['selected_ab']['data'].items() %}
+                {% if prefix in ['ab15#', 'ab9#'] %}
+                <label class="checkbox-label">
+                    <input type="checkbox" name="selected_ab" value="{{ prefix }}"
+                        {% if prefix in data['selected_ab']['preselected'] %} checked {% endif %}>
+                    {{ note.description }}
+                </label><br>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+
+        {% endif %}
+        {% endif %}
+
+
+<!-------------------------------------------------------------------------------------------------------------------------->
+<!----------------                           PAGE -  Additional Costs                              ------------------------->
+<!-------------------------------------------------------------------------------------------------------------------------->
+        
+        {% if additional_costs_page %}
+        
+        <h3><b>Additional Costs</b></h3>
+        
+        <!-- Accordion for Electrics -->
+        <div class="accordion-section">
+            <button type="button" class="accordion-header" onclick="toggleAccordion('electricsSection')">
+                Electrics
+            </button>
+            <div id="electricsSection" class="accordion-body">
+                
+                <!-- Kitchen Electrics -->
+                <h3>Kitchen Electrics</h3>
+                <label class="checkbox-label">
+                    <input type="checkbox" name="selected_kitchen_el" value="elk1"
+                        {% if 'elk1' in data['selected_kitchen_el']['preselected'] %} checked {% endif %}>
+                    Enable Kitchen Electrics
+                </label>
+                
+                <div class="conditional-section" id="kitchenElectricsOptions"
+                    style="display: {% if 'elk1' in data['selected_kitchen_el']['preselected'] %}block{% else %}none{% endif %};">
+                    <label for="selected_kitchen_option">Select configuration:</label>
+                    <select name="selected_kitchen_option" id="selected_kitchen_option">
+                        {% for code, item in data['selected_kitchen_option_data'].items() %}
+                        {% if code not in ['elk1', 'elkl0', 'elkp0'] %}
+                        <option value="{{ code }}" {% if data.selected_kitchen_option == code %} selected {% endif %}>
+                            {{ item.description }}
+                        </option>
+                        {% endif %}
+                        {% endfor %}
+                    </select><br>
+                    
+                    <!-- Manual Inputs (Hidden by Default, Toggled via JS) -->
+                    <div id="kitchen_lights_input" style="display: none;">
+                        <label for="elkl0_amount">Kitchen Lights (amount):</label>
+                        <input type="number" name="elkl0_amount" value="{{ data.elkl0_amount or 0 }}">
+                    </div>
+                    
+                    <div id="kitchen_points_input" style="display: none;">
+                        <label for="elkp0_amount">Kitchen Points (amount):</label>
+                        <input type="number" name="elkp0_amount" value="{{ data.elkp0_amount or 0 }}">
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <!-- Loft Electrics -->
+                <h3>Loft Electrics</h3>
+                <label class="checkbox-label">
+                    <input type="checkbox" name="selected_loft_el" value="ell1"
+                        {% if 'ell1' in data['selected_loft_el']['preselected'] %} checked {% endif %}>
+                    Enable Loft Electrics
+                </label>
+                
+                <div class="conditional-section" id="loftElectricsOptions"
+                    style="display: {% if 'ell1' in data['selected_loft_el']['preselected'] %}block{% else %}none{% endif %};">
+                    <label for="selected_loft_option">Select configuration:</label>
+                    <select name="selected_loft_option" id="selected_loft_option">
+                        {% for code, item in data['selected_loft_option_data'].items() %}
+                        {% if code not in ['ell1', 'elll0', 'ellp0'] %}
+                        <option value="{{ code }}" {% if data.selected_loft_option == code %} selected {% endif %}>
+                            {{ item.description }}
+                        </option>
+                        {% endif %}
+                        {% endfor %}
+                    </select><br>
+                    
+                    <!-- Manual Inputs (Hidden by Default, Toggled via JS) -->
+                    <div id="loft_lights_input" style="display: none;">
+                        <label for="elll0_amount">Loft Lights (amount):</label>
+                        <input type="number" name="elll0_amount" value="{{ data.elll0_amount or 0 }}">
+                    </div>
+                    
+                    <div id="loft_points_input" style="display: none;">
+                        <label for="ellp0_amount">Loft Points (amount):</label>
+                        <input type="number" name="ellp0_amount" value="{{ data.ellp0_amount or 0 }}">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+            
+        <!-- Accordion for Skylights -->
+        <div class="accordion-section">
+            <button type="button" class="accordion-header" onclick="toggleAccordion('skylightsSection')">
+                Skylights
+            </button>
+            <div id="skylightsSection" class="accordion-body">
+                
+                <!-- Parent Trigger -->
+                <label class="checkbox-label">
+                    <input type="checkbox" id="skylightCheckbox" name="selected_sk" value="sk0"
+                        {% if 'sk0' in data['selected_sk']['preselected'] %} checked {% endif %}
+                        onchange="toggleVisibility('skylightCheckbox', 'skylightDropdown', 'selected_sk')">
+                    Enable Skylight Options
+                </label><br>
+                
+                <!-- Dropdown Options -->
+                <div id="skylightDropdown" style="display: {% if 'sk0' in data['selected_sk']['preselected'] %}block{% else %}none{% endif %}; margin-top: 10px;">
+                    <label for="selected_sk_dropdown">Select Skylight Type:</label>
+                    <select id="selected_sk_dropdown" name="selected_sk">
+                        <option value="">-- Please select --</option>
+                        {% for line_code, item in data['selected_sk']['data'].items() %}
+                        {% if line_code in ['sk1', 'sk2', 'sk3', 'sk4', 'sk7', 'sk8', 'sk10'] %}
+                        <option value="{{ line_code }}" {% if line_code in data['selected_sk']['preselected'] %} selected {% endif %}>
+                            {{ item.description }}
+                        </option>
+                        {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Additional Options -->
+                <div id="skylightExtraOptions" style="display: {% if 'sk0' in data['selected_sk']['preselected'] %}block{% else %}none{% endif %}; margin-top: 10px;">
+                    {% for line_code, item in data['selected_sk']['data'].items() %}
+                    {% if line_code in ['sk5', 'sk6', 'sk9'] %}
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="selected_sk" value="{{ line_code }}"
+                            {% if line_code in data['selected_sk']['preselected'] %} checked {% endif %}>
+                        {{ item.description }}
+                    </label><br>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        
+        <!-- Accordion for Velux Windows -->
+        <div class="accordion-section">
+            <button type="button" class="accordion-header" onclick="toggleAccordion('veluxSection')">
+                Velux Windows
+            </button>
+            <div id="veluxSection" class="accordion-body">
+                <h3>Please select any Velux window options:</h3>
+                {% for line_code, item in data['selected_vl']['data'].items() %}
+                {% if line_code not in ['vl1@', 'vl5'] %}
+                <label class="checkbox-label">
+                    <input type="checkbox" name="selected_vl" value="{{ line_code }}" 
+                        {% if line_code in data['selected_vl']['preselected'] %} checked {% endif %}>
+                    {{ item.description }}
+                </label><br>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- Accordion for Aluminium Capping -->
+        <div class="accordion-section">
+            <button type="button" class="accordion-header" onclick="toggleAccordion('aluminiumSection')">
+                Aluminium Capping
+            </button>
+            <div id="aluminiumSection" class="accordion-body">
+                <h3>Please select any Aluminium Capping options:</h3>
+                {% for line_code, item in data['selected_ac']['data'].items() %}
+                <label class="checkbox-label">
+                    <input type="checkbox" name="selected_ac" value="{{ line_code }}" 
+                        {% if line_code in data['selected_ac']['preselected'] %} checked {% endif %}>
+                    {{ item.description }}
+                </label><br>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- Accordion for Sliding Doors -->
+        <div class="accordion-section">
+            <button type="button" class="accordion-header" onclick="toggleAccordion('slidingDoorsSection')">
+                Sliding Doors
+            </button>
+            <div id="slidingDoorsSection" class="accordion-body">
+                <h3>Please select any Sliding Door options:</h3>
+                
+                <label for="pd10_manual_input">{{ pd10_label }}</label>
+                <input type="text" id="pd10_manual_input" name="pd10_manual_input" value="{{ data.get('pd10_manual_input', '') }}"><br>
+                
+                <h3>Select an Option for sliding doors</h3>
+                <label for="selected_sd">Choose one:</label>
+                
+                <select name="selected_sd" id="selected_sd">
+                    {% for option in data['selected_sd']['data'].values() %}
+                    {% if option.line_code != 'sd_total#' %}
+                    <option value="{{ option.line_code }}" 
+                        {% if option.line_code in data['selected_sd']['preselected'] %}selected{% endif %}>
+                        {{ option.description }}
+                    </option>
+                    {% endif %}
+                    {% endfor %}
+                </select>
+                <br>
+            </div>
+        </div>
+        
+        {% endif %}
+
+
+
+<!-------------------------------------------------------------------------------------------------------------------------->
+<!----------------                          PAGE - Optional Extras & Finishing Works               ------------------------->
+<!-------------------------------------------------------------------------------------------------------------------------->
+    
+{% if optional_extras_page %}
+    
+    <h3><b>Optional Extras & Finishing Works</b></h3>
+    
+    {% if data is defined and data['selected_oe'] is defined %}
+    <!-- Accordion for Optional Extras -->
+    <div class="accordion-section">
+        <button type="button" class="accordion-header" onclick="toggleAccordion('optionalExtrasSection')">
+            Optional Extras
+        </button>
+        
+        <div id="optionalExtrasSection" class="accordion-body">
+            <h3>Please select any Optional Extras:</h3>
+            {% for line_code, item in data['selected_oe']['data'].items() %}
+            {% if line_code not in ['oe1#', 'oe111', 'oe112'] %}
+            <label class="checkbox-label">
+                <input type="checkbox" name="selected_oe" value="{{ line_code }}"
+                    {% if line_code in data['selected_oe']['preselected'] %} checked {% endif %}>
+                {{ item.description }}
+            </label><br>
+            {% endif %}
+            {% endfor %}
+            
+            <!-- Chimney Breasts toggle + dropdown -->
+            <label class="checkbox-label">
+                <input type="checkbox" id="chimneyBreastCheckbox" name="selected_oe" value="oe1"
+                    {% if 'oe1' in data['selected_oe']['preselected'] %} checked {% endif %}
+                    onchange="toggleVisibility('chimneyBreastCheckbox', 'chimneyDropdown')">
+                Removal of Chimney Breast
+            </label><br>
+            
+            <div id="chimneyDropdown" style="display: {% if 'oe1' in data['selected_oe']['preselected'] %}block{% else %}none{% endif %}; margin-top: 10px;">
+                <label for="selected_oe1">Please Select:</label>
+                <select id="selected_oe1" name="selected_oe1">
+                    
+                    <option value="">-- Please select --</option>
+                    {% for code, item in data['selected_oe']['data'].items() %}
+                    {% if code in ['oe111','oe112'] %}
+                    <option value="{{ code }}"
+                        {% if code in data['selected_oe']['preselected'] %} selected {% endif %}>
+                        {{ item.description }}
+                    </option>
+                    {% endif %}
+                    {% endfor %}
+                </select><br>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+        <!-- Accordion for Finishing Works -->
+        {% if data is defined and data['selected_fw'] is defined %}
+        <div class="accordion-section">
+            <button type="button" class="accordion-header" onclick="toggleAccordion('finishingWorksSection')">
+                Finishing Works
+            </button>
+            <div id="finishingWorksSection" class="accordion-body">
+                
+                <!-- Section: Ground Floor Kitchen -->
+                <h3>Ground Floor Kitchen Finishing Works</h3>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="fw1_toggle" name="selected_fw" value="fw1@"
+                        {% if 'fw1@' in data['selected_fw']['preselected'] %} checked {% endif %}>
+                    Enable Kitchen Finishing Works
+                </label><br>
+                <div id="fw1_dropdown" style="{% if 'fw1@' not in data['selected_fw']['preselected'] %}display: none;{% endif %} margin-top: 10px;">
+                    <label for="selected_fw_option">Select Finishing Option:</label>
+                    <select name="selected_fw_option" id="selected_fw_option">
+                        {% for code in ['fw12', 'fw13', 'fw14', 'fw15', 'fw16', 'fw17'] %}
+                        {% if code in data['selected_fw']['data'] %}
+                        <option value="{{ code }}"
+                            {% if code == data['selected_fw_option'] %} selected {% endif %}>
+                            {{ data['selected_fw']['data'][code].description }}
+                        </option>
+                        {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- fw2@ = Independent checkbox -->
+                {% if 'fw2@' in data['selected_fw']['data'] %}
+                <div style="margin-top: 15px;">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="selected_fw" value="fw2"
+                            {% if 'fw2@' in data['selected_fw']['preselected'] %} checked {% endif %}>
+                        {{ data['selected_fw']['data']['fw2@'].description }}
+                    </label><br>
+                </div>
+                {% endif %}
+                
+                <!-- Section: Ground Floor Utility -->
+                <h3>Ground Floor Utility Finishing Works</h3>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="fw3_toggle" name="selected_fw" value="fw3@"
+                        {% if 'fw3@' in data['selected_fw']['preselected'] %} checked {% endif %}>
+                    Enable Utility Finishing Works
+                </label><br>
+                <div id="fw3_dropdown" style="{% if 'fw3@' not in data['selected_fw']['preselected'] %}display: none;{% endif %} margin-top: 10px;">
+                    <label for="selected_fw_utility_option">Select Utility Finishing Option:</label>
+                    <select name="selected_fw_utility_option" id="selected_fw_utility_option">
+                        {% for code in ['fw31', 'fw32', 'fw33'] %}
+                        {% if code in data['selected_fw']['data'] %}
+                        <option value="{{ code }}"
+                            {% if code == data['selected_fw_utility_option'] %} selected {% endif %}>
+                            {{ data['selected_fw']['data'][code].description }}
+                        </option>
+                        {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Section: Ground Floor Bathroom -->
+                <h3>Ground Floor Bathroom Finishing Works</h3>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="fw4_toggle" name="selected_fw" value="fw4@"
+                        {% if 'fw4@' in data['selected_fw']['preselected'] %} checked {% endif %}>
+                    Enable Bathroom Finishing Works
+                </label><br>
+                <div id="fw4_dropdown" style="{% if 'fw4@' not in data['selected_fw']['preselected'] %}display: none;{% endif %} margin-top: 10px;">
+                    <label for="selected_fw_bathroom_option">Select Bathroom Finishing Option:</label>
+                    <select name="selected_fw_bathroom_option" id="selected_fw_bathroom_option">
+                        {% for code in ['fw41', 'fw42', 'fw43'] %}
+                        {% if code in data['selected_fw']['data'] %}
+                        <option value="{{ code }}"
+                            {% if code == data['selected_fw_bathroom_option'] %} selected {% endif %}>
+                            {{ data['selected_fw']['data'][code].description }}
+                        </option>
+                        {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Section: Ground Floor Rear Reception (Half) -->
+                <h3>Ground Floor Rear Reception (Half) Finishing Works</h3>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="fw5_toggle" name="selected_fw" value="fw5@"
+                        {% if 'fw5@' in data['selected_fw']['preselected'] %} checked {% endif %}>
+                    Enable Rear Reception (Half) Finishing Works
+                </label><br>
+                <div id="fw5_dropdown" style="{% if 'fw5@' not in data['selected_fw']['preselected'] %}display: none;{% endif %} margin-top: 10px;">
+                    <label for="selected_fw_rear_half_option">Select Rear Reception Finishing Option:</label>
+                    <select name="selected_fw_rear_half_option" id="selected_fw_rear_half_option">
+                        {% for code in ['fw51', 'fw52', 'fw53'] %}
+                        {% if code in data['selected_fw']['data'] %}
+                        <option value="{{ code }}"
+                            {% if code == data['selected_fw_rear_half_option'] %} selected {% endif %}>
+                            {{ data['selected_fw']['data'][code].description }}
+                        </option>
+                        {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Section: Ground Floor Rear Reception (Full) -->
+                <h3>Ground Floor Rear Reception (Full) Finishing Works</h3>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="fw6_toggle" name="selected_fw" value="fw6@"
+                        {% if 'fw6@' in data['selected_fw']['preselected'] %} checked {% endif %}>
+                    Enable Rear Reception (Full) Finishing Works
+                </label><br>
+                <div id="fw6_dropdown" style="{% if 'fw6@' not in data['selected_fw']['preselected'] %}display: none;{% endif %} margin-top: 10px;">
+                    <label for="selected_fw_rear_full_option">Select Rear Reception Finishing Option:</label>
+                    <select name="selected_fw_rear_full_option" id="selected_fw_rear_full_option">
+                        {% for code in ['fw61', 'fw62', 'fw63'] %}
+                        {% if code in data['selected_fw']['data'] %}
+                        <option value="{{ code }}"
+                            {% if code == data['selected_fw_rear_full_option'] %} selected {% endif %}>
+                            {{ data['selected_fw']['data'][code].description }}
+                        </option>
+                        {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+{% endif %}
+
+
+<!-------------------------------------------------------------------------------------------------------------------------->
+<!----------------                             Addtional Notes                                     ------------------------->
+<!-------------------------------------------------------------------------------------------------------------------------->
+
+
+        <!-- Additional Notes -->
         {% if twenty_eighth_page %}
         <h3><b>Please add any further notes below:</b></h3>
         
@@ -428,49 +1586,385 @@
         <input type="text" name="an7_manual_input" value="{{ an7_manual_input }}"><br>
         {% endif %}
         
-        <!-- Page 29: image upload -->
-        {% if twenty_ninth_page %}
-        <div class="form-container">
-            <h3>Upload Images</h3>
-                <!-- Cover Image -->
-                <label for="img1">Cover Image:</label>
-                <input type="file" name="img1" accept="image/*"><br>
-                
-                <!-- Building Works CGI -->
-                <label for="img2">Building Works CGI:</label>
-                <input type="file" name="img2" accept="image/*"><br>
-                
-                <!-- Floorplan -->
-                <label for="img3">Floorplan:</label>
-                <input type="file" name="img3" accept="image/*"><br>
-                
-                <!-- Site Images -->
-                <h4>Site Images (1-10)</h4>
-                {% for i in range(23, 33) %}
-                <label for="img{{ i }}">Site Image {{ i - 22 }}:</label>
-                <input type="file" name="img{{ i }}" accept="image/*"><br>
-                {% endfor %}
-                
-                <!-- Submit Button for Image Upload -->
-                <div class="button-container">
-                    <button type="submit" class="btn">Upload Images</button>
-                </div>
-        </div>
-        {% endif %}
 
-        {% if session.get('uploaded_image') %}
-        <h3>Preview of Uploaded Image:</h3>
-        <img src="{{ url_for('static', filename='uploads/' + session.get('uploaded_image')) }}" 
-            alt="Uploaded Image" class="image-preview">
-        {% endif %}
-        
-        <!-- Navigation buttons -->
+<!-------------------------------------------------------------------------------------------------------------------------->
+<!----------------                              Nav buttons                                        ------------------------->
+<!-------------------------------------------------------------------------------------------------------------------------->
         <div class="button-container">
-            {% if previous_page %}
+            {% if previous_page and previous_page != '/' %}
             <button type="button" class="btn" onclick="window.location.href='{{ url_for(previous_page) }}'">Previous</button>
             {% endif %}
+            
+            {% if next_page %}
+            <button type="submit" class="btn">Next</button> 
+            {% else %}
             <input type="submit" class="btn" value="Next">
+            {% endif %}
         </div>
     </form>
 </div>
+
+<!-------------------------------------------------------------------------------------------------------------------------->
+<!----------------                             Flash Messages                                  ------------------------->
+<!-------------------------------------------------------------------------------------------------------------------------->
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+<div class="flash-messages">
+    {% for category, message in messages %}
+    <div class="alert alert-{{ category }}">{{ message }}</div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endwith %}
+
+
+<!-------------------------------------------------------------------------------------------------------------------------->
+<!----------------                                 JS Call                                         ------------------------->
+<!-------------------------------------------------------------------------------------------------------------------------->
+<script src="{{ url_for('static', filename='js/script.js') }}" defer></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const form = document.querySelector("form");
+        if (form) {
+            form.addEventListener("submit", function(event) {
+                console.log("DEBUG: Form is submitting (JS)");
+            });
+        } else {
+            console.log("DEBUG: No form found on the page");
+        }
+    });
+</script>
+{% if edit_mode %}
+<script>
+(function () {
+    'use strict';
+
+    const CSRF_TOKEN = document.querySelector('[name="csrf_token"]')
+        ? document.querySelector('[name="csrf_token"]').value : '';
+    const editStatus = document.getElementById('edit-action-status');
+
+    function setEditStatus(message, color) {
+        if (!editStatus) { return; }
+        editStatus.textContent = message;
+        editStatus.style.color = color || '#6c757d';
+    }
+
+    async function saveFieldOverride(payload) {
+        setEditStatus('Saving...', '#856404');
+        const res = await fetch('/admin/field_override', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': CSRF_TOKEN,
+            },
+            body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            alert('Save failed: ' + (body.error || res.status));
+            setEditStatus('Save failed', '#c62828');
+        } else {
+            setEditStatus('Saved', '#2e7d32');
+        }
+        return res.ok;
+    }
+
+    async function saveInspector(payload) {
+        const res = await fetch('/admin/field_inspector', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': CSRF_TOKEN,
+            },
+            body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            alert('Inspector save failed: ' + (body.error || res.status));
+        }
+        return res.ok;
+    }
+
+    document.querySelectorAll('.btn-field-hide').forEach(function (btn) {
+        btn.addEventListener('click', async function () {
+            const pageId = btn.dataset.pageId;
+            const fieldId = btn.dataset.fieldId;
+            const hidden = btn.dataset.hidden !== 'true';
+            const ok = await saveFieldOverride({ page_id: pageId, field_id: fieldId, hidden: hidden });
+            if (ok) {
+                btn.dataset.hidden = hidden ? 'true' : 'false';
+                btn.textContent = hidden ? 'Show' : 'Hide';
+                btn.style.borderColor = hidden ? '#28a745' : '#dc3545';
+                btn.style.color = hidden ? '#28a745' : '#dc3545';
+                const block = btn.closest('.schema-field-block');
+                if (block) {
+                    block.classList.toggle('field-hidden', hidden);
+                    block.style.opacity = hidden ? '.45' : '';
+                }
+            }
+        });
+    });
+
+    document.querySelectorAll('.field-label-input').forEach(function (input) {
+        async function save() {
+            const pageId = input.dataset.pageId;
+            const fieldId = input.dataset.fieldId;
+            await saveFieldOverride({ page_id: pageId, field_id: fieldId, label_override: input.value });
+        }
+        input.addEventListener('blur', save);
+        input.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); save(); } });
+    });
+
+    document.querySelectorAll('.btn-option-hide').forEach(function (btn) {
+        btn.addEventListener('click', async function () {
+            const pageId = btn.dataset.pageId;
+            const fieldId = btn.dataset.fieldId;
+            const optVal = btn.dataset.optionValue;
+            const hidden = btn.dataset.hidden !== 'true';
+            const ok = await saveFieldOverride({
+                page_id: pageId,
+                field_id: fieldId,
+                option_overrides: { [optVal]: { hidden: hidden } },
+            });
+            if (ok) {
+                btn.dataset.hidden = hidden ? 'true' : 'false';
+                btn.textContent = hidden ? 'Show' : 'Hide';
+                btn.style.borderColor = hidden ? '#28a745' : '#dc3545';
+                btn.style.color = hidden ? '#28a745' : '#dc3545';
+                const row = btn.closest('.schema-option-row');
+                if (row) {
+                    row.classList.toggle('option-hidden', hidden);
+                    row.style.opacity = hidden ? '.45' : '';
+                }
+            }
+        });
+    });
+
+    document.querySelectorAll('.btn-option-edit').forEach(function (btn) {
+        btn.addEventListener('click', async function () {
+            const row = btn.closest('.schema-option-row');
+            const panel = row ? row.querySelector('.option-edit-panel') : null;
+            if (!panel) { return; }
+            const isOpen = panel.style.display !== 'none';
+            panel.style.display = isOpen ? 'none' : 'block';
+            btn.textContent = isOpen ? 'Edit' : 'Close';
+        });
+    });
+
+    document.querySelectorAll('.option-edit-panel').forEach(function (panel) {
+        panel.querySelectorAll('.btn-option-tab').forEach(function (tabBtn) {
+            tabBtn.addEventListener('click', function () {
+                const tab = tabBtn.dataset.tab;
+                panel.querySelectorAll('.btn-option-tab').forEach(function (btn) {
+                    btn.classList.remove('active');
+                    btn.style.borderColor = '#a0a0a0';
+                    btn.style.color = '#555';
+                });
+                tabBtn.classList.add('active');
+                tabBtn.style.borderColor = '#007bff';
+                tabBtn.style.color = '#007bff';
+
+                const description = panel.querySelector('.option-tab-description');
+                const pricing = panel.querySelector('.option-tab-pricing');
+                if (description && pricing) {
+                    description.style.display = tab === 'description' ? 'block' : 'none';
+                    pricing.style.display = tab === 'pricing' ? 'block' : 'none';
+                }
+            });
+        });
+    });
+
+    document.querySelectorAll('.btn-option-description-save').forEach(function (btn) {
+        btn.addEventListener('click', async function () {
+            const panel = btn.closest('.option-edit-panel');
+            if (!panel) { return; }
+            const pageId = panel.dataset.pageId;
+            const fieldId = panel.dataset.fieldId;
+            const optVal = panel.dataset.optionValue;
+            const titleInput = panel.querySelector('.option-desc-title');
+            const descriptionInput = panel.querySelector('.option-desc-description');
+            const notesInput = panel.querySelector('.option-desc-notes');
+
+            const title = titleInput ? titleInput.value : '';
+            const description = descriptionInput ? descriptionInput.value : '';
+            const notes = notesInput ? notesInput.value : '';
+
+            const ok = await saveFieldOverride({
+                page_id: pageId,
+                field_id: fieldId,
+                option_overrides: {
+                    [optVal]: {
+                        label_override: title,
+                        output_options: {
+                            line_title: title,
+                            line_description: description,
+                            line_additional_notes: notes,
+                        },
+                    },
+                },
+            });
+
+            if (ok) {
+                const rowLabel = panel.closest('.schema-option-row') && panel.closest('.schema-option-row').querySelector('.checkbox-label');
+                if (rowLabel) {
+                    const textNode = rowLabel.childNodes[rowLabel.childNodes.length - 1];
+                    if (textNode && textNode.nodeType === Node.TEXT_NODE) {
+                        textNode.textContent = ' ' + title;
+                    }
+                }
+                btn.textContent = 'Saved';
+                setTimeout(function () { btn.textContent = 'Save Description'; }, 1300);
+            }
+        });
+    });
+
+    document.querySelectorAll('.btn-option-pricing-save').forEach(function (btn) {
+        btn.addEventListener('click', async function () {
+            const panel = btn.closest('.option-edit-panel');
+            if (!panel) { return; }
+            const pageId = panel.dataset.pageId;
+            const fieldId = panel.dataset.fieldId;
+            const optVal = panel.dataset.optionValue;
+
+            const modeEl = panel.querySelector('.option-pricing-mode');
+            const fixedEl = panel.querySelector('.option-pricing-fixed');
+            const enteredEl = panel.querySelector('.option-pricing-entered-key');
+            const rateEl = panel.querySelector('.option-pricing-rate');
+            const quantityEl = panel.querySelector('.option-pricing-quantity-key');
+            const percentEl = panel.querySelector('.option-pricing-percent');
+
+            const ok = await saveFieldOverride({
+                page_id: pageId,
+                field_id: fieldId,
+                option_overrides: {
+                    [optVal]: {
+                        pricing_options: {
+                            mode: modeEl ? modeEl.value : 'fixed',
+                            fixed_amount: parseFloat(fixedEl && fixedEl.value) || 0,
+                            entered_key: enteredEl ? enteredEl.value : '',
+                            rate: parseFloat(rateEl && rateEl.value) || 0,
+                            quantity_key: quantityEl ? quantityEl.value : '',
+                            percent_of_subtotal: parseFloat(percentEl && percentEl.value) || 0,
+                        },
+                    },
+                },
+            });
+
+            if (ok) {
+                btn.textContent = 'Saved';
+                setTimeout(function () { btn.textContent = 'Save Pricing'; }, 1300);
+            }
+        });
+    });
+
+    document.querySelectorAll('.btn-option-delete').forEach(function (btn) {
+        btn.addEventListener('click', async function () {
+            if (!confirm('Delete this line item?')) { return; }
+            const pageId = btn.dataset.pageId;
+            const fieldId = btn.dataset.fieldId;
+            const optVal = btn.dataset.optionValue;
+            const ok = await saveFieldOverride({
+                page_id: pageId,
+                field_id: fieldId,
+                option_overrides: { [optVal]: { deleted: true, hidden: true } },
+            });
+            if (ok) {
+                const row = btn.closest('.schema-option-row');
+                if (row) {
+                    row.style.display = 'none';
+                }
+            }
+        });
+    });
+
+    document.querySelectorAll('.btn-inspector-pricing-save').forEach(function (btn) {
+        btn.addEventListener('click', async function () {
+            const body = btn.closest('.inspector-body');
+            const pageId = body.dataset.pageId;
+            const fieldId = body.dataset.fieldId;
+            const ok = await saveInspector({
+                page_id: pageId,
+                field_id: fieldId,
+                pricing_options: {
+                    mode: body.querySelector('.inspector-pricing-mode').value,
+                    fixed_amount: parseFloat(body.querySelector('.inspector-fixed-amount').value) || 0,
+                    rate: parseFloat(body.querySelector('.inspector-rate').value) || 0,
+                    entered_key: body.querySelector('.inspector-entered-key').value,
+                },
+            });
+            if (ok) {
+                btn.textContent = '✓ Saved';
+                setTimeout(function () { btn.textContent = 'Save pricing'; }, 2000);
+            }
+        });
+    });
+
+    document.querySelectorAll('.btn-inspector-output-save').forEach(function (btn) {
+        btn.addEventListener('click', async function () {
+            const body = btn.closest('.inspector-body');
+            const pageId = body.dataset.pageId;
+            const fieldId = body.dataset.fieldId;
+            const ok = await saveInspector({
+                page_id: pageId,
+                field_id: fieldId,
+                output_options: {
+                    include_in_output: body.querySelector('.inspector-include-output').checked,
+                    output_label: body.querySelector('.inspector-output-label').value,
+                    group: body.querySelector('.inspector-group').value,
+                },
+            });
+            if (ok) {
+                btn.textContent = '✓ Saved';
+                setTimeout(function () { btn.textContent = 'Save output'; }, 2000);
+            }
+        });
+    });
+
+    const btnPublish = document.getElementById('btn-publish-draft');
+    if (btnPublish) {
+        btnPublish.addEventListener('click', async function () {
+            if (!confirm('Publish current draft as the live version?')) { return; }
+            setEditStatus('Publishing...', '#856404');
+            const res = await fetch('/admin/publish_draft', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
+                body: JSON.stringify({}),
+            });
+            const data = await res.json().catch(function () { return {}; });
+            if (res.ok) {
+                setEditStatus('Published ' + (data.published_at || ''), '#2e7d32');
+            } else {
+                alert('Publish failed: ' + (data.error || res.status));
+                setEditStatus('Publish failed', '#c62828');
+            }
+        });
+    }
+
+    const btnRollback = document.getElementById('btn-rollback');
+    if (btnRollback) {
+        btnRollback.addEventListener('click', async function () {
+            if (!confirm('Roll back to the last published snapshot? Unsaved draft changes will be lost.')) { return; }
+            setEditStatus('Rolling back...', '#856404');
+            const res = await fetch('/admin/rollback', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
+                body: JSON.stringify({}),
+            });
+            const data = await res.json().catch(function () { return {}; });
+            if (res.ok) {
+                setEditStatus('Rolled back to published snapshot', '#2e7d32');
+                location.reload();
+            } else {
+                alert('Rollback failed: ' + (data.error || res.status));
+                setEditStatus('Rollback failed', '#c62828');
+            }
+        });
+    }
+}());
+</script>
+{% endif %}
+
 {% endblock %}
+
+        

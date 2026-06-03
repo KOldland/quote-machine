@@ -15,51 +15,70 @@
     <!-- Header -->
     <header class="app-header">
         <div class="logo">
-            <img src="{{ url_for('static', filename='/images/logo-white-plus-rooms.png') }}" alt="Plus Rooms Logo">
+            <img src="{{ url_for('static', filename='images/logo-white-plus-rooms.png') }}" alt="Plus Rooms Logo">
         </div>
         <div class="qm-logo">
-            <img src="{{ url_for('static', filename='/images/qmlogo.png') }}" alt="Quote Machine Logo">
+            <img src="{{ url_for('static', filename='images/qmlogo.png') }}" alt="Quote Machine Logo">
         </div>
     </header>
 
     <div class="wrapper">
         <!-- Sidebar Navigation -->
-        <div id="sidebar" class="sidebar">  <!-- Added id="sidebar" for JavaScript targeting -->
+        <div id="sidebar" class="sidebar">  
+            {% if session.get('username') %}
+            <!-- Authenticated User Navigation -->
             <nav class="nav flex-column">
                 <a href="{{ url_for('index') }}" class="nav-link {% if request.endpoint == 'index' %}active{% endif %}">Project Details</a>
-                <a href="{{ url_for('page_two') }}" class="nav-link {% if request.endpoint == 'page_two' %}active{% endif %}">Special Notes</a>
-                <a href="{{ url_for('page_three') }}" class="nav-link {% if request.endpoint == 'page_three' %}active{% endif %}">Building Works</a>
-                <a href="{{ url_for('page_four') }}" class="nav-link {% if request.endpoint == 'page_four' %}active{% endif %}">Boundary Lines</a>
-                <a href="{{ url_for('page_five') }}" class="nav-link {% if request.endpoint == 'page_five' %}active{% endif %}">External Wall & Roofing</a>
-                <a href="{{ url_for('page_six') }}" class="nav-link {% if request.endpoint == 'page_six' %}active{% endif %}">Floor Structure</a>
-                <a href="{{ url_for('page_seven') }}" class="nav-link {% if request.endpoint == 'page_seven' %}active{% endif %}">Plastering</a>
-                <a href="{{ url_for('page_eight') }}" class="nav-link {% if request.endpoint == 'page_eight' %}active{% endif %}">Internal Doors</a>
-                <a href="{{ url_for('page_nine') }}" class="nav-link {% if request.endpoint == 'page_nine' %}active{% endif %}">Drainage</a>
-                <a href="{{ url_for('page_ten') }}" class="nav-link {% if request.endpoint == 'page_ten' %}active{% endif %}">Waste and Parking</a>
-                <a href="{{ url_for('page_eleven') }}" class="nav-link {% if request.endpoint == 'page_eleven' %}active{% endif %}">Demolition Works</a>
-                <a href="{{ url_for('page_twelve') }}" class="nav-link {% if request.endpoint == 'page_twelve' %}active{% endif %}">Further Requirements</a>
-                <a href="{{ url_for('page_thirteen') }}" class="nav-link {% if request.endpoint == 'page_thirteen' %}active{% endif %}">Additional Building Items</a>
-                <a href="{{ url_for('page_fourteen') }}" class="nav-link {% if request.endpoint == 'page_fourteen' %}active{% endif %}">Schedule of Works (Weeks 1-8)</a>
-                <a href="{{ url_for('page_fifteen') }}" class="nav-link {% if request.endpoint == 'page_fifteen' %}active{% endif %}">Schedule of Works (Weeks 9-12)</a>
-                <a href="{{ url_for('page_sixteen') }}" class="nav-link {% if request.endpoint == 'page_sixteen' %}active{% endif %}">Pricing Categories</a>
-                <a href="{{ url_for('page_seventeen') }}" class="nav-link {% if request.endpoint == 'page_seventeen' %}active{% endif %}">Electrics</a>
-                <a href="{{ url_for('page_eighteen') }}" class="nav-link {% if request.endpoint == 'page_eighteen' %}active{% endif %}">Plumbing</a>
-                <a href="{{ url_for('page_nineteen') }}" class="nav-link {% if request.endpoint == 'page_nineteen' %}active{% endif %}">Skylights</a>
-                <a href="{{ url_for('page_twenty') }}" class="nav-link {% if request.endpoint == 'page_twenty' %}active{% endif %}">Velux Windows</a>
-                <a href="{{ url_for('page_twenty_one') }}" class="nav-link {% if request.endpoint == 'page_twenty_one' %}active{% endif %}">Aluminium Capping</a>
-                <a href="{{ url_for('page_twenty_two') }}" class="nav-link {% if request.endpoint == 'page_twenty_two' %}active{% endif %}">Glass Valley</a>
-                <a href="{{ url_for('page_twenty_three') }}" class="nav-link {% if request.endpoint == 'page_twenty_three' %}active{% endif %}">Sliding Doors</a>
-                <a href="{{ url_for('page_twenty_four') }}" class="nav-link {% if request.endpoint == 'page_twenty_four' %}active{% endif %}">Optional Extras</a>
-                <a href="{{ url_for('page_twenty_five') }}" class="nav-link {% if request.endpoint == 'page_twenty_five' %}active{% endif %}">Finishing Works</a>
-                <a href="{{ url_for('page_twenty_six') }}" class="nav-link {% if request.endpoint == 'page_twenty_six' %}active{% endif %}">Contingency</a>
-                <a href="{{ url_for('page_twenty_seven') }}" class="nav-link {% if request.endpoint == 'page_twenty_seven' %}active{% endif %}">Finishing Works Optional Extras</a>
-                <a href="{{ url_for('page_twenty_eight') }}" class="nav-link {% if request.endpoint == 'page_twenty_eight' %}active{% endif %}">Additional Notes</a>
-                <a href="{{ url_for('page_twenty_nine') }}" class="nav-link {% if request.endpoint == 'page_twenty_nine' %}active{% endif %}">Image Uploads</a>
+                <a href="{{ url_for('special_notes_page') }}" class="nav-link {% if request.endpoint == 'special_notes_page' %}active{% endif %}">Special Notes</a>
+                <a href="{{ url_for('summary_page') }}" class="nav-link {% if request.endpoint == 'summary_page' %}active{% endif %}">Summary</a>
+                <a href="{{ url_for('materials_page') }}" class="nav-link {% if request.endpoint == 'materials_page' %}active{% endif %}">Extension Details & Material Summary</a>
+                <a href="{{ url_for('further_requirements_page') }}" class="nav-link {% if request.endpoint == 'further_requirements_page' %}active{% endif %}">Further Requirements</a>
+                <a href="{{ url_for('additional_building_work_page') }}" class="nav-link {% if request.endpoint == 'additional_building_work_page' %}active{% endif %}">Additional Building Works</a>
+                <a href="{{ url_for('additional_costs_page') }}" class="nav-link {% if request.endpoint == 'additional_costs_page' %}active{% endif %}">Additional Costs</a>
+                <a href="{{ url_for('optional_extras_page') }}" class="nav-link {% if request.endpoint == 'optional_extras_page' %}active{% endif %}">Optional Extras & Finishing Works</a>
+                <a href="{{ url_for('image_upload_page') }}" class="nav-link {% if request.endpoint == 'image_upload' %}active{% endif %}">Upload Images</a>
                 <a href="{{ url_for('review') }}" class="nav-link {% if request.endpoint == 'review' %}active{% endif %}">Review</a>
+                <a href="{{ url_for('trigger_production_page') }}" class="nav-link {% if request.endpoint == 'trigger_production_page' %}active{% endif %}">Production</a>
+                {% if session.get('role') == 'admin' %}
+                <a href="{{ url_for('form_builder_demo') }}" class="nav-link {% if request.endpoint == 'form_builder_demo' %}active{% endif %}">Form Builder</a>
+                <a href="{{ url_for('builder_beta_home') }}" class="nav-link {% if request.endpoint in ['builder_beta_home', 'builder_beta_page_editor'] %}active{% endif %}">Block Builder (Beta)</a>
+                <a href="{{ url_for('list_users') }}" class="nav-link {% if request.endpoint == 'list_users' %}active{% endif %}">User Management</a>
+                {% endif %}
             </nav>
-            
+            <div class="nav-user" style="padding: 1rem; border-top: 1px solid rgba(255,255,255,.15); font-size: .85rem; color: rgba(255,255,255,.7);">
+                <div style="margin-bottom: .25rem;"><strong>{{ session['username'] }}</strong></div>
+                <div style="font-size: .75rem; margin-bottom: .5rem;">
+                    <span class="role-badge" style="
+                        {% if session.get('role') == 'admin' %}
+                        background: #e3f2fd; color: #1565c0;
+                        {% else %}
+                        background: #e8f5e9; color: #2e7d32;
+                        {% endif %}
+                        padding: .15rem .5rem; border-radius: 12px; font-size: .7rem; font-weight: 600;
+                    }}">{{ session.get('role','user')|upper }}</span>
+                </div>
+                <form method="POST" action="{{ url_for('logout') }}" style="margin-top:.4rem;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" style="background:none;border:1px solid rgba(255,255,255,.4);color:rgba(255,255,255,.8);padding:.25rem .6rem;border-radius:3px;cursor:pointer;font-size:.8rem;">Log out</button>
+                </form>
+            </div>
+            {% else %}
+            <!-- Guest Navigation (Login Required) -->
+            <div class="nav-guest" style="padding: 1rem; text-align: center;">
+                <p style="margin: 0 0 .75rem 0; font-size: .85rem; color: rgba(255,255,255,.7);">Please log in to access the form</p>
+                <a href="{{ url_for('login') }}" class="nav-link" style="
+                    display: inline-block;
+                    background: #1b3a6b;
+                    color: #fff;
+                    padding: .5rem 1rem;
+                    border-radius: 4px;
+                    text-decoration: none;
+                    font-size: .9rem;
+                    margin-top: .5rem;
+                ">Log In</a>
+            </div>
+            {% endif %}
         </div>
-
 
         <!-- Main content block -->
         <div class="main-content">
@@ -68,16 +87,9 @@
         </div>
     </div>
 
-    <script>
-        // Sidebar Toggle Button Functionality
-        document.getElementById('sidebarToggle').addEventListener('click', function() {
-            const sidebar = document.getElementById('sidebar');
-            const mainContent = document.querySelector('.main-content');
-            sidebar.classList.toggle('collapsed');
-            mainContent.classList.toggle('expanded');
-        });
-    </script>
 
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    
 </body>
 
 </html>

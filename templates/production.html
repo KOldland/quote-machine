@@ -18,7 +18,7 @@
             fetch('{{ url_for('trigger_production') }}')
             .then(response => response.text())
             .then(html => {
-                document.querySelector('.production-container').innerHTML = html;
+                document.querySelector('.form-container').innerHTML = html;
             })
             .catch(error => {
                 console.error('Error:', error);
