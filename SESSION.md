@@ -8,7 +8,7 @@
 * **GitHub Repository**: Linked to `https://github.com/KOldland/quote-machine` as primary `origin` remote.
 
 ## Current Goal
-* Complete the inline drag-and-drop form builder by implementing the sidebar swap when entering edit mode. Admin users clicking "Edit Page" see the main sidebar switch from page navigation to the question builder palette — the full plan is documented in `app/current_development.md`.
+* Validate the inline drag-and-drop form builder via manual testing. The build phase (Steps 1-7) is complete. The focus now is executing the 10-item testing checklist, triaging and fixing any discovered bugs, and logging results. The full test protocol is documented in `app/.continue/prompts/current_development.md`.
 
 ## Active Files for Context
 All paths are relative to the VS Code workspace root (`QM_web_app/`):
@@ -85,6 +85,21 @@ All paths are relative to the VS Code workspace root (`QM_web_app/`):
         - **7d — Edit Mode Indicator Bar**: `.edit-mode-bar` with warm amber gradient, color-coded action buttons (`.btn-success`, `.btn-warning`, `.btn-info`, `.btn-secondary`)
         - **7e — Sidebar Controls Polish**: `.sidebar-edit-controls`, improved `.sidebar-section-title` with uppercase letter-spacing, `.btn-add-block` primary blue
         - **7f — Type Picker Modal**: `.type-picker-overlay`, `.type-picker-modal`, `.type-picker-grid`, `.type-picker-btn`, `.type-picker-close` — polished modal with icon/label/description buttons
+## Next Steps (Testing Phase)
+  14. **Start Manual Testing** — Execute the 10-item testing checklist from `app/.continue/prompts/current_development.md`
+      - Log in as admin, navigate to any form page with `?edit=1`
+      - Verify sidebar swap, canvas rendering, properties panel, drag/drop, add question, save, exit edit mode, page navigation
+      - Repeat across at least 3 different form routes
+      - Report results (CLEAR or BUG) per the test protocol
+  15. **Bug Fix Cycles** — For each P0/P1 bug discovered:
+      - Agent establishes fix plan within 5-request budget
+      - Agent implements fix via localized `replace_in_file` blocks
+      - Human retests and reports result
+      - Repeat until resolved or budget exhausted
+  16. **Phase Completion** — When all checklist items pass with zero P0/P1 bugs:
+      - Update SESSION.md with session results
+      - Update current_development.md Session Log
+      - git add + git commit
 ## Session History (04/06/26)
 * **Step 6 Complete (04/06/26)**: Pass builder state to all routes in edit mode. Discovered that `additional_building_work_page` and `optional_extras_page` had no `edit_mode` branches at all — they rendered the normal form template without `builder_state`, `current_page`, `selected_block_id`, `selected_block`, or `pricing_modes`. This caused 500 errors when navigating to those pages with `?edit=1`. Both routes fixed with consistent edit_mode branches matching the established pattern.
 
