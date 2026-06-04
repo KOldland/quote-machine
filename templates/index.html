@@ -145,7 +145,16 @@
 
 
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
-    
+    {% if edit_mode %}
+    <script>
+        // Inject builder state as JS globals
+        window.blocks = {{ current_page.blocks | tojson | safe if current_page else '[]' }};
+        window.pageId = {{ current_page_id | tojson | safe if current_page_id else "''" }};
+        window.selectedBlockId = {{ selected_block_id | tojson | safe if selected_block_id else 'null' }};
+        window.builderStateQuestionTypes = {{ builder_state.question_types | tojson | safe if builder_state else '{}' }};
+    </script>
+    <script src="{{ url_for('static', filename='js/builder.js') }}" defer></script>
+    {% endif %}
 </body>
 
 </html>

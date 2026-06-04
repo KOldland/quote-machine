@@ -1635,13 +1635,7 @@
 </script>
 {% if edit_mode %}
 <script>
-    // Inject builder state as JS globals
-    window.blocks = {{ current_page.blocks | tojson | safe }};
-    window.pageId = {{ current_page_id | tojson | safe }};
-    window.selectedBlockId = {{ selected_block_id | tojson | safe }};
-    window.builderStateQuestionTypes = {{ builder_state.question_types | tojson | safe }};
 </script>
-<script src="{{ url_for('static', filename='js/builder.js') }}" defer></script>
 <script>
 (function () {
     'use strict';

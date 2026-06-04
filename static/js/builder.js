@@ -352,14 +352,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderBlockPreview(block) {
+        console.log('Rendering preview for block:', block.id, 'type:', block.block_type);
         switch (block.block_type) {
             case 'checkbox_group':
+                const choices = block.standard.dropdown_choices || [];
                 return `
                     <div class="checkbox-options">
-                        ${block.standard.dropdown_choices.map((choice, i) => `
-                            <div class="checkbox-option">
-                                <input type="checkbox" id="${block.id}_opt_${i}" checked>
-                                <label for="${block.id}_opt_${i}">${choice}</label>
+                        ${choices.map((choice, i) => `
+                            <div class="checkbox-option" style="margin-bottom: 5px;">
+                                <input type="checkbox" id="${block.id}_opt_${i}" checked disabled>
+                                <label for="${block.id}_opt_${i}" style="margin-left: 5px;">${choice}</label>
                             </div>
                         `).join('')}
                     </div>

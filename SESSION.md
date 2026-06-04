@@ -30,7 +30,7 @@
 18. **Bug Fix Cycles**: Address any P0/P1 bugs found during testing.
 
 ## Session History (04/06/26)
-* **Step 11 Complete**: Resumed manual testing. Verified that the Edit Mode canvas correctly reflects the unified schema across all routes. "Schema Gap" is officially closed.
+* **Step 11 Complete**: Resumed manual testing. Identified and fixed P0/P1 UI interactivity bugs. Moved builder JS/State to global layout (`index.html`). Fixed checkbox rendering structure in canvas. UI is now fully interactive.
 * **Step 9 & 10 Complete**: Resolved "Schema Gap". Full field migration from Python/Jinja to JSON schema completed. Backend updated to use the unified state. Verified bootstrap consistency.
 * **Step 8 Complete**: Fixed P0 missing JS globals in `form.html`.
 
