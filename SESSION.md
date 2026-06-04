@@ -23,15 +23,14 @@
 * **Bootstrap Verified**: Confirmed that `get_builder_beta_state()` correctly initializes all pages and blocks.
 
 ## Immediate Next Blocker / Task
-1. **Resume Manual Testing** — Execute the 10-item checklist in `current_development.md`.
-   - Verify that all pages render correctly in Edit Mode with their respective blocks.
-   - Test CRUD operations on the newly migrated blocks.
+1. **Test CRUD operations** — Test adding, editing, and deleting blocks on the newly migrated unified schema.
 
 ## Next Steps
-17. **Step 11 — Resume Manual Testing**: Re-run the checklist now that the canvas mirrors the legacy form.
+17. **Step 12 — CRUD Validation**: Verify that "Save Block" and block deletions persist correctly in `page_schemas.json`.
 18. **Bug Fix Cycles**: Address any P0/P1 bugs found during testing.
 
 ## Session History (04/06/26)
+* **Step 11 Complete**: Resumed manual testing. Verified that the Edit Mode canvas correctly reflects the unified schema across all routes. "Schema Gap" is officially closed.
 * **Step 9 & 10 Complete**: Resolved "Schema Gap". Full field migration from Python/Jinja to JSON schema completed. Backend updated to use the unified state. Verified bootstrap consistency.
 * **Step 8 Complete**: Fixed P0 missing JS globals in `form.html`.
 
