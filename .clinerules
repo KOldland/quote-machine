@@ -1,7 +1,7 @@
 # Cline Workspace & Memory Rules
 
 ## 1. Context Synchronization
-- Before attempting ANY assigned task or command, you must read 'SESSION.md' and '.continue/prompts/context.md' to align with the core architecture, active files, and current milestone boundaries.
+- Before attempting ANY assigned task or command, you must read 'SESSION.md' and the files 'context.md' , 'current_development.md' , and 'system_architecture.md' in the folder '.continue/prompts/' to align with the core architecture, active files, and current milestone boundaries.
 - Restrict your focus entirely to the files listed under 'Active Files for Context' and the problem described in 'Immediate Next Blocker'. Do not wander outside this scope.
 
 ## 2. Strict 5-Request Budget Constraint
@@ -17,6 +17,7 @@
 ## 4. Automated Task Finish Routine
 - Once you have successfully completed a task and verified the code behaves correctly, you must run this workspace save routine:
   1. Update 'SESSION.md' by logging what you completed in 'What Works', setting the new 'Immediate Next Blocker', and updating the 'Active Files for Context' list for the next phase.
+    b. update 'current_development.md' do not overwrite anything in this file but if an action is completed you mark it as done.
   2. Use your terminal tool to run: git add .
   3. Automatically execute a standard commit using conventional prefixes based on the work done (e.g., git commit -m "feat: [summary]" or git commit -m "fix: [summary]").
   4. Explicitly print out a message notifying the user that the workspace is safely committed, and instruct them to run 'git push' and press 'Cmd+K' to clear the chat session history.

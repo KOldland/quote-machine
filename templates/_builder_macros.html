@@ -25,7 +25,7 @@
                     <input type="hidden" name="block_id" value="{{ selected_block.id }}">
                     
                     <div class="prop-section" id="prop-fields">
-                        <div class="prop-section-header" onclick="toggleSection(\'prop-fields\')">
+                        <div class="prop-section-header" onclick="toggleSection("prop-fields")">
                             <span>📝 Question Fields</span>
                             <span class="prop-section-toggle">▾</span>
                         </div>
@@ -47,21 +47,21 @@
                                 <label>Required</label>
                             </div>
                             
-                            {% if selected_block.block_type == \'text_input\' or selected_block.block_type == \'number_currency_input\' %}
+                            {% if selected_block.block_type == "text_input" or selected_block.block_type == "number_currency_input" %}
                             <div class="form-group">
                                 <label>Placeholder</label>
                                 <input type="text" name="standard_placeholder" value="{{ selected_block.standard.placeholder }}">
                             </div>
-                            {% elif selected_block.block_type == \'dropdown_select\' or selected_block.block_type == \'checkbox_group\' %}
+                            {% elif selected_block.block_type == "dropdown_select" or selected_block.block_type == "checkbox_group" %}
                             <div class="form-group">
                                 <label>Choices (one per line)</label>
-                                <textarea name="standard_dropdown_choices" rows="4">{{ selected_block.standard.dropdown_choices|join("\n") }}</textarea>
+                                <textarea name="standard_dropdown_choices" rows="4">{{ selected_block.standard.dropdown_choices|join('\n') }}</textarea>
                             </div>
                             <div class="form-group">
                                 <label>Source Prefix</label>
                                 <input type="text" name="standard_source_prefix" value="{{ selected_block.standard.source_prefix }}">
                             </div>
-                            {% elif selected_block.block_type == \'static_text_heading\' %}
+                            {% elif selected_block.block_type == "static_text_heading" %}
                             <div class="form-group">
                                 <label>Content</label>
                                 <textarea name="standard_static_content" rows="3">{{ selected_block.standard.static_content }}</textarea>
@@ -69,10 +69,10 @@
                             <div class="form-group">
                                 <label>Variant</label>
                                 <select name="standard_static_variant">
-                                    <option value="body" {% if selected_block.standard.static_variant == \'body\' %}selected{% endif %}>Body</option>
-                                    <option value="heading" {% if selected_block.standard.static_variant == \'heading\' %}selected{% endif %}>Heading</option>
-                                    <option value="subheading" {% if selected_block.standard.static_variant == \'subheading\' %}selected{% endif %}>Subheading</option>
-                                    <option value="note" {% if selected_block.standard.static_variant == \'note\' %}selected{% endif %}>Note</option>
+                                    <option value="body" {% if selected_block.standard.static_variant == "body" %}selected{% endif %}>Body</option>
+                                    <option value="heading" {% if selected_block.standard.static_variant == "heading" %}selected{% endif %}>Heading</option>
+                                    <option value="subheading" {% if selected_block.standard.static_variant == "subheading" %}selected{% endif %}>Subheading</option>
+                                    <option value="note" {% if selected_block.standard.static_variant == "note" %}selected{% endif %}>Note</option>
                                 </select>
                             </div>
                             {% endif %}
@@ -80,7 +80,7 @@
                     </div>
                     
                     <div class="prop-section" id="prop-logic">
-                        <div class="prop-section-header" onclick="toggleSection(\'prop-logic\')">
+                        <div class="prop-section-header" onclick="toggleSection("prop-logic")">
                             <span>⚡ Logic</span>
                             <span class="prop-section-toggle">▾</span>
                         </div>
@@ -88,11 +88,11 @@
                             <div class="form-group">
                                 <label>Visibility</label>
                                 <select name="logic_visibility">
-                                    <option value="always" {% if selected_block.logic_options.visibility == \'always\' %}selected{% endif %}>Always show</option>
-                                    <option value="conditional" {% if selected_block.logic_options.visibility == \'conditional\' %}selected{% endif %}>Show conditionally</option>
+                                    <option value="always" {% if selected_block.logic_options.visibility == "always" %}selected{% endif %}>Always show</option>
+                                    <option value="conditional" {% if selected_block.logic_options.visibility == "conditional" %}selected{% endif %}>Show conditionally</option>
                                 </select>
                             </div>
-                            <div id="logic-conditions" style="display: {% if selected_block.logic_options.visibility == \'conditional\' %}block{% else %}none{% endif %};">
+                            <div id="logic-conditions" style="display: {% if selected_block.logic_options.visibility == "conditional" %}block{% else %}none{% endif %};">
                                 <div class="logic-condition">
                                     <select name="logic_depends_on_field">
                                         <option value="">Select field...</option>
@@ -111,7 +111,7 @@
                     </div>
                     
                     <div class="prop-section" id="prop-pricing">
-                        <div class="prop-section-header" onclick="toggleSection(\'prop-pricing\')">
+                        <div class="prop-section-header" onclick="toggleSection("prop-pricing")">
                             <span>💰 Pricing</span>
                             <span class="prop-section-toggle">▾</span>
                         </div>
@@ -132,12 +132,12 @@
                                 </select>
                             </div>
                             <div id="pricing-fields" class="pricing-fields {% if selected_block.pricing_options.enabled %}active{% endif %}">
-                                {% if selected_block.pricing_options.mode == \'fixed\' %}
+                                {% if selected_block.pricing_options.mode == "fixed" %}
                                 <div class="form-group">
                                     <label>Fixed Amount (£)</label>
                                     <input type="number" step="0.01" min="0" name="pricing_fixed_amount" value="{{ selected_block.pricing_options.fixed_amount }}">
                                 </div>
-                                {% elif selected_block.pricing_options.mode == \'entered\' %}
+                                {% elif selected_block.pricing_options.mode == "entered" %}
                                 <div class="form-group">
                                     <label>Reference Field</label>
                                     <select name="pricing_entered_key">
@@ -147,7 +147,7 @@
                                         {% endfor %}
                                     </select>
                                 </div>
-                                {% elif selected_block.pricing_options.mode == \'quantity_rate\' %}
+                                {% elif selected_block.pricing_options.mode == "quantity_rate" %}
                                 <div class="form-group">
                                     <label>Quantity Field</label>
                                     <select name="pricing_quantity_key">
@@ -161,7 +161,7 @@
                                     <label>Rate (£ per unit)</label>
                                     <input type="number" step="0.01" min="0" name="pricing_rate" value="{{ selected_block.pricing_options.rate }}">
                                 </div>
-                                {% elif selected_block.pricing_options.mode == \'percent_subtotal\' %}
+                                {% elif selected_block.pricing_options.mode == "percent_subtotal" %}
                                 <div class="form-group">
                                     <label>Percentage (%)</label>
                                     <input type="number" step="0.01" min="0" max="100" name="pricing_percent_of_subtotal" value="{{ selected_block.pricing_options.percent_of_subtotal }}">
@@ -172,7 +172,7 @@
                     </div>
                     
                     <div class="prop-section" id="prop-output">
-                        <div class="prop-section-header" onclick="toggleSection(\'prop-output\')">
+                        <div class="prop-section-header" onclick="toggleSection("prop-output")">
                             <span>📊 Output</span>
                             <span class="prop-section-toggle">▾</span>
                         </div>
@@ -192,9 +192,9 @@
                             <div class="form-group">
                                 <label>Value Mode</label>
                                 <select name="output_value_mode">
-                                    <option value="show_value" {% if selected_block.output_options.value_mode == \'show_value\' %}selected{% endif %}>Show Value</option>
-                                    <option value="show_label" {% if selected_block.output_options.value_mode == \'show_label\' %}selected{% endif %}>Show Label Only</option>
-                                    <option value="hide_value" {% if selected_block.output_options.value_mode == \'hide_value\' %}selected{% endif %}>Hide Value</option>
+                                    <option value="show_value" {% if selected_block.output_options.value_mode == "show_value" %}selected{% endif %}>Show Value</option>
+                                    <option value="show_label" {% if selected_block.output_options.value_mode == "show_label" %}selected{% endif %}>Show Label Only</option>
+                                    <option value="hide_value" {% if selected_block.output_options.value_mode == "hide_value" %}selected{% endif %}>Hide Value</option>
                                 </select>
                             </div>
                         </div>
@@ -220,7 +220,7 @@
         <div class="canvas-content" id="canvas-content">
             {% if current_page.blocks %}
                 {% for block in current_page.blocks %}
-                <div class="question-block {{ \'selected\' if block.id == selected_block_id else \'\' }}" 
+                <div class="question-block {{ "selected" if block.id == selected_block_id else "" }}" 
                      data-block-id="{{ block.id }}" 
                      data-type="{{ block.block_type }}"
                      draggable="true">
@@ -234,7 +234,7 @@
                         </div>
                     </div>
                     <div class="question-block-body">
-                        {% if block.block_type == \'checkbox_group\' %}
+                        {% if block.block_type == "checkbox_group" %}
                         <div class="checkbox-options">
                             {% for choice in block.standard.dropdown_choices %}
                             <div class="checkbox-option">
@@ -243,20 +243,20 @@
                             </div>
                             {% endfor %}
                         </div>
-                        {% elif block.block_type == \'text_input\' %}
+                        {% elif block.block_type == "text_input" %}
                         <div style="padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem; color: #666;">
-                            {{ block.standard.placeholder or \'Enter text...\' }}
+                            {{ block.standard.placeholder or "Enter text..." }}
                         </div>
-                        {% elif block.block_type == \'number_currency_input\' %}
+                        {% elif block.block_type == "number_currency_input" %}
                         <div style="padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem; color: #666;">
-                            £{{ block.standard.placeholder or \'0.00\' }}
+                            £{{ block.standard.placeholder or "0.00" }}
                         </div>
-                        {% elif block.block_type == \'dropdown_select\' %}
+                        {% elif block.block_type == "dropdown_select" %}
                         <select style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem;">
                             {% for choice in block.standard.dropdown_choices %}<option>{{ choice }}</option>{% endfor %}
                         </select>
-                        {% elif block.block_type == \'static_text_heading\' %}
-                            {% set variant_tag = \'h3\' if block.standard.static_variant == \'heading\' else \'h4\' if block.standard.static_variant == \'subheading\' else \'p\' %}
+                        {% elif block.block_type == "static_text_heading" %}
+                            {% set variant_tag = "h3" if block.standard.static_variant == "heading" else "h4" if block.standard.static_variant == "subheading" else "p" %}
                             <{{ variant_tag }} style="margin: 0; color: #333;">{{ block.standard.static_content or block.standard.label }}</{{ variant_tag }}>
                         {% endif %}
                     </div>
