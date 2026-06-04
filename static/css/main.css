@@ -44,7 +44,69 @@
 }
 
 
+/* Builder Edit Mode — Page Selector and Nav Controls */
+.builder-edit-mode .sidebar-section-title {
+    color: #fff;
+    font-size: .9rem;
+    font-weight: 600;
+    padding: .5rem 0;
+    border-bottom: 1px solid rgba(255,255,255,.1);
+    margin-bottom: .5rem;
+}
+
+.builder-edit-mode .page-selector-list {
+    display: flex;
+    flex-direction: column;
+    gap: .2rem;
+}
+
+.builder-edit-mode .page-selector-item {
+    display: block;
+    color: rgba(255,255,255,.75);
+    text-decoration: none;
+    font-size: .82rem;
+    padding: .3rem .5rem;
+    border-radius: 3px;
+    transition: background .15s, color .15s;
+}
+
+.builder-edit-mode .page-selector-item:hover {
+    background: rgba(255,255,255,.1);
+    color: #fff;
+}
+
+.builder-edit-mode .page-selector-item.active {
+    background: #1b3a6b;
+    color: #fff;
+    font-weight: 600;
+}
+
+.builder-edit-mode .btn-nav-prev,
+.builder-edit-mode .btn-nav-next {
+    display: inline-block;
+    text-align: center;
+    padding: .35rem .6rem;
+    border-radius: 3px;
+    font-size: .78rem;
+    background: rgba(255,255,255,.12);
+    color: rgba(255,255,255,.85);
+    text-decoration: none;
+    border: 1px solid rgba(255,255,255,.2);
+    transition: background .15s;
+}
+
+.builder-edit-mode .btn-nav-prev:hover,
+.builder-edit-mode .btn-nav-next:hover {
+    background: rgba(255,255,255,.25);
+    color: #fff;
+}
+
+.builder-edit-mode .btn-nav-prev {
+    margin-right: auto;
+}
+
 /* Toggle sidebar */
+
 
 .sidebar.collapsed {
     width: 0; /* Hide the sidebar when collapsed */

@@ -50,8 +50,17 @@ All paths are relative to the VS Code workspace root (`QM_web_app/`):
  8. ~~**Step 2 — Remove Duplicate Builder Sidebar from `form.html`**~~ ✅ **DONE (04/06/26)**
     - Removed `<div class="builder-sidebar">` block from `.builder-container` in `app/templates/form.html`
     - The `.builder-container` now only contains `.builder-canvas` and `.builder-properties`
- 9. **Next: Step 3 — Inject Builder Controls Into Main Sidebar**
-    - In `app/templates/index.html`, within the `{% if edit_mode %}` sidebar block, render page selector/list to switch between pages, question type palette, quick-action buttons, and page navigation controls (prev/next within editor)
+  9. ~~**Step 3 — Inject Builder Controls Into Main Sidebar**~~ ✅ **DONE (04/06/26)**
+     - Converted `<span>` page selector items to clickable `<a href="...?edit=1">` links
+     - Replaced dynamic `builder_state.pages` with deterministic ordered page list + title map
+     - Added prev/next navigation buttons that link to adjacent pages preserving `?edit=1`
+     - Collapsed page-index lookup into the single rendering loop for efficiency
+     - Added `.builder-edit-mode` CSS for page-selector-item (hover, active, section-title styles) and nav prev/next buttons
+ 10. **Next: Step 4 — CSS Restructuring for Sidebar Swap**
+     - `.builder-edit-mode .sidebar` — wider, different padding, palette-optimized layout
+     - `.builder-container` without an internal sidebar — adjust `.builder-canvas` and `.builder-properties` to fill the space
+     - Clean visual separation for the three-panel layout
+     - Ensure `.main-content` margin/width adjusts correctly in edit mode
 
 ## Known Issues
 * `QMapp.py` is very large (~4500 lines). Use **small, precise `replace_in_file` search blocks** (2-3 lines) to avoid mismatches.
