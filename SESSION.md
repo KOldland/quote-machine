@@ -15,6 +15,7 @@
 * @app/templates/form.html
 * @app/static/js/builder.js
 * @app/.continue/prompts/current_development.md
+* @app/SESSION.md
 
 ## What Works (Completed This Session)
 * **Schema Unification**: Audited all 9 form routes and migrated all legacy/hardcoded fields into `page_schemas.json` under `builder_beta`.
@@ -26,13 +27,16 @@
 1. **Test CRUD operations** — Test adding, editing, and deleting blocks on the newly migrated unified schema.
 
 ## Next Steps
-17. **Step 12 — CRUD Validation**: Verify that "Save Block" and block deletions persist correctly in `page_schemas.json`.
-18. **Bug Fix Cycles**: Address any P0/P1 bugs found during testing.
+1. **CRUD Validation**: Verify that "Save Block" and block deletions persist correctly in `page_schemas.json`.
+2. **Bug Fix Cycles**: Address any P0/P1 bugs found during testing.
 
 ## Session History (04/06/26)
 * **Step 11 Complete**: Resumed manual testing. Identified and fixed P0/P1 UI interactivity bugs. Moved builder JS/State to global layout (`index.html`). Fixed checkbox rendering structure in canvas. UI is now fully interactive.
 * **Step 9 & 10 Complete**: Resolved "Schema Gap". Full field migration from Python/Jinja to JSON schema completed. Backend updated to use the unified state. Verified bootstrap consistency.
 * **Step 8 Complete**: Fixed P0 missing JS globals in `form.html`.
+
+## This Session (04/06/26)
+* Resumed project, reviewed context files, and started the Flask server. The application is ready for manual testing of CRUD functionality.
 
 ## Known Issues
 * `QMapp.py` is very large; use small `replace_in_file` blocks.
