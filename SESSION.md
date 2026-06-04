@@ -7,37 +7,19 @@
 * **GitHub Repository**: `https://github.com/KOldland/quote-machine`
 
 ## Current Goal
-* Resume manual testing phase. The "Schema Gap" blocker has been resolved, and the form builder is now fully wired to the unified schema.
+* Resolve the `updatePricingFields is not defined` JavaScript error in `app/static/js/builder.js`.
 
 ## Active Files for Context
-* @app/QMapp.py
-* @app/page_schemas.json
-* @app/templates/form.html
 * @app/static/js/builder.js
-* @app/.continue/prompts/current_development.md
 * @app/SESSION.md
+* @app/.continue/prompts/current_development.md
 
-## What Works (Completed This Session)
-* **Schema Unification**: Audited all 9 form routes and migrated all legacy/hardcoded fields into `page_schemas.json` under `builder_beta`.
-* **Backend Wiring**: Updated `build_page_schema_context` in `QMapp.py` to prefer `builder_beta` state, ensuring the inline builder canvas matches the live form exactly.
-* **Data Integration**: Refined runtime context helpers to bridge complex session `checkbox_data` with the new schema-driven fields.
-* **Bootstrap Verified**: Confirmed that `get_builder_beta_state()` correctly initializes all pages and blocks.
+## What Was Completed This Session
+* Identified the root cause of the `updatePricingFields is not defined` error (a hoisting issue).
+* Implemented a fix by moving the `updatePricingFields` function definition before it is called.
 
 ## Immediate Next Blocker / Task
-1. **Test CRUD operations** — Test adding, editing, and deleting blocks on the newly migrated unified schema.
+1. **Verify the fix**: Manually test the form builder to confirm that the JavaScript error is resolved.
 
 ## Next Steps
-1. **CRUD Validation**: Verify that "Save Block" and block deletions persist correctly in `page_schemas.json`.
-2. **Bug Fix Cycles**: Address any P0/P1 bugs found during testing.
-
-## Session History (04/06/26)
-* **Step 11 Complete**: Resumed manual testing. Identified and fixed P0/P1 UI interactivity bugs. Moved builder JS/State to global layout (`index.html`). Fixed checkbox rendering structure in canvas. UI is now fully interactive.
-* **Step 9 & 10 Complete**: Resolved "Schema Gap". Full field migration from Python/Jinja to JSON schema completed. Backend updated to use the unified state. Verified bootstrap consistency.
-* **Step 8 Complete**: Fixed P0 missing JS globals in `form.html`.
-
-## This Session (04/06/26)
-* Resumed project, reviewed context files, and started the Flask server. The application is ready for manual testing of CRUD functionality.
-
-## Known Issues
-* `QMapp.py` is very large; use small `replace_in_file` blocks.
-* Port 5000 is hijacked; use 5002+.
+1. **Continue Manual Testing**: Resume manual testing of the form builder's CRUD functionality.
