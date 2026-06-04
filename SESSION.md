@@ -56,11 +56,19 @@ All paths are relative to the VS Code workspace root (`QM_web_app/`):
      - Added prev/next navigation buttons that link to adjacent pages preserving `?edit=1`
      - Collapsed page-index lookup into the single rendering loop for efficiency
      - Added `.builder-edit-mode` CSS for page-selector-item (hover, active, section-title styles) and nav prev/next buttons
- 10. **Next: Step 4 — CSS Restructuring for Sidebar Swap**
-     - `.builder-edit-mode .sidebar` — wider, different padding, palette-optimized layout
-     - `.builder-container` without an internal sidebar — adjust `.builder-canvas` and `.builder-properties` to fill the space
-     - Clean visual separation for the three-panel layout
-     - Ensure `.main-content` margin/width adjusts correctly in edit mode
+ 10. ~~**Step 4 — CSS Restructuring for Sidebar Swap**~~ ✅ **DONE (04/06/26)**
+     - `.sidebar.builder-edit-mode` — wider (22%), reduced padding, min-width: 220px
+     - `.builder-edit-mode ~ .main-content` — margin shifts to 24% / width 76%
+     - `.builder-container` — horizontal flex, gap, aligns flex-start
+     - `.builder-container .builder-canvas` — flex: 1, white background, border, rounded
+     - `.builder-container .builder-properties` — 320px fixed width, scrollable, card styling
+     - `.form-container.builder-edit-mode` — full-width, reduced padding, border/background
+     - `.canvas-empty` and `.canvas-empty-icon` — dashed border empty states
+     - `.canvas-page-selector` — flex space-between for canvas header bar
+ 11. **Next: Step 5 — Fix "Add Question" Button in `builder.js`**
+     - Ensure the button element exists in DOM after sidebar reorganization
+     - Ensure the event listener is attached to the correct element ID
+     - If no listener is found, add one calling `addBlock(getBlockTemplate('checkbox_group'))` or showing a type picker
 
 ## Known Issues
 * `QMapp.py` is very large (~4500 lines). Use **small, precise `replace_in_file` search blocks** (2-3 lines) to avoid mismatches.

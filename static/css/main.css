@@ -105,6 +105,124 @@
     margin-right: auto;
 }
 
+/* ── Step 4: Three-Panel Layout for Builder Edit Mode ── */
+
+/* Wider sidebar in edit mode to accommodate the palette + controls */
+.sidebar.builder-edit-mode {
+    width: 22%;
+    padding: 100px 15px 50px 20px;
+    min-width: 220px;
+}
+
+/* When sidebar is wider, main-content shrinks accordingly */
+.builder-edit-mode ~ .main-content,
+.sidebar.builder-edit-mode + .main-content {
+    margin-left: 24% !important;
+    width: 76% !important;
+}
+
+/* Builder container: horizontal flex with canvas + properties panel */
+.builder-container {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+    width: 100%;
+}
+
+/* Center canvas — takes remaining space */
+.builder-container .builder-canvas {
+    flex: 1;
+    min-width: 0; /* Prevent flex overflow */
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 1rem 1.5rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+}
+
+/* Canvas page title area */
+.builder-container .builder-canvas h1 {
+    font-size: 1.4rem;
+    text-align: left;
+    margin: 0 0 1rem 0;
+    padding-bottom: .6rem;
+    border-bottom: 2px solid #1b3a6b;
+    color: #1b3a6b;
+}
+
+/* Right properties panel — fixed width, scrollable */
+.builder-container .builder-properties {
+    width: 320px;
+    flex-shrink: 0;
+    background: #f8f9fa;
+    border: 1px solid #d0d0d0;
+    border-radius: 6px;
+    padding: 1rem;
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+}
+
+/* Properties panel header */
+.builder-container .builder-properties .properties-header {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #1b3a6b;
+    margin-bottom: .8rem;
+    padding-bottom: .4rem;
+    border-bottom: 1px solid #d0d0d0;
+}
+
+/* Properties empty state */
+.builder-container .builder-properties .properties-empty {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: #888;
+}
+
+.builder-container .builder-properties .properties-empty-icon {
+    font-size: 2rem;
+    margin-bottom: .5rem;
+}
+
+/* Canvas page selector bar inside canvas */
+.builder-container .canvas-page-selector {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: .8rem;
+}
+
+.builder-container .canvas-page-selector h2 {
+    font-size: 1.15rem;
+    margin: 0;
+    color: #333;
+}
+
+/* Edit mode indicator for the form container */
+.form-container.builder-edit-mode {
+    max-width: 100%;
+    width: 100%;
+    padding: 1rem 1.5rem;
+    box-shadow: none;
+    border: 1px solid #e0e0e0;
+    background: #fafafa;
+}
+
+/* Canvas empty state */
+.canvas-empty {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #999;
+    border: 2px dashed #ccc;
+    border-radius: 6px;
+}
+
+.canvas-empty-icon {
+    font-size: 2.5rem;
+    margin-bottom: .5rem;
+}
+
 /* Toggle sidebar */
 
 
