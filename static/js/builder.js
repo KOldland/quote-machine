@@ -28,8 +28,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Init Callbacks
     setupDragAndDrop();
     setupEventListeners();
+    renderCanvas();
     if (selectedBlockId) {
         selectBlock(selectedBlockId);
+    } else {
+        renderProperties();
     }
     updateUndoRedoButtons();
 
@@ -153,6 +156,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     saveHistory();
                     renderCanvas();
                     showSaveStatus();
+                    
+                    const blockOrderStr = blocks.map(b => b.id).join(',');
+                    postAction("reorder_blocks", { block_order: blockOrderStr });
                 }
             } else if (draggedBlock && !targetBlockEl && blocks.length === 0) {
                 // Dropping an existing block onto an empty canvas
@@ -225,6 +231,31 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Block Operations
+    // Helper to post actions to backend
+    async function postAction(action, data = {}) {
+        const formData = new FormData();
+        formData.append("action", action);
+        // Include CSRF token if available on page
+        const csrfInput = document.querySelector('input[name="csrf_token"]');
+        if (csrfInput) {
+            formData.append("csrf_token", csrfInput.value);
+        }
+        for (const key in data) {
+            formData.append(key, data[key]);
+        }
+
+        try {
+            await fetch(`/builder_beta/page/${pageId}`, {
+                method: "POST",
+                body: formData,
+                redirect: "manual"
+            });
+            // We do a soft update by default, unless page reload is explicitly requested
+        } catch (error) {
+            console.error(`Error performing ${action}:`, error);
+        }
+    }
+
     function addBlock(template) {
         blocks.push(template);
         updateBlockOrder();
@@ -232,6 +263,11 @@ document.addEventListener('DOMContentLoaded', () => {
         renderCanvas();
         selectBlock(template.id);
         showSaveStatus();
+        
+        postAction("add_block", { block_type: template.block_type }).then(() => {
+            // Need to reload to get the new block ID assigned by the backend
+            setTimeout(() => location.reload(), 300);
+        });
     }
 
     function deleteBlock(blockId) {
@@ -249,6 +285,8 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
             selectedBlockId = null;
             showSaveStatus();
+            
+            postAction("delete_block", { block_id: blockId });
         }
     }
 
@@ -393,6 +431,67 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Pricing fields dynamic display based on mode
+    window.updatePricingFields = function(mode) {
+        const pricingFieldsDiv = document.getElementById("pricing-fields");
+        if (!pricingFieldsDiv) return;
+
+        let fieldsHtml = "";
+        const block = blocks.find(b => b.id === selectedBlockId);
+        const po = block ? block.pricing_options : {};
+
+        switch (mode) {
+            case "fixed":
+                fieldsHtml = `
+                    <div class="form-group">
+                        <label>Fixed Amount (£)</label>
+                        <input type="number" step="0.01" min="0" name="pricing_fixed_amount" value="${po.fixed_amount || 0}">
+                    </div>
+                `;
+                break;
+            case "entered":
+                fieldsHtml = `
+                    <div class="form-group">
+                        <label>Reference Field</label>
+                        <select name="pricing_entered_key">
+                            <option value="">Select field...</option>
+                            ${blocks.map(b => `<option value="${b.id}" ${b.id === po.entered_key ? "selected" : ""}>${b.standard.label}</option>`).join("")}
+                        </select>
+                    </div>
+                `;
+                break;
+            case "quantity_rate":
+                fieldsHtml = `
+                    <div class="form-group">
+                        <label>Quantity Field</label>
+                        <select name="pricing_quantity_key">
+                            <option value="">Select field...</option>
+                            ${blocks.map(b => `<option value="${b.id}" ${b.id === po.quantity_key ? "selected" : ""}>${b.standard.label}</option>`).join("")}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Rate (£ per unit)</label>
+                        <input type="number" step="0.01" min="0" name="pricing_rate" value="${po.rate || 0}">
+                    </div>
+                `;
+                break;
+            case "percent_subtotal":
+                fieldsHtml = `
+                    <div class="form-group">
+                        <label>Percentage (%)</label>
+                        <input type="number" step="0.01" min="0" max="100" name="pricing_percent_of_subtotal" value="${po.percent_of_subtotal || 0}">
+                    </div>
+                `;
+                break;
+            default:
+                fieldsHtml = "";
+                break;
+        }
+        pricingFieldsDiv.innerHTML = fieldsHtml;
+        // Re-populate dynamic selects after innerHTML update
+        updateDynamicSelectOptions();
+    };
+
     function renderProperties() {
         if (!propertiesContent) return; // Ensure propertiesContent exists
 
@@ -477,7 +576,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Helper to populate select elements
         function populateSelect(selectElement, selectedValue, filterCurrentBlock = false) {
             if (!selectElement) return;
-            selectElement.innerHTML = 	erase if already selected, otherwise retain selection if option exists. )
+            // erase if already selected, otherwise retain selection if option exists.
             for (let i = selectElement.options.length - 1; i >= 0; i--) {
                 if (selectElement.options[i].value !== "") {
                     selectElement.remove(i);
@@ -529,15 +628,24 @@ document.addEventListener('DOMContentLoaded', () => {
         if (blockPropertiesForm) {
             blockPropertiesForm.addEventListener("submit", async (e) => {
                 e.preventDefault();
-                // The form is submitted directly, which reloads the page. This is fine for now.
-                // We can add AJAX saving here if a non-page-reloading save is desired later.
-                // For now, the Flask route handles the actual save and reload.
-                showSaveStatus();
-                // Optionally, re-render properties after save to reflect any backend processing/defaults
-                // renderProperties(); 
-                // Instead of reloading, we can make an AJAX call and update UI.
-                // For now, let's keep the full form submission which causes a reload.
-                location.reload(); // This reloads the page after form submission
+                
+                const formData = new FormData(blockPropertiesForm);
+                const actionUrl = blockPropertiesForm.getAttribute("action");
+                
+                try {
+                    await fetch(actionUrl, {
+                        method: "POST",
+                        body: formData,
+                        redirect: "manual" // Don't follow the redirect
+                    });
+                    
+                    showSaveStatus();
+                    // Reload the current inline builder page to see changes
+                    setTimeout(() => location.reload(), 300);
+                } catch (error) {
+                    console.error("Error saving block:", error);
+                    alert("Failed to save block.");
+                }
             });
         }
 
@@ -587,7 +695,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         // Logic visibility toggle
-        const logicVisibilitySelect = document.querySelector("select[name="logic_visibility"]");
+        const logicVisibilitySelect = document.querySelector('select[name="logic_visibility"]');
         if (logicVisibilitySelect) {
             logicVisibilitySelect.addEventListener("change", (e) => {
                 const logicConditionsDiv = document.getElementById("logic-conditions");
@@ -598,7 +706,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Pricing enabled toggle
-        const pricingEnabledCheckbox = document.querySelector("input[name="pricing_enabled"]");
+        const pricingEnabledCheckbox = document.querySelector('input[name="pricing_enabled"]');
         if (pricingEnabledCheckbox) {
             pricingEnabledCheckbox.addEventListener("change", (e) => {
                 const pricingFieldsDiv = document.getElementById("pricing-fields");
@@ -613,66 +721,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Pricing fields dynamic display based on mode
-    window.updatePricingFields = function(mode) {
-        const pricingFieldsDiv = document.getElementById("pricing-fields");
-        if (!pricingFieldsDiv) return;
-
-        let fieldsHtml = "";
-        const block = blocks.find(b => b.id === selectedBlockId);
-        const po = block ? block.pricing_options : {};
-
-        switch (mode) {
-            case "fixed":
-                fieldsHtml = `
-                    <div class="form-group">
-                        <label>Fixed Amount (£)</label>
-                        <input type="number" step="0.01" min="0" name="pricing_fixed_amount" value="${po.fixed_amount || 0}">
-                    </div>
-                `;
-                break;
-            case "entered":
-                fieldsHtml = `
-                    <div class="form-group">
-                        <label>Reference Field</label>
-                        <select name="pricing_entered_key">
-                            <option value="">Select field...</option>
-                            ${blocks.map(b => `<option value="${b.id}" ${b.id === po.entered_key ? "selected" : ""}>${b.standard.label}</option>`).join("")}
-                        </select>
-                    </div>
-                `;
-                break;
-            case "quantity_rate":
-                fieldsHtml = `
-                    <div class="form-group">
-                        <label>Quantity Field</label>
-                        <select name="pricing_quantity_key">
-                            <option value="">Select field...</option>
-                            ${blocks.map(b => `<option value="${b.id}" ${b.id === po.quantity_key ? "selected" : ""}>${b.standard.label}</option>`).join("")}
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Rate (£ per unit)</label>
-                        <input type="number" step="0.01" min="0" name="pricing_rate" value="${po.rate || 0}">
-                    </div>
-                `;
-                break;
-            case "percent_subtotal":
-                fieldsHtml = `
-                    <div class="form-group">
-                        <label>Percentage (%)</label>
-                        <input type="number" step="0.01" min="0" max="100" name="pricing_percent_of_subtotal" value="${po.percent_of_subtotal || 0}">
-                    </div>
-                `;
-                break;
-            default:
-                fieldsHtml = "";
-                break;
-        }
-        pricingFieldsDiv.innerHTML = fieldsHtml;
-        // Re-populate dynamic selects after innerHTML update
-        updateDynamicSelectOptions();
-    };
 
 
     // History Management

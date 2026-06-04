@@ -21,11 +21,12 @@
         <div class="properties-content" id="properties-content">
             {% if selected_block %}
                 <form id="block-properties-form" method="POST" action="{{ url_for("builder_beta_page_editor", page_id=current_page_id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="action" value="save_block">
                     <input type="hidden" name="block_id" value="{{ selected_block.id }}">
                     
                     <div class="prop-section" id="prop-fields">
-                        <div class="prop-section-header" onclick="toggleSection("prop-fields")">
+                        <div class="prop-section-header" onclick='toggleSection("prop-fields")'>
                             <span>📝 Question Fields</span>
                             <span class="prop-section-toggle">▾</span>
                         </div>
@@ -80,7 +81,7 @@
                     </div>
                     
                     <div class="prop-section" id="prop-logic">
-                        <div class="prop-section-header" onclick="toggleSection("prop-logic")">
+                        <div class="prop-section-header" onclick='toggleSection("prop-logic")'>
                             <span>⚡ Logic</span>
                             <span class="prop-section-toggle">▾</span>
                         </div>
@@ -111,7 +112,7 @@
                     </div>
                     
                     <div class="prop-section" id="prop-pricing">
-                        <div class="prop-section-header" onclick="toggleSection("prop-pricing")">
+                        <div class="prop-section-header" onclick='toggleSection("prop-pricing")'>
                             <span>💰 Pricing</span>
                             <span class="prop-section-toggle">▾</span>
                         </div>
@@ -172,7 +173,7 @@
                     </div>
                     
                     <div class="prop-section" id="prop-output">
-                        <div class="prop-section-header" onclick="toggleSection("prop-output")">
+                        <div class="prop-section-header" onclick='toggleSection("prop-output")'>
                             <span>📊 Output</span>
                             <span class="prop-section-toggle">▾</span>
                         </div>

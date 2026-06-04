@@ -18,7 +18,31 @@
               "required": true,
               "help_text": "",
               "source_prefix": "",
-              "placeholder": "Enter client address"
+              "placeholder": "Enter client address",
+              "dropdown_choices": [],
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "Address:",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
             }
           },
           {
@@ -30,7 +54,31 @@
               "required": true,
               "help_text": "",
               "source_prefix": "",
-              "placeholder": ""
+              "placeholder": "",
+              "dropdown_choices": [],
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "Date:",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
             }
           }
         ]
@@ -50,7 +98,33 @@
               "label": "Select any selected notes to be included:",
               "name": "selected_special_notes",
               "required": false,
-              "source_prefix": "sn"
+              "source_prefix": "sn",
+              "help_text": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "Select any selected notes to be included:",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
             }
           }
         ]
@@ -70,22 +144,33 @@
               "label": "Building Works",
               "name": "selected_building_works",
               "required": false,
-              "source_prefix": "bw"
-            }
-          },
-          {
-            "id": "summary_page__selected_bll",
-            "block_type": "checkbox_group",
-            "standard": {
-              "label": "Wall Construction: Left Side",
-              "name": "selected_bll",
-              "required": false,
-              "source_prefix": "bl"
+              "source_prefix": "bw",
+              "help_text": "text",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "static_content": "",
+              "static_variant": "body"
             },
             "logic_options": {
-              "visibility": "depends_on",
-              "depends_on_field": "selected_boundary_lines",
-              "depends_on_value": "bll"
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "Building Works",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
             }
           },
           {
@@ -95,12 +180,69 @@
               "label": "Wall Construction: Right Side",
               "name": "selected_blr",
               "required": false,
-              "source_prefix": "bl"
+              "source_prefix": "bl",
+              "help_text": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "static_content": "",
+              "static_variant": "body"
             },
             "logic_options": {
               "visibility": "depends_on",
               "depends_on_field": "selected_boundary_lines",
               "depends_on_value": "blr"
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "Wall Construction: Right Side",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
+            }
+          },
+          {
+            "id": "summary_page__selected_bll",
+            "block_type": "checkbox_group",
+            "standard": {
+              "label": "Wall Construction: Left Side",
+              "name": "selected_bll",
+              "required": false,
+              "source_prefix": "bl",
+              "help_text": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "logic_options": {
+              "visibility": "depends_on",
+              "depends_on_field": "selected_boundary_lines",
+              "depends_on_value": "bll"
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "Wall Construction: Left Side",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
             }
           },
           {
@@ -110,7 +252,33 @@
               "label": "Planning Permission Status",
               "name": "selected_pp",
               "required": false,
-              "source_prefix": "pp"
+              "source_prefix": "pp",
+              "help_text": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "Planning Permission Status",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
             }
           },
           {
@@ -120,7 +288,33 @@
               "label": "Basement",
               "name": "selected_basement",
               "required": false,
-              "source_prefix": "bs"
+              "source_prefix": "bs",
+              "help_text": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "Basement",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
             }
           },
           {
@@ -130,7 +324,33 @@
               "label": "Is the property located in a conservation area?",
               "name": "conservation_status",
               "required": false,
-              "source_prefix": "cs"
+              "source_prefix": "cs",
+              "help_text": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "Is the property located in a conservation area?",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
             }
           },
           {
@@ -140,7 +360,33 @@
               "label": "Local Council",
               "name": "selected_council",
               "required": false,
-              "source_prefix": "cs"
+              "source_prefix": "cs",
+              "help_text": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "Local Council",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
             }
           }
         ]
@@ -160,7 +406,33 @@
               "label": "External Walls",
               "name": "selected_ew",
               "required": false,
-              "source_prefix": "ew"
+              "source_prefix": "ew",
+              "help_text": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "External Walls",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
             }
           },
           {
@@ -170,7 +442,33 @@
               "label": "External Roof",
               "name": "selected_er",
               "required": false,
-              "source_prefix": "er"
+              "source_prefix": "er",
+              "help_text": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "External Roof",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
             }
           },
           {
@@ -180,7 +478,33 @@
               "label": "Internal Doors",
               "name": "selected_id",
               "required": false,
-              "source_prefix": "id"
+              "source_prefix": "id",
+              "help_text": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "Internal Doors",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
             }
           },
           {
@@ -190,7 +514,33 @@
               "label": "Drainage",
               "name": "selected_dr",
               "required": false,
-              "source_prefix": "dr"
+              "source_prefix": "dr",
+              "help_text": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "Drainage",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
             }
           },
           {
@@ -200,7 +550,33 @@
               "label": "Waste and Parking",
               "name": "selected_wp",
               "required": false,
-              "source_prefix": "wp"
+              "source_prefix": "wp",
+              "help_text": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "Waste and Parking",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
             }
           }
         ]
@@ -220,7 +596,33 @@
               "label": "Further requirements",
               "name": "selected_frc",
               "required": false,
-              "source_prefix": "frc"
+              "source_prefix": "frc",
+              "help_text": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "Further requirements",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
             }
           },
           {
@@ -230,7 +632,33 @@
               "label": "Demolition Works",
               "name": "selected_dw",
               "required": false,
-              "source_prefix": "dw"
+              "source_prefix": "dw",
+              "help_text": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "Demolition Works",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
             }
           },
           {
@@ -240,7 +668,33 @@
               "label": "Floor Structure",
               "name": "selected_fs",
               "required": false,
-              "source_prefix": "fs"
+              "source_prefix": "fs",
+              "help_text": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "Floor Structure",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
             }
           },
           {
@@ -250,7 +704,33 @@
               "label": "Glass Valley",
               "name": "selected_gv",
               "required": false,
-              "source_prefix": "gv"
+              "source_prefix": "gv",
+              "help_text": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "Glass Valley",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
             }
           }
         ]
@@ -270,7 +750,33 @@
               "label": "Additional building works",
               "name": "selected_ab",
               "required": false,
-              "source_prefix": "ab"
+              "source_prefix": "ab",
+              "help_text": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "Additional building works",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
             }
           }
         ]
@@ -292,7 +798,31 @@
               "required": false,
               "help_text": "Rates are controlled via Pricing Rules settings below",
               "static_content": "",
-              "static_variant": "heading"
+              "static_variant": "heading",
+              "source_prefix": "",
+              "placeholder": "",
+              "dropdown_choices": []
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "Electrics (Kitchen and Loft)",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
             }
           },
           {
@@ -301,7 +831,34 @@
             "standard": {
               "label": "Other Demolition Cost",
               "name": "other_demolition_cost",
-              "required": false
+              "required": false,
+              "help_text": "",
+              "source_prefix": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "Other Demolition Cost",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
             }
           }
         ]
@@ -321,7 +878,33 @@
               "label": "Optional extras to include",
               "name": "selected_oe",
               "required": false,
-              "source_prefix": "oe"
+              "source_prefix": "oe",
+              "help_text": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "Optional extras to include",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
             }
           }
         ]
@@ -342,7 +925,32 @@
               "name": "site_image",
               "required": false,
               "static_content": "Image upload placeholder",
-              "static_variant": "body"
+              "static_variant": "body",
+              "help_text": "",
+              "source_prefix": "",
+              "placeholder": "",
+              "dropdown_choices": []
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "Site / Property Image",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
             }
           },
           {
@@ -351,7 +959,34 @@
             "standard": {
               "label": "Layout Template",
               "name": "layout_template",
-              "required": false
+              "required": false,
+              "help_text": "",
+              "source_prefix": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "Layout Template",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
             }
           }
         ]

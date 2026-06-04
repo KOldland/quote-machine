@@ -4,5 +4,6 @@
 {% block content %}
 <div class="builder-page-wrapper">
     {{ builder_macros.render_canvas_content(current_page, selected_block_id) }}
+    {{ builder_macros.render_properties_panel(selected_block, current_page.blocks, pricing_modes, current_page.id) }}
 </div>
 {% endblock %}
