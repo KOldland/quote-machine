@@ -77,12 +77,14 @@ All paths are relative to the VS Code workspace root (`QM_web_app/`):
       - Added missing `edit_mode` branches to `additional_building_work_page` and `optional_extras_page` in `app/QMapp.py`.
       - Both routes now load `builder_state`, `current_page`, `selected_block_id`, `selected_block`, and `pricing_modes` consistently.
       - All 7 previously-working routes (index, special_notes_page, summary_page, materials_page, further_requirements_page, additional_costs_page, image_upload_page) confirmed correctly wired.
-  13. **Step 7 — Foundation Visual Polish** (see `app/current_development.md`)
-      - Add enough CSS to make the three-panel layout recognizable.
-      - Left sidebar: palette items styled as a proper tool panel.
-      - Center: canvas prominent and clear.
-      - Right: properties panel visible with clean sections.
-      - Visual "edit mode" indicator.
+  13. ~~**Step 7 — Foundation Visual Polish**~~ ✅ **DONE (04/06/26)**
+      - Added complete visual polish CSS to `main.css` for all three panels:
+        - **7a — Left Sidebar Palette**: `.question-type-palette`, `.question-type-item`, `.question-type-icon`, `.question-type-label`, `.question-type-desc` styled as a proper draggable tool panel with hover/active states
+        - **7b — Center Canvas Blocks**: `.question-block`, `.question-block-header`, `.drag-handle`, `.block-type-badge`, `.block-title`, `.block-actions`, `.block-action-btn` — card-style question blocks with selection highlight
+        - **7c — Right Properties Panel**: `.prop-section`, `.prop-section-header`, `.prop-section-body`, `.prop-section-toggle` — collapsible accordion sections with clean form styling
+        - **7d — Edit Mode Indicator Bar**: `.edit-mode-bar` with warm amber gradient, color-coded action buttons (`.btn-success`, `.btn-warning`, `.btn-info`, `.btn-secondary`)
+        - **7e — Sidebar Controls Polish**: `.sidebar-edit-controls`, improved `.sidebar-section-title` with uppercase letter-spacing, `.btn-add-block` primary blue
+        - **7f — Type Picker Modal**: `.type-picker-overlay`, `.type-picker-modal`, `.type-picker-grid`, `.type-picker-btn`, `.type-picker-close` — polished modal with icon/label/description buttons
 ## Session History (04/06/26)
 * **Step 6 Complete (04/06/26)**: Pass builder state to all routes in edit mode. Discovered that `additional_building_work_page` and `optional_extras_page` had no `edit_mode` branches at all — they rendered the normal form template without `builder_state`, `current_page`, `selected_block_id`, `selected_block`, or `pricing_modes`. This caused 500 errors when navigating to those pages with `?edit=1`. Both routes fixed with consistent edit_mode branches matching the established pattern.
 
