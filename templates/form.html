@@ -27,9 +27,6 @@
 
     {% if edit_mode %}
     <div class="builder-container">
-        <div class="builder-sidebar">
-            {{ builder_macros.render_question_palette(builder_state) }}
-        </div>
         <div class="builder-canvas">
             <h1>{{ title }}</h1>
             <form action="{{ url_for(request.endpoint) }}" method="POST" {% if twenty_ninth_page %}enctype="multipart/form-data"{% endif %}>

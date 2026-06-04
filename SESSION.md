@@ -47,15 +47,18 @@ All paths are relative to the VS Code workspace root (`QM_web_app/`):
    - In edit-mode branch: renders question palette (`render_question_palette`), page selector (from `builder_state.pages`), "+ Add Question" button, Exit Edit Mode button
    - In normal mode: existing page navigation links preserved
    - Sidebar div gets `.builder-edit-mode` CSS class when in edit mode
-8. **Next: Step 2 — Remove Duplicate Builder Sidebar from `form.html`**
-   - Remove `<div class="builder-sidebar">` block from `.builder-container` in `app/templates/form.html`
-   - The `.builder-container` will then only contain `.builder-canvas` and `.builder-properties`
+ 8. ~~**Step 2 — Remove Duplicate Builder Sidebar from `form.html`**~~ ✅ **DONE (04/06/26)**
+    - Removed `<div class="builder-sidebar">` block from `.builder-container` in `app/templates/form.html`
+    - The `.builder-container` now only contains `.builder-canvas` and `.builder-properties`
+ 9. **Next: Step 3 — Inject Builder Controls Into Main Sidebar**
+    - In `app/templates/index.html`, within the `{% if edit_mode %}` sidebar block, render page selector/list to switch between pages, question type palette, quick-action buttons, and page navigation controls (prev/next within editor)
 
 ## Known Issues
 * `QMapp.py` is very large (~4500 lines). Use **small, precise `replace_in_file` search blocks** (2-3 lines) to avoid mismatches.
 * Port 5000 is hijacked by macOS AirPlay Receiver — use port 5002+ for local testing.
 
 ## Session History (04/06/26)
+* **Step 2 Complete**: Removed the duplicate `<div class="builder-sidebar">` block from `form.html`'s `.builder-container`. The builder sidebar (question palette) is now exclusively rendered in the main site sidebar via `index.html`'s `{% if edit_mode %}` block. The `.builder-container` in `form.html` now contains only `.builder-canvas` and `.builder-properties`, matching the three-panel layout described in `current_development.md`.
 * **Step 1 Complete**: Implemented sidebar swap in `index.html`. The main sidebar now conditionally renders builder palette and controls when `edit_mode` is True, or the standard page navigation links when not in edit mode. Uses `render_question_palette` macro from `_builder_macros.html`, page selector iterating `builder_state.pages`, and a "+ Add Question" button. Exit Edit Mode button navigates to index without `?edit=1` parameter.
 * **Template Resolution**: Manually hotfixed line 58 in `_builder_macros.html`. Swapped `join("\n")` to single quotes `join('\n')` to fix the underlying backslash text character escaping issue that was causing 500 errors on 6 out of 7 application routes.
 * Fixed `form.html` unclosed `{% if edit_mode %}` at line 28 — added closing `{% endif %}` after normal form rendering block.
