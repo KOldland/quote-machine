@@ -1116,8 +1116,16 @@ def build_builder_beta_runtime_context(page_id, sheet_data, page_answers):
 	if not compiled_page:
 		return None
 
-	if not isinstance(page_answers, dict):
-		page_answers = {}
+	# If page_answers is a complex checkbox_data dict, extract the specific field preselection
+	# or fallback to direct name access if it's a flat dict.
+	def get_preselected(name):
+		if not isinstance(page_answers, dict):
+			return []
+		# If we passed the whole checkbox_data dict
+		if name in page_answers and isinstance(page_answers[name], dict) and 'preselected' in page_answers[name]:
+			return page_answers[name]['preselected']
+		# If we passed a flat answers dict
+		return page_answers.get(name, [])
 
 	runtime_fields = []
 	for field in compiled_page.get('fields', []):
@@ -1138,7 +1146,7 @@ def build_builder_beta_runtime_context(page_id, sheet_data, page_answers):
 
 		if block_type == 'checkbox_group':
 			options = _builder_beta_checkbox_options(field, sheet_data)
-			stored = page_answers.get(field_name, [])
+			stored = get_preselected(field_name)
 			if not isinstance(stored, list):
 				stored = []
 			if not stored:
@@ -1386,6 +1394,12 @@ def build_schema_checkbox_group(field_schema, sheet_data, checkbox_data):
 
 
 def build_page_schema_context(page_id, sheet_data, checkbox_data):
+	# PHASE 6: prefer builder_beta state for all pages.
+	# Fallback to legacy get_page_schema only if page_id not in builder_beta.
+	state = get_builder_beta_state()
+	if page_id in state.get('pages', {}):
+		return build_builder_beta_runtime_context(page_id, sheet_data, checkbox_data)
+
 	page_schema = get_page_schema(page_id)
 	if not page_schema:
 		return None
