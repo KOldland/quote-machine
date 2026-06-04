@@ -24,44 +24,87 @@
 
     <div class="wrapper">
         <!-- Sidebar Navigation -->
-        <div id="sidebar" class="sidebar">  
+        <div id="sidebar" class="sidebar{% if edit_mode %} builder-edit-mode{% endif %}">  
             {% if session.get('username') %}
-            <!-- Authenticated User Navigation -->
-            <nav class="nav flex-column">
-                <a href="{{ url_for('index') }}" class="nav-link {% if request.endpoint == 'index' %}active{% endif %}">Project Details</a>
-                <a href="{{ url_for('special_notes_page') }}" class="nav-link {% if request.endpoint == 'special_notes_page' %}active{% endif %}">Special Notes</a>
-                <a href="{{ url_for('summary_page') }}" class="nav-link {% if request.endpoint == 'summary_page' %}active{% endif %}">Summary</a>
-                <a href="{{ url_for('materials_page') }}" class="nav-link {% if request.endpoint == 'materials_page' %}active{% endif %}">Extension Details & Material Summary</a>
-                <a href="{{ url_for('further_requirements_page') }}" class="nav-link {% if request.endpoint == 'further_requirements_page' %}active{% endif %}">Further Requirements</a>
-                <a href="{{ url_for('additional_building_work_page') }}" class="nav-link {% if request.endpoint == 'additional_building_work_page' %}active{% endif %}">Additional Building Works</a>
-                <a href="{{ url_for('additional_costs_page') }}" class="nav-link {% if request.endpoint == 'additional_costs_page' %}active{% endif %}">Additional Costs</a>
-                <a href="{{ url_for('optional_extras_page') }}" class="nav-link {% if request.endpoint == 'optional_extras_page' %}active{% endif %}">Optional Extras & Finishing Works</a>
-                <a href="{{ url_for('image_upload_page') }}" class="nav-link {% if request.endpoint == 'image_upload' %}active{% endif %}">Upload Images</a>
-                <a href="{{ url_for('review') }}" class="nav-link {% if request.endpoint == 'review' %}active{% endif %}">Review</a>
-                <a href="{{ url_for('trigger_production_page') }}" class="nav-link {% if request.endpoint == 'trigger_production_page' %}active{% endif %}">Production</a>
-                {% if session.get('role') == 'admin' %}
-                <a href="{{ url_for('form_builder_demo') }}" class="nav-link {% if request.endpoint == 'form_builder_demo' %}active{% endif %}">Form Builder</a>
-                <a href="{{ url_for('builder_beta_home') }}" class="nav-link {% if request.endpoint in ['builder_beta_home', 'builder_beta_page_editor'] %}active{% endif %}">Block Builder (Beta)</a>
-                <a href="{{ url_for('list_users') }}" class="nav-link {% if request.endpoint == 'list_users' %}active{% endif %}">User Management</a>
-                {% endif %}
-            </nav>
-            <div class="nav-user" style="padding: 1rem; border-top: 1px solid rgba(255,255,255,.15); font-size: .85rem; color: rgba(255,255,255,.7);">
-                <div style="margin-bottom: .25rem;"><strong>{{ session['username'] }}</strong></div>
-                <div style="font-size: .75rem; margin-bottom: .5rem;">
-                    <span class="role-badge" style="
-                        {% if session.get('role') == 'admin' %}
-                        background: #e3f2fd; color: #1565c0;
-                        {% else %}
-                        background: #e8f5e9; color: #2e7d32;
-                        {% endif %}
-                        padding: .15rem .5rem; border-radius: 12px; font-size: .7rem; font-weight: 600;
-                    }}">{{ session.get('role','user')|upper }}</span>
+                {% if edit_mode %}
+                {% import '_builder_macros.html' as builder with context %}
+                <!-- Edit Mode: Builder Palette & Controls -->
+                <div class="sidebar-edit-controls">
+                    {{ builder.render_question_palette(builder_state) }}
+                    <div class="sidebar-section">
+                        <div class="sidebar-section-title">Page Controls</div>
+                        <div class="page-selector-list">
+                            {% if builder_state and builder_state.pages %}
+                                {% for page_id, page in builder_state.pages.items() %}
+                                <span class="page-selector-item {% if current_page and page.id == current_page.id %}active{% endif %}">
+                                    {{ page.title }}
+                                </span>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                        <button type="button" class="btn btn-primary" id="btn-add-block" style="width:100%;margin-top:.5rem;">+ Add Question</button>
+                        <div class="edit-mode-actions" style="margin-top:.75rem;display:flex;gap:.5rem;">
+                            <form method="GET" action="{{ url_for('index') }}" style="flex:1;">
+                                <button type="submit" class="btn btn-secondary" style="width:100%;">Exit Edit Mode</button>
+                            </form>
+                        </div>
+                    </div>
                 </div>
-                <form method="POST" action="{{ url_for('logout') }}" style="margin-top:.4rem;">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" style="background:none;border:1px solid rgba(255,255,255,.4);color:rgba(255,255,255,.8);padding:.25rem .6rem;border-radius:3px;cursor:pointer;font-size:.8rem;">Log out</button>
-                </form>
-            </div>
+                <div class="nav-user" style="padding: 1rem; border-top: 1px solid rgba(255,255,255,.15); font-size: .85rem; color: rgba(255,255,255,.7);">
+                    <div style="margin-bottom: .25rem;"><strong>{{ session['username'] }}</strong></div>
+                    <div style="font-size: .75rem; margin-bottom: .5rem;">
+                        <span class="role-badge" style="
+                            {% if session.get('role') == 'admin' %}
+                            background: #e3f2fd; color: #1565c0;
+                            {% else %}
+                            background: #e8f5e9; color: #2e7d32;
+                            {% endif %}
+                            padding: .15rem .5rem; border-radius: 12px; font-size: .7rem; font-weight: 600;
+                        }}">{{ session.get('role','user')|upper }}</span>
+                    </div>
+                    <form method="POST" action="{{ url_for('logout') }}" style="margin-top:.4rem;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" style="background:none;border:1px solid rgba(255,255,255,.4);color:rgba(255,255,255,.8);padding:.25rem .6rem;border-radius:3px;cursor:pointer;font-size:.8rem;">Log out</button>
+                    </form>
+                </div>
+                {% else %}
+                <!-- Authenticated User Navigation -->
+                <nav class="nav flex-column">
+                    <a href="{{ url_for('index') }}" class="nav-link {% if request.endpoint == 'index' %}active{% endif %}">Project Details</a>
+                    <a href="{{ url_for('special_notes_page') }}" class="nav-link {% if request.endpoint == 'special_notes_page' %}active{% endif %}">Special Notes</a>
+                    <a href="{{ url_for('summary_page') }}" class="nav-link {% if request.endpoint == 'summary_page' %}active{% endif %}">Summary</a>
+                    <a href="{{ url_for('materials_page') }}" class="nav-link {% if request.endpoint == 'materials_page' %}active{% endif %}">Extension Details & Material Summary</a>
+                    <a href="{{ url_for('further_requirements_page') }}" class="nav-link {% if request.endpoint == 'further_requirements_page' %}active{% endif %}">Further Requirements</a>
+                    <a href="{{ url_for('additional_building_work_page') }}" class="nav-link {% if request.endpoint == 'additional_building_work_page' %}active{% endif %}">Additional Building Works</a>
+                    <a href="{{ url_for('additional_costs_page') }}" class="nav-link {% if request.endpoint == 'additional_costs_page' %}active{% endif %}">Additional Costs</a>
+                    <a href="{{ url_for('optional_extras_page') }}" class="nav-link {% if request.endpoint == 'optional_extras_page' %}active{% endif %}">Optional Extras & Finishing Works</a>
+                    <a href="{{ url_for('image_upload_page') }}" class="nav-link {% if request.endpoint == 'image_upload' %}active{% endif %}">Upload Images</a>
+                    <a href="{{ url_for('review') }}" class="nav-link {% if request.endpoint == 'review' %}active{% endif %}">Review</a>
+                    <a href="{{ url_for('trigger_production_page') }}" class="nav-link {% if request.endpoint == 'trigger_production_page' %}active{% endif %}">Production</a>
+                    {% if session.get('role') == 'admin' %}
+                    <a href="{{ url_for('form_builder_demo') }}" class="nav-link {% if request.endpoint == 'form_builder_demo' %}active{% endif %}">Form Builder</a>
+                    <a href="{{ url_for('builder_beta_home') }}" class="nav-link {% if request.endpoint in ['builder_beta_home', 'builder_beta_page_editor'] %}active{% endif %}">Block Builder (Beta)</a>
+                    <a href="{{ url_for('list_users') }}" class="nav-link {% if request.endpoint == 'list_users' %}active{% endif %}">User Management</a>
+                    {% endif %}
+                </nav>
+                <div class="nav-user" style="padding: 1rem; border-top: 1px solid rgba(255,255,255,.15); font-size: .85rem; color: rgba(255,255,255,.7);">
+                    <div style="margin-bottom: .25rem;"><strong>{{ session['username'] }}</strong></div>
+                    <div style="font-size: .75rem; margin-bottom: .5rem;">
+                        <span class="role-badge" style="
+                            {% if session.get('role') == 'admin' %}
+                            background: #e3f2fd; color: #1565c0;
+                            {% else %}
+                            background: #e8f5e9; color: #2e7d32;
+                            {% endif %}
+                            padding: .15rem .5rem; border-radius: 12px; font-size: .7rem; font-weight: 600;
+                        }}">{{ session.get('role','user')|upper }}</span>
+                    </div>
+                    <form method="POST" action="{{ url_for('logout') }}" style="margin-top:.4rem;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" style="background:none;border:1px solid rgba(255,255,255,.4);color:rgba(255,255,255,.8);padding:.25rem .6rem;border-radius:3px;cursor:pointer;font-size:.8rem;">Log out</button>
+                    </form>
+                </div>
+                {% endif %}
             {% else %}
             <!-- Guest Navigation (Login Required) -->
             <div class="nav-guest" style="padding: 1rem; text-align: center;">
