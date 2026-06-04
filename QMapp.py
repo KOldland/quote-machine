@@ -3425,11 +3425,33 @@ def additional_building_work_page():
 					data["selected_ab"]["preselected"].append(line_code)
 				
 				
+	edit_requested = request.args.get('edit', '').lower() in {'1', 'true', 'yes'}
+	edit_mode = session.get('role') == 'admin' and edit_requested
+	if edit_mode:
+		builder_state = get_builder_beta_state()
+		current_page_id = 'additional_building_work_page'
+		current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
+		selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
+		selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
+		return render_template(
+			'form.html',
+			additional_building_work_page=True,
+			previous_page=previous_page,
+			next_page='additional_costs_page',
+			title="Additional Building Works",
+			data=data,
+			builder_state=builder_state,
+			current_page={'id': current_page_id, 'title': "Additional Building Works", 'blocks': current_page_blocks},
+			current_page_id=current_page_id,
+			selected_block_id=selected_block_id,
+			selected_block=selected_block,
+			pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
+		)
 	return render_template(
 		'form.html',
 		additional_building_work_page=True,
 		previous_page=previous_page,
-		next_page='additional_costs_page',  # Update this placeholder when renaming other pages
+		next_page='additional_costs_page',
 		title="Additional Building Works",
 		data=data
 	)
@@ -3788,6 +3810,28 @@ def optional_extras_page():
 					data["selected_fw"]["preselected"].append(line_code)
 				
 	# Render combined form
+	edit_requested = request.args.get('edit', '').lower() in {'1', 'true', 'yes'}
+	edit_mode = session.get('role') == 'admin' and edit_requested
+	if edit_mode:
+		builder_state = get_builder_beta_state()
+		current_page_id = 'optional_extras_page'
+		current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
+		selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
+		selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
+		return render_template(
+			'form.html',
+			optional_extras_page=True,
+			previous_page=previous_page,
+			next_page='image_upload_page',
+			title="Optional Extras & Finishing Works",
+			data=data,
+			builder_state=builder_state,
+			current_page={'id': current_page_id, 'title': "Optional Extras & Finishing Works", 'blocks': current_page_blocks},
+			current_page_id=current_page_id,
+			selected_block_id=selected_block_id,
+			selected_block=selected_block,
+			pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
+		)
 	return render_template(
 		'form.html',
 		optional_extras_page=True,

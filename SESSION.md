@@ -72,14 +72,19 @@ All paths are relative to the VS Code workspace root (`QM_web_app/`):
      - **Fix 3**: Replaced the bare `prompt()` approach in the `btnAddBlock` listener with a polished `showTypePicker(btnAddBlock)` modal that renders clickable buttons from `builderStateQuestionTypes`, each with icon, label, and description.
 
 ## Next Steps
- 12. **Step 6 — Pass Builder State to All Routes in Edit Mode** (see `app/current_development.md`)
-     - Audit all page routes (index, special_notes_page, summary_page, materials_page, further_requirements_page, additional_costs_page, image_upload_page) to confirm they pass `builder_state`, `blocks`, `current_page`, `selected_block_id` correctly in the `if edit_mode:` branch.
- 13. **Step 7 — Foundation Visual Polish** (see `app/current_development.md`)
-     - Add enough CSS to make the three-panel layout recognizable.
-     - Left sidebar: palette items styled as a proper tool panel.
-     - Center: canvas prominent and clear.
-     - Right: properties panel visible with clean sections.
-     - Visual "edit mode" indicator.
+  12. ~~**Step 6 — Pass Builder State to All Routes in Edit Mode**~~ ✅ **DONE (04/06/26)**
+      - Full audit of all 9 page routes completed.
+      - Added missing `edit_mode` branches to `additional_building_work_page` and `optional_extras_page` in `app/QMapp.py`.
+      - Both routes now load `builder_state`, `current_page`, `selected_block_id`, `selected_block`, and `pricing_modes` consistently.
+      - All 7 previously-working routes (index, special_notes_page, summary_page, materials_page, further_requirements_page, additional_costs_page, image_upload_page) confirmed correctly wired.
+  13. **Step 7 — Foundation Visual Polish** (see `app/current_development.md`)
+      - Add enough CSS to make the three-panel layout recognizable.
+      - Left sidebar: palette items styled as a proper tool panel.
+      - Center: canvas prominent and clear.
+      - Right: properties panel visible with clean sections.
+      - Visual "edit mode" indicator.
+## Session History (04/06/26)
+* **Step 6 Complete (04/06/26)**: Pass builder state to all routes in edit mode. Discovered that `additional_building_work_page` and `optional_extras_page` had no `edit_mode` branches at all — they rendered the normal form template without `builder_state`, `current_page`, `selected_block_id`, `selected_block`, or `pricing_modes`. This caused 500 errors when navigating to those pages with `?edit=1`. Both routes fixed with consistent edit_mode branches matching the established pattern.
 
 ## Session History (04/06/26)
 * **Step 5 Complete (04/06/26)**: Fixed the "Add Question" button — three-part fix across `index.html`, `_builder_macros.html`, and `builder.js`. Root cause was the `<body>` tag missing `builder-edit-mode` class, causing the entire builder.js to exit early. Also fixed a duplicate `btn-add-block` ID collision between the sidebar and the canvas header. Replaced bare `prompt()` with a polished type-picker modal.
