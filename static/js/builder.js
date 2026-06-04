@@ -514,15 +514,10 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        // Add block button
+        // Add block button — show type picker dropdown
         if (btnAddBlock) {
             btnAddBlock.addEventListener("click", () => {
-                const type = prompt("Enter block type (checkbox_group, text_input, number_currency_input, dropdown_select, static_text_heading):");
-                if (type && builderStateQuestionTypes[type]) {
-                    addBlock(getBlockTemplate(type));
-                } else if (type) {
-                    alert("Invalid block type");
-                }
+                showTypePicker(btnAddBlock);
             });
         }
 
@@ -725,6 +720,66 @@ document.addEventListener('DOMContentLoaded', () => {
     //     const section = document.getElementById(sectionId);
     //     section.classList.toggle('collapsed');
     // }
+
+    // Type picker modal — shows clickable list of available question types
+    function showTypePicker(anchorEl) {
+        // Remove existing picker if any
+        const existing = document.getElementById('type-picker-overlay');
+        if (existing) existing.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'type-picker-overlay';
+        overlay.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,.35); z-index: 10000;
+            display: flex; align-items: center; justify-content: center;
+        `;
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) overlay.remove();
+        });
+
+        const picker = document.createElement('div');
+        picker.style.cssText = `
+            background: #fff; border-radius: 8px; padding: 1.5rem;
+            min-width: 300px; max-width: 420px; box-shadow: 0 4px 20px rgba(0,0,0,.25);
+        `;
+        picker.innerHTML = `
+            <h3 style="margin:0 0 .75rem;font-size:1.1rem;">Add Question</h3>
+            <p style="margin:0 0 .75rem;font-size:.85rem;color:#666;">Select a question type to add:</p>
+            <div style="display:flex;flex-direction:column;gap:.4rem;">
+                ${Object.entries(builderStateQuestionTypes).map(([type, meta]) => `
+                    <button type="button" class="type-picker-btn" data-type="${type}"
+                        style="display:flex;align-items:center;gap:.6rem;padding:.55rem .75rem;
+                               border:1px solid #ddd;border-radius:6px;background:#fafafa;
+                               cursor:pointer;text-align:left;font-size:.9rem;
+                               transition:background .15s;">
+                        <span style="font-size:1.2rem;">${meta.icon || '?'}</span>
+                        <div>
+                            <div style="font-weight:600;">${meta.label}</div>
+                            <div style="font-size:.78rem;color:#888;">${meta.description || ''}</div>
+                        </div>
+                    </button>
+                `).join('')}
+            </div>
+            <button type="button" class="type-picker-cancel"
+                style="display:block;width:100%;margin-top:.75rem;padding:.4rem;
+                       border:1px solid #ccc;border-radius:4px;background:#fff;
+                       cursor:pointer;font-size:.85rem;color:#666;">Cancel</button>
+        `;
+
+        picker.querySelectorAll('.type-picker-btn').forEach(btn => {
+            btn.addEventListener('mouseenter', () => btn.style.background = '#eef');
+            btn.addEventListener('mouseleave', () => btn.style.background = '#fafafa');
+            btn.addEventListener('click', () => {
+                addBlock(getBlockTemplate(btn.dataset.type));
+                overlay.remove();
+            });
+        });
+        picker.querySelector('.type-picker-cancel').addEventListener('click', () => overlay.remove());
+
+        overlay.appendChild(picker);
+        document.body.appendChild(overlay);
+    }
 
     function showSaveStatus(message = "Saved", color = "#28a745") {
         if (saveStatus) {

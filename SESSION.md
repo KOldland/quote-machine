@@ -65,10 +65,24 @@ All paths are relative to the VS Code workspace root (`QM_web_app/`):
      - `.form-container.builder-edit-mode` — full-width, reduced padding, border/background
      - `.canvas-empty` and `.canvas-empty-icon` — dashed border empty states
      - `.canvas-page-selector` — flex space-between for canvas header bar
- 11. **Next: Step 5 — Fix "Add Question" Button in `builder.js`**
-     - Ensure the button element exists in DOM after sidebar reorganization
-     - Ensure the event listener is attached to the correct element ID
-     - If no listener is found, add one calling `addBlock(getBlockTemplate('checkbox_group'))` or showing a type picker
+ 11. ~~**Step 5 — Fix "Add Question" Button in `builder.js`**~~ ✅ **DONE (04/06/26)**
+     - **Root cause**: `builder.js` line 2 checked `document.body.classList.contains('builder-edit-mode')` but the `<body>` tag had no class — entire script exited early.
+     - **Fix 1**: Added `{% if edit_mode %} class="builder-edit-mode"{% endif %}` to `<body>` in `index.html`.
+     - **Fix 2**: Renamed duplicate `btn-add-block` ID in `_builder_macros.html` canvas header to `btn-add-block-canvas` to avoid DOM ID conflict with sidebar button.
+     - **Fix 3**: Replaced the bare `prompt()` approach in the `btnAddBlock` listener with a polished `showTypePicker(btnAddBlock)` modal that renders clickable buttons from `builderStateQuestionTypes`, each with icon, label, and description.
+
+## Next Steps
+ 12. **Step 6 — Pass Builder State to All Routes in Edit Mode** (see `app/current_development.md`)
+     - Audit all page routes (index, special_notes_page, summary_page, materials_page, further_requirements_page, additional_costs_page, image_upload_page) to confirm they pass `builder_state`, `blocks`, `current_page`, `selected_block_id` correctly in the `if edit_mode:` branch.
+ 13. **Step 7 — Foundation Visual Polish** (see `app/current_development.md`)
+     - Add enough CSS to make the three-panel layout recognizable.
+     - Left sidebar: palette items styled as a proper tool panel.
+     - Center: canvas prominent and clear.
+     - Right: properties panel visible with clean sections.
+     - Visual "edit mode" indicator.
+
+## Session History (04/06/26)
+* **Step 5 Complete (04/06/26)**: Fixed the "Add Question" button — three-part fix across `index.html`, `_builder_macros.html`, and `builder.js`. Root cause was the `<body>` tag missing `builder-edit-mode` class, causing the entire builder.js to exit early. Also fixed a duplicate `btn-add-block` ID collision between the sidebar and the canvas header. Replaced bare `prompt()` with a polished type-picker modal.
 
 ## Known Issues
 * `QMapp.py` is very large (~4500 lines). Use **small, precise `replace_in_file` search blocks** (2-3 lines) to avoid mismatches.

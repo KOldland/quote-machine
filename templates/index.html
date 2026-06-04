@@ -8,7 +8,7 @@
     <title>{{ title }}</title>
 </head>
 
-<body>
+<body{% if edit_mode %} class="builder-edit-mode"{% endif %}>
     <!-- Sidebar Toggle Button -->
     <button id="sidebarToggle" class="sidebar-toggle">☰</button>
 
