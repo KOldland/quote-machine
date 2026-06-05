@@ -37,22 +37,23 @@
 
 ## Immediate Next Task (start here on reopen)
 
-### 🚀 Session G — End-to-end smoke test
+### 🚀 Session H — Block Builder Beta: `line_items_by_category` category management
 
-**Step 1 — Start server:**
-```bash
-env QM_DISABLE_SHEETS=1 python3 -m flask --app app/QMapp.py run --port=5003 --with-threads
-```
+**Goal:** Non-dev admins can open `/builder_beta/page/materials_page`, see the `line_items_by_category` block, and configure which DB categories appear on that page.
 
-**Step 2 — Navigate in browser (logged in as admin):**
-1. `/builder_beta/page/materials_page` — confirm 5 blocks show red HIDDEN badges (ew/er/id/dr/wp)
-2. `/materials_page` — confirm ONLY `line_items_by_category` accordions visible (no legacy ew/er/id/dr/wp sections)
-3. `/further_requirements_page` — confirm ONLY `line_items_by_category` accordions (no legacy frc/dw/fs/gv)
-4. Check some items, submit both pages → `/review` — confirm "Selected Line Items" section renders grouped by category
+**Step 1 — Inspect current `line_items_by_category` block config in `page_schemas.json`**
+Look at `builder_beta.pages.materials_page.blocks` — find the block with `block_type: 'line_items_by_category'` and confirm current `config.categories` shape.
 
-**Step 3 — If clean:** mark Session G complete, update `page_schemas_published.json` via `/admin/publish_draft`.
+**Step 2 — Add category config to block schema**
+In `page_schemas.json`: `blocks[].config.categories` = array of enabled category slugs (from `line_items.category`).
 
-**Step 3 — If legacy blocks still visible:** The `form.html` schema loop may be rendering `accordion_group` blocks despite `hidden: true`. Check `form.html` around line 35–275 — confirm `{% if not field.hidden %}` guard exists on the schema loop iteration.
+**Step 3 — Wire `_get_line_items_for_page()` to respect config**
+Pass `categories` filter from block config → query `WHERE category IN (...)` when config present.
+
+**Step 4 — Builder canvas UI**
+In `builder_beta.html` or `_builder_macros.html`: properties panel for `line_items_by_category` block shows checklist of all available categories (from `/builder_beta/line_items_json`) with on/off toggles. Persisted via existing `/admin/field_override` or new `/builder_beta/block_config_save/<page_id>/<block_id>` endpoint.
+
+**Step 5 — Smoke test:** toggle a category off in builder → reload `/materials_page` → confirm that category's items are hidden.
 
 ## Session Log
 | Date | Session | Result |
@@ -69,3 +70,4 @@ env QM_DISABLE_SHEETS=1 python3 -m flask --app app/QMapp.py run --port=5003 --wi
 | 05/06/26 | Session D — output generator | ✅ |
 | 05/06/26 | Session E — integration test | ✅ blocker → Session F |
 | 05/06/26 | Session F — hidden flag + builder badge | ✅ `4cd3b01` + `a56ef73` |
+| 05/06/26 | Session G — auto_child filter + smoke test | ✅ — `AND item_role != 'auto_child'` in both query funcs |

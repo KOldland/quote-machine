@@ -756,7 +756,7 @@ def get_line_items_for_page(form_page: str, db_path: Optional[Path] = None) -> D
         "SELECT id, line_code, form_page, category, internal_description, include_default, "
         "unit_cost, units, pricing_visibility, output_title, output_notes, output_guidance, "
         "parent_code, item_role, input_type, trigger_parent_code, form_visible, sort_order "
-        "FROM line_items WHERE form_page=? AND form_visible=1 "
+        "FROM line_items WHERE form_page=? AND form_visible=1 AND item_role != 'auto_child' "
         "ORDER BY category ASC, sort_order ASC, line_code ASC",
         (form_page,),
     ).fetchall()
