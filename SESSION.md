@@ -7,7 +7,7 @@
 * **GitHub Repository**: `https://github.com/KOldland/quote-machine`
 
 ## Current Goal
-* Resume CRUD testing from checklist items 6, 8, 9, 10 — all UX polish is complete and committed.
+* Fix sidebar collapse bug in edit mode (P1), then begin Block Properties deep-dive sprint.
 
 ## Active Files for Context
 * @app/static/js/builder.js
@@ -18,29 +18,32 @@
 * @app/SESSION.md
 * @app/.continue/prompts/current_development.md
 
-## What Was Completed (05/06/26 — UX Polish Sprint)
-* **Save Block pipeline** — fully working (05/06/26).
-* **Sidebar UX cleanup** — removed Question Types palette, removed Prev/Next nav, renamed controls, removed yellow edit-mode banner, widened properties column.
-* **Canvas padding** — `.builder-canvas-wrapper` inner padding + `box-sizing: border-box` on edit-mode form container.
-* **Collapsible page list** — "Select Page" converted to `<details>/<summary>` with `▼` arrow that rotates on collapse.
-* **Emoji removal** — all emojis stripped from Block Properties section headers (Question Fields, Logic, Pricing, Output).
-* **User identity line** — replaced bold name + role pill with single muted text: `user: <name> (<role>)` in both edit and normal sidebar modes.
-* **Log out button spacing** — sidebar is now `display: flex; flex-direction: column`; nav-user block uses `margin-top: auto` to push to bottom.
-* **Select Page alignment** — removed `.btn` class conflict; now uses only `.btn-sidebar` + override rule with `margin: 5px; width: calc(100% - 10px)`.
-* **Session closeout** — `current_development.md` checklist items 1–5, 7 annotated as CLEAR. Committed and pushed.
+## What Was Completed (05/06/26 — CRUD Testing Sprint)
+* **Items 1–8, 10 CLEAR** — all core CRUD flows verified: login, edit mode entry, canvas render, properties panel, add question, save block, exit edit mode, page navigation.
+* **Item 6** ✅ — "+ Add Question" modal opens and creates a new block on canvas.
+* **Item 8** ✅ — "Exit Edit Mode" reverts sidebar and strips `?edit=1` from URL.
+* **Item 10** ✅ — "Select Page" dropdown navigates between pages while preserving edit mode.
+* **Testing phase 9/10 complete** — one item remains (sidebar collapse in edit mode).
+
+## Known Issues / Bug Backlog
+
+| Priority | Issue | File(s) |
+|----------|-------|---------|
+| **P1** | Sidebar does not fully collapse in edit mode. Normal mode works fine. Clicking the hamburger (≡) partially collapses but content remains visible. | `app/templates/index.html`, `app/static/js/builder.js`, `app/static/css/main.css` |
+| **P2** | "Select Page" `<details>` element is slightly narrower than Add Question / Publish / Undo / Exit buttons on the right. | `app/static/css/main.css` |
 
 ## Immediate Next Task (start here on reopen)
-1. **Start server**: `env QM_DISABLE_SHEETS=1 python3 -m flask --app app/QMapp.py run --port=5003 --with-threads`
-2. **Hard refresh** browser to flush cached CSS/JS.
-3. **Visually verify** UX polish: Select Page alignment, collapsible arrow, user identity line, Log out at bottom.
-4. **Resume CRUD testing** (`current_development.md` checklist):
-   - **Item 6**: Click "+ Add Question" → type picker modal opens → new default block appears on canvas
-   - **Item 8**: Click "Exit Edit Mode" → sidebar reverts to normal page nav (no `?edit=1`)
-   - **Item 9**: Toggle sidebar collapse/expand in both normal and edit modes
-   - **Item 10**: Navigate between pages using "Select Page" dropdown while in edit mode
-5. Repeat items 6, 8, 9, 10 on at least **3 different form routes**.
-6. Resolve any P0/P1 bugs found; log P2 bugs as Known Issues.
-7. When all 10 checklist items CLEAR across ≥3 routes: mark testing phase complete in `current_development.md`.
+1. **Fix sidebar collapse in edit mode (P1)**:
+   - Inspect the sidebar collapse toggle — likely a CSS class conflict or a JS condition that skips collapse when `edit_mode` is active.
+   - Check `builder.js` for the hamburger click handler and any guard that might prevent collapse.
+   - Check `main.css` for `.sidebar-collapsed` rules — confirm they apply in edit mode layout too.
+   - Fix and verify collapse works in both normal and edit modes.
+2. **Fix Select Page button width (P2)** — ensure `<details>` element matches sibling button widths exactly.
+3. **Begin Block Properties sprint** — this is the next major work area. Agreed with user that Block Properties panel needs significant work (exact scope to be defined at start of next session).
 
-## Known Issues / P2 Backlog
-* None logged as of 05/06/26 session close.
+## Session Log Summary
+| Date | Items | Result |
+|------|-------|--------|
+| 05/06/26 | #1–5, #7 | All CLEAR |
+| 05/06/26 | #6, #8, #10 | All CLEAR |
+| 05/06/26 | #9 | BUG — sidebar collapse broken in edit mode |
