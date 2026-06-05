@@ -257,5 +257,5 @@ CREATE TABLE line_items (
 - [x] B1 — Builder canvas renders category accordions from `line_items`
 - [x] B2 — Clicking a line item row loads all 9 fields in properties panel
 - [x] B3 — `pricing_visibility` toggle works per item
-- [ ] C1 — `form.html` queries `line_items` for form-visible items; form renders and submits correctly
+- [x] C1 — `form.html` queries `line_items` for form-visible items; category-grouped accordions render from SQLite (`form_page='3'` / `'3B'`); legacy Sheets path preserved in `{% else %}` fallback — commit `91f26e9`
 - [ ] D1 — Output generator reads Y items grouped by category, emits correct text + pricing

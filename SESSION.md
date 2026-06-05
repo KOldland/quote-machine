@@ -7,16 +7,15 @@
 * **GitHub Repository**: `https://github.com/KOldland/quote-machine`
 
 ## Current Goal
-* **Line Item Architecture Sprint — Session B**: Rework builder canvas for `line_items` — accordion view by category, properties panel with 9 editable fields, `pricing_visibility` toggle.
+* **Line Item Architecture Sprint — Session D**: Build output generator — reads Y-flagged `line_items` per submission, groups by category, emits title / notes / guidance + pricing totals.
 
 ## Active Files for Context
 * @app/template_store.py
-* @app/scripts/migrate_line_items_from_csv.py  ← to be created
-* @app/context_archive/Plus Rooms Live input in doc formatting (back up) - Sheet1.csv
 * @app/QMapp.py
 * @app/templates/form.html
 * @app/static/js/builder.js
 * @app/templates/_builder_macros.html
+* @app/templates/review.html
 * @app/SESSION.md
 * @app/.continue/prompts/current_development.md
 
@@ -32,164 +31,67 @@
 
 ### This session (05/06/26)
 * **Architecture pivot** ✅ — Full end-to-end review. Agreed to engineer from output backwards. Google Sheet CSV (~950 rows) uploaded and analysed. Full `line_items` DB architecture defined and documented in `current_development.md`. — commit `cf49fae`
-* **Session A — line_items table + CSV migration** ✅ — `line_items` table added to `template_store.py` `_create_schema()`. `scripts/migrate_line_items_from_csv.py` written and executed. 1022 rows seeded from CSV with correct suffix taxonomy (`auto_child: 245, guidance: 78, parent: 161, special: 188, standalone: 350`). Parent/child inference working.
-* **Session B — Builder canvas wired** ✅ — `builder_beta.html` updated to mount `render_line_items_canvas()` + `render_line_item_properties()` macros and call `initLineItemsCanvas()` on DOMContentLoaded. Canvas now fetches categories from `/builder_beta/line_items_json`, renders accordion rows, and loads 9-field properties panel on row click. `pricing_visibility` toggle saves via `/builder_beta/line_item_save/<id>`.
+* **Session A — line_items table + CSV migration** ✅ — `line_items` table added to `template_store.py`. `scripts/migrate_line_items_from_csv.py` written and executed. 1022 rows seeded (`auto_child: 245, guidance: 78, parent: 161, special: 188, standalone: 350`). Parent/child inference working.
+* **Session B — Builder canvas wired** ✅ — `builder_beta.html` updated to mount `render_line_items_canvas()` + `render_line_item_properties()` macros and call `initLineItemsCanvas()` on DOMContentLoaded. Canvas fetches categories from `/builder_beta/line_items_json`, renders accordion rows, loads 9-field properties panel on row click. `pricing_visibility` toggle saves via `/builder_beta/line_item_save/<id>`.
+* **Session C — form.html queries line_items** ✅ — `template_store.py` gained `get_line_items_for_page(form_page)`. `QMapp.py` wired `_get_line_items_for_page()` into `materials_page` (`form_page='3'`) and `further_requirements_page` (`form_page='3B'`). `form.html` renders category-grouped accordion checkboxes (`name="li_sel"`) when `line_items_by_category` is present; legacy Sheets path preserved in `{% else %}` fallback. — commit `91f26e9`
 
 ## Known Issues / Bug Backlog
 * None — all prior bugs resolved. Active sprint is a feature build.
 
 ## Immediate Next Task (start here on reopen)
 
-### 🚀 Session C — `form.html` → Query `line_items` (IN PROGRESS — halted at budget)
+### 🚀 Session D — Output Generator
 
-**Context gathered:**
-- DB confirmed: `form_page='3'` = materials (ew, er, id, dr, wp categories), `'3B'` = Demolition/FRC, `'3C'` = Additional Items
-- `template_store.py` ends at line 743 — ready to append `get_line_items_for_page`
-- `form.html` materials block approx lines 591–907; currently driven by `data['selected_ew']` / `data['selected_er']` etc. from Sheets
+**Goal:** When a form is submitted, read the user-selected `li_sel[]` values from POST, look up their `line_items` rows, group by `category`, and emit structured output (title / notes / guidance + pricing totals) alongside existing output.
 
-**Three deliverables (all described below):**
+**Deliverables:**
 
-**1. `template_store.py` — append `get_line_items_for_page`**
-Add at end of file (after line 743):
+**1. `template_store.py` — add `get_line_items_by_codes(codes: list)`**
 ```python
-def get_line_items_for_page(form_page: str, db_path: Optional[Path] = None) -> Dict[str, list]:
-    """Return form-visible line_items for a page, grouped by category.
-    Returns {category: [row_dicts]} ordered by sort_order.
-    """
+def get_line_items_by_codes(codes: list, db_path=None) -> list:
+    """Return full line_item rows for a list of line_codes, ordered by category + sort_order."""
     path = db_path or _default_db_path()
     conn = _connect(path)
+    placeholders = ','.join('?' * len(codes))
     rows = conn.execute(
-        "SELECT id, line_code, category, internal_description, include_default, "
-        "unit_cost, units, pricing_visibility, output_title, output_notes, output_guidance, "
-        "parent_code, item_role, input_type, trigger_parent_code, form_visible, sort_order "
-        "FROM line_items WHERE form_page=? AND form_visible=1 "
+        f"SELECT * FROM line_items WHERE line_code IN ({placeholders}) "
         "ORDER BY category ASC, sort_order ASC, line_code ASC",
-        (form_page,)
+        codes
     ).fetchall()
     conn.close()
-    result: Dict[str, list] = {}
-    for row in rows:
-        cat = row["category"]
-        if cat not in result:
-            result[cat] = []
-        result[cat].append(dict(row))
-    return result
+    return [dict(r) for r in rows]
 ```
 
-**2. `QMapp.py` — wire into routes**
-In each form page route, call `get_line_items_for_page` and pass as `line_items_by_category`:
-- `materials_page()` → `get_line_items_for_page('3')`
-- `summary_page()` → `get_line_items_for_page('2')`
-- `further_requirements_page()` → `get_line_items_for_page('3B')`
-
-Add import at top of routes file if `get_line_items_for_page` is added to `template_store.py`:
+**2. `QMapp.py` — collect `li_sel` in POST handlers**
+In `materials_page()` POST branch (and `further_requirements_page()`), collect:
 ```python
-from template_store import get_line_items_for_page
+li_sel = request.form.getlist('li_sel')
+session['li_sel'] = li_sel
 ```
-Or call inline via `sqlite3` using the existing `DB_PATH` pattern already in use for builder routes.
 
-**3. `form.html` — add line_items render block**
-In the `{% if materials_page %}` section (line ~591), prepend before the existing accordion blocks:
-```jinja
-{# ── Session C: line_items-driven accordion rendering ── #}
-{% if line_items_by_category %}
-  {% for category, items in line_items_by_category.items() %}
-  <div class="accordion-section">
-    <button type="button" class="accordion-header"
-            onclick="toggleAccordion('li_cat_{{ loop.index }}')">
-      {{ category | title }}
-    </button>
-    <div id="li_cat_{{ loop.index }}" class="accordion-body">
-      {% for item in items %}
-        {% if item.item_role == 'parent' %}
-        <label class="checkbox-label">
-          <input type="checkbox" name="li_{{ item.form_page }}"
-                 value="{{ item.line_code }}"
-                 {% if item.include_default == 'Y' %}checked{% endif %}>
-          <strong>{{ item.internal_description }}</strong>
-        </label><br>
-        {% else %}
-        <label class="checkbox-label">
-          <input type="checkbox" name="li_{{ item.form_page }}"
-                 value="{{ item.line_code }}"
-                 {% if item.include_default == 'Y' %}checked{% endif %}>
-          {{ item.internal_description }}
-        </label><br>
-        {% endif %}
-      {% endfor %}
-    </div>
-  </div>
-  {% endfor %}
-{% else %}
-  {# Legacy Sheets-driven accordions below — remove once line_items data confirmed #}
+**3. `QMapp.py` — wire into output/review route**
+In `review_page()` (or wherever output is built), call:
+```python
+from template_store import get_line_items_by_codes
+li_codes = session.get('li_sel', [])
+li_output_rows = get_line_items_by_codes(li_codes) if li_codes else []
+# group by category for template rendering
+li_by_category = {}
+for row in li_output_rows:
+    li_by_category.setdefault(row['category'], []).append(row)
 ```
-Close the `{% else %}` block with `{% endif %}` after the final legacy accordion div (closing `{% endif %}` for materials_page).
+Pass `li_by_category` to `render_template('review.html', ...)`.
 
-**Next step on reopen:** Read `materials_page()` body in QMapp.py (look for `render_template` call), then make all three writes above.
-
-### ~~Session B — Builder Canvas: `line_items` Accordions~~ ✅ COMPLETE
-
-`builder_beta.html` reworked to mount `render_line_items_canvas()` + `render_line_item_properties()` and call `initLineItemsCanvas()` on DOMContentLoaded. Backend routes (`/builder_beta/line_items_json`, `/builder_beta/line_item_save/<id>`), JS (`initLineItemsCanvas`, `_renderAccordions`, `_selectItem`, `_renderProperties`), and macros were all pre-built; wiring was the missing piece.
-
-### 🚀 Session C — `form.html` → Query `line_items`
-
-Simplify `form.html` to query `line_items` by page + `form_visible=1` instead of `page_schemas.json`. Full spec in `current_development.md` under **NEW SPRINT: Line Item Architecture**, Session C.
+**4. `review.html` — render line_items output section**
+Add a section that loops `li_by_category` and renders output_title / output_notes / unit_cost grouped by category.
 
 ---
 
-### ~~Session A — `line_items` Table + CSV Migration Script~~ ✅ COMPLETE
+### ~~Session C — form.html queries line_items~~ ✅ COMPLETE — commit `91f26e9`
 
-Full architecture spec is in `app/.continue/prompts/current_development.md` under **NEW SPRINT: Line Item Architecture**.
+### ~~Session B — Builder Canvas: line_items Accordions~~ ✅ COMPLETE
 
-**Two deliverables:**
-
-**1. Add `line_items` table to `template_store.py`**
-Add inside `_create_schema()` alongside existing tables:
-
-```sql
-CREATE TABLE IF NOT EXISTS line_items (
-    id                   INTEGER PRIMARY KEY AUTOINCREMENT,
-    line_code            TEXT NOT NULL UNIQUE,
-    form_page            TEXT,
-    category             TEXT NOT NULL,
-    internal_description TEXT,
-    include_default      TEXT NOT NULL DEFAULT 'N',
-    unit_cost            REAL DEFAULT 0.0,
-    units                REAL DEFAULT 0.0,
-    pricing_visibility   TEXT NOT NULL DEFAULT 'admin_only',
-    output_title         TEXT,
-    output_notes         TEXT,
-    output_guidance      TEXT,
-    parent_code          TEXT,
-    item_role            TEXT NOT NULL DEFAULT 'standalone',
-    input_type           TEXT,
-    trigger_parent_code  TEXT,
-    form_visible         INTEGER NOT NULL DEFAULT 1,
-    sort_order           INTEGER NOT NULL DEFAULT 0,
-    created_at           DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at           DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-**2. Write `scripts/migrate_line_items_from_csv.py`**
-Source CSV: `app/context_archive/Plus Rooms Live input in doc formatting (back up) - Sheet1.csv`
-
-Suffix taxonomy for `item_role` + `form_visible`:
-- `#` suffix → `item_role=parent`, `form_visible=1`
-- `^` suffix → `item_role=standalone`, `form_visible=1`
-- trailing `a/b/c` (no `*`) → `item_role=auto_child`, `form_visible=0`
-- `*` suffix → `item_role=guidance`, `form_visible=0`
-- `@` suffix → `item_role=special`, `form_visible=0`
-- no suffix → `item_role=standalone`, `form_visible=1`
-
-Parent inference: strip trailing suffix chars, look for `#` code with same base (e.g. `sn1a` → `sn1#`).
-
-CSV column mapping (0-indexed):
-`form_page(0) | line_code(1) | category(2) | internal_description(3) | include_default(4) | unit_cost(5) | units(6) | total_cost(7) | [skip 8,9,11] | output_title(10) | output_notes(12) | output_guidance(13)`
-
-Clean `unit_cost`: strip `£`, commas, handle blank/`-` → 0.0
-
-Verify ~950 rows inserted with correct `item_role` distribution printed as summary.
+### ~~Session A — line_items Table + CSV Migration Script~~ ✅ COMPLETE
 
 ## Session Log
 | Date | Items | Result |
@@ -201,3 +103,6 @@ Verify ~950 rows inserted with correct `item_role` distribution printed as summa
 | 05/06/26 | Phase 1 schema migration | ✅ COMPLETE — `07a9811` |
 | 05/06/26 | Phase 2 sub-block discovery + schema population | ✅ COMPLETE |
 | 05/06/26 | Architecture pivot — line_item model defined | ✅ COMPLETE — `cf49fae` |
+| 05/06/26 | Session A — line_items table + CSV migration | ✅ COMPLETE |
+| 05/06/26 | Session B — builder canvas wired | ✅ COMPLETE |
+| 05/06/26 | Session C — form.html queries line_items | ✅ COMPLETE — `91f26e9` |
