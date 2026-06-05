@@ -440,7 +440,56 @@
               "sort_order": 0,
               "value_mode": "show_value"
             },
-            "sub_blocks": []
+            "sub_blocks": [
+              {
+                "id": "materials_page__ew_wall_height_metres",
+                "block_type": "dropdown_select",
+                "standard": {
+                  "label": "Wall Height \u2014 Metres",
+                  "name": "wall_height_metres",
+                  "required": false,
+                  "trigger_value": "ew0",
+                  "dropdown_choices": [
+                    "2m",
+                    "3m"
+                  ],
+                  "help_text": "Shown when 'External Wall Height' checkbox (ew0) is selected"
+                }
+              },
+              {
+                "id": "materials_page__ew_wall_height_centimetres",
+                "block_type": "dropdown_select",
+                "standard": {
+                  "label": "Wall Height \u2014 Centimetres",
+                  "name": "wall_height_centimetres",
+                  "required": false,
+                  "trigger_value": "ew0",
+                  "dropdown_choices": [
+                    "0cm",
+                    "5cm",
+                    "10cm",
+                    "15cm",
+                    "20cm",
+                    "25cm",
+                    "30cm",
+                    "35cm",
+                    "40cm",
+                    "45cm",
+                    "50cm",
+                    "55cm",
+                    "60cm",
+                    "65cm",
+                    "70cm",
+                    "75cm",
+                    "80cm",
+                    "85cm",
+                    "90cm",
+                    "95cm"
+                  ],
+                  "help_text": "Shown when 'External Wall Height' checkbox (ew0) is selected"
+                }
+              }
+            ]
           },
           {
             "id": "materials_page__selected_er",
@@ -477,7 +526,36 @@
               "sort_order": 0,
               "value_mode": "show_value"
             },
-            "sub_blocks": []
+            "sub_blocks": [
+              {
+                "id": "materials_page__er_pitched_roof_option",
+                "block_type": "dropdown_select",
+                "standard": {
+                  "label": "Choose Roofing Finish",
+                  "name": "pitched_roof_option",
+                  "required": false,
+                  "trigger_value": "er1#",
+                  "source_codes": [
+                    "er4^",
+                    "er5^",
+                    "er6^",
+                    "er7^"
+                  ],
+                  "help_text": "Shown when Pitched Roof checkbox (er1#) is selected"
+                }
+              },
+              {
+                "id": "materials_page__er_other_roofing_description",
+                "block_type": "text_input",
+                "standard": {
+                  "label": "Other Roofing \u2014 Please Specify",
+                  "name": "other_roofing_description",
+                  "required": false,
+                  "trigger_value": "er7^",
+                  "help_text": "Shown when 'Other' (er7^) is selected in roofing finish"
+                }
+              }
+            ]
           },
           {
             "id": "materials_page__selected_id",
@@ -514,7 +592,30 @@
               "sort_order": 0,
               "value_mode": "show_value"
             },
-            "sub_blocks": []
+            "sub_blocks": [
+              {
+                "id": "materials_page__id_fire_doors_number",
+                "block_type": "number_input",
+                "standard": {
+                  "label": "Number of Fire Doors",
+                  "name": "fire_doors_number",
+                  "required": false,
+                  "min": 0,
+                  "help_text": "Maps to session key fire_doors_number"
+                }
+              },
+              {
+                "id": "materials_page__id_non_fire_doors_number",
+                "block_type": "number_input",
+                "standard": {
+                  "label": "Number of Non-Fire Doors",
+                  "name": "non_fire_doors_number",
+                  "required": false,
+                  "min": 0,
+                  "help_text": "Maps to session key non_fire_doors_number"
+                }
+              }
+            ]
           },
           {
             "id": "materials_page__selected_dr",
@@ -551,7 +652,32 @@
               "sort_order": 0,
               "value_mode": "show_value"
             },
-            "sub_blocks": []
+            "sub_blocks": [
+              {
+                "id": "materials_page__dr_drainage_other_input",
+                "block_type": "text_input",
+                "standard": {
+                  "label": "Drainage details",
+                  "name": "drainage_other_input",
+                  "required": false,
+                  "trigger_value": "dr4^",
+                  "help_text": "Shown when 'Specify other drainage works' (dr4^) is selected"
+                }
+              },
+              {
+                "id": "materials_page__dr_drainage_other_cost",
+                "block_type": "number_input",
+                "standard": {
+                  "label": "Additional Drainage Cost (\u00a3)",
+                  "name": "drainage_other_cost",
+                  "required": false,
+                  "trigger_value": "dr4^",
+                  "min": 0,
+                  "step": 0.01,
+                  "help_text": "Cost for 'other' drainage work"
+                }
+              }
+            ]
           },
           {
             "id": "materials_page__selected_wp",
