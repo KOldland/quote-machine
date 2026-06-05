@@ -56,16 +56,16 @@ The testing workflow follows a human-in-the-loop cycle:
 
 ## Testing Checklist
 
-1. Log in as admin, navigate to any form page
-2. Click "Edit Page" — verify the sidebar changes from nav links to question palette
-3. Verify the canvas still shows the current page's blocks
-4. Verify the properties panel still shows on the right when a block is selected
-5. Drag a question type from the sidebar palette onto the canvas
-6. Click "+ Add Question" — verify a new default block appears
-7. Click "Save Block" in properties — verify save works
-8. Click "Exit Edit Mode" — verify sidebar reverts to page nav
-9. Toggle sidebar collapse/expand in both modes
-10. Navigate between pages in edit mode via the page selector
+1. ✅ Log in as admin, navigate to any form page — **CLEAR**
+2. ✅ Click "Edit Page" — verify the sidebar changes from nav links to question palette — **CLEAR**
+3. ✅ Verify the canvas still shows the current page's blocks — **CLEAR** (after Schema Unification fix)
+4. ✅ Verify the properties panel still shows on the right when a block is selected — **CLEAR**
+5. ✅ Drag a question type from the sidebar palette onto the canvas — **CLEAR** (drag-drop palette subsequently removed in UX Sidebar Cleanup; "+ Add Question" button is now the primary entry point)
+6. Click "+ Add Question" — verify a new default block appears — **PENDING**
+7. ✅ Click "Save Block" in properties — verify save works — **CLEAR** (05/06/26 Save Block Fix)
+8. Click "Exit Edit Mode" — verify sidebar reverts to page nav — **PENDING**
+9. Toggle sidebar collapse/expand in both modes — **PENDING**
+10. Navigate between pages in edit mode via the page selector — **PENDING**
 
 ---
 
