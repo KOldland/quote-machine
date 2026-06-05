@@ -7,12 +7,12 @@
 * **GitHub Repository**: `https://github.com/KOldland/quote-machine`
 
 ## Current Goal
-* **Line Item Architecture Sprint — Session A**: Add `line_items` table to `template_store.py` and write `scripts/migrate_line_items_from_csv.py` to seed ~950 rows from the Google Sheet CSV using the suffix taxonomy. Previous accordion sprint phases 1 & 2 schema work is preserved but superseded by this new data model.
+* **Line Item Architecture Sprint — Session A**: Add `line_items` table to `template_store.py` and write `scripts/migrate_line_items_from_csv.py` to seed ~950 rows from the Google Sheet CSV using the suffix taxonomy.
 
 ## Active Files for Context
-* @app/page_schemas.json
-* @app/page_schemas_published.json
-* @app/scripts/migrate_phase2_sub_blocks.py
+* @app/template_store.py
+* @app/scripts/migrate_line_items_from_csv.py  ← to be created
+* @app/context_archive/Plus Rooms Live input in doc formatting (back up) - Sheet1.csv
 * @app/QMapp.py
 * @app/templates/form.html
 * @app/static/js/builder.js
@@ -27,42 +27,70 @@
 * **P1 Sidebar collapse in edit mode** ✅ — commit `66abfb9`
 * **P2 Select Page width + arrow direction** ✅ — commit `2852f49`
 * **Accordion Hierarchy architectural analysis** ✅ — 4-phase plan written
+* **Phase 1 — Schema Migration** ✅ — 17 `checkbox_group` blocks promoted to `accordion_group` — commit `07a9811`
+* **Phase 2 — Sub-block Discovery & Schema Population** ✅ — 8 hardcoded sub-questions migrated to schema (ew/er/id/dr)
 
 ### This session (05/06/26)
-* **Phase 1 — Schema Migration** ✅ — `scripts/migrate_accordion_schema.py` written and run. 17 `checkbox_group` blocks with `source_prefix` promoted to `accordion_group` with `sub_blocks: []` in both `page_schemas.json` and `page_schemas_published.json`. — commit `07a9811`
-* **Phase 2 — Sub-block Discovery & Schema Population** ✅ — Audited `form.html` and `QMapp.py`. Found 8 hardcoded sub-questions across 4 materials-page accordions. Migration script `scripts/migrate_phase2_sub_blocks.py` written and run. Sub-blocks now registered in schema:
-  - `materials_page__selected_ew` → `wall_height_metres`, `wall_height_centimetres`
-  - `materials_page__selected_er` → `pitched_roof_option`, `other_roofing_description`
-  - `materials_page__selected_id` → `fire_doors_number`, `non_fire_doors_number`
-  - `materials_page__selected_dr` → `drainage_other_input`, `drainage_other_cost`
+* **Architecture pivot** ✅ — Full end-to-end review. Agreed to engineer from output backwards. Google Sheet CSV (~950 rows) uploaded and analysed. Full `line_items` DB architecture defined and documented in `current_development.md`. — commit `cf49fae`
 
 ## Known Issues / Bug Backlog
 * None — all prior bugs resolved. Active sprint is a feature build.
 
 ## Immediate Next Task (start here on reopen)
 
-### 🚀 Line Item Architecture — Session A
+### 🚀 Session A — `line_items` Table + CSV Migration Script
 
-Full architecture is defined in `app/.continue/prompts/current_development.md` under **NEW SPRINT: Line Item Architecture**.
+Full architecture spec is in `app/.continue/prompts/current_development.md` under **NEW SPRINT: Line Item Architecture**.
 
-**Two deliverables for Session A:**
+**Two deliverables:**
 
-1. **Add `line_items` table** to `template_store.py` — using the SQL schema defined in `current_development.md`. Add it inside `_create_schema()` alongside existing tables.
+**1. Add `line_items` table to `template_store.py`**
+Add inside `_create_schema()` alongside existing tables:
 
-2. **Write `scripts/migrate_line_items_from_csv.py`** — reads the CSV at:
-   `app/context_archive/Plus Rooms Live input in doc formatting (back up) - Sheet1.csv`
-   
-   For each row:
-   - Parse `line_code` suffix to determine `item_role` and `form_visible` using the taxonomy in `current_development.md`
-   - Infer `parent_code` by stripping trailing suffix chars and finding the `#` base code
-   - Clean `unit_cost` (strip `£`, commas, handle blanks/`-`)
-   - Map CSV columns: `description` → `output_title`, `Description3` → `output_notes`, `Description4` → `output_guidance`
-   - Insert into `line_items`
-   
-   Run script and verify ~950 rows inserted with correct `item_role` distribution.
+```sql
+CREATE TABLE IF NOT EXISTS line_items (
+    id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+    line_code            TEXT NOT NULL UNIQUE,
+    form_page            TEXT,
+    category             TEXT NOT NULL,
+    internal_description TEXT,
+    include_default      TEXT NOT NULL DEFAULT 'N',
+    unit_cost            REAL DEFAULT 0.0,
+    units                REAL DEFAULT 0.0,
+    pricing_visibility   TEXT NOT NULL DEFAULT 'admin_only',
+    output_title         TEXT,
+    output_notes         TEXT,
+    output_guidance      TEXT,
+    parent_code          TEXT,
+    item_role            TEXT NOT NULL DEFAULT 'standalone',
+    input_type           TEXT,
+    trigger_parent_code  TEXT,
+    form_visible         INTEGER NOT NULL DEFAULT 1,
+    sort_order           INTEGER NOT NULL DEFAULT 0,
+    created_at           DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at           DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+```
 
-**Source CSV columns** (0-indexed):
-`template page(0) | Line Code(1) | Category(2) | Internal Description(3) | Include(4) | Unit Cost(5) | Unit(6) | Total Cost(7) | Summed_Totals(8) | Dimension(9) | description(10) | Calculations(11) | Description3(12) | Description4(13) | Description5(14)`
+**2. Write `scripts/migrate_line_items_from_csv.py`**
+Source CSV: `app/context_archive/Plus Rooms Live input in doc formatting (back up) - Sheet1.csv`
+
+Suffix taxonomy for `item_role` + `form_visible`:
+- `#` suffix → `item_role=parent`, `form_visible=1`
+- `^` suffix → `item_role=standalone`, `form_visible=1`
+- trailing `a/b/c` (no `*`) → `item_role=auto_child`, `form_visible=0`
+- `*` suffix → `item_role=guidance`, `form_visible=0`
+- `@` suffix → `item_role=special`, `form_visible=0`
+- no suffix → `item_role=standalone`, `form_visible=1`
+
+Parent inference: strip trailing suffix chars, look for `#` code with same base (e.g. `sn1a` → `sn1#`).
+
+CSV column mapping (0-indexed):
+`form_page(0) | line_code(1) | category(2) | internal_description(3) | include_default(4) | unit_cost(5) | units(6) | total_cost(7) | [skip 8,9,11] | output_title(10) | output_notes(12) | output_guidance(13)`
+
+Clean `unit_cost`: strip `£`, commas, handle blank/`-` → 0.0
+
+Verify ~950 rows inserted with correct `item_role` distribution printed as summary.
 
 ## Session Log
 | Date | Items | Result |
@@ -72,5 +100,5 @@ Full architecture is defined in `app/.continue/prompts/current_development.md` u
 | 05/06/26 | P2 Select Page width + arrow | FIXED — `2852f49` |
 | 05/06/26 | Accordion analysis | 4-phase plan written |
 | 05/06/26 | Phase 1 schema migration | ✅ COMPLETE — `07a9811` |
-| 05/06/26 | Phase 2 sub-block discovery + schema population | ✅ COMPLETE — this commit |
-| 05/06/26 | Phase 2 Jinja rendering update — form.html sub_blocks dynamic | ✅ COMPLETE — this commit |
+| 05/06/26 | Phase 2 sub-block discovery + schema population | ✅ COMPLETE |
+| 05/06/26 | Architecture pivot — line_item model defined | ✅ COMPLETE — `cf49fae` |
