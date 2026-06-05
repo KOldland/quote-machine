@@ -756,6 +756,22 @@
               "sort_order": 5,
               "value_mode": "show_value"
             }
+          },
+          {
+            "id": "materials_page__line_items",
+            "block_type": "line_items_by_category",
+            "config": {
+              "categories": [
+                "Drainage",
+                "Internal doors",
+                "Waste & Parking",
+                "dimension",
+                "external roofing finish",
+                "external wall finish & height",
+                "floor structure",
+                "plastering"
+              ]
+            }
           }
         ]
       },
@@ -918,6 +934,16 @@
             },
             "sub_blocks": [],
             "hidden": true
+          },
+          {
+            "id": "further_requirements_page__line_items",
+            "block_type": "line_items_by_category",
+            "config": {
+              "categories": [
+                "Demolition Works",
+                "Further Requirements & Considerations"
+              ]
+            }
           }
         ]
       },

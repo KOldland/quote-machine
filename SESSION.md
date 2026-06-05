@@ -37,23 +37,33 @@
 
 ## Immediate Next Task (start here on reopen)
 
-### 🚀 Session H — Block Builder Beta: `line_items_by_category` category management
+### 🚀 Session H cont. — Builder canvas UI for `line_items_by_category` categories
+
+**Steps H1 + H2 ✅ COMPLETE:**
+- `page_schemas.json`: `line_items_by_category` block added to `materials_page` (8 categories) + `further_requirements_page` (2 categories) with `config.categories` arrays pre-seeded from DB
+- `QMapp.py`:
+  - `_get_line_items_for_page(form_page_key, categories=None)` — category filter via `AND category IN (...)`
+  - `_get_li_categories_from_schema(page_id)` — helper reads `config.categories` from schema
+  - Both routes updated: `_get_line_items_for_page('3', _get_li_categories_from_schema('materials_page'))` + `'3B'` equivalent
+  - `compile_builder_beta_page_to_runtime_schema`: `elif block_type == 'line_items_by_category'` branch passes `config` through
+  - `/builder_beta/block_config_save/<page_id>/<block_id>` POST endpoint added — patches `page_schemas.json` in-place
+
+**Next: Steps H3–H5**
+
+### Step H3 — Builder canvas UI
 
 **Goal:** Non-dev admins can open `/builder_beta/page/materials_page`, see the `line_items_by_category` block, and configure which DB categories appear on that page.
 
-**Step 1 — Inspect current `line_items_by_category` block config in `page_schemas.json`**
-Look at `builder_beta.pages.materials_page.blocks` — find the block with `block_type: 'line_items_by_category'` and confirm current `config.categories` shape.
+**Step H3 — Builder canvas UI**
+In `builder_beta.html` or `_builder_macros.html`: properties panel for `line_items_by_category` block shows checklist of all available categories (from `/builder_beta/line_items_json`) with on/off toggles. Saves via `POST /builder_beta/block_config_save/<page_id>/<block_id>` with `{"config": {"categories": [...]}}`.
 
-**Step 2 — Add category config to block schema**
-In `page_schemas.json`: `blocks[].config.categories` = array of enabled category slugs (from `line_items.category`).
+Key files:
+- `_builder_macros.html` — add properties panel section for `block_type == 'line_items_by_category'`
+- `builder.js` — fetch category list from `/builder_beta/line_items_json`, render checkboxes, POST on change
 
-**Step 3 — Wire `_get_line_items_for_page()` to respect config**
-Pass `categories` filter from block config → query `WHERE category IN (...)` when config present.
+**Step H4 — Smoke test:** toggle a category off in builder → reload `/materials_page` → confirm that category's items are hidden.
 
-**Step 4 — Builder canvas UI**
-In `builder_beta.html` or `_builder_macros.html`: properties panel for `line_items_by_category` block shows checklist of all available categories (from `/builder_beta/line_items_json`) with on/off toggles. Persisted via existing `/admin/field_override` or new `/builder_beta/block_config_save/<page_id>/<block_id>` endpoint.
-
-**Step 5 — Smoke test:** toggle a category off in builder → reload `/materials_page` → confirm that category's items are hidden.
+**Step H5 — SESSION.md + commit**
 
 ## Session Log
 | Date | Session | Result |
@@ -71,3 +81,4 @@ In `builder_beta.html` or `_builder_macros.html`: properties panel for `line_ite
 | 05/06/26 | Session E — integration test | ✅ blocker → Session F |
 | 05/06/26 | Session F — hidden flag + builder badge | ✅ `4cd3b01` + `a56ef73` |
 | 05/06/26 | Session G — auto_child filter + smoke test | ✅ — `AND item_role != 'auto_child'` in both query funcs |
+| 06/06/26 | Session H (steps 1–2) — schema + backend wiring | ✅ — `page_schemas.json` blocks added, `_get_line_items_for_page(categories)` + `_get_li_categories_from_schema()` + `block_config_save` endpoint |

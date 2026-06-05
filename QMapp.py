@@ -1070,6 +1070,12 @@ def compile_builder_beta_page_to_runtime_schema(page_id):
 					'suffix': 'digits',
 				},
 			})
+		elif block_type == 'line_items_by_category':
+			compiled_fields.append({
+				**common_payload,
+				'type': 'line_items_by_category',
+				'config': deepcopy(block.get('config', {})),
+			})
 		else:
 			compiled_fields.append({
 				**common_payload,
@@ -2958,6 +2964,32 @@ def builder_line_item_save(item_id):
     return jsonify({'ok': True, 'id': item_id})
 
 
+@app.route('/builder_beta/block_config_save/<page_id>/<block_id>', methods=['POST'])
+@require_role('admin')
+def builder_block_config_save(page_id, block_id):
+    """Update config dict for a specific block in page_schemas.json."""
+    import json as _json
+    data = request.get_json(force=True) or {}
+    schema_path = os.path.join(os.path.dirname(__file__), 'page_schemas.json')
+    try:
+        with open(schema_path) as f:
+            schema = _json.load(f)
+        page = schema.get('builder_beta', {}).get('pages', {}).get(page_id)
+        if not page:
+            return jsonify({'ok': False, 'error': f'page {page_id!r} not found'}), 404
+        for block in page.get('blocks', []):
+            if block.get('id') == block_id:
+                if 'config' not in block:
+                    block['config'] = {}
+                block['config'].update(data.get('config', {}))
+                with open(schema_path, 'w') as f:
+                    _json.dump(schema, f, indent=2)
+                return jsonify({'ok': True, 'page_id': page_id, 'block_id': block_id})
+        return jsonify({'ok': False, 'error': f'block {block_id!r} not found'}), 404
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
 @app.route('/builder_beta/render/<page_id>', methods=['GET', 'POST'])
 @require_role('admin')
 def builder_beta_runtime_render(page_id):
@@ -3003,26 +3035,31 @@ def builder_beta_runtime_render(page_id):
 
 ################################################################################################################################
 
-def _get_line_items_for_page(form_page_key):
+def _get_line_items_for_page(form_page_key, categories=None):
 	"""Query line_items table for a form page key, grouped by category.
 	Returns {category: [row_dict, ...]} ordered by sort_order.
 	Only rows with form_visible=1 are included.
+	Pass categories=[...] to restrict to specific category names.
 	"""
 	import sqlite3 as _sq
 	from pathlib import Path as _P
-	import os as _os
 	_db = str(_P(os.environ.get('QM_TEMPLATE_DB_PATH', '') or
 				 _P(__file__).parent / 'template_store.sqlite3'))
 	_conn = _sq.connect(_db)
 	_conn.row_factory = _sq.Row
-	_rows = _conn.execute(
+	_query = (
 		"SELECT id, line_code, form_page, category, internal_description, include_default, "
 		"unit_cost, units, pricing_visibility, output_title, output_notes, output_guidance, "
 		"parent_code, item_role, input_type, trigger_parent_code, form_visible, sort_order "
 		"FROM line_items WHERE form_page=? AND form_visible=1 AND item_role != 'auto_child' "
-		"ORDER BY category ASC, sort_order ASC, line_code ASC",
-		(form_page_key,)
-	).fetchall()
+	)
+	_params = [form_page_key]
+	if categories:
+		_placeholders = ','.join('?' * len(categories))
+		_query += f"AND category IN ({_placeholders}) "
+		_params.extend(categories)
+	_query += "ORDER BY category ASC, sort_order ASC, line_code ASC"
+	_rows = _conn.execute(_query, _params).fetchall()
 	_conn.close()
 	_result = {}
 	for _r in _rows:
@@ -3031,6 +3068,26 @@ def _get_line_items_for_page(form_page_key):
 			_result[_cat] = []
 		_result[_cat].append(dict(_r))
 	return _result
+
+
+def _get_li_categories_from_schema(page_id):
+	"""Read page_schemas.json and return config.categories for the
+	line_items_by_category block on the given page.
+	Returns a list of category strings, or None if not configured (= show all).
+	"""
+	import json as _json
+	_schema_path = os.path.join(os.path.dirname(__file__), 'page_schemas.json')
+	try:
+		with open(_schema_path) as _f:
+			_schema = _json.load(_f)
+		_page = _schema.get('builder_beta', {}).get('pages', {}).get(page_id, {})
+		for _b in _page.get('blocks', []):
+			if _b.get('block_type') == 'line_items_by_category':
+				cats = _b.get('config', {}).get('categories', [])
+				return cats if cats else None
+	except Exception:
+		pass
+	return None
 
 
 @app.route('/materials_page', methods=['POST', 'GET'])
@@ -3260,7 +3317,7 @@ def materials_page():
 		wall_height_centimetres=data.get('wall_height_centimetres', ''),
 		fire_doors_number=data.get('fire_doors_number', ''),
 		non_fire_doors_number=data.get('non_fire_doors_number', ''),
-		line_items_by_category=_get_line_items_for_page('3'),
+		line_items_by_category=_get_line_items_for_page('3', _get_li_categories_from_schema('materials_page')),
 	)
 	
 ################################################################################################################################
@@ -3481,7 +3538,7 @@ def further_requirements_page():
 		data=data,
 		iw_sqm_values=data.get('iw_sqm_values', {}),
 		iw_fixed_values=data.get('iw_fixed_values', {}),
-		line_items_by_category=_get_line_items_for_page('3B'),
+		line_items_by_category=_get_line_items_for_page('3B', _get_li_categories_from_schema('further_requirements_page')),
 	)	
 
 ################################################################################################################################
