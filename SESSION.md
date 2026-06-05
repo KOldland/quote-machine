@@ -7,7 +7,7 @@
 * **GitHub Repository**: `https://github.com/KOldland/quote-machine`
 
 ## Current Goal
-* Fix sidebar collapse bug in edit mode (P1), then begin Block Properties deep-dive sprint.
+* All P1/P2 sidebar bugs resolved. Begin Block Properties deep-dive sprint.
 
 ## Active Files for Context
 * @app/static/js/builder.js
@@ -18,28 +18,22 @@
 * @app/SESSION.md
 * @app/.continue/prompts/current_development.md
 
-## What Was Completed (05/06/26 — CRUD Testing Sprint)
-* **Items 1–8, 10 CLEAR** — all core CRUD flows verified: login, edit mode entry, canvas render, properties panel, add question, save block, exit edit mode, page navigation.
-* **Item 6** ✅ — "+ Add Question" modal opens and creates a new block on canvas.
-* **Item 8** ✅ — "Exit Edit Mode" reverts sidebar and strips `?edit=1` from URL.
-* **Item 10** ✅ — "Select Page" dropdown navigates between pages while preserving edit mode.
-* **Testing phase 9/10 complete** — one item remains (sidebar collapse in edit mode).
+## What Was Completed (05/06/26 — Bug Squash Sprint)
+* **P2 — Select Page width** ✅ — Removed `margin: 5px` horizontal bleed + `calc(100% - 10px)`; now `width: 100%` with vertical-only margin. Matches Add Question / Publish / Undo / Exit buttons exactly. Commit `2852f49`.
+* **P2 — Select Page arrow direction** ✅ — `▼` when collapsed (`rotate(0deg)`), `▲` when expanded (`rotate(180deg)`). Commit `2852f49`.
+* **P1 — Sidebar collapse in edit mode** ✅ — Root cause: `.sidebar.builder-edit-mode { min-width: 220px }` overrode `width: 0`. Fixed by adding `.sidebar.builder-edit-mode.collapsed` override with `width: 0 !important; min-width: 0 !important`. Commit `66abfb9`.
+* **Testing checklist item #9** ✅ — Sidebar collapse/expand now works in both normal and edit modes. All 10 checklist items are now CLEAR.
 
 ## Known Issues / Bug Backlog
-
-| Priority | Issue | File(s) |
-|----------|-------|---------|
-| **P1** | Sidebar does not fully collapse in edit mode. Normal mode works fine. Clicking the hamburger (≡) partially collapses but content remains visible. | `app/templates/index.html`, `app/static/js/builder.js`, `app/static/css/main.css` |
-| **P2** | "Select Page" `<details>` element is slightly narrower than Add Question / Publish / Undo / Exit buttons on the right. | `app/static/css/main.css` |
+* None — all P1 and P2 bugs from the CRUD testing sprint resolved.
 
 ## Immediate Next Task (start here on reopen)
-1. **Fix sidebar collapse in edit mode (P1)**:
-   - Inspect the sidebar collapse toggle — likely a CSS class conflict or a JS condition that skips collapse when `edit_mode` is active.
-   - Check `builder.js` for the hamburger click handler and any guard that might prevent collapse.
-   - Check `main.css` for `.sidebar-collapsed` rules — confirm they apply in edit mode layout too.
-   - Fix and verify collapse works in both normal and edit modes.
-2. **Fix Select Page button width (P2)** — ensure `<details>` element matches sibling button widths exactly.
-3. **Begin Block Properties sprint** — this is the next major work area. Agreed with user that Block Properties panel needs significant work (exact scope to be defined at start of next session).
+1. **Verify sidebar collapse fix** — hard-refresh (Cmd+Shift+R), enter edit mode, click hamburger (☰) — sidebar should fully collapse and content should expand to full width.
+2. **Begin Block Properties sprint** — this is the next major work area. The Block Properties panel needs significant work. Define exact scope at start of next session:
+   - What fields are missing or broken?
+   - What save/load behaviour needs fixing?
+   - Any field-type-specific rendering issues?
+3. Update `current_development.md` checklist item #9 to ✅ CLEAR.
 
 ## Session Log Summary
 | Date | Items | Result |
@@ -47,3 +41,5 @@
 | 05/06/26 | #1–5, #7 | All CLEAR |
 | 05/06/26 | #6, #8, #10 | All CLEAR |
 | 05/06/26 | #9 | BUG — sidebar collapse broken in edit mode |
+| 05/06/26 | P2 Select Page width + arrow direction | FIXED — commit `2852f49` |
+| 05/06/26 | P1 Sidebar collapse in edit mode | FIXED — commit `66abfb9` |
