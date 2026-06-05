@@ -96,10 +96,10 @@
     align-items: center !important;
     justify-content: space-between !important;
     padding: .45rem .65rem !important;
-    margin: 5px !important;
+    margin: .35rem 0 !important;
     cursor: pointer;
     user-select: none;
-    width: calc(100% - 10px) !important;
+    width: 100% !important;
     box-sizing: border-box !important;
 }
 
@@ -114,11 +114,11 @@
 }
 
 .builder-edit-mode .page-list-details[open] .page-list-arrow {
-    transform: rotate(0deg);
+    transform: rotate(180deg);
 }
 
 .builder-edit-mode .page-list-details:not([open]) .page-list-arrow {
-    transform: rotate(-90deg);
+    transform: rotate(0deg);
 }
 
 /* nav-user block — flex-pushed to bottom of sidebar */
