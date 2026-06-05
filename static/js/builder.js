@@ -883,3 +883,141 @@ window.toggleSection = function(sectionId) {
         section.classList.toggle("collapsed");
     }
 };
+
+// ─── Line Items Canvas ────────────────────────────────────────────────────────
+(function () {
+    const LI = { data: [], selected: null };
+
+    // Entry point — call from any page that mounts the line_items canvas
+    window.initLineItemsCanvas = function () {
+        fetch('/builder_beta/line_items_json')
+            .then(r => r.json())
+            .then(json => {
+                LI.data = json.categories.flatMap(c => c.items);
+                _renderAccordions(json.categories);
+            })
+            .catch(() => {
+                const el = document.getElementById('li-accordion-container');
+                if (el) el.innerHTML = '<p style="color:red">Failed to load line items.</p>';
+            });
+    };
+
+    function _renderAccordions(categories) {
+        const el = document.getElementById('li-accordion-container');
+        if (!el) return;
+        el.innerHTML = categories.map(cat => `
+            <details class="li-category" open>
+                <summary class="li-category-header">
+                    <strong>${_esc(cat.name)}</strong>
+                    <span class="li-count">${cat.items.length} items</span>
+                </summary>
+                <div class="li-items-list">
+                    ${cat.items.map(_rowHtml).join('')}
+                </div>
+            </details>
+        `).join('');
+        el.querySelectorAll('.li-row').forEach(row =>
+            row.addEventListener('click', () => _selectItem(parseInt(row.dataset.liId, 10)))
+        );
+    }
+
+    function _rowHtml(item) {
+        const sel = LI.selected === item.id ? ' li-row--selected' : '';
+        const vis = item.form_visible ? '✅' : '—';
+        return `<div class="li-row${sel}" data-li-id="${item.id}">
+            <span class="li-row-code">${_esc(item.line_code)}</span>
+            <span class="li-row-desc">${_esc(item.internal_description || '')}</span>
+            <span class="li-row-role">${_esc(item.item_role || '')}</span>
+            <span class="li-row-visible">${vis}</span>
+        </div>`;
+    }
+
+    function _selectItem(id) {
+        LI.selected = id;
+        document.querySelectorAll('.li-row').forEach(r => r.classList.remove('li-row--selected'));
+        const rowEl = document.querySelector(`.li-row[data-li-id="${id}"]`);
+        if (rowEl) rowEl.classList.add('li-row--selected');
+        const item = LI.data.find(i => i.id === id);
+        if (item) _renderProperties(item);
+    }
+
+    function _renderProperties(item) {
+        const panel = document.getElementById('li-properties-content');
+        if (!panel) return;
+        panel.innerHTML = `
+            <div style="font-weight:700;font-size:.85rem;color:#1b3a6b;padding:.4rem 0 .6rem;border-bottom:1px solid #ddd;margin-bottom:.75rem;">
+                ${_esc(item.line_code)} <span style="font-weight:400;color:#888;font-size:.78rem;">id:${item.id}</span>
+            </div>
+            <form id="li-edit-form">
+                <input type="hidden" name="li_id" value="${item.id}">
+                ${_tf('internal_description','Description', item.internal_description,'text')}
+                ${_tf('output_title','Output Title', item.output_title,'text')}
+                ${_tf('output_notes','Output Notes', item.output_notes,'textarea')}
+                ${_tf('output_guidance','Output Guidance', item.output_guidance,'textarea')}
+                ${_tf('unit_cost','Unit Cost (£)', item.unit_cost,'number')}
+                ${_tf('units','Units', item.units,'number')}
+                <div class="form-group">
+                    <label>Include Default</label>
+                    <select name="include_default">
+                        <option value="Y" ${item.include_default==='Y'?'selected':''}>Yes (Y)</option>
+                        <option value="N" ${item.include_default!=='Y'?'selected':''}>No (N)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Pricing Visibility</label>
+                    <select name="pricing_visibility">
+                        <option value="admin_only" ${item.pricing_visibility==='admin_only'?'selected':''}>Admin Only</option>
+                        <option value="user_view" ${item.pricing_visibility==='user_view'?'selected':''}>User View</option>
+                        <option value="user_edit" ${item.pricing_visibility==='user_edit'?'selected':''}>User Edit</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Form Visible</label>
+                    <select name="form_visible">
+                        <option value="1" ${item.form_visible?'selected':''}>Yes</option>
+                        <option value="0" ${!item.form_visible?'selected':''}>No</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width:100%;margin-top:.5rem;">Save Changes</button>
+            </form>
+        `;
+        document.getElementById('li-edit-form').addEventListener('submit', async e => {
+            e.preventDefault();
+            const fd = new FormData(e.target);
+            const payload = {};
+            for (const [k, v] of fd.entries()) {
+                if (k !== 'li_id') payload[k] = v;
+            }
+            if (payload.unit_cost !== undefined) payload.unit_cost = parseFloat(payload.unit_cost) || 0;
+            if (payload.units !== undefined) payload.units = parseFloat(payload.units) || 0;
+            if (payload.form_visible !== undefined) payload.form_visible = parseInt(payload.form_visible, 10);
+            try {
+                const res = await fetch(`/builder_beta/line_item_save/${fd.get('li_id')}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const json = await res.json();
+                if (json.ok) {
+                    const idx = LI.data.findIndex(i => i.id === parseInt(fd.get('li_id'), 10));
+                    if (idx > -1) Object.assign(LI.data[idx], payload);
+                    const st = document.getElementById('li-save-status');
+                    if (st) { st.textContent = '✓ Saved'; setTimeout(() => st.textContent = '', 2500); }
+                }
+            } catch (err) { console.error('LI save err', err); }
+        });
+    }
+
+    function _tf(name, label, value, type) {
+        const v = _esc(value == null ? '' : String(value));
+        if (type === 'textarea') {
+            return `<div class="form-group"><label>${label}</label><textarea name="${name}" rows="2">${v}</textarea></div>`;
+        }
+        const step = type === 'number' ? ' step="0.01"' : '';
+        return `<div class="form-group"><label>${label}</label><input type="${type}" name="${name}" value="${v}"${step}></div>`;
+    }
+
+    function _esc(s) {
+        return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+})();

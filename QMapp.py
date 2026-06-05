@@ -2904,6 +2904,58 @@ def builder_beta_runtime_payload_json(page_id):
 	return jsonify(payload_preview)
 
 
+@app.route('/builder_beta/line_items_json', methods=['GET'])
+@require_role('admin')
+def builder_line_items_json():
+    """Return all line_items grouped by category as JSON for the builder canvas."""
+    import sqlite3 as _sq
+    from pathlib import Path as _P
+    db = _P(__file__).resolve().parent / 'template_store.sqlite3'
+    if not db.exists():
+        return jsonify({'categories': []})
+    conn = _sq.connect(str(db))
+    conn.row_factory = _sq.Row
+    rows = conn.execute(
+        'SELECT id, line_code, form_page, category, internal_description, '
+        'include_default, unit_cost, units, pricing_visibility, '
+        'output_title, output_notes, output_guidance, '
+        'parent_code, item_role, form_visible, sort_order '
+        'FROM line_items ORDER BY category ASC, sort_order ASC, line_code ASC'
+    ).fetchall()
+    conn.close()
+    cats = {}
+    for r in rows:
+        cats.setdefault(r['category'], []).append(dict(r))
+    return jsonify({'categories': [{'name': c, 'items': v} for c, v in cats.items()]})
+
+
+@app.route('/builder_beta/line_item_save/<int:item_id>', methods=['POST'])
+@require_role('admin')
+def builder_line_item_save(item_id):
+    """Update editable fields of a single line_item."""
+    import sqlite3 as _sq
+    from pathlib import Path as _P
+    db = _P(__file__).resolve().parent / 'template_store.sqlite3'
+    if not db.exists():
+        return jsonify({'ok': False, 'error': 'DB not found'}), 404
+    data = request.get_json(force=True) or {}
+    allowed = {'internal_description', 'include_default', 'unit_cost', 'units',
+               'pricing_visibility', 'output_title', 'output_notes', 'output_guidance',
+               'form_visible', 'item_role', 'category', 'form_page'}
+    updates = {k: v for k, v in data.items() if k in allowed}
+    if not updates:
+        return jsonify({'ok': False, 'error': 'No valid fields'}), 400
+    set_sql = ', '.join(f'{k} = ?' for k in updates)
+    conn = _sq.connect(str(db))
+    conn.execute(
+        f'UPDATE line_items SET {set_sql}, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        list(updates.values()) + [item_id]
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({'ok': True, 'id': item_id})
+
+
 @app.route('/builder_beta/render/<page_id>', methods=['GET', 'POST'])
 @require_role('admin')
 def builder_beta_runtime_render(page_id):

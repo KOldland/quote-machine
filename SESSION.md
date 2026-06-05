@@ -7,7 +7,7 @@
 * **GitHub Repository**: `https://github.com/KOldland/quote-machine`
 
 ## Current Goal
-* **Line Item Architecture Sprint — Session A**: Add `line_items` table to `template_store.py` and write `scripts/migrate_line_items_from_csv.py` to seed ~950 rows from the Google Sheet CSV using the suffix taxonomy.
+* **Line Item Architecture Sprint — Session B**: Rework builder canvas for `line_items` — accordion view by category, properties panel with 9 editable fields, `pricing_visibility` toggle.
 
 ## Active Files for Context
 * @app/template_store.py
