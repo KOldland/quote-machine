@@ -93,7 +93,7 @@
         "blocks": [
           {
             "id": "special_notes_page__selected_special_notes",
-            "block_type": "checkbox_group",
+            "block_type": "accordion_group",
             "standard": {
               "label": "Select any selected notes to be included:",
               "name": "selected_special_notes",
@@ -125,7 +125,8 @@
               "group": "General",
               "sort_order": 0,
               "value_mode": "show_value"
-            }
+            },
+            "sub_blocks": []
           }
         ]
       },
@@ -139,7 +140,7 @@
         "blocks": [
           {
             "id": "summary_page__selected_building_works",
-            "block_type": "checkbox_group",
+            "block_type": "accordion_group",
             "standard": {
               "label": "Building Works",
               "name": "selected_building_works",
@@ -171,11 +172,12 @@
               "group": "General",
               "sort_order": 0,
               "value_mode": "show_value"
-            }
+            },
+            "sub_blocks": []
           },
           {
             "id": "summary_page__selected_blr",
-            "block_type": "checkbox_group",
+            "block_type": "accordion_group",
             "standard": {
               "label": "Wall Construction: Right Side",
               "name": "selected_blr",
@@ -207,11 +209,12 @@
               "group": "General",
               "sort_order": 0,
               "value_mode": "show_value"
-            }
+            },
+            "sub_blocks": []
           },
           {
             "id": "summary_page__selected_bll",
-            "block_type": "checkbox_group",
+            "block_type": "accordion_group",
             "standard": {
               "label": "Wall Construction: Left Side",
               "name": "selected_bll",
@@ -243,7 +246,8 @@
               "group": "General",
               "sort_order": 0,
               "value_mode": "show_value"
-            }
+            },
+            "sub_blocks": []
           },
           {
             "id": "summary_page__selected_pp",
@@ -283,7 +287,7 @@
           },
           {
             "id": "summary_page__selected_basement",
-            "block_type": "checkbox_group",
+            "block_type": "accordion_group",
             "standard": {
               "label": "Basement",
               "name": "selected_basement",
@@ -315,11 +319,12 @@
               "group": "General",
               "sort_order": 0,
               "value_mode": "show_value"
-            }
+            },
+            "sub_blocks": []
           },
           {
             "id": "summary_page__conservation_status",
-            "block_type": "checkbox_group",
+            "block_type": "accordion_group",
             "standard": {
               "label": "Is the property located in a conservation area?",
               "name": "conservation_status",
@@ -351,7 +356,8 @@
               "group": "General",
               "sort_order": 0,
               "value_mode": "show_value"
-            }
+            },
+            "sub_blocks": []
           },
           {
             "id": "summary_page__selected_council",
@@ -401,7 +407,7 @@
         "blocks": [
           {
             "id": "materials_page__selected_ew",
-            "block_type": "checkbox_group",
+            "block_type": "accordion_group",
             "standard": {
               "label": "External Walls",
               "name": "selected_ew",
@@ -433,11 +439,12 @@
               "group": "General",
               "sort_order": 0,
               "value_mode": "show_value"
-            }
+            },
+            "sub_blocks": []
           },
           {
             "id": "materials_page__selected_er",
-            "block_type": "checkbox_group",
+            "block_type": "accordion_group",
             "standard": {
               "label": "External Roof",
               "name": "selected_er",
@@ -469,11 +476,12 @@
               "group": "General",
               "sort_order": 0,
               "value_mode": "show_value"
-            }
+            },
+            "sub_blocks": []
           },
           {
             "id": "materials_page__selected_id",
-            "block_type": "checkbox_group",
+            "block_type": "accordion_group",
             "standard": {
               "label": "Internal Doors",
               "name": "selected_id",
@@ -505,11 +513,12 @@
               "group": "General",
               "sort_order": 0,
               "value_mode": "show_value"
-            }
+            },
+            "sub_blocks": []
           },
           {
             "id": "materials_page__selected_dr",
-            "block_type": "checkbox_group",
+            "block_type": "accordion_group",
             "standard": {
               "label": "Drainage",
               "name": "selected_dr",
@@ -541,11 +550,12 @@
               "group": "General",
               "sort_order": 0,
               "value_mode": "show_value"
-            }
+            },
+            "sub_blocks": []
           },
           {
             "id": "materials_page__selected_wp",
-            "block_type": "checkbox_group",
+            "block_type": "accordion_group",
             "standard": {
               "label": "Waste and Parking",
               "name": "selected_wp",
@@ -577,6 +587,43 @@
               "group": "General",
               "sort_order": 0,
               "value_mode": "show_value"
+            },
+            "sub_blocks": []
+          },
+          {
+            "id": "materials_page__checkbox_group_1780662574072",
+            "block_type": "checkbox_group",
+            "standard": {
+              "label": "New checkbox group",
+              "name": "materials_page__checkbox_group_1780662574072",
+              "required": false,
+              "help_text": "",
+              "source_prefix": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "New checkbox group",
+              "group": "General",
+              "sort_order": 5,
+              "value_mode": "show_value"
             }
           }
         ]
@@ -591,7 +638,7 @@
         "blocks": [
           {
             "id": "further_requirements_page__selected_frc",
-            "block_type": "checkbox_group",
+            "block_type": "accordion_group",
             "standard": {
               "label": "Further requirements",
               "name": "selected_frc",
@@ -623,11 +670,12 @@
               "group": "General",
               "sort_order": 0,
               "value_mode": "show_value"
-            }
+            },
+            "sub_blocks": []
           },
           {
             "id": "further_requirements_page__selected_dw",
-            "block_type": "checkbox_group",
+            "block_type": "accordion_group",
             "standard": {
               "label": "Demolition Works",
               "name": "selected_dw",
@@ -659,11 +707,12 @@
               "group": "General",
               "sort_order": 0,
               "value_mode": "show_value"
-            }
+            },
+            "sub_blocks": []
           },
           {
             "id": "further_requirements_page__selected_fs",
-            "block_type": "checkbox_group",
+            "block_type": "accordion_group",
             "standard": {
               "label": "Floor Structure",
               "name": "selected_fs",
@@ -695,11 +744,12 @@
               "group": "General",
               "sort_order": 0,
               "value_mode": "show_value"
-            }
+            },
+            "sub_blocks": []
           },
           {
             "id": "further_requirements_page__selected_gv",
-            "block_type": "checkbox_group",
+            "block_type": "accordion_group",
             "standard": {
               "label": "Glass Valley",
               "name": "selected_gv",
@@ -731,7 +781,8 @@
               "group": "General",
               "sort_order": 0,
               "value_mode": "show_value"
-            }
+            },
+            "sub_blocks": []
           }
         ]
       },
@@ -745,7 +796,7 @@
         "blocks": [
           {
             "id": "additional_building_work_page__selected_ab",
-            "block_type": "checkbox_group",
+            "block_type": "accordion_group",
             "standard": {
               "label": "Additional building works",
               "name": "selected_ab",
@@ -777,7 +828,8 @@
               "group": "General",
               "sort_order": 0,
               "value_mode": "show_value"
-            }
+            },
+            "sub_blocks": []
           }
         ]
       },
@@ -873,7 +925,7 @@
         "blocks": [
           {
             "id": "optional_extras_page__selected_oe",
-            "block_type": "checkbox_group",
+            "block_type": "accordion_group",
             "standard": {
               "label": "Optional extras to include",
               "name": "selected_oe",
@@ -905,7 +957,8 @@
               "group": "General",
               "sort_order": 0,
               "value_mode": "show_value"
-            }
+            },
+            "sub_blocks": []
           }
         ]
       },

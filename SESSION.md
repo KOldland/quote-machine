@@ -32,20 +32,20 @@
 
 ## Immediate Next Task (start here on reopen)
 
-### 🚀 Phase 1 — Schema Migration (data only, no UI change)
+### ✅ Phase 1 COMPLETE — Schema Migration (data only, no UI change)
 
-Full spec in `@app/.continue/prompts/current_development.md` → Phase 1 section.
+- `app/scripts/migrate_accordion_schema.py` written and run — 17 blocks promoted to `accordion_group` in both `page_schemas.json` and `page_schemas_published.json`. All have `sub_blocks: []`. Committed `feat: Phase 1 — promote source_prefix blocks to accordion_group type in schema`.
 
-1. Write `app/scripts/migrate_accordion_schema.py`:
-   - Read `page_schemas.json`
-   - For every block in every page where `standard.source_prefix` is non-empty, set `block_type = "accordion_group"` and add `"sub_blocks": []`
-   - Write updated data back to both `page_schemas.json` AND `page_schemas_published.json`
-   - Script must be idempotent (safe to re-run)
-2. Run the script: `cd app && python3 scripts/migrate_accordion_schema.py`
-3. Start Flask (`env QM_DISABLE_SHEETS=1 python3 -m flask --app app/QMapp.py run --port=5003 --with-threads`) and verify all 9 pages load without 500 errors
-4. Commit: `feat: Phase 1 — promote source_prefix blocks to accordion_group type in schema`
+### 🚀 Phase 2 — Sub-question Discovery & Migration (schema + template audit)
 
-**Do NOT change** `form.html`, `QMapp.py` routes, or `builder.js` in Phase 1.
+Full spec in `@app/.continue/prompts/current_development.md` → Phase 2 section.
+
+1. Audit `app/templates/form.html` and `app/QMapp.py` for any hardcoded sub-question fields logically nested inside an accordion section (e.g. Metres/Centimetres inside External Walls)
+2. Add discovered sub-questions to the relevant `sub_blocks[]` in `page_schemas.json`
+3. Update Jinja template rendering to read `sub_blocks` from schema rather than hardcoded HTML
+4. Verify front-end form still renders and submits correctly
+
+**Do NOT change** `builder.js` or the builder canvas in Phase 2.
 
 ## Session Log Summary
 | Date | Items | Result |
