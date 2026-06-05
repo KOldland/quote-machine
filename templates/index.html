@@ -32,7 +32,7 @@
                 <div class="sidebar-edit-controls">
                     <div class="sidebar-section">
                         <details class="page-list-details" open>
-                            <summary class="sidebar-section-title page-list-summary">
+                            <summary class="btn btn-sidebar page-list-summary">
                                 Select Page <span class="page-list-arrow">▼</span>
                             </summary>
                             <div class="page-selector-list">
@@ -56,21 +56,11 @@
                         </div>
                     </div>
                 </div>
-                <div class="nav-user" style="padding: 1rem; border-top: 1px solid rgba(255,255,255,.15); font-size: .85rem; color: rgba(255,255,255,.7);">
-                    <div style="margin-bottom: .25rem;"><strong>{{ session['username'] }}</strong></div>
-                    <div style="font-size: .75rem; margin-bottom: .5rem;">
-                        <span class="role-badge" style="
-                            {% if session.get('role') == 'admin' %}
-                            background: #e3f2fd; color: #1565c0;
-                            {% else %}
-                            background: #e8f5e9; color: #2e7d32;
-                            {% endif %}
-                            padding: .15rem .5rem; border-radius: 12px; font-size: .7rem; font-weight: 600;
-                        }}">{{ session.get('role','user')|upper }}</span>
-                    </div>
-                    <form method="POST" action="{{ url_for('logout') }}" style="margin-top:.4rem;">
+                <div class="nav-user">
+                    <div class="nav-user-identity">user: {{ session['username'] }} ({{ session.get('role','user') }})</div>
+                    <form method="POST" action="{{ url_for('logout') }}">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" style="background:none;border:1px solid rgba(255,255,255,.4);color:rgba(255,255,255,.8);padding:.25rem .6rem;border-radius:3px;cursor:pointer;font-size:.8rem;">Log out</button>
+                        <button type="submit" class="btn btn-sidebar" style="width:100%;">Log out</button>
                     </form>
                 </div>
                 {% else %}
@@ -93,21 +83,11 @@
                     <a href="{{ url_for('list_users') }}" class="nav-link {% if request.endpoint == 'list_users' %}active{% endif %}">User Management</a>
                     {% endif %}
                 </nav>
-                <div class="nav-user" style="padding: 1rem; border-top: 1px solid rgba(255,255,255,.15); font-size: .85rem; color: rgba(255,255,255,.7);">
-                    <div style="margin-bottom: .25rem;"><strong>{{ session['username'] }}</strong></div>
-                    <div style="font-size: .75rem; margin-bottom: .5rem;">
-                        <span class="role-badge" style="
-                            {% if session.get('role') == 'admin' %}
-                            background: #e3f2fd; color: #1565c0;
-                            {% else %}
-                            background: #e8f5e9; color: #2e7d32;
-                            {% endif %}
-                            padding: .15rem .5rem; border-radius: 12px; font-size: .7rem; font-weight: 600;
-                        }}">{{ session.get('role','user')|upper }}</span>
-                    </div>
-                    <form method="POST" action="{{ url_for('logout') }}" style="margin-top:.4rem;">
+                <div class="nav-user">
+                    <div class="nav-user-identity">user: {{ session['username'] }} ({{ session.get('role','user') }})</div>
+                    <form method="POST" action="{{ url_for('logout') }}">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" style="background:none;border:1px solid rgba(255,255,255,.4);color:rgba(255,255,255,.8);padding:.25rem .6rem;border-radius:3px;cursor:pointer;font-size:.8rem;">Log out</button>
+                        <button type="submit" class="btn btn-sidebar" style="width:100%;">Log out</button>
                     </form>
                 </div>
                 {% endif %}

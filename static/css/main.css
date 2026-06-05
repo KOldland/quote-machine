@@ -19,6 +19,8 @@
     overflow-y: auto; /* In case the sidebar gets too long */
     overflow-x: hidden; /* Prevent horizontal scroll */
     transition: width 0.3s ease; /* Smooth transition for sidebar toggle */
+    display: flex;
+    flex-direction: column;
 }
 
 .sidebar .nav-link {
@@ -81,9 +83,9 @@
     font-weight: 600;
 }
 
-/* Collapsible page list — details/summary */
+/* Collapsible page list — details/summary styled as sidebar button */
 .builder-edit-mode .page-list-details {
-    margin-bottom: .25rem;
+    margin-bottom: .35rem;
 }
 
 .builder-edit-mode .page-list-summary {
@@ -92,9 +94,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: .4rem 0;
-    border-bottom: 1px solid rgba(255,255,255,.1);
-    margin-bottom: .35rem;
+    margin: 0;
     user-select: none;
 }
 
@@ -102,7 +102,7 @@
 
 .builder-edit-mode .page-list-arrow {
     font-size: .7rem;
-    color: rgba(255,255,255,.55);
+    opacity: .7;
     transition: transform .2s;
     flex-shrink: 0;
 }
@@ -113,6 +113,21 @@
 
 .builder-edit-mode .page-list-details:not([open]) .page-list-arrow {
     transform: rotate(-90deg);
+}
+
+/* nav-user block — flex-pushed to bottom of sidebar */
+.sidebar .nav-user,
+.sidebar.builder-edit-mode .nav-user {
+    margin-top: auto;
+    padding: 1.5rem 0 1rem 0;
+    border-top: 1px solid rgba(255,255,255,.15);
+}
+
+.nav-user-identity {
+    font-size: .78rem;
+    color: rgba(255,255,255,.6);
+    margin-bottom: .75rem;
+    letter-spacing: .02em;
 }
 
 .builder-edit-mode .btn-nav-prev,
