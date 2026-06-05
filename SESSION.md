@@ -26,15 +26,22 @@
 * Added "Agent Pitfalls to Avoid" section to `context.md` covering Flask startup on macOS and JS hoisting inside DOMContentLoaded.
 * **UX Sidebar Cleanup**: Removed redundant "Question Types" palette from sidebar and canvas `+ ADD QUESTION` button. Renamed "Page Controls" → "Select Page". Removed Previous/Next nav buttons. Moved Publish Draft → **Publish** and Rollback → **Undo** buttons into sidebar above Exit Edit Mode. Removed yellow edit-mode banner from middle column (status indicator retained). Flipped canvas/properties column ratio to 1fr/2fr (properties wider).
 
+## Recent UX Polish (05/06/26)
+* Removed emojis from Block Properties section headers (Question Fields, Logic, Pricing, Output).
+* "Select Page" is now a collapsible `<details>/<summary>` styled as a sidebar button with `▼` arrow.
+* All sidebar buttons are uniform navy `.btn-sidebar` (left-aligned, uppercase).
+* Replaced username/role pill with plain text: `user: <name> (<role>)`.
+* Sidebar is now `display: flex; flex-direction: column` — Log out button pushed to bottom via `margin-top: auto`.
+* Canvas gets `.builder-canvas-wrapper` inner padding. Form container in edit mode has `box-sizing: border-box`.
+* Yellow edit-mode banner fully removed in edit mode (only shown to admin in normal view).
+
 ## Immediate Next Blocker / Task
-1. **Manual Verification of UX Changes**: Restart the server and verify the updated edit-mode sidebar looks correct:
-   - Yellow banner in centre column is gone (only "✎ Edit Mode active" status label remains)
-   - Sidebar shows: Select Page links → + Add Question → Publish → Undo → Exit Edit Mode
-   - No Question Types palette visible
-   - Block Properties panel is wider than the canvas block list
-2. **Continue CRUD Testing** — items 6 (Add Question modal) and 8 (Exit Edit Mode) from the checklist
+1. **Restart server and verify** all UX polish changes look correct in browser.
+2. **Continue CRUD Testing** from `current_development.md`:
+   - Item 6: Click "Add Question" — verify modal opens, block is created with server-assigned ID
+   - Item 8: Click "Exit Edit Mode" — verify sidebar reverts to page nav
+   - Items 9 & 10: Sidebar collapse and page navigation in edit mode
 
 ## Next Steps
-1. Verify UX cleanup renders correctly (see Immediate Next Blocker above).
-2. Complete remaining checklist items (6, 8, 9, 10) across at least 3 different form routes.
-3. Resolve any remaining P1 bugs before marking the testing phase complete.
+1. Complete remaining checklist items (6, 8, 9, 10) across at least 3 different form routes.
+2. Resolve any remaining P1 bugs before marking the testing phase complete.
