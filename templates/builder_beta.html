@@ -2,8 +2,16 @@
 {% import "._builder_macros.html" as builder_macros %}
 
 {% block content %}
-<div class="builder-page-wrapper">
-    {{ builder_macros.render_canvas_content(current_page, selected_block_id) }}
-    {{ builder_macros.render_properties_panel(selected_block, current_page.blocks, pricing_modes, current_page.id) }}
+<div class="builder-page-wrapper builder-line-items-layout">
+    {{ builder_macros.render_line_items_canvas() }}
+    {{ builder_macros.render_line_item_properties() }}
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    if (typeof window.initLineItemsCanvas === 'function') {
+        window.initLineItemsCanvas();
+    }
+});
+</script>
 {% endblock %}

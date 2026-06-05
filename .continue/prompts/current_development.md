@@ -254,8 +254,8 @@ CREATE TABLE line_items (
 - [x] A1 — `line_items` table added to `template_store.py`; migration script runs without error
 - [x] A2 — 1022 rows seeded from CSV; suffix taxonomy correctly sets `item_role` and `form_visible` (auto_child: 245, guidance: 78, parent: 161, special: 188, standalone: 350)
 - [x] A3 — Parent/child relationships correctly inferred (e.g. `sn1a` → parent `sn1#`)
-- [ ] B1 — Builder canvas renders category accordions from `line_items`
-- [ ] B2 — Clicking a line item row loads all 9 fields in properties panel
-- [ ] B3 — `pricing_visibility` toggle works per item
+- [x] B1 — Builder canvas renders category accordions from `line_items`
+- [x] B2 — Clicking a line item row loads all 9 fields in properties panel
+- [x] B3 — `pricing_visibility` toggle works per item
 - [ ] C1 — `form.html` queries `line_items` for form-visible items; form renders and submits correctly
 - [ ] D1 — Output generator reads Y items grouped by category, emits correct text + pricing

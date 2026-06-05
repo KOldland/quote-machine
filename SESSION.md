@@ -33,21 +33,20 @@
 ### This session (05/06/26)
 * **Architecture pivot** ✅ — Full end-to-end review. Agreed to engineer from output backwards. Google Sheet CSV (~950 rows) uploaded and analysed. Full `line_items` DB architecture defined and documented in `current_development.md`. — commit `cf49fae`
 * **Session A — line_items table + CSV migration** ✅ — `line_items` table added to `template_store.py` `_create_schema()`. `scripts/migrate_line_items_from_csv.py` written and executed. 1022 rows seeded from CSV with correct suffix taxonomy (`auto_child: 245, guidance: 78, parent: 161, special: 188, standalone: 350`). Parent/child inference working.
+* **Session B — Builder canvas wired** ✅ — `builder_beta.html` updated to mount `render_line_items_canvas()` + `render_line_item_properties()` macros and call `initLineItemsCanvas()` on DOMContentLoaded. Canvas now fetches categories from `/builder_beta/line_items_json`, renders accordion rows, and loads 9-field properties panel on row click. `pricing_visibility` toggle saves via `/builder_beta/line_item_save/<id>`.
 
 ## Known Issues / Bug Backlog
 * None — all prior bugs resolved. Active sprint is a feature build.
 
 ## Immediate Next Task (start here on reopen)
 
-### 🚀 Session B — Builder Canvas: `line_items` Accordions
+### ~~Session B — Builder Canvas: `line_items` Accordions~~ ✅ COMPLETE
 
-Full architecture spec is in `app/.continue/prompts/current_development.md` under **NEW SPRINT: Line Item Architecture**, Session B.
+`builder_beta.html` reworked to mount `render_line_items_canvas()` + `render_line_item_properties()` and call `initLineItemsCanvas()` on DOMContentLoaded. Backend routes (`/builder_beta/line_items_json`, `/builder_beta/line_item_save/<id>`), JS (`initLineItemsCanvas`, `_renderAccordions`, `_selectItem`, `_renderProperties`), and macros were all pre-built; wiring was the missing piece.
 
-Rework builder canvas (`_builder_macros.html` + `builder.js`) so:
-- Accordions = categories from `line_items` table
-- Each row = one line item (form_visible=1)
-- All 9 fields editable in the properties panel
-- `pricing_visibility` toggle per item
+### 🚀 Session C — `form.html` → Query `line_items`
+
+Simplify `form.html` to query `line_items` by page + `form_visible=1` instead of `page_schemas.json`. Full spec in `current_development.md` under **NEW SPRINT: Line Item Architecture**, Session C.
 
 ---
 
