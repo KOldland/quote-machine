@@ -50,20 +50,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const canvas = document.getElementById('canvas-content');
         let draggedBlock = null; // For reordering existing blocks
 
-        // Draggable Question Types from Palette
-        typeItems.forEach(item => {
-            item.addEventListener('dragstart', (e) => {
-                e.dataTransfer.setData('application/json', JSON.stringify({
-                    type: item.dataset.type,
-                    template: getBlockTemplate(item.dataset.type)
-                }));
-                item.classList.add('dragging');
-            });
-            item.addEventListener('dragend', () => {
-                item.classList.remove('dragging');
-            });
-        });
-
         // Dragging existing blocks on canvas
         canvas.addEventListener('dragstart', (e) => {
             const blockEl = e.target.closest('.question-block');
@@ -127,13 +113,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const targetBlockEl = e.target.closest('.question-block');
             
-            // Handle dropping new blocks from palette
-            if (e.dataTransfer.types.includes('application/json')) {
-                const data = JSON.parse(e.dataTransfer.getData('application/json'));
-                addBlock(data.template);
-            } 
             // Handle reordering existing blocks
-            else if (draggedBlock && targetBlockEl && draggedBlock !== targetBlockEl) {
+            if (draggedBlock && targetBlockEl && draggedBlock !== targetBlockEl) {
                 const draggedBlockId = draggedBlock.dataset.blockId;
                 const targetBlockId = targetBlockEl.dataset.blockId;
                 const fromIndex = blocks.findIndex(b => b.id === draggedBlockId);

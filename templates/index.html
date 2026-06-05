@@ -28,11 +28,10 @@
             {% if session.get('username') %}
                 {% if edit_mode %}
                 {% import '_builder_macros.html' as builder with context %}
-                <!-- Edit Mode: Builder Palette & Controls -->
+                <!-- Edit Mode: Builder Controls -->
                 <div class="sidebar-edit-controls">
-                    {{ builder.render_question_palette(builder_state) }}
                     <div class="sidebar-section">
-                        <div class="sidebar-section-title">Page Controls</div>
+                        <div class="sidebar-section-title">Select Page</div>
                         <div class="page-selector-list">
                             {% set ordered_pages = ['index', 'special_notes_page', 'summary_page', 'materials_page', 'further_requirements_page', 'additional_building_work_page', 'additional_costs_page', 'optional_extras_page', 'image_upload_page'] %}
                             {% set page_titles = {'index': 'Project Details', 'special_notes_page': 'Special Notes', 'summary_page': 'Summary', 'materials_page': 'Materials & Details', 'further_requirements_page': 'Further Reqs', 'additional_building_work_page': 'Add. Building Works', 'additional_costs_page': 'Additional Costs', 'optional_extras_page': 'Optional Extras', 'image_upload_page': 'Images'} %}
@@ -48,16 +47,10 @@
                             {% endfor %}
                         </div>
                         <button type="button" class="btn btn-primary" id="btn-add-block" style="width:100%;margin-top:.5rem;">+ Add Question</button>
-                        <div class="edit-mode-nav-controls" style="margin-top:.5rem;display:flex;gap:.35rem;">
-                            {% if ns.page_idx > 0 %}
-                            <a href="{{ url_for(ordered_pages[ns.page_idx - 1]) }}?edit=1" class="btn btn-sm btn-nav-prev" style="flex:1;">← Previous</a>
-                            {% endif %}
-                            {% if ns.page_idx >= 0 and ns.page_idx < (ordered_pages|length - 1) %}
-                            <a href="{{ url_for(ordered_pages[ns.page_idx + 1]) }}?edit=1" class="btn btn-sm btn-nav-next" style="flex:1;">Next →</a>
-                            {% endif %}
-                        </div>
-                        <div class="edit-mode-actions" style="margin-top:.75rem;display:flex;gap:.5rem;">
-                            <form method="GET" action="{{ url_for('index') }}" style="flex:1;">
+                        <div class="edit-mode-actions" style="margin-top:.75rem;display:flex;flex-direction:column;gap:.5rem;">
+                            <button type="button" id="btn-publish-draft" class="btn btn-success" style="width:100%;">&#10003; Publish</button>
+                            <button type="button" id="btn-rollback" class="btn btn-warning" style="width:100%;">&#8635; Undo</button>
+                            <form method="GET" action="{{ url_for('index') }}" style="width:100%;">
                                 <button type="submit" class="btn btn-secondary" style="width:100%;">Exit Edit Mode</button>
                             </form>
                         </div>

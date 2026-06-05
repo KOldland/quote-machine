@@ -11,13 +11,6 @@
         {% if edit_mode %}
         <span style="font-size:.85rem;font-weight:600;color:#856404;">&#9998; Edit Mode active</span>
         <span id="edit-action-status" style="font-size:.78rem;color:#6c757d;">Draft mode (auto-save)</span>
-        <button type="button" id="btn-publish-draft" class="btn btn-success btn-sm">
-            &#10003; Publish draft
-        </button>
-        <button type="button" id="btn-rollback" class="btn btn-warning btn-sm">
-            &#8635; Rollback
-        </button>
-        <a href="{{ request.path }}" class="btn btn-secondary btn-sm">Exit Edit Mode</a>
         {% else %}
         <span style="font-size:.85rem;color:#555;">Admin view</span>
         <a href="{{ request.path }}?edit=1" class="btn btn-info btn-sm">&#9998; Edit Page</a>

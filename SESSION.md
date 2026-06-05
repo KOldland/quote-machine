@@ -24,13 +24,17 @@
 * Fixed `TypeError` from null `querySelector` results — added null-guards for all conditionally-rendered pricing input elements in `renderProperties()`.
 * Documented all three bugs and fixes in `current_development.md` under "Save Block Fix — Root Cause & Resolution".
 * Added "Agent Pitfalls to Avoid" section to `context.md` covering Flask startup on macOS and JS hoisting inside DOMContentLoaded.
+* **UX Sidebar Cleanup**: Removed redundant "Question Types" palette from sidebar and canvas `+ ADD QUESTION` button. Renamed "Page Controls" → "Select Page". Removed Previous/Next nav buttons. Moved Publish Draft → **Publish** and Rollback → **Undo** buttons into sidebar above Exit Edit Mode. Removed yellow edit-mode banner from middle column (status indicator retained). Flipped canvas/properties column ratio to 1fr/2fr (properties wider).
 
 ## Immediate Next Blocker / Task
-1. **Continue CRUD Testing**: With Save Block now confirmed working, continue through the Testing Checklist in `current_development.md`:
-   - Item 5: Drag a question type from the palette onto the canvas
-   - Item 6: Click "+ Add Question" — verify new default block appears and page reloads correctly with the server-assigned block ID
-   - Item 8: Click "Exit Edit Mode" — verify sidebar reverts to page nav
+1. **Manual Verification of UX Changes**: Restart the server and verify the updated edit-mode sidebar looks correct:
+   - Yellow banner in centre column is gone (only "✎ Edit Mode active" status label remains)
+   - Sidebar shows: Select Page links → + Add Question → Publish → Undo → Exit Edit Mode
+   - No Question Types palette visible
+   - Block Properties panel is wider than the canvas block list
+2. **Continue CRUD Testing** — items 6 (Add Question modal) and 8 (Exit Edit Mode) from the checklist
 
 ## Next Steps
-1. Complete all 10 checklist items in `current_development.md` across at least 3 different form routes.
-2. Resolve any remaining P1 bugs before marking the testing phase complete.
+1. Verify UX cleanup renders correctly (see Immediate Next Blocker above).
+2. Complete remaining checklist items (6, 8, 9, 10) across at least 3 different form routes.
+3. Resolve any remaining P1 bugs before marking the testing phase complete.

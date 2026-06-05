@@ -92,6 +92,7 @@ Testing is considered complete when:
 | 04/06/26 | Session Closeout | **INFO**: Documented the `builder.js` bug and prepared the workspace for a clean session restart. The fix for the bug has been identified and implemented, but not yet verified. |
 | 04/06/26 | Bug Squashing | **CLEAR**: Fixed `updatePricingFields is not defined` JS error. Fixed `NameError: name 'edit_mode' is not defined` Python error. Restored missing save button. Drag-and-drop and reordering are now functional. Ready for save functionality testing. |
 | 05/06/26 | Save Block Fix | **CLEAR**: Full save-block pipeline now working. See "Save Block Fix — Root Cause & Resolution" section below for details. |
+| 05/06/26 | UX Sidebar Cleanup | **DONE**: Removed "Question Types" palette from sidebar + canvas `+ ADD QUESTION` button. Renamed "Page Controls" → "Select Page". Removed Prev/Next nav buttons. Moved Publish/Rollback to sidebar (renamed Publish/Undo). Removed yellow edit-mode banner from centre column (status label retained). Flipped properties/canvas column ratio to 2fr/1fr. Changes in: `index.html`, `_builder_macros.html`, `form.html`, `builder.js`, `main.css`. Pending manual verification on server restart. |
 
 ---
 
