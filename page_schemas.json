@@ -489,7 +489,8 @@
                   "help_text": "Shown when 'External Wall Height' checkbox (ew0) is selected"
                 }
               }
-            ]
+            ],
+            "hidden": true
           },
           {
             "id": "materials_page__selected_er",
@@ -555,7 +556,8 @@
                   "help_text": "Shown when 'Other' (er7^) is selected in roofing finish"
                 }
               }
-            ]
+            ],
+            "hidden": true
           },
           {
             "id": "materials_page__selected_id",
@@ -615,7 +617,8 @@
                   "help_text": "Maps to session key non_fire_doors_number"
                 }
               }
-            ]
+            ],
+            "hidden": true
           },
           {
             "id": "materials_page__selected_dr",
@@ -677,7 +680,8 @@
                   "help_text": "Cost for 'other' drainage work"
                 }
               }
-            ]
+            ],
+            "hidden": true
           },
           {
             "id": "materials_page__selected_wp",
@@ -714,7 +718,8 @@
               "sort_order": 0,
               "value_mode": "show_value"
             },
-            "sub_blocks": []
+            "sub_blocks": [],
+            "hidden": true
           },
           {
             "id": "materials_page__checkbox_group_1780662574072",
@@ -797,7 +802,8 @@
               "sort_order": 0,
               "value_mode": "show_value"
             },
-            "sub_blocks": []
+            "sub_blocks": [],
+            "hidden": true
           },
           {
             "id": "further_requirements_page__selected_dw",
@@ -834,7 +840,8 @@
               "sort_order": 0,
               "value_mode": "show_value"
             },
-            "sub_blocks": []
+            "sub_blocks": [],
+            "hidden": true
           },
           {
             "id": "further_requirements_page__selected_fs",
@@ -871,7 +878,8 @@
               "sort_order": 0,
               "value_mode": "show_value"
             },
-            "sub_blocks": []
+            "sub_blocks": [],
+            "hidden": true
           },
           {
             "id": "further_requirements_page__selected_gv",
@@ -908,7 +916,8 @@
               "sort_order": 0,
               "value_mode": "show_value"
             },
-            "sub_blocks": []
+            "sub_blocks": [],
+            "hidden": true
           }
         ]
       },

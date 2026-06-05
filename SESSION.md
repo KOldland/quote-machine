@@ -7,7 +7,7 @@
 * **GitHub Repository**: `https://github.com/KOldland/quote-machine`
 
 ## Current Goal
-* **Line Item Architecture Sprint — Session F**: Verify whether the `line_items_by_category` accordion renders visibly on the Materials page runtime form, vs being hidden behind/inside the existing legacy `accordion_group` schema blocks. Determine architecture for coexistence or replacement.
+* **Line Item Architecture Sprint — Session G**: End-to-end smoke test. Navigate Materials page → Further Requirements → Review in browser to confirm: (1) no legacy accordion_group blocks visible, (2) line_items_by_category checkboxes render and submit correctly, (3) review.html shows selected line items grouped by category.
 
 ## Active Files for Context
 * @app/template_store.py
@@ -34,33 +34,33 @@
 * **Session C — form.html queries line_items** ✅ — `template_store.py` gained `get_line_items_for_page(form_page)`. `QMapp.py` wired `_get_line_items_for_page()` into `materials_page` (`form_page='3'`) and `further_requirements_page` (`form_page='3B'`). `form.html` renders category-grouped accordion checkboxes (`name="li_sel"`) when `line_items_by_category` is present; legacy Sheets path preserved in `{% else %}` fallback. — commit `91f26e9`
 * **Session D — Output Generator** ✅ — `template_store.py` gained `get_line_items_by_codes(codes)`. `QMapp.py`: `materials_page()` POST saves `session['li_sel_3']`; `further_requirements_page()` POST saves `session['li_sel_3b']`; `review()` merges both, calls `get_line_items_by_codes`, groups by category into `li_by_category`. `review.html` renders "Selected Line Items" accordion with output_title / output_notes / output_guidance / unit_cost.
 * **Session E — Integration Test** ✅ — Server confirmed running (200 OK). Code audit confirmed all template variables and routes are wired correctly. Identified that the Materials page already has legacy `accordion_group` blocks in the schema (from Phase 1/2), so the new `line_items_by_category` block may not be visually distinguishable — this is Session F's blocker.
+* **Session F — Legacy block overlap resolved** ✅ — Diagnosed: `form.html` schema loop (lines 35–275) and `line_items_by_category` block (line 605) were both rendering simultaneously. Fix: `scripts/hide_legacy_schema_blocks.py` written and executed — 9 `accordion_group` blocks marked `hidden: true` across `materials_page` (5: ew/er/id/dr/wp) and `further_requirements_page` (4: frc/dw/fs/gv). `line_items_by_category` is now the sole renderer for these pages.
 
 ## Known Issues / Bug Backlog
 * Pre-existing Pylance warning: `description_column_includes` possibly unbound in `submit()` (line ~4738). Not blocking.
-* **Session F blocker**: The Materials & Details page runtime form already renders legacy `accordion_group` schema blocks (External Walls, Roofs, etc.). The new `line_items_by_category` section in `form.html` renders AFTER these, but it's unclear if it's visually distinct or duplicating content. Architecture decision needed: (a) remove legacy ACCORDION_GROUP blocks from schema for pages 3/3B, or (b) keep both and ensure the li_sel section is clearly labelled separately.
+* **Session G**: Smoke test the full form flow in browser to verify clean render — no legacy blocks, line_items checkboxes visible, review output correct.
 
 ## Immediate Next Task (start here on reopen)
 
-### 🚀 Session F — Resolve line_items vs legacy schema block overlap on Materials page
+### 🚀 Session G — End-to-end smoke test
 
-**Goal:** Determine whether `line_items_by_category` accordion is rendering on the runtime form, and whether it conflicts with existing `accordion_group` schema blocks.
+**Goal:** Verify the full Materials → Further Requirements → Review flow renders correctly in browser.
 
-**Step 1 — Diagnose what the runtime form renders:**
+**Step 1 — Start server:**
 ```bash
-cd /Users/krisoldland/Documents/QM_web_app
 env QM_DISABLE_SHEETS=1 python3 -m flask --app app/QMapp.py run --port=5003 --with-threads
-# In another terminal:
-curl -s http://localhost:5003/materials_page | grep -c "li_sel"
-curl -s http://localhost:5003/materials_page | grep -i "li_sel\|line-items\|Selected Line" | head -20
 ```
 
-**Step 2 — Read `form.html` around the `{% if line_items_by_category %}` block** to confirm whether it sits inside or outside `{% for field in page_schema.fields %}`.
+**Step 2 — Verify in browser:**
+- `/materials_page` — should show only `line_items_by_category` accordions (no legacy ew/er/id/dr/wp blocks)
+- `/further_requirements_page` — should show only `line_items_by_category` accordions (no legacy frc/dw/fs/gv blocks)
+- Submit both pages with some items checked → `/review` should show "Selected Line Items" section grouped by category
 
-**Step 3 — Architecture decision:**
-- If `line_items` data covers the same content as the ACCORDION_GROUP schema blocks → mark those schema blocks `hidden=true` via the builder for pages 3/3B
-- If they cover different content → keep both, ensure `line_items_by_category` section has a visible heading to distinguish it
+**Step 3 — If clean:** mark Session G complete, consider `page_schemas_published.json` sync.
 
 ---
+
+### ~~Session F — Legacy block overlap resolved~~ ✅ COMPLETE
 
 ### ~~Session E — Integration Test & Polish~~ ✅ COMPLETE
 
@@ -87,3 +87,4 @@ curl -s http://localhost:5003/materials_page | grep -i "li_sel\|line-items\|Sele
 | 05/06/26 | Session C — form.html queries line_items | ✅ COMPLETE — `91f26e9` |
 | 05/06/26 | Session D — output generator | ✅ COMPLETE |
 | 05/06/26 | Session E — integration test | ✅ COMPLETE — server 200 OK, blocker identified → Session F |
+| 05/06/26 | Session F — legacy schema block overlap | ✅ COMPLETE — 9 accordion_group blocks hidden in page_schemas.json |
