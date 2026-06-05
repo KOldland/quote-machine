@@ -81,6 +81,40 @@
     font-weight: 600;
 }
 
+/* Collapsible page list — details/summary */
+.builder-edit-mode .page-list-details {
+    margin-bottom: .25rem;
+}
+
+.builder-edit-mode .page-list-summary {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: .4rem 0;
+    border-bottom: 1px solid rgba(255,255,255,.1);
+    margin-bottom: .35rem;
+    user-select: none;
+}
+
+.builder-edit-mode .page-list-summary::-webkit-details-marker { display: none; }
+
+.builder-edit-mode .page-list-arrow {
+    font-size: .7rem;
+    color: rgba(255,255,255,.55);
+    transition: transform .2s;
+    flex-shrink: 0;
+}
+
+.builder-edit-mode .page-list-details[open] .page-list-arrow {
+    transform: rotate(0deg);
+}
+
+.builder-edit-mode .page-list-details:not([open]) .page-list-arrow {
+    transform: rotate(-90deg);
+}
+
 .builder-edit-mode .btn-nav-prev,
 .builder-edit-mode .btn-nav-next {
     display: inline-block;
@@ -204,10 +238,16 @@
 .form-container.builder-edit-mode {
     max-width: 100%;
     width: 100%;
-    padding: 1rem 1.5rem;
+    padding: 1.5rem 1.5rem 1.5rem 1.5rem;
+    box-sizing: border-box;
     box-shadow: none;
     border: 1px solid #e0e0e0;
     background: #fafafa;
+}
+
+/* Canvas inner content padding */
+.builder-canvas-wrapper {
+    padding: .5rem .75rem .75rem .75rem;
 }
 
 /* Canvas empty state */

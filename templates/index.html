@@ -31,21 +31,21 @@
                 <!-- Edit Mode: Builder Controls -->
                 <div class="sidebar-edit-controls">
                     <div class="sidebar-section">
-                        <div class="sidebar-section-title">Select Page</div>
-                        <div class="page-selector-list">
-                            {% set ordered_pages = ['index', 'special_notes_page', 'summary_page', 'materials_page', 'further_requirements_page', 'additional_building_work_page', 'additional_costs_page', 'optional_extras_page', 'image_upload_page'] %}
-                            {% set page_titles = {'index': 'Project Details', 'special_notes_page': 'Special Notes', 'summary_page': 'Summary', 'materials_page': 'Materials & Details', 'further_requirements_page': 'Further Reqs', 'additional_building_work_page': 'Add. Building Works', 'additional_costs_page': 'Additional Costs', 'optional_extras_page': 'Optional Extras', 'image_upload_page': 'Images'} %}
-                            {% set ns = namespace(page_idx=-1) %}
-                            {% for page_id in ordered_pages %}
-                                {% if current_page and page_id == current_page.id %}
-                                    {% set ns.page_idx = loop.index0 %}
-                                {% endif %}
-                            <a href="{{ url_for(page_id) }}?edit=1" 
-                               class="page-selector-item {% if current_page and page_id == current_page.id %}active{% endif %}">
-                                {{ page_titles[page_id] }}
-                            </a>
-                            {% endfor %}
-                        </div>
+                        <details class="page-list-details" open>
+                            <summary class="sidebar-section-title page-list-summary">
+                                Select Page <span class="page-list-arrow">▼</span>
+                            </summary>
+                            <div class="page-selector-list">
+                                {% set ordered_pages = ['index', 'special_notes_page', 'summary_page', 'materials_page', 'further_requirements_page', 'additional_building_work_page', 'additional_costs_page', 'optional_extras_page', 'image_upload_page'] %}
+                                {% set page_titles = {'index': 'Project Details', 'special_notes_page': 'Special Notes', 'summary_page': 'Summary', 'materials_page': 'Materials & Details', 'further_requirements_page': 'Further Reqs', 'additional_building_work_page': 'Add. Building Works', 'additional_costs_page': 'Additional Costs', 'optional_extras_page': 'Optional Extras', 'image_upload_page': 'Images'} %}
+                                {% for page_id in ordered_pages %}
+                                <a href="{{ url_for(page_id) }}?edit=1" 
+                                   class="page-selector-item {% if current_page and page_id == current_page.id %}active{% endif %}">
+                                    {{ page_titles[page_id] }}
+                                </a>
+                                {% endfor %}
+                            </div>
+                        </details>
                         <button type="button" class="btn btn-sidebar" id="btn-add-block" style="width:100%;margin-top:.5rem;">Add Question</button>
                         <div class="edit-mode-actions" style="margin-top:.5rem;display:flex;flex-direction:column;gap:.35rem;">
                             <button type="button" id="btn-publish-draft" class="btn btn-sidebar" style="width:100%;">Publish</button>
