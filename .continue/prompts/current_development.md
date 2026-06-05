@@ -258,4 +258,5 @@ CREATE TABLE line_items (
 - [x] B2 — Clicking a line item row loads all 9 fields in properties panel
 - [x] B3 — `pricing_visibility` toggle works per item
 - [x] C1 — `form.html` queries `line_items` for form-visible items; category-grouped accordions render from SQLite (`form_page='3'` / `'3B'`); legacy Sheets path preserved in `{% else %}` fallback — commit `91f26e9`
-- [ ] D1 — Output generator reads Y items grouped by category, emits correct text + pricing
+- [x] D1 — Output generator reads Y items grouped by category, emits correct text + pricing — `review.html` renders "Selected Line Items" accordion with output_title / output_notes / output_guidance / unit_cost ✅ COMPLETE
+- [ ] E1 — [Session F] Resolve rendering overlap: `line_items_by_category` accordion renders alongside legacy `accordion_group` schema blocks on Materials page. Determine: remove/hide legacy blocks, or explicitly separate sections with headings.
