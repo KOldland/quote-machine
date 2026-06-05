@@ -31,6 +31,7 @@ from template_store import (
 	clone_template,
 	load_option_set,
 	import_sheet_rows_to_catalog,
+	get_line_items_by_codes,
 )
 
 app = Flask(__name__)
@@ -3112,6 +3113,10 @@ def materials_page():
 		selected_wp = request.form.getlist('selected_wp')
 		checkbox_data['selected_wp'] = {'preselected': selected_wp}
 
+		# Collect line_items selections for form_page 3
+		li_sel_3 = request.form.getlist('li_sel')
+		session['li_sel_3'] = li_sel_3
+
 		# Ensure session updates are saved
 		session['checkbox_data'] = checkbox_data
 		session.modified = True
@@ -3338,6 +3343,10 @@ def further_requirements_page():
 			session['data'].pop('other_demolition_option', None)
 			session['data'].pop('other_demolition_cost', None)
 			
+		# Collect line_items selections for form_page 3B
+		li_sel_3b = request.form.getlist('li_sel')
+		session['li_sel_3b'] = li_sel_3b
+
 		session.modified = True  
 		return redirect(url_for('additional_building_work_page'))
 	
@@ -4513,6 +4522,13 @@ def review():
 		elif isinstance(value, str):  # For single manual input values
 			review_data[key] = TITLE_MAPPING.get(value, value)
 	
+	# Build line_items output from session selections (Session D)
+	li_codes = session.get('li_sel_3', []) + session.get('li_sel_3b', [])
+	li_output_rows = get_line_items_by_codes(li_codes) if li_codes else []
+	li_by_category = {}
+	for _row in li_output_rows:
+		li_by_category.setdefault(_row['category'], []).append(_row)
+
 	# Pass TITLE_MAPPING and uploaded images to the template
 	return render_template(
 		'review.html',
@@ -4521,7 +4537,8 @@ def review():
 		TITLE_MAPPING=TITLE_MAPPING,
 		uploaded_images=session.get('uploaded_images', {}),
 		current_page='review',
-		title="Review Page"
+		title="Review Page",
+		li_by_category=li_by_category,
 	)
 
 @app.route('/submit', methods=['POST'])

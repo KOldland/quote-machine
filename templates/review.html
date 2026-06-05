@@ -45,6 +45,36 @@
     
 
 
+    <!-- Line Items Output Section -->
+    {% if li_by_category %}
+    <div class="accordion-section">
+        <button type="button" class="accordion-header" onclick="toggleAccordion('li_output_section');">
+            Selected Line Items
+        </button>
+        <div id="li_output_section" class="accordion-body">
+            {% for category, rows in li_by_category.items() %}
+            <h4 style="margin-top:1rem;">{{ category }}</h4>
+            <ul>
+                {% for row in rows %}
+                <li>
+                    <strong>{{ row.output_title or row.internal_description or row.line_code }}</strong>
+                    {% if row.output_notes %}
+                    <br><span style="color:#555;">{{ row.output_notes }}</span>
+                    {% endif %}
+                    {% if row.output_guidance %}
+                    <br><em>{{ row.output_guidance }}</em>
+                    {% endif %}
+                    {% if row.pricing_visibility != 'admin_only' and row.unit_cost %}
+                    <br><span>Unit cost: £{{ "%.2f"|format(row.unit_cost) }}</span>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Uploaded Images Section -->
     {% if uploaded_images %}
     <h3>Uploaded Image Previews:</h3>

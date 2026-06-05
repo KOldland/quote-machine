@@ -768,3 +768,19 @@ def get_line_items_for_page(form_page: str, db_path: Optional[Path] = None) -> D
             result[cat] = []
         result[cat].append(dict(row))
     return result
+
+
+def get_line_items_by_codes(codes: list, db_path=None) -> list:
+    """Return full line_item rows for a list of line_codes, ordered by category + sort_order."""
+    if not codes:
+        return []
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    placeholders = ','.join('?' * len(codes))
+    rows = conn.execute(
+        f"SELECT * FROM line_items WHERE line_code IN ({placeholders}) "
+        "ORDER BY category ASC, sort_order ASC, line_code ASC",
+        codes
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]

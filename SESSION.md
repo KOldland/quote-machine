@@ -7,14 +7,12 @@
 * **GitHub Repository**: `https://github.com/KOldland/quote-machine`
 
 ## Current Goal
-* **Line Item Architecture Sprint — Session D**: Build output generator — reads Y-flagged `line_items` per submission, groups by category, emits title / notes / guidance + pricing totals.
+* **Line Item Architecture Sprint — Session E**: Integration testing + polish. Verify end-to-end: submit materials/further-requirements pages with `li_sel[]` checkboxes, confirm `session['li_sel_3']` / `session['li_sel_3b']` populate, and that `review.html` renders the "Selected Line Items" accordion correctly with output_title / output_notes / output_guidance.
 
 ## Active Files for Context
 * @app/template_store.py
 * @app/QMapp.py
 * @app/templates/form.html
-* @app/static/js/builder.js
-* @app/templates/_builder_macros.html
 * @app/templates/review.html
 * @app/SESSION.md
 * @app/.continue/prompts/current_development.md
@@ -34,58 +32,35 @@
 * **Session A — line_items table + CSV migration** ✅ — `line_items` table added to `template_store.py`. `scripts/migrate_line_items_from_csv.py` written and executed. 1022 rows seeded (`auto_child: 245, guidance: 78, parent: 161, special: 188, standalone: 350`). Parent/child inference working.
 * **Session B — Builder canvas wired** ✅ — `builder_beta.html` updated to mount `render_line_items_canvas()` + `render_line_item_properties()` macros and call `initLineItemsCanvas()` on DOMContentLoaded. Canvas fetches categories from `/builder_beta/line_items_json`, renders accordion rows, loads 9-field properties panel on row click. `pricing_visibility` toggle saves via `/builder_beta/line_item_save/<id>`.
 * **Session C — form.html queries line_items** ✅ — `template_store.py` gained `get_line_items_for_page(form_page)`. `QMapp.py` wired `_get_line_items_for_page()` into `materials_page` (`form_page='3'`) and `further_requirements_page` (`form_page='3B'`). `form.html` renders category-grouped accordion checkboxes (`name="li_sel"`) when `line_items_by_category` is present; legacy Sheets path preserved in `{% else %}` fallback. — commit `91f26e9`
+* **Session D — Output Generator** ✅ — `template_store.py` gained `get_line_items_by_codes(codes)`. `QMapp.py`: `materials_page()` POST saves `session['li_sel_3']`; `further_requirements_page()` POST saves `session['li_sel_3b']`; `review()` merges both, calls `get_line_items_by_codes`, groups by category into `li_by_category`. `review.html` renders "Selected Line Items" accordion with output_title / output_notes / output_guidance / unit_cost.
 
 ## Known Issues / Bug Backlog
-* None — all prior bugs resolved. Active sprint is a feature build.
+* Pre-existing Pylance warning: `description_column_includes` possibly unbound in `submit()` (line ~4738). Not blocking — only fires in production Sheets mode when `submit_to_description_function` is empty. Out of scope for current sprint.
 
 ## Immediate Next Task (start here on reopen)
 
-### 🚀 Session D — Output Generator
+### 🚀 Session E — Integration Test & Polish
 
-**Goal:** When a form is submitted, read the user-selected `li_sel[]` values from POST, look up their `line_items` rows, group by `category`, and emit structured output (title / notes / guidance + pricing totals) alongside existing output.
+**Goal:** Smoke-test the full flow in `QM_DISABLE_SHEETS=1` mode. Confirm:
+1. `materials_page` form renders line_items accordion (categories visible, checkboxes named `li_sel`)
+2. POST from materials_page stores `session['li_sel_3']`
+3. POST from further_requirements_page stores `session['li_sel_3b']`
+4. `/review` renders "Selected Line Items" accordion with correct output_title / notes / guidance
+5. If any items have `pricing_visibility != 'admin_only'`, unit costs are visible
 
-**Deliverables:**
+**If any rendering issues found:**
+- Check `form.html` for `{% if line_items_by_category %}` block — ensure accordion checkbox inputs have `name="li_sel"` and correct `value="{{ item.line_code }}"`
+- Check `review.html` "Selected Line Items" block for `row.output_title or row.internal_description or row.line_code` fallback chain
 
-**1. `template_store.py` — add `get_line_items_by_codes(codes: list)`**
-```python
-def get_line_items_by_codes(codes: list, db_path=None) -> list:
-    """Return full line_item rows for a list of line_codes, ordered by category + sort_order."""
-    path = db_path or _default_db_path()
-    conn = _connect(path)
-    placeholders = ','.join('?' * len(codes))
-    rows = conn.execute(
-        f"SELECT * FROM line_items WHERE line_code IN ({placeholders}) "
-        "ORDER BY category ASC, sort_order ASC, line_code ASC",
-        codes
-    ).fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
+**Start server:**
 ```
-
-**2. `QMapp.py` — collect `li_sel` in POST handlers**
-In `materials_page()` POST branch (and `further_requirements_page()`), collect:
-```python
-li_sel = request.form.getlist('li_sel')
-session['li_sel'] = li_sel
+cd /Users/krisoldland/Documents/QM_web_app
+env QM_DISABLE_SHEETS=1 python3 -m flask --app app/QMapp.py run --port=5003 --with-threads
 ```
-
-**3. `QMapp.py` — wire into output/review route**
-In `review_page()` (or wherever output is built), call:
-```python
-from template_store import get_line_items_by_codes
-li_codes = session.get('li_sel', [])
-li_output_rows = get_line_items_by_codes(li_codes) if li_codes else []
-# group by category for template rendering
-li_by_category = {}
-for row in li_output_rows:
-    li_by_category.setdefault(row['category'], []).append(row)
-```
-Pass `li_by_category` to `render_template('review.html', ...)`.
-
-**4. `review.html` — render line_items output section**
-Add a section that loops `li_by_category` and renders output_title / output_notes / unit_cost grouped by category.
 
 ---
+
+### ~~Session D — Output Generator~~ ✅ COMPLETE
 
 ### ~~Session C — form.html queries line_items~~ ✅ COMPLETE — commit `91f26e9`
 
@@ -106,3 +81,4 @@ Add a section that loops `li_by_category` and renders output_title / output_note
 | 05/06/26 | Session A — line_items table + CSV migration | ✅ COMPLETE |
 | 05/06/26 | Session B — builder canvas wired | ✅ COMPLETE |
 | 05/06/26 | Session C — form.html queries line_items | ✅ COMPLETE — `91f26e9` |
+| 05/06/26 | Session D — output generator | ✅ COMPLETE |
