@@ -156,6 +156,7 @@ Two hierarchy layers are collapsed into one. The builder cannot see or manage su
 | 05/06/26 | Planning | Architectural gap identified — accordion hierarchy missing from builder | Plan agreed — 4 phases defined |
 | 05/06/26 | Phase 1 | `migrate_accordion_schema.py` written & run — 17 blocks promoted to `accordion_group` with `sub_blocks: []` in both JSON files | ✅ COMPLETE — commit `07a9811` |
 | 05/06/26 | Phase 2 (schema) | Audited form.html + QMapp.py — 8 hardcoded sub-questions found. `migrate_phase2_sub_blocks.py` written & run — sub_blocks populated for ew/er/id/dr accordions in both JSON files | ✅ COMPLETE — this session |
+| 05/06/26 | Architecture pivot | Reconsidered form structure end-to-end. Agreed to engineer from output backwards. Google Sheet CSV uploaded and analysed (~950 line items). Full `line_items` DB architecture defined — see new section below. | ✅ Architecture agreed — handoff committed |
 
 ---
 
@@ -164,3 +165,97 @@ Two hierarchy layers are collapsed into one. The builder cannot see or manage su
 - `source_prefix` must be preserved on `accordion_group` blocks at all times — it is the key that drives Google Sheets data loading for checkbox choices.
 - Pages that have **flat questions** (no accordion parent, e.g. Project Details `index` page) should keep `block_type: "checkbox_group"` or other existing types. Only blocks with `source_prefix` are promoted to `accordion_group` in Phase 1.
 - The `page_schemas_published.json` file mirrors `page_schemas.json`; both must be updated in the migration.
+
+---
+
+## NEW SPRINT: Line Item Architecture — Engineer From Output Backwards
+
+### Overview
+
+This supersedes Phase 2 Jinja rendering and replaces the `page_schemas.json` accordion approach with a first-class `line_items` DB table. The key insight: every selectable element in the system is a **line item** with a canonical 9-field data model derived directly from the original Google Sheet structure.
+
+---
+
+### The Source CSV
+
+`app/context_archive/Plus Rooms Live input in doc formatting (back up) - Sheet1.csv`
+
+Contains ~950 rows. Columns:
+`template page | Line Code | Category | Internal Description | Include | Unit Cost | Unit | Total Cost | Summed_Totals | Dimension | description | Calculations | Description3 | Description4 | Description5`
+
+Output columns: `description` = output_title, `Description3` = output_notes, `Description4` = output_guidance.
+
+---
+
+### Line Code Suffix Taxonomy
+
+| Suffix | Role | Form visible? | Output? |
+|---|---|---|---|
+| `#` | Parent heading — accordion checkbox with auto-children | ✅ | ✅ header |
+| `^` | Selectable standalone checkbox | ✅ | ✅ |
+| `a`, `b`, `c` (no `*`) | Auto-child — output only, shown under parent | ❌ | ✅ |
+| `*` | Guidance child — *PLEASE NOTE... text | ❌ | ✅ as note |
+| `@` | Special — dimensions, total markers, image refs | varies | varies |
+
+Parent relationship is inferred algorithmically: strip trailing letters from code, find `#` entry with same base.
+
+---
+
+### `line_items` DB Table Schema
+
+```sql
+CREATE TABLE line_items (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    line_code           TEXT NOT NULL UNIQUE,
+    form_page           TEXT,
+    category            TEXT NOT NULL,
+    internal_description TEXT,
+    include_default     TEXT NOT NULL DEFAULT 'N',
+
+    unit_cost           REAL DEFAULT 0.0,
+    units               REAL DEFAULT 0.0,
+    pricing_visibility  TEXT NOT NULL DEFAULT 'admin_only',
+                        -- admin_only | user_view | user_edit
+
+    output_title        TEXT,
+    output_notes        TEXT,
+    output_guidance     TEXT,
+
+    parent_code         TEXT,
+    item_role           TEXT NOT NULL DEFAULT 'standalone',
+                        -- standalone | parent | auto_child | guidance | special | manual_child
+
+    input_type          TEXT,               -- NULL | text | number | dropdown (manual_child only)
+    trigger_parent_code TEXT,
+
+    form_visible        INTEGER NOT NULL DEFAULT 1,
+    sort_order          INTEGER NOT NULL DEFAULT 0,
+
+    created_at          DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at          DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+`pricing_visibility` allows admin to control per-question whether unit/cost/total is hidden, view-only, or user-editable in the form.
+
+---
+
+### Build Order (4 sessions)
+
+1. **Session A** — Add `line_items` table to `template_store.py` + write `scripts/migrate_line_items_from_csv.py` that seeds from the CSV using suffix taxonomy. Verify row count ~950.
+2. **Session B** — Rework builder canvas (`_builder_macros.html` + `builder.js`) so accordions = categories from `line_items`, each row = one line item, all 9 fields editable in properties panel.
+3. **Session C** — Simplify `form.html` to query `line_items` by page + `form_visible=1` instead of `page_schemas.json`.
+4. **Session D** — Build output generator: reads Y-flagged items per submission, groups by category, emits title/notes/guidance + pricing totals.
+
+---
+
+### Testing Checklist (this sprint)
+
+- [ ] A1 — `line_items` table added to `template_store.py`; migration script runs without error
+- [ ] A2 — ~950 rows seeded from CSV; suffix taxonomy correctly sets `item_role` and `form_visible`
+- [ ] A3 — Parent/child relationships correctly inferred (e.g. `sn1a` → parent `sn1#`)
+- [ ] B1 — Builder canvas renders category accordions from `line_items`
+- [ ] B2 — Clicking a line item row loads all 9 fields in properties panel
+- [ ] B3 — `pricing_visibility` toggle works per item
+- [ ] C1 — `form.html` queries `line_items` for form-visible items; form renders and submits correctly
+- [ ] D1 — Output generator reads Y items grouped by category, emits correct text + pricing

@@ -7,7 +7,7 @@
 * **GitHub Repository**: `https://github.com/KOldland/quote-machine`
 
 ## Current Goal
-* Accordion Hierarchy Sprint — **Phase 2: Sub-question Discovery & Migration — SCHEMA COMPLETE**. Next: update Jinja rendering in `form.html` to read `sub_blocks` from schema rather than hardcoded HTML — then verify form still renders and submits correctly.
+* **Line Item Architecture Sprint — Session A**: Add `line_items` table to `template_store.py` and write `scripts/migrate_line_items_from_csv.py` to seed ~950 rows from the Google Sheet CSV using the suffix taxonomy. Previous accordion sprint phases 1 & 2 schema work is preserved but superseded by this new data model.
 
 ## Active Files for Context
 * @app/page_schemas.json
@@ -41,18 +41,28 @@
 
 ## Immediate Next Task (start here on reopen)
 
-### 🚀 Phase 2 (continued) — Verify & Phase 3 Planning
+### 🚀 Line Item Architecture — Session A
 
-Jinja rendering update is complete. Next steps:
+Full architecture is defined in `app/.continue/prompts/current_development.md` under **NEW SPRINT: Line Item Architecture**.
 
-1. **Verification** — Start Flask locally (`QM_DISABLE_SHEETS=1`) and navigate to `materials_page`. Confirm:
-   - All 4 accordions load sub-questions correctly from schema
-   - `wallHeightInput`, `pitchedRoofDropdown`, `drainageOtherInputContainer` show/hide correctly via JS
-   - Number inputs (fire_doors, non_fire_doors) render with correct labels from schema
-   - Form submits and session data is stored identically to before
-2. **Phase 3** — Wire schema-driven rendering to the accordion builder canvas so new `sub_blocks` can be added/edited via the admin UI without touching HTML.
+**Two deliverables for Session A:**
 
-**Do NOT change** `builder.js` or the builder canvas until Phase 3 begins.
+1. **Add `line_items` table** to `template_store.py` — using the SQL schema defined in `current_development.md`. Add it inside `_create_schema()` alongside existing tables.
+
+2. **Write `scripts/migrate_line_items_from_csv.py`** — reads the CSV at:
+   `app/context_archive/Plus Rooms Live input in doc formatting (back up) - Sheet1.csv`
+   
+   For each row:
+   - Parse `line_code` suffix to determine `item_role` and `form_visible` using the taxonomy in `current_development.md`
+   - Infer `parent_code` by stripping trailing suffix chars and finding the `#` base code
+   - Clean `unit_cost` (strip `£`, commas, handle blanks/`-`)
+   - Map CSV columns: `description` → `output_title`, `Description3` → `output_notes`, `Description4` → `output_guidance`
+   - Insert into `line_items`
+   
+   Run script and verify ~950 rows inserted with correct `item_role` distribution.
+
+**Source CSV columns** (0-indexed):
+`template page(0) | Line Code(1) | Category(2) | Internal Description(3) | Include(4) | Unit Cost(5) | Unit(6) | Total Cost(7) | Summed_Totals(8) | Dimension(9) | description(10) | Calculations(11) | Description3(12) | Description4(13) | Description5(14)`
 
 ## Session Log
 | Date | Items | Result |
