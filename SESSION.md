@@ -7,7 +7,7 @@
 * **GitHub Repository**: `https://github.com/KOldland/quote-machine`
 
 ## Current Goal
-* All P1/P2 sidebar bugs resolved. Begin Block Properties deep-dive sprint.
+* All P1/P2 sidebar bugs resolved. Block Properties deep-dive sprint in progress.
 
 ## Active Files for Context
 * @app/static/js/builder.js
@@ -28,12 +28,29 @@
 * None — all P1 and P2 bugs from the CRUD testing sprint resolved.
 
 ## Immediate Next Task (start here on reopen)
-1. **Verify sidebar collapse fix** — hard-refresh (Cmd+Shift+R), enter edit mode, click hamburger (☰) — sidebar should fully collapse and content should expand to full width.
-2. **Begin Block Properties sprint** — this is the next major work area. The Block Properties panel needs significant work. Define exact scope at start of next session:
-   - What fields are missing or broken?
-   - What save/load behaviour needs fixing?
-   - Any field-type-specific rendering issues?
-3. Update `current_development.md` checklist item #9 to ✅ CLEAR.
+
+### 🔍 Manual Verification Required (human action)
+1. **Verify sidebar collapse fix** — hard-refresh (Cmd+Shift+R), enter edit mode, click hamburger (☰) — sidebar should fully collapse and content should expand to full width. Report CLEAR or BUG.
+
+### 🚀 Block Properties Sprint — Scope Defined
+Code review of `_builder_macros.html` complete. The panel structure is sound (4 sections: Question Fields, Logic, Pricing, Output). The following areas need manual testing to confirm behaviour:
+
+**A — Logic section toggle**
+- The `logic_visibility` select has no `onchange` in the static HTML. When a block is clicked and `renderProperties()` runs in JS, test: change visibility dropdown from "Always show" → "Show conditionally" — does the `#logic-conditions` div appear? Then change back — does it hide?
+
+**B — Pricing enabled toggle**
+- The `pricing-fields` div gets its `active` class server-side via Jinja, but no JS checkbox listener is visible in the template. Test: tick "Enable pricing" checkbox — do the mode fields appear? Untick — do they hide?
+
+**C — Pricing mode field swap**
+- Pricing mode-specific fields (fixed_amount, entered_key, quantity_key+rate, percent_of_subtotal) are rendered server-side via Jinja `{% if %}`. Test: change the Mode dropdown — do the correct input fields appear for each mode (fixed / entered / quantity_rate / percent_subtotal)?
+
+**D — Field population on block-click**
+- Click block A, note its label/required/choices. Click block B. Click block A again — do all fields repopulate correctly from block A's data (not stale from B)?
+
+**E — Block-type-specific fields**
+- For each block type (text_input, number_currency_input, dropdown_select, checkbox_group, static_text_heading), select a block and verify the correct type-specific fields appear in Question Fields (placeholder vs choices+source_prefix vs content+variant).
+
+Start testing at **A** and report CLEAR or BUG after each. Agent will fix in order.
 
 ## Session Log Summary
 | Date | Items | Result |

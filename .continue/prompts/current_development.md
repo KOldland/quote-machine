@@ -61,11 +61,11 @@ The testing workflow follows a human-in-the-loop cycle:
 3. ✅ Verify the canvas still shows the current page's blocks — **CLEAR** (after Schema Unification fix)
 4. ✅ Verify the properties panel still shows on the right when a block is selected — **CLEAR**
 5. ✅ Drag a question type from the sidebar palette onto the canvas — **CLEAR** (drag-drop palette subsequently removed in UX Sidebar Cleanup; "+ Add Question" button is now the primary entry point)
-6. Click "+ Add Question" — verify a new default block appears — **PENDING**
+6. ✅ Click "+ Add Question" — verify a new default block appears — **CLEAR** (05/06/26)
 7. ✅ Click "Save Block" in properties — verify save works — **CLEAR** (05/06/26 Save Block Fix)
-8. Click "Exit Edit Mode" — verify sidebar reverts to page nav — **PENDING**
-9. Toggle sidebar collapse/expand in both modes — **PENDING**
-10. Navigate between pages in edit mode via the page selector — **PENDING**
+8. ✅ Click "Exit Edit Mode" — verify sidebar reverts to page nav — **CLEAR** (05/06/26)
+9. ✅ Toggle sidebar collapse/expand in both modes — **CLEAR** (05/06/26 — `.sidebar.builder-edit-mode.collapsed` override added with `width: 0 !important; min-width: 0 !important`; commit `66abfb9`)
+10. ✅ Navigate between pages in edit mode via the page selector — **CLEAR** (05/06/26)
 
 ---
 
