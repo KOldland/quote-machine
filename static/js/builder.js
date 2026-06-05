@@ -432,7 +432,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Pricing fields dynamic display based on mode
-    window.updatePricingFields = function(mode) {
+    // Defined as a named declaration so it is hoisted and available during init.
+    // Also aliased to window so the inline onchange="updatePricingFields(...)" in the template can reach it.
+    function updatePricingFields(mode) {
         const pricingFieldsDiv = document.getElementById("pricing-fields");
         if (!pricingFieldsDiv) return;
 
@@ -490,7 +492,9 @@ document.addEventListener('DOMContentLoaded', () => {
         pricingFieldsDiv.innerHTML = fieldsHtml;
         // Re-populate dynamic selects after innerHTML update
         updateDynamicSelectOptions();
-    };
+    }
+    // Expose to global scope so inline onchange="updatePricingFields(...)" in the template can reach it
+    window.updatePricingFields = updatePricingFields;
 
     function renderProperties() {
         if (!propertiesContent) return; // Ensure propertiesContent exists
@@ -548,13 +552,19 @@ document.addEventListener('DOMContentLoaded', () => {
         // Pricing Options
         document.querySelector('input[name="pricing_enabled"]').checked = block.pricing_options.enabled;
         document.querySelector('select[name="pricing_mode"]').value = block.pricing_options.mode;
-        updatePricingFields(block.pricing_options.mode); // Manually call to update pricing fields display
+        updatePricingFields(block.pricing_options.mode); // Re-renders dynamic pricing fields into DOM
 
-        document.querySelector('input[name="pricing_fixed_amount"]').value = block.pricing_options.fixed_amount;
-        document.querySelector('select[name="pricing_entered_key"]').value = block.pricing_options.entered_key;
-        document.querySelector('select[name="pricing_quantity_key"]').value = block.pricing_options.quantity_key;
-        document.querySelector('input[name="pricing_rate"]').value = block.pricing_options.rate;
-        document.querySelector('input[name="pricing_percent_of_subtotal"]').value = block.pricing_options.percent_of_subtotal;
+        // These inputs are conditionally rendered by the pricing mode — guard against null
+        const elFixedAmount = document.querySelector('input[name="pricing_fixed_amount"]');
+        if (elFixedAmount) elFixedAmount.value = block.pricing_options.fixed_amount;
+        const elEnteredKey = document.querySelector('select[name="pricing_entered_key"]');
+        if (elEnteredKey) elEnteredKey.value = block.pricing_options.entered_key;
+        const elQuantityKey = document.querySelector('select[name="pricing_quantity_key"]');
+        if (elQuantityKey) elQuantityKey.value = block.pricing_options.quantity_key;
+        const elRate = document.querySelector('input[name="pricing_rate"]');
+        if (elRate) elRate.value = block.pricing_options.rate;
+        const elPercentSubtotal = document.querySelector('input[name="pricing_percent_of_subtotal"]');
+        if (elPercentSubtotal) elPercentSubtotal.value = block.pricing_options.percent_of_subtotal;
 
         // Output Options
         document.querySelector('input[name="output_include_in_output"]').checked = block.output_options.include_in_output;
@@ -638,10 +648,50 @@ document.addEventListener('DOMContentLoaded', () => {
                         body: formData,
                         redirect: "manual" // Don't follow the redirect
                     });
+
+                    // Option A: Sync local blocks array with submitted form values
+                    const blockId = formData.get("block_id");
+                    const block = blocks.find(b => b.id === blockId);
+                    if (block) {
+                        // Standard properties
+                        block.standard.label        = (formData.get("standard_label") || block.standard.label).trim();
+                        block.standard.name         = (formData.get("standard_name") || block.standard.name).trim();
+                        block.standard.help_text    = (formData.get("standard_help_text") || "").trim();
+                        block.standard.source_prefix = (formData.get("standard_source_prefix") || "").trim();
+                        block.standard.placeholder  = (formData.get("standard_placeholder") || "").trim();
+                        block.standard.required     = formData.get("standard_required") === "on";
+                        block.standard.static_content = (formData.get("standard_static_content") || "").trim();
+                        block.standard.static_variant = (formData.get("standard_static_variant") || "body").trim();
+                        const rawChoices = formData.get("standard_dropdown_choices") || "";
+                        block.standard.dropdown_choices = rawChoices.split("\n").map(c => c.trim()).filter(Boolean);
+
+                        // Logic options
+                        block.logic_options.visibility       = (formData.get("logic_visibility") || "always").trim();
+                        block.logic_options.depends_on_field = (formData.get("logic_depends_on_field") || "").trim();
+                        block.logic_options.depends_on_value = (formData.get("logic_depends_on_value") || "").trim();
+
+                        // Pricing options
+                        const pricingMode = (formData.get("pricing_mode") || "none").trim();
+                        block.pricing_options.enabled           = formData.get("pricing_enabled") === "on";
+                        block.pricing_options.mode              = pricingMode;
+                        block.pricing_options.fixed_amount      = parseFloat(formData.get("pricing_fixed_amount")) || 0;
+                        block.pricing_options.entered_key       = (formData.get("pricing_entered_key") || "").trim();
+                        block.pricing_options.quantity_key      = (formData.get("pricing_quantity_key") || "").trim();
+                        block.pricing_options.rate              = parseFloat(formData.get("pricing_rate")) || 0;
+                        block.pricing_options.percent_of_subtotal = parseFloat(formData.get("pricing_percent_of_subtotal")) || 0;
+
+                        // Output options
+                        block.output_options.include_in_output = formData.get("output_include_in_output") === "on";
+                        block.output_options.output_label      = (formData.get("output_label") || block.standard.label).trim();
+                        block.output_options.group             = (formData.get("output_group") || "General").trim();
+                        block.output_options.value_mode        = (formData.get("output_value_mode") || "show_value").trim();
+
+                        saveHistory();
+                        renderCanvas();
+                        renderProperties();
+                    }
                     
                     showSaveStatus();
-                    // Reload the current inline builder page to see changes
-                    setTimeout(() => location.reload(), 300);
                 } catch (error) {
                     console.error("Error saving block:", error);
                     alert("Failed to save block.");

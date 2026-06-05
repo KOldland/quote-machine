@@ -91,3 +91,52 @@ Testing is considered complete when:
 | 04/06/26 | CRUD Testing | **BUG**: Encountered a JavaScript error (`Uncaught ReferenceError: updatePricingFields is not defined`) in `app/static/js/builder.js`. The error is caused by a function being called before it is defined. The session was interrupted before the fix could be applied. |
 | 04/06/26 | Session Closeout | **INFO**: Documented the `builder.js` bug and prepared the workspace for a clean session restart. The fix for the bug has been identified and implemented, but not yet verified. |
 | 04/06/26 | Bug Squashing | **CLEAR**: Fixed `updatePricingFields is not defined` JS error. Fixed `NameError: name 'edit_mode' is not defined` Python error. Restored missing save button. Drag-and-drop and reordering are now functional. Ready for save functionality testing. |
+| 05/06/26 | Save Block Fix | **CLEAR**: Full save-block pipeline now working. See "Save Block Fix — Root Cause & Resolution" section below for details. |
+
+---
+
+## Save Block Fix — Root Cause & Resolution
+
+### Problem Summary
+"Save Block" appeared broken: clicking the button either triggered a "Failed to save block" JS alert, or silently succeeded on the server but showed no change in the UI. A full page reload was the only way to see the saved state.
+
+### Three Bugs Fixed (in order of discovery)
+
+#### Bug 1 — Page reload masked the real issue
+**File:** `app/static/js/builder.js`, inside the `addBlock()` callback.
+**Root cause:** A `setTimeout(() => location.reload(), 300)` call was inserted broadly after every successful save, which hid the fact that the client-side state was never being updated. Removing it exposed the underlying state-sync problem.
+**Fix:** Removed the unconditional `location.reload()` from the save handler. The reload on `add_block` was retained (needed to get the server-assigned block ID) but isolated to that specific action only.
+
+#### Bug 2 — Client-side state never synced after save
+**File:** `app/static/js/builder.js`, in the `blockPropertiesForm` submit handler.
+**Root cause:** After a successful `fetch()` POST to the server, the local in-memory `blocks` JavaScript array was never updated. The server correctly wrote to `page_schemas.json`, but the UI re-rendered from the stale local state. On the next page load the server's saved state appeared, but live in-session it looked like nothing changed.
+**Fix (Option A):** After a successful `fetch()`, read all field values directly from the `FormData` object and patch them onto the matching block object in the local `blocks` array. Then call `saveHistory()`, `renderCanvas()`, and `renderProperties()` to reflect the changes instantly. This is the recommended pattern — no extra server round-trip, no reload needed.
+
+#### Bug 3 — `updatePricingFields is not defined` ReferenceError
+**File:** `app/static/js/builder.js`.
+**Root cause:** `updatePricingFields` was defined as a **function expression** assigned to `window`:
+```javascript
+window.updatePricingFields = function(mode) { ... }
+```
+This assignment is **not hoisted**. Because `renderProperties()` is called during the init sequence (before that line is reached in execution), calling `updatePricingFields(...)` inside `renderProperties()` threw a `ReferenceError`. This was the cause of the "Failed to save block" alert — the error fired inside the `try` block and was caught.
+**Fix:** Changed to a **named function declaration** (which IS hoisted), then separately assigned to `window` for the inline HTML `onchange="updatePricingFields(...)"` attribute in `_builder_macros.html`:
+```javascript
+function updatePricingFields(mode) { ... }
+window.updatePricingFields = updatePricingFields; // expose for inline HTML
+```
+
+### Null-guard for conditional pricing inputs
+**File:** `app/static/js/builder.js`, in `renderProperties()`.
+**Context:** Pricing inputs (`pricing_fixed_amount`, `pricing_entered_key`, etc.) are only present in the DOM when the pricing mode matches. Calling `.value =` on a `null` querySelector result throws a `TypeError`. These are now all guarded:
+```javascript
+const elFixedAmount = document.querySelector('input[name="pricing_fixed_amount"]');
+if (elFixedAmount) elFixedAmount.value = block.pricing_options.fixed_amount;
+```
+
+### Troubleshooting Checklist (for future regressions)
+If "Save Block" breaks again, check in this order:
+1. **Browser console** — look for `ReferenceError` or `TypeError` in `builder.js`
+2. **Is it a hoisting issue?** — any function called during init that is defined as `window.fn = function(){}` will fail
+3. **Is the `blocks` array stale?** — after save, does an immediate reload show the correct state? If yes, the sync logic is missing or throwing silently
+4. **Is the `try/catch` swallowing a real error?** — put a `console.error(error)` in the catch block to see the actual stack trace
+5. **Is the form `action` URL null?** — `blockPropertiesForm.getAttribute("action")` must return a valid URL; if the form wasn't rendered by Flask (e.g. no block selected), the form element may not exist

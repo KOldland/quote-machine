@@ -597,7 +597,7 @@
               "name": "selected_frc",
               "required": false,
               "source_prefix": "frc",
-              "help_text": "",
+              "help_text": "Testing again2",
               "placeholder": "",
               "dropdown_choices": [],
               "static_content": "",
@@ -1066,6 +1066,11 @@
           "percent": 10.0
         }
       ]
+    },
+    "last_publish": {
+      "published_at": "2026-06-05T08:14:18.469120Z",
+      "published_by": "admin",
+      "db_version": 1
     }
   }
 }
