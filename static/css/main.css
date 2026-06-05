@@ -96,9 +96,11 @@
     align-items: center !important;
     justify-content: space-between !important;
     padding: .45rem .65rem !important;
-    margin: 0 !important;
+    margin: 5px !important;
     cursor: pointer;
     user-select: none;
+    width: calc(100% - 10px) !important;
+    box-sizing: border-box !important;
 }
 
 .builder-edit-mode .page-list-summary::-webkit-details-marker { display: none; }
