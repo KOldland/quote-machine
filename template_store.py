@@ -163,6 +163,29 @@ def _create_schema(conn: sqlite3.Connection) -> None:
             UNIQUE (option_set_id, line_code),
             FOREIGN KEY (option_set_id) REFERENCES option_sets(id) ON DELETE CASCADE
         );
+
+        CREATE TABLE IF NOT EXISTS line_items (
+            id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+            line_code            TEXT NOT NULL UNIQUE,
+            form_page            TEXT,
+            category             TEXT NOT NULL,
+            internal_description TEXT,
+            include_default      TEXT NOT NULL DEFAULT 'N',
+            unit_cost            REAL DEFAULT 0.0,
+            units                REAL DEFAULT 0.0,
+            pricing_visibility   TEXT NOT NULL DEFAULT 'admin_only',
+            output_title         TEXT,
+            output_notes         TEXT,
+            output_guidance      TEXT,
+            parent_code          TEXT,
+            item_role            TEXT NOT NULL DEFAULT 'standalone',
+            input_type           TEXT,
+            trigger_parent_code  TEXT,
+            form_visible         INTEGER NOT NULL DEFAULT 1,
+            sort_order           INTEGER NOT NULL DEFAULT 0,
+            created_at           DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at           DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
         """
     )
 

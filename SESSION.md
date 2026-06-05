@@ -32,13 +32,26 @@
 
 ### This session (05/06/26)
 * **Architecture pivot** ✅ — Full end-to-end review. Agreed to engineer from output backwards. Google Sheet CSV (~950 rows) uploaded and analysed. Full `line_items` DB architecture defined and documented in `current_development.md`. — commit `cf49fae`
+* **Session A — line_items table + CSV migration** ✅ — `line_items` table added to `template_store.py` `_create_schema()`. `scripts/migrate_line_items_from_csv.py` written and executed. 1022 rows seeded from CSV with correct suffix taxonomy (`auto_child: 245, guidance: 78, parent: 161, special: 188, standalone: 350`). Parent/child inference working.
 
 ## Known Issues / Bug Backlog
 * None — all prior bugs resolved. Active sprint is a feature build.
 
 ## Immediate Next Task (start here on reopen)
 
-### 🚀 Session A — `line_items` Table + CSV Migration Script
+### 🚀 Session B — Builder Canvas: `line_items` Accordions
+
+Full architecture spec is in `app/.continue/prompts/current_development.md` under **NEW SPRINT: Line Item Architecture**, Session B.
+
+Rework builder canvas (`_builder_macros.html` + `builder.js`) so:
+- Accordions = categories from `line_items` table
+- Each row = one line item (form_visible=1)
+- All 9 fields editable in the properties panel
+- `pricing_visibility` toggle per item
+
+---
+
+### ~~Session A — `line_items` Table + CSV Migration Script~~ ✅ COMPLETE
 
 Full architecture spec is in `app/.continue/prompts/current_development.md` under **NEW SPRINT: Line Item Architecture**.
 
