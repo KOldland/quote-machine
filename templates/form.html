@@ -590,6 +590,17 @@
         
 {% if materials_page %}
 
+{# ── Phase 2: resolve materials schema blocks by name for sub_block rendering ── #}
+{% set ms = namespace(ew=None, er=None, id_block=None, dr=None) %}
+{% if page_schema and page_schema.blocks %}
+  {% for _blk in page_schema.blocks %}
+    {% if _blk.standard.name == 'selected_ew' and _blk.sub_blocks is defined %}{% set ms.ew = _blk %}{% endif %}
+    {% if _blk.standard.name == 'selected_er' and _blk.sub_blocks is defined %}{% set ms.er = _blk %}{% endif %}
+    {% if _blk.standard.name == 'selected_id' and _blk.sub_blocks is defined %}{% set ms.id_block = _blk %}{% endif %}
+    {% if _blk.standard.name == 'selected_dr' and _blk.sub_blocks is defined %}{% set ms.dr = _blk %}{% endif %}
+  {% endfor %}
+{% endif %}
+
 <!-- Accordion for External Wall Options -->
 <div class="accordion-section">
     <button type="button" class="accordion-header" onclick="toggleAccordion('externalWallSection')">
@@ -607,30 +618,50 @@
                 {% endif %}
             {% endfor %}
             
-            <!-- Wall Height -->
+            <!-- Wall Height — sub_blocks driven from schema -->
             <label class="checkbox-label">
                 <input type="checkbox" id="wallHeightCheckbox" name="selected_ew" value="ew0"
                     {% if 'ew0' in data['selected_ew']['preselected'] %} checked {% endif %}
                     onchange="toggleVisibility('wallHeightCheckbox', 'wallHeightInput')">
                 External Wall Height
             </label><br>
-            <div id="wallHeightInput" style="display: none; margin-top: 10px;">
-                <label for="wall_height_metres">Metres:</label>
-                <select id="wall_height_metres" name="wall_height_metres">
+            <div id="wallHeightInput" style="display: {{ 'block' if 'ew0' in data['selected_ew']['preselected'] else 'none' }}; margin-top: 10px;">
+                {% if ms.ew %}
+                  {% for sub in ms.ew.sub_blocks %}
+                    {% if sub.standard.get('trigger_value', '') == 'ew0' and sub.block_type == 'dropdown_select' %}
+                      {% set fname = sub.standard.name %}
+                      {% set choices = sub.standard.dropdown_choices %}
+                      <label for="{{ fname }}">{{ sub.standard.label }}:</label>
+                      <select id="{{ fname }}" name="{{ fname }}">
+                        {% for choice in choices %}
+                          {% set val = choice | replace('m','') | replace('c','') | replace('M','') | int %}
+                          {# derive numeric value: strip suffix characters #}
+                          {% set raw = choice %}
+                          {% if raw.endswith('cm') %}{% set val = raw[:-2] | int %}{% elif raw.endswith('m') %}{% set val = raw[:-1] | int %}{% else %}{% set val = raw %}{% endif %}
+                          {% set session_val = data.get(fname, '') | string %}
+                          {% set default_val = choices[0] | replace('cm','') | replace('m','') %}
+                          <option value="{{ val }}" {% if session_val == val|string %}selected{% elif loop.first and not session_val %}selected{% endif %}>
+                            {{ raw }}
+                          </option>
+                        {% endfor %}
+                      </select>
+                    {% endif %}
+                  {% endfor %}
+                {% else %}
+                  {# fallback to hardcoded ranges if schema unavailable #}
+                  <label for="wall_height_metres">Metres:</label>
+                  <select id="wall_height_metres" name="wall_height_metres">
                     {% for m in range(2, 4) %}
-                    <option value="{{ m }}" {% if wall_height_metres == m|string %} selected {% elif m == 2 %} selected {% endif %}>
-                        {{ m }}m
-                    </option>
+                    <option value="{{ m }}" {% if wall_height_metres == m|string %} selected {% elif m == 2 %} selected {% endif %}>{{ m }}m</option>
                     {% endfor %}
-                </select>
-                <label for="wall_height_centimetres">Centimetres:</label>
-                <select id="wall_height_centimetres" name="wall_height_centimetres">
+                  </select>
+                  <label for="wall_height_centimetres">Centimetres:</label>
+                  <select id="wall_height_centimetres" name="wall_height_centimetres">
                     {% for cm in range(0, 100, 5) %}
-                    <option value="{{ cm }}" {% if wall_height_centimetres == cm|string %} selected {% elif cm == 30 %} selected {% endif %}>
-                        {{ cm }}cm
-                    </option>
+                    <option value="{{ cm }}" {% if wall_height_centimetres == cm|string %} selected {% elif cm == 30 %} selected {% endif %}>{{ cm }}cm</option>
                     {% endfor %}
-                </select>
+                  </select>
+                {% endif %}
             </div>
         {% else %}
             <p style="color: red; font-weight: bold;">Error: Missing data for External Wall section.</p>
@@ -666,13 +697,41 @@
         </label>
         <br>
         
-        <!-- Dropdown for Roof Finish (Appears if 'er1#' is checked) -->
-        <div id="pitchedRoofDropdown" style="display: none; margin-top: 10px;">
-            <label for="pitchedRoofOptions">Choose Roofing Finish:</label>
-            <select id="pitchedRoofOptions" name="pitched_roof_option"
-                onchange="toggleVisibility('pitchedRoofOptions', 'otherRoofingInput', 'er7^')">
+        <!-- Dropdown for Roof Finish — sub_blocks driven from schema -->
+        <div id="pitchedRoofDropdown" style="display: {{ 'block' if 'er1#' in data['selected_er']['preselected'] else 'none' }}; margin-top: 10px;">
+            {% if ms.er %}
+              {% for sub in ms.er.sub_blocks %}
+                {% set tv = sub.standard.get('trigger_value', '') %}
+                {% set fname = sub.standard.name %}
+                {% if sub.block_type == 'dropdown_select' and tv == 'er1#' %}
+                  <label for="{{ fname }}Options">{{ sub.standard.label }}:</label>
+                  <select id="{{ fname }}Options" name="{{ fname }}"
+                      onchange="toggleVisibility('{{ fname }}Options', 'otherRoofingInput', 'er7^')">
+                    <option value="">--Select Option--</option>
+                    {% set src_codes = sub.standard.get('source_codes', []) %}
+                    {% for prefix, note in data[fname]['data'].items() %}
+                      {% if not src_codes or prefix in src_codes %}
+                      <option value="{{ prefix }}"
+                          {% if prefix in data.get(fname, {}).get('preselected', []) %} selected {% endif %}>
+                          {{ "Other" if prefix == "er7^" else note.description }}
+                      </option>
+                      {% endif %}
+                    {% endfor %}
+                  </select>
+                {% elif sub.block_type == 'text_input' and tv == 'er7^' %}
+                  <div id="otherRoofingInput" style="display: {% if 'er7^' in data.get(fname, {}).get('preselected', []) or data.get(fname,'') == 'er7^' %} block {% else %} none {% endif %}; margin-top: 10px;">
+                    <label for="otherRoofingText">{{ sub.standard.label }}:</label>
+                    <input type="text" id="otherRoofingText" name="{{ fname }}"
+                        value="{{ data.get(fname, '') }}">
+                  </div>
+                {% endif %}
+              {% endfor %}
+            {% else %}
+              {# fallback #}
+              <label for="pitchedRoofOptions">Choose Roofing Finish:</label>
+              <select id="pitchedRoofOptions" name="pitched_roof_option"
+                  onchange="toggleVisibility('pitchedRoofOptions', 'otherRoofingInput', 'er7^')">
                 <option value="">--Select Option--</option>
-                
                 {% for prefix, note in data['pitched_roof_option']['data'].items() %}
                 {% if prefix in ['er4^', 'er5^', 'er6^', 'er7^'] %}
                 <option value="{{ prefix }}"
@@ -681,14 +740,13 @@
                 </option>
                 {% endif %}
                 {% endfor %}
-            </select>
-            
-            <!-- Input for "Other" Roofing Finish (Appears if 'er7^' is selected) -->
-            <div id="otherRoofingInput" style="display: {% if 'er7^' in data.get('pitched_roof_option', {}).get('preselected', []) %} block {% else %} none {% endif %}; margin-top: 10px;">
+              </select>
+              <div id="otherRoofingInput" style="display: {% if 'er7^' in data.get('pitched_roof_option', {}).get('preselected', []) %} block {% else %} none {% endif %}; margin-top: 10px;">
                 <label for="otherRoofingText">Please Specify:</label>
                 <input type="text" id="otherRoofingText" name="other_roofing_description"
-                    value="{{ data.get('other_roofing_description', '') }}"> 
-            </div>
+                    value="{{ data.get('other_roofing_description', '') }}">
+              </div>
+            {% endif %}
         </div>
         
         {% elif line_code not in ['er4^', 'er5^', 'er6^', 'er7^'] %}
@@ -724,16 +782,29 @@
     </button>
     <div id="internalDoorsSection" class="accordion-body">
         
-        <!-- Manual Input Fields -->
-        <label for="fire_doors_number">Number of Fire Doors:</label>
-        <input type="number" id="fire_doors_number" name="fire_doors_number"
-            value="{{ data.get('fire_doors_number', '') or '0' }}" min="0" 
-            style="margin-bottom: 10px; padding: 5px; display: block;"><br>
-        
-        <label for="non_fire_doors_number">Number of Non-Fire Doors:</label>
-        <input type="number" id="non_fire_doors_number" name="non_fire_doors_number"
-            value="{{ data.get('non_fire_doors_number', '') or '0' }}" min="0" 
-            style="margin-bottom: 10px; padding: 5px; display: block;"><br>
+        <!-- Manual Input Fields — sub_blocks driven from schema -->
+        {% if ms.id_block %}
+          {% for sub in ms.id_block.sub_blocks %}
+            {% if sub.block_type == 'number_input' %}
+              {% set fname = sub.standard.name %}
+              {% set min_val = sub.standard.get('min', 0) %}
+              <label for="{{ fname }}">{{ sub.standard.label }}:</label>
+              <input type="number" id="{{ fname }}" name="{{ fname }}"
+                  value="{{ data.get(fname, '') or '0' }}" min="{{ min_val }}"
+                  style="margin-bottom: 10px; padding: 5px; display: block;"><br>
+            {% endif %}
+          {% endfor %}
+        {% else %}
+          {# fallback #}
+          <label for="fire_doors_number">Number of Fire Doors:</label>
+          <input type="number" id="fire_doors_number" name="fire_doors_number"
+              value="{{ data.get('fire_doors_number', '') or '0' }}" min="0"
+              style="margin-bottom: 10px; padding: 5px; display: block;"><br>
+          <label for="non_fire_doors_number">Number of Non-Fire Doors:</label>
+          <input type="number" id="non_fire_doors_number" name="non_fire_doors_number"
+              value="{{ data.get('non_fire_doors_number', '') or '0' }}" min="0"
+              style="margin-bottom: 10px; padding: 5px; display: block;"><br>
+        {% endif %}
 
         
 
@@ -774,15 +845,31 @@
             Specify other drainage works
         </label><br>
         
-        <!-- Unified input + cost field container -->
-        <div id="drainageOtherInputContainer" style="display: none; margin-top: 10px;">
-            <label for="drainage_other_input">Enter drainage details:</label>
-            <input type="text" id="drainage_other_input" name="drainage_other_input" 
-                value="{{ data.get('drainage_other_input', '') }}">
-            
-            <label for="drainage_other_cost" style="margin-top: 10px; display: block;">Cost (£):</label>
-            <input type="number" step="0.01" id="drainage_other_cost" name="drainage_other_cost" 
-                value="{{ data.get('drainage_other_cost', '0.00') }}">
+        <!-- Unified input + cost field container — sub_blocks driven from schema -->
+        <div id="drainageOtherInputContainer" style="display: {{ 'block' if 'dr4^' in data['selected_dr']['preselected'] else 'none' }}; margin-top: 10px;">
+            {% if ms.dr %}
+              {% for sub in ms.dr.sub_blocks %}
+                {% set fname = sub.standard.name %}
+                {% if sub.block_type == 'text_input' %}
+                  <label for="{{ fname }}">{{ sub.standard.label }}:</label>
+                  <input type="text" id="{{ fname }}" name="{{ fname }}"
+                      value="{{ data.get(fname, '') }}">
+                {% elif sub.block_type == 'number_input' %}
+                  {% set step_val = sub.standard.get('step', 1) %}
+                  <label for="{{ fname }}" style="margin-top: 10px; display: block;">{{ sub.standard.label }}:</label>
+                  <input type="number" step="{{ step_val }}" id="{{ fname }}" name="{{ fname }}"
+                      value="{{ data.get(fname, '0.00') }}">
+                {% endif %}
+              {% endfor %}
+            {% else %}
+              {# fallback #}
+              <label for="drainage_other_input">Enter drainage details:</label>
+              <input type="text" id="drainage_other_input" name="drainage_other_input"
+                  value="{{ data.get('drainage_other_input', '') }}">
+              <label for="drainage_other_cost" style="margin-top: 10px; display: block;">Cost (£):</label>
+              <input type="number" step="0.01" id="drainage_other_cost" name="drainage_other_cost"
+                  value="{{ data.get('drainage_other_cost', '0.00') }}">
+            {% endif %}
         </div>
         {% endif %}
     </div>

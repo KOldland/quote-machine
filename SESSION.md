@@ -41,22 +41,18 @@
 
 ## Immediate Next Task (start here on reopen)
 
-### 🚀 Phase 2 (continued) — Jinja Rendering Update
+### 🚀 Phase 2 (continued) — Verify & Phase 3 Planning
 
-The schema now has `sub_blocks` populated. The next step is to update `form.html` so that the materials-page accordions render their sub-questions dynamically from `sub_blocks` instead of hardcoded HTML.
+Jinja rendering update is complete. Next steps:
 
-**Approach:**
-1. In `form.html`, within the `{% if materials_page %}` block, for accordions that are `accordion_group` type, iterate `block.sub_blocks` to render each sub-question field **after** the main checkbox list.
-2. This is a **template-only** change — no routes or `QMapp.py` logic changes needed in this step (those fields are already handled by the existing POST handlers).
-3. The rendered output must be identical to the current hardcoded markup for all 8 sub-fields.
-4. After rendering update: verify form loads, sub-questions appear in correct position, form submits without error, and session data is stored identically to before.
+1. **Verification** — Start Flask locally (`QM_DISABLE_SHEETS=1`) and navigate to `materials_page`. Confirm:
+   - All 4 accordions load sub-questions correctly from schema
+   - `wallHeightInput`, `pitchedRoofDropdown`, `drainageOtherInputContainer` show/hide correctly via JS
+   - Number inputs (fire_doors, non_fire_doors) render with correct labels from schema
+   - Form submits and session data is stored identically to before
+2. **Phase 3** — Wire schema-driven rendering to the accordion builder canvas so new `sub_blocks` can be added/edited via the admin UI without touching HTML.
 
-**The 4 sub-block field types to handle:**
-- `dropdown_select` → `<select>` element with `<option>` per choice in `standard.dropdown_choices`, shown/hidden via `trigger_value`
-- `text_input` → `<input type="text">`, shown/hidden via `trigger_value`
-- `number_input` → `<input type="number">`, shown/hidden via `trigger_value`
-
-**Do NOT change** `builder.js` or the builder canvas in Phase 2.
+**Do NOT change** `builder.js` or the builder canvas until Phase 3 begins.
 
 ## Session Log
 | Date | Items | Result |
@@ -67,3 +63,4 @@ The schema now has `sub_blocks` populated. The next step is to update `form.html
 | 05/06/26 | Accordion analysis | 4-phase plan written |
 | 05/06/26 | Phase 1 schema migration | ✅ COMPLETE — `07a9811` |
 | 05/06/26 | Phase 2 sub-block discovery + schema population | ✅ COMPLETE — this commit |
+| 05/06/26 | Phase 2 Jinja rendering update — form.html sub_blocks dynamic | ✅ COMPLETE — this commit |
