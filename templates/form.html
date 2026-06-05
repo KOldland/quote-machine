@@ -601,6 +601,26 @@
   {% endfor %}
 {% endif %}
 
+{# ── Session C: line_items-driven accordion rendering ── #}
+{% if line_items_by_category %}
+  {% for category, items in line_items_by_category.items() %}
+  <div class="accordion-section">
+    <button type="button" class="accordion-header" onclick="toggleAccordion('li_cat_{{ loop.index }}')">
+      {{ category | title }}
+    </button>
+    <div id="li_cat_{{ loop.index }}" class="accordion-body">
+      {% for item in items %}
+      <label class="checkbox-label">
+        <input type="checkbox" name="li_sel" value="{{ item.line_code }}"
+               {% if item.include_default == 'Y' %}checked{% endif %}>
+        {% if item.item_role == 'parent' %}<strong>{{ item.internal_description }}</strong>{% else %}{{ item.internal_description }}{% endif %}
+      </label><br>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+{% else %}{# legacy Sheets-driven path — remove once line_items confirmed #}
+
 <!-- Accordion for External Wall Options -->
 <div class="accordion-section">
     <button type="button" class="accordion-header" onclick="toggleAccordion('externalWallSection')">
@@ -910,6 +930,8 @@
 <!-------------------------------------------------------------------------------------------------------------------------->
 <!----------------                          PAGE Further Requirements Page                         ------------------------->
 <!-------------------------------------------------------------------------------------------------------------------------->
+{# close line_items_by_category legacy else block (opened before External Wall accordion) #}
+{% endif %}
 
 <!-- Further Requirements & Considerations -->
 {% if further_requirements_page %}

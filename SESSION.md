@@ -40,6 +40,93 @@
 
 ## Immediate Next Task (start here on reopen)
 
+### 🚀 Session C — `form.html` → Query `line_items` (IN PROGRESS — halted at budget)
+
+**Context gathered:**
+- DB confirmed: `form_page='3'` = materials (ew, er, id, dr, wp categories), `'3B'` = Demolition/FRC, `'3C'` = Additional Items
+- `template_store.py` ends at line 743 — ready to append `get_line_items_for_page`
+- `form.html` materials block approx lines 591–907; currently driven by `data['selected_ew']` / `data['selected_er']` etc. from Sheets
+
+**Three deliverables (all described below):**
+
+**1. `template_store.py` — append `get_line_items_for_page`**
+Add at end of file (after line 743):
+```python
+def get_line_items_for_page(form_page: str, db_path: Optional[Path] = None) -> Dict[str, list]:
+    """Return form-visible line_items for a page, grouped by category.
+    Returns {category: [row_dicts]} ordered by sort_order.
+    """
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    rows = conn.execute(
+        "SELECT id, line_code, category, internal_description, include_default, "
+        "unit_cost, units, pricing_visibility, output_title, output_notes, output_guidance, "
+        "parent_code, item_role, input_type, trigger_parent_code, form_visible, sort_order "
+        "FROM line_items WHERE form_page=? AND form_visible=1 "
+        "ORDER BY category ASC, sort_order ASC, line_code ASC",
+        (form_page,)
+    ).fetchall()
+    conn.close()
+    result: Dict[str, list] = {}
+    for row in rows:
+        cat = row["category"]
+        if cat not in result:
+            result[cat] = []
+        result[cat].append(dict(row))
+    return result
+```
+
+**2. `QMapp.py` — wire into routes**
+In each form page route, call `get_line_items_for_page` and pass as `line_items_by_category`:
+- `materials_page()` → `get_line_items_for_page('3')`
+- `summary_page()` → `get_line_items_for_page('2')`
+- `further_requirements_page()` → `get_line_items_for_page('3B')`
+
+Add import at top of routes file if `get_line_items_for_page` is added to `template_store.py`:
+```python
+from template_store import get_line_items_for_page
+```
+Or call inline via `sqlite3` using the existing `DB_PATH` pattern already in use for builder routes.
+
+**3. `form.html` — add line_items render block**
+In the `{% if materials_page %}` section (line ~591), prepend before the existing accordion blocks:
+```jinja
+{# ── Session C: line_items-driven accordion rendering ── #}
+{% if line_items_by_category %}
+  {% for category, items in line_items_by_category.items() %}
+  <div class="accordion-section">
+    <button type="button" class="accordion-header"
+            onclick="toggleAccordion('li_cat_{{ loop.index }}')">
+      {{ category | title }}
+    </button>
+    <div id="li_cat_{{ loop.index }}" class="accordion-body">
+      {% for item in items %}
+        {% if item.item_role == 'parent' %}
+        <label class="checkbox-label">
+          <input type="checkbox" name="li_{{ item.form_page }}"
+                 value="{{ item.line_code }}"
+                 {% if item.include_default == 'Y' %}checked{% endif %}>
+          <strong>{{ item.internal_description }}</strong>
+        </label><br>
+        {% else %}
+        <label class="checkbox-label">
+          <input type="checkbox" name="li_{{ item.form_page }}"
+                 value="{{ item.line_code }}"
+                 {% if item.include_default == 'Y' %}checked{% endif %}>
+          {{ item.internal_description }}
+        </label><br>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+{% else %}
+  {# Legacy Sheets-driven accordions below — remove once line_items data confirmed #}
+```
+Close the `{% else %}` block with `{% endif %}` after the final legacy accordion div (closing `{% endif %}` for materials_page).
+
+**Next step on reopen:** Read `materials_page()` body in QMapp.py (look for `render_template` call), then make all three writes above.
+
 ### ~~Session B — Builder Canvas: `line_items` Accordions~~ ✅ COMPLETE
 
 `builder_beta.html` reworked to mount `render_line_items_canvas()` + `render_line_item_properties()` and call `initLineItemsCanvas()` on DOMContentLoaded. Backend routes (`/builder_beta/line_items_json`, `/builder_beta/line_item_save/<id>`), JS (`initLineItemsCanvas`, `_renderAccordions`, `_selectItem`, `_renderProperties`), and macros were all pre-built; wiring was the missing piece.

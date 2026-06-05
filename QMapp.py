@@ -3001,6 +3001,36 @@ def builder_beta_runtime_render(page_id):
 
 ################################################################################################################################
 
+def _get_line_items_for_page(form_page_key):
+	"""Query line_items table for a form page key, grouped by category.
+	Returns {category: [row_dict, ...]} ordered by sort_order.
+	Only rows with form_visible=1 are included.
+	"""
+	import sqlite3 as _sq
+	from pathlib import Path as _P
+	import os as _os
+	_db = str(_P(os.environ.get('QM_TEMPLATE_DB_PATH', '') or
+				 _P(__file__).parent / 'template_store.sqlite3'))
+	_conn = _sq.connect(_db)
+	_conn.row_factory = _sq.Row
+	_rows = _conn.execute(
+		"SELECT id, line_code, form_page, category, internal_description, include_default, "
+		"unit_cost, units, pricing_visibility, output_title, output_notes, output_guidance, "
+		"parent_code, item_role, input_type, trigger_parent_code, form_visible, sort_order "
+		"FROM line_items WHERE form_page=? AND form_visible=1 "
+		"ORDER BY category ASC, sort_order ASC, line_code ASC",
+		(form_page_key,)
+	).fetchall()
+	_conn.close()
+	_result = {}
+	for _r in _rows:
+		_cat = _r['category']
+		if _cat not in _result:
+			_result[_cat] = []
+		_result[_cat].append(dict(_r))
+	return _result
+
+
 @app.route('/materials_page', methods=['POST', 'GET'])
 def materials_page():
 	# Store the current page in the session
@@ -3223,7 +3253,8 @@ def materials_page():
 		wall_height_metres=data.get('wall_height_metres', ''),
 		wall_height_centimetres=data.get('wall_height_centimetres', ''),
 		fire_doors_number=data.get('fire_doors_number', ''),
-		non_fire_doors_number=data.get('non_fire_doors_number', '')
+		non_fire_doors_number=data.get('non_fire_doors_number', ''),
+		line_items_by_category=_get_line_items_for_page('3'),
 	)
 	
 ################################################################################################################################
@@ -3439,7 +3470,8 @@ def further_requirements_page():
 		title="Further Requirements & Considerations",
 		data=data,
 		iw_sqm_values=data.get('iw_sqm_values', {}),
-		iw_fixed_values=data.get('iw_fixed_values', {})
+		iw_fixed_values=data.get('iw_fixed_values', {}),
+		line_items_by_category=_get_line_items_for_page('3B'),
 	)	
 
 ################################################################################################################################
