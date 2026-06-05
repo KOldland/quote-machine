@@ -6,17 +6,13 @@
 {% import "_builder_macros.html" as builder_macros %}
 
 <div class="form-container {% if edit_mode %}builder-edit-mode{% endif %}">
-    {% if is_admin %}
+    {% if is_admin and not edit_mode %}
     <div class="edit-mode-bar">
-        {% if edit_mode %}
-        <span style="font-size:.85rem;font-weight:600;color:#856404;">&#9998; Edit Mode active</span>
-        <span id="edit-action-status" style="font-size:.78rem;color:#6c757d;">Draft mode (auto-save)</span>
-        {% else %}
         <span style="font-size:.85rem;color:#555;">Admin view</span>
-        <a href="{{ request.path }}?edit=1" class="btn btn-info btn-sm">&#9998; Edit Page</a>
-        {% endif %}
+        <a href="{{ request.path }}?edit=1" class="btn btn-info btn-sm">Edit Page</a>
     </div>
     {% endif %}
+    <span id="edit-action-status" style="display:none;"></span>
 
     {% if edit_mode %}
     <div class="builder-container">

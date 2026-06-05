@@ -46,12 +46,12 @@
                             </a>
                             {% endfor %}
                         </div>
-                        <button type="button" class="btn btn-primary" id="btn-add-block" style="width:100%;margin-top:.5rem;">+ Add Question</button>
-                        <div class="edit-mode-actions" style="margin-top:.75rem;display:flex;flex-direction:column;gap:.5rem;">
-                            <button type="button" id="btn-publish-draft" class="btn btn-success" style="width:100%;">&#10003; Publish</button>
-                            <button type="button" id="btn-rollback" class="btn btn-warning" style="width:100%;">&#8635; Undo</button>
+                        <button type="button" class="btn btn-sidebar" id="btn-add-block" style="width:100%;margin-top:.5rem;">Add Question</button>
+                        <div class="edit-mode-actions" style="margin-top:.5rem;display:flex;flex-direction:column;gap:.35rem;">
+                            <button type="button" id="btn-publish-draft" class="btn btn-sidebar" style="width:100%;">Publish</button>
+                            <button type="button" id="btn-rollback" class="btn btn-sidebar" style="width:100%;">Undo</button>
                             <form method="GET" action="{{ url_for('index') }}" style="width:100%;">
-                                <button type="submit" class="btn btn-secondary" style="width:100%;">Exit Edit Mode</button>
+                                <button type="submit" class="btn btn-sidebar" style="width:100%;">Exit Edit Mode</button>
                             </form>
                         </div>
                     </div>

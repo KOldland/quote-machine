@@ -121,22 +121,24 @@
     width: 76% !important;
 }
 
-/* Builder container: horizontal flex with canvas + properties panel */
+/* Builder container: two-column grid, canvas 1/3, properties 2/3 */
 .builder-container {
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr 2fr;
     gap: 1rem;
     align-items: flex-start;
     width: 100%;
+    min-width: 0;
 }
 
-/* Center canvas — takes remaining space */
+/* Left canvas column */
 .builder-container .builder-canvas {
-    flex: 1;
-    min-width: 0; /* Prevent flex overflow */
+    min-width: 0; /* Prevent grid overflow */
+    overflow: hidden;
     background: #fff;
     border: 1px solid #ddd;
     border-radius: 6px;
-    padding: 1rem 1.5rem;
+    padding: 1rem 1rem 1rem 1rem;
     box-shadow: 0 1px 4px rgba(0,0,0,.06);
 }
 
@@ -150,10 +152,9 @@
     color: #1b3a6b;
 }
 
-/* Right properties panel — fixed width, scrollable */
+/* Right properties panel — 2/3 of grid, scrollable */
 .builder-container .builder-properties {
-    width: 320px;
-    flex-shrink: 0;
+    min-width: 0;
     background: #f8f9fa;
     border: 1px solid #d0d0d0;
     border-radius: 6px;
@@ -585,6 +586,31 @@
     color: #fff;
 }
 
+/* Uniform sidebar control buttons */
+.builder-edit-mode .btn-sidebar {
+    display: block;
+    width: 100%;
+    background: #1b3a6b;
+    color: #fff;
+    border: 1px solid #1b3a6b;
+    padding: .45rem .65rem;
+    text-align: left;
+    font-size: .82rem;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background .15s;
+    font-family: inherit;
+}
+
+.builder-edit-mode .btn-sidebar:hover {
+    background: #254e8a;
+    border-color: #254e8a;
+    color: #fff;
+}
+
 /* ── 7f. Type Picker Modal (from builder.js showTypePicker) ── */
 
 .type-picker-overlay {
@@ -617,7 +643,7 @@
 
 .type-picker-grid {
     display: grid;
-    grid-template-columns: 1fr 2fr;
+    grid-template-columns: 1fr 1fr;
     gap: .5rem;
 }
 
