@@ -1047,6 +1047,7 @@ def compile_builder_beta_page_to_runtime_schema(page_id):
 			'name': field_name,
 			'label': field_label,
 			'note': standard.get('help_text', ''),
+			'hidden': block.get('hidden', False),
 			'builder_beta_meta': {
 				'block_type': block_type,
 				'placeholder': standard.get('placeholder', ''),

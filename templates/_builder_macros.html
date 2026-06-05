@@ -253,14 +253,16 @@
         <div class="canvas-content" id="canvas-content">
             {% if current_page.blocks %}
                 {% for block in current_page.blocks %}
-                <div class="question-block {{ "selected" if block.id == selected_block_id else "" }}" 
+                <div class="question-block {{ "selected" if block.id == selected_block_id else "" }}{% if block.hidden %} block-is-hidden{% endif %}" 
                      data-block-id="{{ block.id }}" 
                      data-type="{{ block.block_type }}"
-                     draggable="true">
+                     draggable="true"
+                     style="{% if block.hidden %}opacity:0.45;{% endif %}">
                     <div class="question-block-header">
                         <span class="drag-handle">⠿</span>
                         <span class="block-type-badge">{{ block.block_type }}</span>
-                        <span class="block-title">{{ block.standard.label }}</span>
+                        {% if block.hidden %}<span style="background:#dc3545;color:#fff;font-size:.65rem;font-weight:700;padding:.15rem .4rem;border-radius:3px;margin-left:.3rem;letter-spacing:.04em;">HIDDEN</span>{% endif %}
+                        <span class="block-title">{% if block.hidden %}<s>{{ block.standard.label }}</s>{% else %}{{ block.standard.label }}{% endif %}</span>
                         <div class="block-actions">
                             <button type="button" class="block-action-btn" data-action="edit" title="Edit">✎</button>
                             <button type="button" class="block-action-btn delete" data-action="delete" title="Delete">🗑️</button>
