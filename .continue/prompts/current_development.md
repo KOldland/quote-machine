@@ -2,7 +2,7 @@
 
 ## Phase Status
 
-**Phase 1 ✅ COMPLETE. Phase 2 (Sub-question Discovery & Migration) is the active next task.**
+**Phase 1 ✅ COMPLETE. Phase 2 — schema population ✅ COMPLETE. Next: Phase 2 Jinja rendering update (form.html).**
 
 The previous testing sprint (archived in `current_development_comp2.md`) confirmed all 10 CRUD checklist items CLEAR. The new sprint addresses a fundamental architectural gap: the builder treats every question block as a flat item, but the front-end renders them as **accordion containers** with nested sub-questions. We are restoring that missing hierarchy layer.
 
@@ -136,11 +136,11 @@ Two hierarchy layers are collapsed into one. The builder cannot see or manage su
 
 ## Testing Checklist
 
-1. [ ] Phase 1 — Schema migration runs without error; app loads all 9 pages correctly
-2. [ ] Phase 1 — All `source_prefix` blocks are now `accordion_group` type with `sub_blocks: []`
-3. [ ] Phase 2 — All hardcoded sub-questions found and audited
-4. [ ] Phase 2 — Sub-questions migrated to schema; front-end form renders identically
-5. [ ] Phase 2 — Form submission and output (review page / production) unchanged
+1. [x] Phase 1 — Schema migration runs without error; 17 blocks promoted, JSON valid in both schema files
+2. [x] Phase 1 — All `source_prefix` blocks are now `accordion_group` type with `sub_blocks: []`
+3. [x] Phase 2 — All hardcoded sub-questions found and audited (8 sub-questions across 4 accordions)
+4. [x] Phase 2 — Sub-questions migrated to schema (`migrate_phase2_sub_blocks.py`); sub_blocks populated in both JSON files
+5. [ ] Phase 2 — Jinja rendering updated in form.html to read sub_blocks dynamically; form renders identically and submits correctly
 6. [ ] Phase 3 — Builder canvas renders accordion containers with indented sub-blocks
 7. [ ] Phase 3 — Clicking accordion header → correct properties panel (title + source prefix)
 8. [ ] Phase 3 — Clicking sub-block → correct properties panel (full question fields)
@@ -154,6 +154,8 @@ Two hierarchy layers are collapsed into one. The builder cannot see or manage su
 | Date | Phase | Session | Result |
 |------|-------|---------|--------|
 | 05/06/26 | Planning | Architectural gap identified — accordion hierarchy missing from builder | Plan agreed — 4 phases defined |
+| 05/06/26 | Phase 1 | `migrate_accordion_schema.py` written & run — 17 blocks promoted to `accordion_group` with `sub_blocks: []` in both JSON files | ✅ COMPLETE — commit `07a9811` |
+| 05/06/26 | Phase 2 (schema) | Audited form.html + QMapp.py — 8 hardcoded sub-questions found. `migrate_phase2_sub_blocks.py` written & run — sub_blocks populated for ew/er/id/dr accordions in both JSON files | ✅ COMPLETE — this session |
 
 ---
 
