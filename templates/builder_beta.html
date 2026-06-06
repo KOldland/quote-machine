@@ -1,0 +1,17 @@
+{% extends "index.html" %}
+{% import "._builder_macros.html" as builder_macros %}
+
+{% block content %}
+<div class="builder-page-wrapper builder-line-items-layout">
+    {{ builder_macros.render_line_items_canvas() }}
+    {{ builder_macros.render_line_item_properties() }}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    if (typeof window.initLineItemsCanvas === 'function') {
+        window.initLineItemsCanvas();
+    }
+});
+</script>
+{% endblock %}

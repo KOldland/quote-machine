@@ -273,3 +273,65 @@ CREATE TABLE line_items (
 - [x] K1 — Clean up deprecated standalone builder routes in `QMapp.py`
 - [x] K2 — Update/remove deprecated test cases in `test_submit_production.py` to reflect the new inline-sidebar architecture
 - [x] K3 — Fix `ui_regression.sh` to remove checks against deprecated endpoints so automated UI regression passes cleanly
+
+---
+
+## Session L: 3-Column Line Item Canvas (Edit Mode Rebuild)
+
+### Goal
+
+Replace the current flat canvas (accordion list + floating properties panel) with a **3-column Edit Mode UI** that gives full visibility and control over every field in the `line_items` DB, without leaving the live page.
+
+### Layout
+
+```
+[ LEFT SIDEBAR     ]  [ CANVAS COL 1 — SECTIONS ]  [ CANVAS COL 2 — CONTEXTUAL ]
+  Page selector          Section One                    View One: Question list
+  Publish                Section Two                      (when section selected)
+  Undo / Exit            Section Three                  ──────────────────────────
+                                                         View Two: Question editor
+                                                           (when question clicked)
+                                                           - Description fields
+                                                           - Logic / secondary Qs
+                                                           - Costs options
+                                                           - Meta data
+                                                           - Output options
+```
+
+### Data Source
+
+- **Sections (Col 1)** = distinct `category` values from `line_items` for the current page (queried from SQLite via existing `get_line_items_for_page`)
+- **Questions (Col 2 View One)** = all line_items rows for the selected category (filtered by `form_page` + `category`); includes all roles (parent, standalone, auto_child, guidance, special)
+- **Question editor (Col 2 View Two)** = full set of `line_items` DB fields, grouped into 5 collapsible sections:
+  1. **Description** — `output_title`, `output_notes`, `output_guidance`, `internal_description`
+  2. **Logic / secondary questions** — `item_role`, `parent_code`, `trigger_parent_code`
+  3. **Costs** — `unit_cost`, `units`, `pricing_visibility`
+  4. **Meta** — `line_code`, `category`, `form_page`, `sort_order`, `form_visible`, `include_default`
+  5. **Output** — `output_title`, `output_notes`, `output_guidance` (confirmed output view)
+
+### Build Steps
+
+1. **L1 — Backend API endpoint**: `GET /api/builder/line_items?page=X` returns all line items for a page as JSON (grouped by category). `POST /api/builder/line_item/<id>/save` saves all fields from View Two form.
+2. **L2 — `render_li_sections_panel()` macro**: Renders category list in Col 1. Each category button is clickable. Active state highlights selected category.
+3. **L3 — `render_li_contextual_panel()` macro**: Col 2 wrapper with two view states (View One / View Two), both initially hidden until a category is selected.
+4. **L4 — View One (question list)**: Populated via JS fetch from L1 API. Shows line_code, output_title/internal_description, item_role, form_visible flag for each row. Clicking a row switches to View Two.
+5. **L5 — View Two (question editor)**: 5 collapsible sections rendered via JS from row data. Save button POSTs to L1 save endpoint and returns to View One.
+6. **L6 — `builder.js` state machine**: Manages activeCategory, activeItemId, and the View One/Two toggle entirely client-side (no full page reload).
+
+### What Does NOT Change
+- Left sidebar (page selector, Publish, Undo, Exit Edit Mode) — untouched
+- Schema-based builder for non-line-item pages (Project Details, Special Notes) — untouched
+- `form.html` live form rendering — no changes
+
+### Testing Checklist (Session L)
+
+- [ ] L1 — `GET /api/builder/line_items?page=3` returns correct JSON grouped by category
+- [ ] L1 — `POST /api/builder/line_item/<id>/save` updates DB and returns 200
+- [ ] L2 — Section list renders in Col 1; active state highlights on click
+- [ ] L3 — Contextual panel renders empty state correctly before any selection
+- [ ] L4 — Click category → View One populates with correct question rows for that category
+- [ ] L4 — All item roles visible in question list (parent, standalone, auto_child, guidance, special)
+- [ ] L5 — Click question → View Two opens with correct pre-populated field values
+- [ ] L5 — All 5 collapsible sections render (Description, Logic, Costs, Meta, Output)
+- [ ] L5 — Save button POSTs correctly; DB field updated; return to View One
+- [ ] L6 — Full state machine works: category select → question list → question editor → save → back to list
