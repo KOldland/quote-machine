@@ -2226,7 +2226,7 @@ def special_notes_page():
 	
 	# Get session storage
 	checkbox_data = session.setdefault('checkbox_data', {})
-	page_schema = get_page_schema('special_notes_page')
+	page_schema = compile_builder_beta_page_to_runtime_schema('special_notes_page')
 	
 	if request.method == 'POST':
 		checkbox_data = persist_schema_page_submission(page_schema, request.form, checkbox_data)

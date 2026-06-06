@@ -25,3 +25,4 @@
 ## Immediate Next Task (start here on reopen)
 ### Session J: Next Steps
 1. Review and refine any remaining issues with the new database-driven unified hierarchy.
+2. Clean up removed standalone builder routes (e.g., `/form_builder_demo`) and fix/remove deprecated test cases in `test_submit_production.py` and `ui_regression.sh` since the standalone builder was removed in Session I.

@@ -771,6 +771,38 @@
                 "floor structure",
                 "plastering"
               ]
+            },
+            "standard": {
+              "label": "materials_page__line_items",
+              "name": "materials_page__line_items",
+              "required": false,
+              "help_text": "",
+              "source_prefix": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "materials_page__line_items",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
             }
           }
         ]
@@ -943,6 +975,38 @@
                 "Demolition Works",
                 "Further Requirements & Considerations"
               ]
+            },
+            "standard": {
+              "label": "further_requirements_page__line_items",
+              "name": "further_requirements_page__line_items",
+              "required": false,
+              "help_text": "",
+              "source_prefix": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "further_requirements_page__line_items",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
             }
           }
         ]
