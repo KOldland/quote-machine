@@ -15,6 +15,29 @@
     <span id="edit-action-status" style="display:none;"></span>
 
     {% if edit_mode %}
+
+    {% if li_categories is defined and li_categories %}
+    {# ── Session L: 3-column line-item editor ─────────────────────────────── #}
+    {# CSRF token for JS save calls #}
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" id="li-csrf-token">
+    <div class="li-3col-canvas">
+        {{ builder_macros.render_li_sections_panel(li_categories, form_page_key) }}
+        {{ builder_macros.render_li_question_panel(form_page_key) }}
+    </div>
+    <style>
+    .li-3col-canvas {
+        display: flex;
+        flex-direction: row;
+        height: calc(100vh - 120px);
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        overflow: hidden;
+        background: #fff;
+    }
+    </style>
+
+    {% else %}
+    {# ── Legacy schema block builder ───────────────────────────────────────── #}
     <div class="builder-container">
         <div class="builder-canvas">
             <h1>{{ title }}</h1>
@@ -24,6 +47,7 @@
         </div>
         {{ builder_macros.render_properties_panel(selected_block, current_page.blocks, pricing_modes, current_page_id) }}
     </div>
+    {% endif %}
     {% else %}
         <h1>{{ title }}</h1>
         <form action="{{ url_for(request.endpoint) }}" method="POST" {% if twenty_ninth_page %}enctype="multipart/form-data"{% endif %}>

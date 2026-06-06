@@ -2806,21 +2806,40 @@ def builder_beta_page_editor(page_id):
 @app.route('/builder_beta/line_items_json', methods=['GET'])
 @require_role('admin')
 def builder_line_items_json():
-    """Return all line_items grouped by category as JSON for the builder canvas."""
+    """Return line_items as JSON for the builder canvas.
+    Optional query params:
+      ?page=3        filter by form_page (e.g. '3', '3B')
+      ?category=Xyz  filter further to a single category
+    Returns: { categories: [{name, items: [row, ...]}, ...] }
+    """
     import sqlite3 as _sq
     from pathlib import Path as _P
     db = _P(__file__).resolve().parent / 'template_store.sqlite3'
     if not db.exists():
         return jsonify({'categories': []})
+    page_filter = request.args.get('page', '').strip()
+    cat_filter = request.args.get('category', '').strip()
     conn = _sq.connect(str(db))
     conn.row_factory = _sq.Row
-    rows = conn.execute(
+    sql = (
         'SELECT id, line_code, form_page, category, internal_description, '
         'include_default, unit_cost, units, pricing_visibility, '
         'output_title, output_notes, output_guidance, '
         'parent_code, item_role, form_visible, sort_order '
-        'FROM line_items ORDER BY category ASC, sort_order ASC, line_code ASC'
-    ).fetchall()
+        'FROM line_items'
+    )
+    params = []
+    conditions = []
+    if page_filter:
+        conditions.append('form_page = ?')
+        params.append(page_filter)
+    if cat_filter:
+        conditions.append('category = ?')
+        params.append(cat_filter)
+    if conditions:
+        sql += ' WHERE ' + ' AND '.join(conditions)
+    sql += ' ORDER BY category ASC, sort_order ASC, line_code ASC'
+    rows = conn.execute(sql, params).fetchall()
     conn.close()
     cats = {}
     for r in rows:
@@ -3141,6 +3160,7 @@ def materials_page():
 		current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
 		selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
 		selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
+		_li_cats = _get_li_categories_from_schema('materials_page') or []
 		return render_template(
 			'form.html',
 			materials_page=True,
@@ -3158,6 +3178,8 @@ def materials_page():
 			selected_block_id=selected_block_id,
 			selected_block=selected_block,
 			pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
+			form_page_key='3',
+			li_categories=_li_cats,
 		)
 	return render_template(
 		'form.html',
@@ -3366,6 +3388,7 @@ def further_requirements_page():
 		current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
 		selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
 		selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
+		_li_cats = _get_li_categories_from_schema('further_requirements_page') or []
 		return render_template(
 			'form.html',
 			further_requirements_page=True,
@@ -3381,6 +3404,8 @@ def further_requirements_page():
 			selected_block_id=selected_block_id,
 			selected_block=selected_block,
 			pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
+			form_page_key='3B',
+			li_categories=_li_cats,
 		)
 	return render_template(
 		'form.html',

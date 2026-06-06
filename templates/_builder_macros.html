@@ -245,6 +245,385 @@
 
 {# ── End Line Items Canvas Macros ─────────────────────────────────────────── #}
 
+{# ── Session L: 3-Column Line Item Canvas Macros ──────────────────────────── #}
+
+{% macro render_li_sections_panel(li_categories, form_page_key) %}
+<div class="li-sections-panel" id="li-sections-panel">
+    <div class="li-sections-header">
+        <span style="font-weight:700;font-size:.85rem;color:#1b3a6b;">Sections</span>
+    </div>
+    <div class="li-sections-list" id="li-sections-list">
+        {% if li_categories %}
+            {% for cat in li_categories %}
+            <button type="button"
+                    class="li-section-btn"
+                    data-category="{{ cat }}"
+                    data-page="{{ form_page_key }}">
+                {{ cat }}
+            </button>
+            {% endfor %}
+        {% else %}
+            <p style="font-size:.8rem;color:#999;padding:.5rem .75rem;">No categories configured for this page.</p>
+        {% endif %}
+    </div>
+</div>
+<style>
+.li-sections-panel {
+    width:220px; min-width:180px; border-right:1px solid #dee2e6;
+    background:#f8f9fa; display:flex; flex-direction:column; height:100%;
+}
+.li-sections-header {
+    padding:.6rem .75rem; border-bottom:1px solid #dee2e6; background:#f0f4ff;
+}
+.li-sections-list { padding:.4rem 0; overflow-y:auto; flex:1; }
+.li-section-btn {
+    display:block; width:100%; text-align:left;
+    padding:.45rem .85rem; border:none; background:none;
+    font-size:.82rem; color:#1b3a6b; cursor:pointer;
+    border-left:3px solid transparent;
+    transition:background .1s, border-color .1s;
+}
+.li-section-btn:hover { background:#e8eeff; }
+.li-section-btn.active {
+    background:#dde7ff; border-left-color:#1b3a6b; font-weight:700;
+}
+</style>
+{% endmacro %}
+
+
+{% macro render_li_question_panel(form_page_key) %}
+<div class="li-question-panel" id="li-question-panel" data-page="{{ form_page_key }}">
+
+    {# View One — question list for selected section #}
+    <div id="li-view-one" style="display:none;flex-direction:column;height:100%;">
+        <div class="li-qp-header" style="display:flex;align-items:center;gap:.5rem;padding:.55rem .75rem;border-bottom:1px solid #dee2e6;background:#f0f4ff;">
+            <span id="li-view-one-title" style="font-weight:700;font-size:.85rem;color:#1b3a6b;flex:1;">— Select a section —</span>
+            <span id="li-view-one-count" style="font-size:.75rem;color:#6c757d;"></span>
+        </div>
+        <div id="li-question-list" style="overflow-y:auto;flex:1;padding:.25rem 0;">
+            <p style="color:#999;font-size:.85rem;padding:.5rem .75rem;">Click a section on the left to load questions.</p>
+        </div>
+    </div>
+
+    {# View Two — question editor for selected question #}
+    <div id="li-view-two" style="display:none;flex-direction:column;height:100%;">
+        <div class="li-qp-header" style="display:flex;align-items:center;gap:.5rem;padding:.55rem .75rem;border-bottom:1px solid #dee2e6;background:#f0f4ff;">
+            <button type="button" id="li-back-btn" style="border:none;background:none;cursor:pointer;font-size:.85rem;color:#1b3a6b;padding:0 .4rem;">← Back</button>
+            <span id="li-view-two-title" style="font-weight:700;font-size:.85rem;color:#1b3a6b;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+            <span id="li-save-status-v2" style="font-size:.75rem;color:#28a745;min-width:60px;text-align:right;"></span>
+        </div>
+        <div id="li-editor-content" style="overflow-y:auto;flex:1;padding:.75rem;">
+            {# populated via JS #}
+        </div>
+    </div>
+
+    {# Empty state #}
+    <div id="li-view-empty" style="display:flex;flex:1;align-items:center;justify-content:center;color:#aaa;font-size:.9rem;">
+        Select a section to begin editing
+    </div>
+</div>
+
+<style>
+.li-question-panel {
+    flex:1; display:flex; flex-direction:column; height:100%;
+    min-width:0; background:#fff;
+}
+.li-qlist-row {
+    display:grid;
+    grid-template-columns:90px 1fr 80px 60px;
+    gap:.4rem; align-items:center;
+    padding:.35rem .75rem; font-size:.8rem; cursor:pointer;
+    border-bottom:1px solid #f3f3f3; transition:background .1s;
+}
+.li-qlist-row:hover { background:#eef2ff; }
+.li-qlist-row.selected { background:#dde7ff; }
+.li-qlist-code { font-family:monospace; font-weight:600; color:#344; font-size:.76rem; }
+.li-qlist-desc { color:#333; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.li-qlist-role { font-size:.7rem; color:#888; text-align:right; }
+.li-qlist-vis { text-align:center; font-size:.8rem; }
+
+/* Editor sections */
+.li-editor-section { border:1px solid #dee2e6; border-radius:5px; margin-bottom:.6rem; overflow:hidden; }
+.li-editor-section-header {
+    padding:.45rem .7rem;
+    background:#f0f4ff; font-size:.82rem; font-weight:700; color:#1b3a6b;
+    cursor:pointer; display:flex; justify-content:space-between; align-items:center;
+}
+.li-editor-section-body { padding:.5rem .7rem; display:block; }
+.li-editor-section-body.collapsed { display:none; }
+.li-form-group { margin-bottom:.55rem; }
+.li-form-group label { display:block; font-size:.75rem; font-weight:600; color:#555; margin-bottom:.2rem; }
+.li-form-group input[type="text"],
+.li-form-group input[type="number"],
+.li-form-group textarea,
+.li-form-group select {
+    width:100%; padding:.3rem .45rem; border:1px solid #ced4da; border-radius:4px;
+    font-size:.8rem; color:#333;
+}
+.li-form-group textarea { resize:vertical; min-height:52px; }
+.li-save-btn {
+    width:100%; padding:.45rem; margin-top:.5rem;
+    background:#1b3a6b; color:#fff; border:none; border-radius:5px;
+    font-size:.82rem; font-weight:700; cursor:pointer; letter-spacing:.04em;
+}
+.li-save-btn:hover { background:#264d8e; }
+</style>
+
+<script>
+(function () {
+    'use strict';
+
+    // ── State ──────────────────────────────────────────────────────────────
+    var _activeCategory = null;
+    var _activeItem     = null;
+    var _categoryItems  = []; // rows for active category (from last fetch)
+    var _pageKey        = document.getElementById('li-question-panel')
+                              ? document.getElementById('li-question-panel').dataset.page || ''
+                              : '';
+
+    // ── DOM refs ───────────────────────────────────────────────────────────
+    function $id(id) { return document.getElementById(id); }
+
+    // ── View switching ─────────────────────────────────────────────────────
+    function showEmpty() {
+        $id('li-view-empty').style.display = 'flex';
+        $id('li-view-one').style.display   = 'none';
+        $id('li-view-two').style.display   = 'none';
+    }
+    function showViewOne(title) {
+        $id('li-view-empty').style.display = 'none';
+        $id('li-view-one').style.display   = 'flex';
+        $id('li-view-two').style.display   = 'none';
+        if (title) $id('li-view-one-title').textContent = title;
+    }
+    function showViewTwo(item) {
+        $id('li-view-empty').style.display = 'none';
+        $id('li-view-one').style.display   = 'none';
+        $id('li-view-two').style.display   = 'flex';
+        $id('li-view-two-title').textContent = (item.line_code || '') + ' — ' + (item.output_title || item.internal_description || '');
+        renderEditorForm(item);
+    }
+
+    // ── Category click ─────────────────────────────────────────────────────
+    document.querySelectorAll('.li-section-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            document.querySelectorAll('.li-section-btn').forEach(function (b) { b.classList.remove('active'); });
+            btn.classList.add('active');
+            _activeCategory = btn.dataset.category;
+            var url = '/builder_beta/line_items_json?page=' + encodeURIComponent(_pageKey) + '&category=' + encodeURIComponent(_activeCategory);
+            showViewOne(_activeCategory);
+            $id('li-question-list').innerHTML = '<p style="color:#999;font-size:.8rem;padding:.5rem .75rem;">Loading…</p>';
+            fetch(url, {credentials: 'same-origin'})
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    _categoryItems = [];
+                    if (data.categories && data.categories.length > 0) {
+                        _categoryItems = data.categories[0].items || [];
+                    }
+                    renderQuestionList(_categoryItems);
+                })
+                .catch(function (e) {
+                    $id('li-question-list').innerHTML = '<p style="color:red;font-size:.8rem;padding:.5rem .75rem;">Error loading items.</p>';
+                });
+        });
+    });
+
+    // ── Render question list (View One) ────────────────────────────────────
+    function renderQuestionList(items) {
+        var list = $id('li-question-list');
+        $id('li-view-one-count').textContent = items.length + ' items';
+        if (!items.length) {
+            list.innerHTML = '<p style="color:#999;font-size:.8rem;padding:.5rem .75rem;">No items in this category.</p>';
+            return;
+        }
+        var html = '';
+        items.forEach(function (item) {
+            var desc = item.output_title || item.internal_description || '—';
+            var role = item.item_role || '';
+            var vis  = item.form_visible ? '✓' : '–';
+            html += '<div class="li-qlist-row" data-id="' + item.id + '">'
+                +   '<span class="li-qlist-code">' + _esc(item.line_code) + '</span>'
+                +   '<span class="li-qlist-desc" title="' + _esc(desc) + '">' + _esc(desc) + '</span>'
+                +   '<span class="li-qlist-role">' + _esc(role) + '</span>'
+                +   '<span class="li-qlist-vis">' + vis + '</span>'
+                + '</div>';
+        });
+        list.innerHTML = html;
+        list.querySelectorAll('.li-qlist-row').forEach(function (row) {
+            row.addEventListener('click', function () {
+                list.querySelectorAll('.li-qlist-row').forEach(function (r) { r.classList.remove('selected'); });
+                row.classList.add('selected');
+                var id = parseInt(row.dataset.id, 10);
+                _activeItem = items.find(function (i) { return i.id === id; }) || null;
+                if (_activeItem) { showViewTwo(_activeItem); }
+            });
+        });
+    }
+
+    // ── Back button (View Two → View One) ─────────────────────────────────
+    var backBtn = $id('li-back-btn');
+    if (backBtn) {
+        backBtn.addEventListener('click', function () {
+            _activeItem = null;
+            showViewOne(_activeCategory);
+            // re-render the list (highlight was cleared, items still cached)
+            renderQuestionList(_categoryItems);
+        });
+    }
+
+    // ── Render question editor (View Two) ─────────────────────────────────
+    function renderEditorForm(item) {
+        var html = '<form id="li-edit-form" autocomplete="off">';
+
+        html += _section('Description', true, [
+            _field('output_title',        'Output Title',        'text',     item.output_title || ''),
+            _field('output_notes',        'Output Notes',        'textarea', item.output_notes || ''),
+            _field('output_guidance',     'Output Guidance',     'textarea', item.output_guidance || ''),
+            _field('internal_description','Internal Description','textarea', item.internal_description || ''),
+        ]);
+
+        html += _section('Logic / Secondary Questions', false, [
+            _selectField('item_role', 'Item Role', item.item_role || 'standalone',
+                ['standalone','parent','auto_child','guidance','special','manual_child']),
+            _field('parent_code',           'Parent Code',           'text', item.parent_code || ''),
+            _field('trigger_parent_code',   'Trigger Parent Code',   'text', item.trigger_parent_code || ''),
+        ]);
+
+        html += _section('Costs', false, [
+            _field('unit_cost', 'Unit Cost (£)', 'number', item.unit_cost != null ? item.unit_cost : ''),
+            _field('units',     'Units',         'number', item.units     != null ? item.units     : ''),
+            _selectField('pricing_visibility', 'Pricing Visibility', item.pricing_visibility || 'admin_only',
+                ['admin_only','user_view','user_edit']),
+        ]);
+
+        html += _section('Meta', false, [
+            _field('line_code',       'Line Code',       'text',   item.line_code   || '', true),
+            _field('category',        'Category',        'text',   item.category    || ''),
+            _field('form_page',       'Form Page',       'text',   item.form_page   || ''),
+            _field('sort_order',      'Sort Order',      'number', item.sort_order  != null ? item.sort_order : ''),
+            _checkField('form_visible',    'Form Visible',    !!item.form_visible),
+            _checkField('include_default', 'Include Default', item.include_default === 'Y'),
+        ]);
+
+        html += _section('Output (Preview)', false, [
+            '<div class="li-form-group"><label>Output Title</label><p style="font-size:.8rem;color:#555;padding:.2rem 0;margin:0;">' + _esc(item.output_title || '—') + '</p></div>',
+            '<div class="li-form-group"><label>Output Notes</label><p style="font-size:.8rem;color:#555;padding:.2rem 0;margin:0;white-space:pre-wrap;">' + _esc(item.output_notes || '—') + '</p></div>',
+            '<div class="li-form-group"><label>Output Guidance</label><p style="font-size:.8rem;color:#555;padding:.2rem 0;margin:0;white-space:pre-wrap;">' + _esc(item.output_guidance || '—') + '</p></div>',
+        ]);
+
+        html += '<button type="submit" class="li-save-btn">SAVE LINE ITEM</button>';
+        html += '</form>';
+        $id('li-editor-content').innerHTML = html;
+
+        // Collapsible section headers
+        $id('li-editor-content').querySelectorAll('.li-editor-section-header').forEach(function (hdr) {
+            hdr.addEventListener('click', function () {
+                var body = hdr.nextElementSibling;
+                if (body) {
+                    body.classList.toggle('collapsed');
+                    hdr.querySelector('.li-sec-toggle').textContent = body.classList.contains('collapsed') ? '▸' : '▾';
+                }
+            });
+        });
+
+        // Save
+        var form = $id('li-edit-form');
+        if (form) {
+            form.addEventListener('submit', function (e) {
+                e.preventDefault();
+                var payload = {};
+                var fields = form.querySelectorAll('[name]');
+                fields.forEach(function (f) {
+                    if (f.type === 'checkbox') {
+                        payload[f.name] = f.checked ? (f.name === 'include_default' ? 'Y' : 1) : (f.name === 'include_default' ? 'N' : 0);
+                    } else {
+                        payload[f.name] = f.value;
+                    }
+                });
+                // Remove readonly line_code from payload
+                delete payload['line_code'];
+
+                var saveBtn = form.querySelector('.li-save-btn');
+                if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
+                var status = $id('li-save-status-v2');
+
+                fetch('/builder_beta/line_item_save/' + item.id, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''
+                    },
+                    body: JSON.stringify(payload)
+                })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.ok) {
+                        // Update cache
+                        Object.assign(item, payload);
+                        if (status) { status.textContent = '✓ Saved'; setTimeout(function(){ status.textContent=''; }, 2500); }
+                        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'SAVE LINE ITEM'; }
+                        // Refresh view-two title
+                        $id('li-view-two-title').textContent = (item.line_code || '') + ' — ' + (item.output_title || item.internal_description || '');
+                    } else {
+                        if (status) { status.textContent = '✗ Error'; status.style.color='#dc3545'; }
+                        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'SAVE LINE ITEM'; }
+                    }
+                })
+                .catch(function () {
+                    if (status) { status.textContent = '✗ Network error'; status.style.color='#dc3545'; }
+                    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'SAVE LINE ITEM'; }
+                });
+            });
+        }
+    }
+
+    // ── Helpers ────────────────────────────────────────────────────────────
+    function _esc(s) {
+        return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function _section(title, open, fieldHtmlArr) {
+        return '<div class="li-editor-section">'
+            + '<div class="li-editor-section-header">'
+            + '<span>' + title + '</span><span class="li-sec-toggle">' + (open ? '▾' : '▸') + '</span>'
+            + '</div>'
+            + '<div class="li-editor-section-body' + (open ? '' : ' collapsed') + '">'
+            + fieldHtmlArr.join('')
+            + '</div></div>';
+    }
+
+    function _field(name, label, type, value, readonly) {
+        var ro = readonly ? ' readonly style="background:#f5f5f5;"' : '';
+        if (type === 'textarea') {
+            return '<div class="li-form-group"><label>' + label + '</label>'
+                + '<textarea name="' + name + '"' + (readonly?' readonly style="background:#f5f5f5;"':'') + '>' + _esc(value) + '</textarea></div>';
+        }
+        return '<div class="li-form-group"><label>' + label + '</label>'
+            + '<input type="' + type + '" name="' + name + '" value="' + _esc(value) + '"' + ro + '></div>';
+    }
+
+    function _selectField(name, label, value, options) {
+        var opts = options.map(function (o) {
+            return '<option value="' + _esc(o) + '"' + (o === value ? ' selected' : '') + '>' + _esc(o) + '</option>';
+        }).join('');
+        return '<div class="li-form-group"><label>' + label + '</label><select name="' + name + '">' + opts + '</select></div>';
+    }
+
+    function _checkField(name, label, checked) {
+        return '<div class="li-form-group" style="display:flex;align-items:center;gap:.4rem;">'
+            + '<input type="checkbox" name="' + name + '" id="lich_' + name + '"' + (checked ? ' checked' : '') + ' style="width:auto;">'
+            + '<label for="lich_' + name + '" style="margin:0;font-weight:400;">' + label + '</label></div>';
+    }
+
+    // Init
+    showEmpty();
+}());
+</script>
+{% endmacro %}
+
+{# ── End Session L Macros ──────────────────────────────────────────────────── #}
+
 {% macro render_canvas_content(current_page, selected_block_id) %}
     <div class="builder-canvas-wrapper" id="builder-canvas">
         <div class="canvas-page-selector">
