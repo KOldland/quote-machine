@@ -42,7 +42,7 @@ from typing import Optional
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 APP_DIR = SCRIPT_DIR.parent
-CSV_PATH = APP_DIR / "context_archive " / "Plus Rooms Live input in doc formatting (back up) - Sheet1.csv"
+CSV_PATH = APP_DIR / "context_archive " / "Plus Rooms Live input in doc formatting (back up) - Sheet1v2.csv"
 DB_PATH = Path(os.getenv("QM_TEMPLATE_DB_PATH", "")).expanduser().resolve() if os.getenv("QM_TEMPLATE_DB_PATH") else APP_DIR / "template_store.sqlite3"
 
 
@@ -127,7 +127,7 @@ def main():
         header = next(reader, None)  # skip header row
         for row in reader:
             # Pad short rows to avoid index errors
-            while len(row) < 14:
+            while len(row) < 15:
                 row.append("")
             raw_rows.append(row)
 

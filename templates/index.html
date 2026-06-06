@@ -78,8 +78,6 @@
                     <a href="{{ url_for('review') }}" class="nav-link {% if request.endpoint == 'review' %}active{% endif %}">Review</a>
                     <a href="{{ url_for('trigger_production_page') }}" class="nav-link {% if request.endpoint == 'trigger_production_page' %}active{% endif %}">Production</a>
                     {% if session.get('role') == 'admin' %}
-                    <a href="{{ url_for('form_builder_demo') }}" class="nav-link {% if request.endpoint == 'form_builder_demo' %}active{% endif %}">Form Builder</a>
-                    <a href="{{ url_for('builder_beta_home') }}" class="nav-link {% if request.endpoint in ['builder_beta_home', 'builder_beta_page_editor'] %}active{% endif %}">Block Builder (Beta)</a>
                     <a href="{{ url_for('list_users') }}" class="nav-link {% if request.endpoint == 'list_users' %}active{% endif %}">User Management</a>
                     {% endif %}
                 </nav>

@@ -2741,24 +2741,14 @@ def admin_rollback():
 	return jsonify({'ok': True, **result})
 
 
-@app.route('/builder_beta', methods=['GET'])
-@require_role('admin')
-def builder_beta_home():
-	state = get_builder_beta_state()
-	page_ids = list(state.get('pages', {}).keys())
-	if not page_ids:
-		return 'No pages found for builder beta.', 404
-	return redirect(url_for('builder_beta_page_editor', page_id=page_ids[0]))
-
-
-@app.route('/builder_beta/page/<page_id>', methods=['GET', 'POST'])
+@app.route('/builder_beta/page/<page_id>', methods=['POST'])
 @require_role('admin')
 def builder_beta_page_editor(page_id):
 	state = get_builder_beta_state()
 	all_pages = state.get('pages', {})
 	page = all_pages.get(page_id)
 	if not page:
-		return 'Builder beta page not found', 404
+		return jsonify({'error': 'Builder beta page not found'}), 404
 
 	selected_block_id = request.args.get('selected_block_id', '').strip()
 
@@ -2866,27 +2856,7 @@ def builder_beta_page_editor(page_id):
 				save_page_schemas()
 				flash('Blocks reordered.', 'success')
 		
-		if selected_block_id:
-			return redirect(url_for('builder_beta_page_editor', page_id=page_id, selected_block_id=selected_block_id))
-		return redirect(url_for('builder_beta_page_editor', page_id=page_id))
-
-	if not selected_block_id and page.get('blocks'):
-		selected_block_id = page['blocks'][0].get('id', '')
-
-	_selected_index, selected_block = _find_block(page, selected_block_id)
-	compiled_preview = compile_builder_beta_page_to_runtime_schema(page_id)
-
-	return render_template(
-		'builder_beta.html',
-		builder_state=state,
-		all_pages=all_pages,
-		current_page=page,
-		current_page_id=page_id,
-		selected_block_id=selected_block_id,
-		selected_block=selected_block,
-		compiled_preview=compiled_preview,
-		pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
-	)
+		return jsonify({'status': 'success', 'selected_block_id': selected_block_id})
 
 
 @app.route('/builder_beta/preview_json/<page_id>', methods=['GET'])

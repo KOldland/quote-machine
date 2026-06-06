@@ -264,6 +264,6 @@ CREATE TABLE line_items (
 - [x] H1 — [Session H] ✅ COMPLETE — `line_items_by_category` blocks added to `page_schemas.json` for `materials_page` + `further_requirements_page` with `config.categories` pre-seeded from DB (page '3': 8 categories; page '3B': 2 categories) — commit `970cc35`
 - [x] H2 — [Session H] ✅ COMPLETE — `_get_line_items_for_page(categories=None)` filter wired; `_get_li_categories_from_schema()` helper reads block config; routes updated to pass categories; `compile_builder_beta_page_to_runtime_schema` handles `line_items_by_category` block type; `/builder_beta/block_config_save/<page_id>/<block_id>` POST endpoint added — commit `970cc35`
 ### Session I: Pivot to Database-Driven Unified Hierarchy
-- [ ] I1 — Map new `Plus Rooms Live input in doc formatting (back up) - Sheet1v2.csv` headers to DB schema (`output_title`, `output_notes`, `output_guidance`, etc.)
-- [ ] I2 — Update `migrate_line_items_from_csv.py` to ingest the V2 CSV format
-- [ ] I3 — Remove old standalone block builder UI and ensure strict 2-mode approach (User/Edit)
+- [x] I1 — Map new `Plus Rooms Live input in doc formatting (back up) - Sheet1v2.csv` headers to DB schema (`output_title`, `output_notes`, `output_guidance`, etc.)
+- [x] I2 — Update `migrate_line_items_from_csv.py` to ingest the V2 CSV format
+- [x] I3 — Remove old standalone block builder UI and ensure strict 2-mode approach (User/Edit)

@@ -17,13 +17,11 @@
 * @app/context_archive /Plus Rooms Live input in doc formatting (back up) - Sheet1v2.csv
 
 ## What Was Completed Recently
-* **Session H**: Added `line_items_by_category` blocks to schemas with pre-seeded categories, updated `QMapp.py` for schema-driven filtering and saving via POST endpoint.
+* **Session I**: Mapped the new V2 CSV to the DB hierarchy. Updated `migrate_line_items_from_csv.py` to ingest the new V2 CSV data structure. Removed old standalone block builder UI and enforced strict User Mode and Edit Mode via inline sidebar.
 
 ## Exact Stopping Point
-* Prepared to begin mapping the new V2 CSV to the DB hierarchy, but have not yet made modifications to the import script or DB schema.
+* Completed Session I goals.
 
 ## Immediate Next Task (start here on reopen)
-### Session I: Pivot to Database-Driven Unified Hierarchy
-1. Map the new CSV (`app/context_archive /Plus Rooms Live input in doc formatting (back up) - Sheet1v2.csv`) headers to the DB schema.
-2. Update `migrate_line_items_from_csv.py` to ingest the new V2 CSV data structure, explicitly breaking out description and cost columns.
-3. Update UI to enforce strict User Mode and Edit Mode.
+### Session J: Next Steps
+1. Review and refine any remaining issues with the new database-driven unified hierarchy.
