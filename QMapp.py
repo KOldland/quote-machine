@@ -2181,26 +2181,28 @@ def index():
 	edit_requested = request.args.get('edit', '').lower() in {'1', 'true', 'yes'}
 	edit_mode = session.get('role') == 'admin' and edit_requested
 	if edit_mode:
-		builder_state = get_builder_beta_state()
-		current_page_id = 'index'
-		current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
-		selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
-		selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
+			builder_state = get_builder_beta_state()
+			current_page_id = 'special_notes_page'
+			current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
+			selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
+			selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
+			_li_cats = _get_li_categories_from_schema('special_notes_page') or []
 
-		return render_template(
-			'form.html',
-			first_page=True,
-			next_page='special_notes_page',
-			title="Project Details",
-			client_address=client_address,
-			proposal_date=form_date,
-			builder_state=builder_state,
-			current_page={'id': current_page_id, 'title': "Project Details", 'blocks': current_page_blocks},
-			current_page_id=current_page_id,
-			selected_block_id=selected_block_id,
-			selected_block=selected_block,
-			pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
-		)
+			return render_template(
+				'form.html',
+				page_schema=page_schema,
+				schema_render_mode='full',
+				previous_page=page_schema.get('navigation', {}).get('previous_endpoint', 'index') if page_schema else 'index',
+				next_page=page_schema.get('navigation', {}).get('next_endpoint', 'summary_page') if page_schema else 'summary_page',
+				title=page_schema.get('title', 'Special Notes') if page_schema else 'Special Notes',
+				builder_state=builder_state,
+				current_page={'id': current_page_id, 'title': page_schema.get('title', 'Special Notes') if page_schema else 'Special Notes', 'blocks': current_page_blocks},
+				current_page_id=current_page_id,
+				selected_block_id=selected_block_id,
+				selected_block=selected_block,
+				pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
+				li_categories=_li_cats,
+			)
 	else:
 		return render_template(
 			'form.html',
@@ -2246,6 +2248,7 @@ def special_notes_page():
 		current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
 		selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
 		selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
+		_li_cats = _get_li_categories_from_schema('special_notes_page') or []
 
 		return render_template(
 			'form.html',
@@ -2260,6 +2263,7 @@ def special_notes_page():
 			selected_block_id=selected_block_id,
 			selected_block=selected_block,
 			pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
+			li_categories=_li_cats,
 		)
 	else:
 		return render_template(
@@ -2449,11 +2453,12 @@ def summary_page():
 		selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
 		selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
 
+		_li_cats = _get_li_categories_from_schema('summary_page') or []
 		return render_template(
 			'form.html',
 			summary_page=True,
 			page_schema=page_schema,
-			schema_render_mode='partial',
+			schema_render_mode='full',
 			previous_page=previous_page,
 			next_page='materials_page',
 			title="Summary Page",
@@ -2468,13 +2473,14 @@ def summary_page():
 			selected_block_id=selected_block_id,
 			selected_block=selected_block,
 			pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
+			li_categories=_li_cats,
 		)
 	else:
 		return render_template(
 			'form.html',
 			summary_page=True,
 			page_schema=page_schema,
-			schema_render_mode='partial',
+			schema_render_mode='full',
 			previous_page=previous_page,
 			next_page='materials_page',
 			title="Summary Page",
@@ -3476,6 +3482,7 @@ def additional_building_work_page():
 		current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
 		selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
 		selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
+		_li_cats = _get_li_categories_from_schema('additional_building_work_page') or []
 		return render_template(
 			'form.html',
 			additional_building_work_page=True,
@@ -3489,6 +3496,7 @@ def additional_building_work_page():
 			selected_block_id=selected_block_id,
 			selected_block=selected_block,
 			pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
+			li_categories=_li_cats,
 		)
 	return render_template(
 		'form.html',
@@ -3861,6 +3869,7 @@ def optional_extras_page():
 		current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
 		selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
 		selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
+		_li_cats = _get_li_categories_from_schema('optional_extras_page') or []
 		return render_template(
 			'form.html',
 			optional_extras_page=True,
@@ -3874,6 +3883,7 @@ def optional_extras_page():
 			selected_block_id=selected_block_id,
 			selected_block=selected_block,
 			pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
+			li_categories=_li_cats,
 		)
 	return render_template(
 		'form.html',
