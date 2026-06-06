@@ -39,14 +39,36 @@
 
 ## Immediate Next Task (start here on reopen)
 
-### 🚀 Session H — Steps H3 + H4: Builder canvas category checklist UI
+### 🚀 Session I: Pivot to Database-Driven Unified Hierarchy
 
-**Step H3 — Builder canvas properties panel for `line_items_by_category`**
-* In `_builder_macros.html`: when the selected block's `block_type` is `line_items_by_category`, render a Properties panel section titled "Category Filter" showing a checklist of all available categories (fetched from `/builder_beta/line_items_json` — grouping keys already available).
-* In `builder.js`: clicking a `line_items_by_category` block loads the checklist; checked state reflects `config.categories`; on change, POST to `/builder_beta/block_config_save/<page_id>/<block_id>` with updated `categories` array.
+**Goal**: Move away from the standalone block builder concept and Google Sheets API towards a fully database-driven, nested schema architecture.
 
-**Step H4 — Smoke test**
-* Toggle one category off in the builder → reload `/materials_page` → confirm that category's items no longer appear in the form.
+**Hierarchy Map:**
+```
+Page
+|-------Section (accordian) 
+------------- Question (checkbox) 
+------------------------- Logic
+-------------------------------------Secondary Question (Text entry/Numerical/Checkbox/dropdown)
+----------------------------Output 
+------------------------------------ Title
+------------------------------------ Description
+------------------------------------ Guidance Note
+----------------------------Meta 
+------------------------------------ Parent Page (automatically created)
+------------------------------------ Parent Section (automatically created)
+------------------------------------ Line Code (automatically created)
+------------------------------------ Internal description (pull from Output>Title but make it editible)
+--------------------------Costs 
+------------------------------------ Unit Cost
+------------------------------------ Unit Amount Allow Input Toggle (if off default to 1) 
+------------------------------------ Cost Group (allows us to root the cost to the right section)
+```
+
+**Next Steps**:
+1. Map the new CSV (`app/context_archive /Plus Rooms Live input in doc formatting (back up) - Sheet1v2.csv`) to the new hierarchy.
+2. Update the import script (`migrate_line_items_from_csv.py` or new script) and DB schema to ingest this new data structure, explicitly breaking out the description and cost columns.
+3. Update UI to enforce two strict modes: User Mode (completing the form to generate a quote) and Edit Mode (admin managing the schema directly from the DB).
 
 ## Session Log
 | Date | Session | Result |
