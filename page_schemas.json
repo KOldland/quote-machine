@@ -1319,7 +1319,44 @@
     },
     "version": 1
   },
-  "pages": {},
+  "pages": {
+    "materials_page": {
+      "id": "materials_page",
+      "blocks": [
+        {
+          "id": "li_by_cat_materials",
+          "block_type": "line_items_by_category",
+          "config": {
+            "categories": [
+              "Drainage",
+              "Internal doors",
+              "Waste & Parking",
+              "dimension",
+              "external roofing finish",
+              "external wall finish & height",
+              "floor structure",
+              "plastering"
+            ]
+          }
+        }
+      ]
+    },
+    "further_requirements_page": {
+      "id": "further_requirements_page",
+      "blocks": [
+        {
+          "id": "li_by_cat_further",
+          "block_type": "line_items_by_category",
+          "config": {
+            "categories": [
+              "Demolition Works",
+              "Further Requirements & Considerations"
+            ]
+          }
+        }
+      ]
+    }
+  },
   "settings": {
     "pricing_rules": {
       "kitchen_light_rate": 30.0,

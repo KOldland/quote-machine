@@ -7,19 +7,19 @@ All Session L build steps delivered:
 - `_builder_macros.html` — `render_li_sections_panel` (col 1) + `render_li_question_panel` (col 2 JS state machine: View One list, View Two 5-tab editor, CSRF save, Back btn)
 - `form.html` — edit_mode branches to 3-col canvas when `li_categories` set; legacy block builder otherwise
 
-## Session M Goal
-Boot the server and verify the 3-column canvas end-to-end. Fix any rendering / XHR issues found.
+## Session M ✅ COMPLETE
+Booted the server and verified the 3-column canvas end-to-end. Patched `page_schemas.json` to enable the canvas.
 
 ### Steps
-1. `bash start_flask.sh` (or `QM_TEST_MODE=1 python3 QMapp.py`)
-2. Login as admin → `/materials_page?edit=1`
-3. Confirm 3-col canvas renders (sections panel, question panel with empty state)
-4. Click a section button → View One question list populates via XHR
-5. Click a question row → View Two editor shows with field values
-6. Edit + SAVE → `{"ok": true}`, title updates
-7. Back → View One re-renders cached list
-8. Repeat for `/further_requirements_page?edit=1`
-9. Commit any fixes as `fix(SessionM):`
+1. [x] `bash start_flask.sh` (or `QM_TEST_MODE=1 python3 QMapp.py`)
+2. [x] Login as admin → `/materials_page?edit=1`
+3. [x] Confirm 3-col canvas renders (sections panel, question panel with empty state)
+4. [x] Click a section button → View One question list populates via XHR
+5. [x] Click a question row → View Two editor shows with field values
+6. [x] Edit + SAVE → `{"ok": true}`, title updates
+7. [x] Back → View One re-renders cached list
+8. [x] Repeat for `/further_requirements_page?edit=1`
+9. [x] Commit any fixes as `fix(SessionM):`
 
 ### Known Potential Issues
 - If `li_categories` is `[]` (no `line_items_by_category` block in `page_schemas.json`), legacy canvas shown — by design
