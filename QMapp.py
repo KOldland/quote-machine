@@ -2486,64 +2486,6 @@ def summary_page():
 		)
 
 
-@app.route('/form_builder_demo', methods=['GET', 'POST'])
-@require_role('admin')
-def form_builder_demo():
-	if request.method == 'POST':
-		warnings = update_builder_draft_from_form(request.form)
-		flash('Draft schema saved. Changes are active in demo mode.', 'success')
-		for warning in warnings:
-			flash(warning, 'error')
-		return redirect(url_for('form_builder_demo'))
-
-	pages = page_schemas.get('pages', {})
-	pricing_rules = get_pricing_rules()
-	payment_plan_rules = get_payment_plan_rules()
-	template_status = get_template_store_status(template_key=TEMPLATE_STORE_KEY)
-	return render_template(
-		'form_builder_demo.html',
-		all_pages=pages,
-		pages=pages,
-		pricing_rules=pricing_rules,
-		payment_plan_rules=payment_plan_rules,
-		template_status=template_status,
-		page_editor_mode=False,
-		selected_page_id=None,
-		selected_page=None,
-	)
-
-
-@app.route('/form_builder_demo/page/<page_id>', methods=['GET', 'POST'])
-@require_role('admin')
-def form_builder_page_editor(page_id):
-	all_pages = page_schemas.get('pages', {})
-	page = all_pages.get(page_id)
-	if not page:
-		return 'Page not found', 404
-
-	if request.method == 'POST':
-		warnings = update_builder_draft_from_form(request.form)
-		flash(f"Page editor saved for '{page_id}'.", 'success')
-		for warning in warnings:
-			flash(warning, 'error')
-		return redirect(url_for('form_builder_page_editor', page_id=page_id))
-
-	pricing_rules = get_pricing_rules()
-	payment_plan_rules = get_payment_plan_rules()
-	template_status = get_template_store_status(template_key=TEMPLATE_STORE_KEY)
-	return render_template(
-		'form_builder_demo.html',
-		all_pages=all_pages,
-		pages={page_id: page},
-		pricing_rules=pricing_rules,
-		payment_plan_rules=payment_plan_rules,
-		template_status=template_status,
-		page_editor_mode=True,
-		selected_page_id=page_id,
-		selected_page=page,
-	)
-
-
 @app.route('/admin/template_store_status', methods=['GET'])
 @require_role('admin')
 def template_store_status():
@@ -2859,27 +2801,6 @@ def builder_beta_page_editor(page_id):
 		return jsonify({'status': 'success', 'selected_block_id': selected_block_id})
 
 
-@app.route('/builder_beta/preview_json/<page_id>', methods=['GET'])
-@require_role('admin')
-def builder_beta_preview_json(page_id):
-	compiled = compile_builder_beta_page_to_runtime_schema(page_id)
-	if compiled is None:
-		return jsonify({'error': 'builder beta page not found'}), 404
-	return jsonify(compiled)
-
-
-@app.route('/builder_beta/runtime_payload_json/<page_id>', methods=['GET'])
-@require_role('admin')
-def builder_beta_runtime_payload_json(page_id):
-	sheet_data = get_catalog()
-	builder_beta_answers = session.setdefault('builder_beta_answers', {})
-	page_answers = builder_beta_answers.get(page_id, {}) if isinstance(builder_beta_answers, dict) else {}
-	runtime_page = build_builder_beta_runtime_context(page_id, sheet_data, page_answers)
-	if runtime_page is None:
-		return jsonify({'error': 'builder beta page not found'}), 404
-
-	payload_preview = build_builder_beta_runtime_payload_preview(page_id, runtime_page, builder_beta_answers, sheet_data)
-	return jsonify(payload_preview)
 
 
 @app.route('/builder_beta/line_items_json', methods=['GET'])
@@ -2960,44 +2881,6 @@ def builder_block_config_save(page_id, block_id):
         return jsonify({'ok': False, 'error': str(e)}), 500
 
 
-@app.route('/builder_beta/render/<page_id>', methods=['GET', 'POST'])
-@require_role('admin')
-def builder_beta_runtime_render(page_id):
-	sheet_data = get_catalog()
-	builder_beta_answers = session.setdefault('builder_beta_answers', {})
-	page_answers = builder_beta_answers.setdefault(page_id, {})
-
-	runtime_page = build_builder_beta_runtime_context(page_id, sheet_data, page_answers)
-	if runtime_page is None:
-		return 'Builder beta page not found', 404
-
-	if request.method == 'POST':
-		for field in runtime_page.get('fields', []):
-			name = field.get('name')
-			if not name:
-				continue
-			block_type = field.get('block_type')
-			if block_type == 'checkbox_group':
-				page_answers[name] = request.form.getlist(name)
-			else:
-				page_answers[name] = request.form.get(name, '').strip()
-
-		session['builder_beta_answers'] = builder_beta_answers
-		session.modified = True
-		flash('Builder beta runtime submission saved.', 'success')
-		return redirect(url_for('builder_beta_runtime_render', page_id=page_id))
-
-	navigation_targets = resolve_builder_beta_navigation_targets(page_id, runtime_page)
-	payload_preview = build_builder_beta_runtime_payload_preview(page_id, runtime_page, builder_beta_answers, sheet_data)
-
-	return render_template(
-		'builder_beta_runtime.html',
-		page_id=page_id,
-		runtime_page=runtime_page,
-		answers=page_answers,
-		navigation_targets=navigation_targets,
-		payload_preview=payload_preview,
-	)
 
 ################################################################################################################################
 			
@@ -4756,6 +4639,7 @@ def submit():
 		
 		print("Debug - Submitting to update_description_column:", submit_to_description_function)
 		
+		description_column_includes = []
 		if submit_to_description_function:  
 			description_column_includes = update_description_column(**submit_to_description_function) or []
 		

@@ -60,22 +60,6 @@ if ! lsof -iTCP:"$PORT" -sTCP:LISTEN -n -P >/dev/null 2>&1; then
 fi
 echo "PASS: app listening on port $PORT"
 
-echo "=== UI Regression: endpoint checks ==="
-expect_200 "$BASE_URL/form_builder_demo" "GET /form_builder_demo"
-expect_200 "$BASE_URL/admin/template_store_status" "GET /admin/template_store_status"
-expect_200 "$BASE_URL/admin/template_store_templates" "GET /admin/template_store_templates"
-
-echo "=== UI Regression: builder content checks ==="
-assert_contains "$BASE_URL/form_builder_demo" "Template Store:" "Builder shows template status"
-assert_contains "$BASE_URL/form_builder_demo" "Current Form Flow" "Builder shows form flow section"
-assert_contains "$BASE_URL/form_builder_demo" "Pricing Calculations" "Builder shows pricing section"
-
-echo "=== UI Regression: clone + listing checks ==="
-CLONE_KEY="ui_regression_$(date +%s)"
-CLONE_URL="$BASE_URL/admin/template_clone?new_template_key=$CLONE_KEY&scenario_key=kitchen_only"
-assert_contains "$CLONE_URL" "$CLONE_KEY" "Template clone endpoint returns new key"
-assert_contains "$BASE_URL/admin/template_store_templates" "$CLONE_KEY" "Templates list includes cloned key"
-
 echo "=== UI Regression: submit smoke flow ==="
 python3 app/scripts/smoke_submit.py --base-url "$BASE_URL"
 

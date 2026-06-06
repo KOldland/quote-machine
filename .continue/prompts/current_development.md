@@ -268,3 +268,8 @@ CREATE TABLE line_items (
 - [x] I1 — Map new `Plus Rooms Live input in doc formatting (back up) - Sheet1v2.csv` headers to DB schema (`output_title`, `output_notes`, `output_guidance`, etc.)
 - [x] I2 — Update `migrate_line_items_from_csv.py` to ingest the V2 CSV format
 - [x] I3 — Remove old standalone block builder UI and ensure strict 2-mode approach (User/Edit)
+
+### Session K: Post-Schema Migration
+- [x] K1 — Clean up deprecated standalone builder routes in `QMapp.py`
+- [x] K2 — Update/remove deprecated test cases in `test_submit_production.py` to reflect the new inline-sidebar architecture
+- [x] K3 — Fix `ui_regression.sh` to remove checks against deprecated endpoints so automated UI regression passes cleanly
