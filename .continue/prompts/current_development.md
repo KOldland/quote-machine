@@ -83,7 +83,7 @@ Two hierarchy layers are collapsed into one. The builder cannot see or manage su
 - Script reads `page_schemas.json`, for each page iterates blocks, promotes any block with `standard.source_prefix` to `block_type: "accordion_group"` and adds `"sub_blocks": []`
 - Script writes updated schema back to `page_schemas.json` (and `page_schemas_published.json` for parity)
 - Verify app still loads all pages correctly after migration (no 500s)
-
+git push 
 **Exit criteria:** All pages load. `block_type` for source-prefix blocks is now `accordion_group`. `sub_blocks` key exists (empty array) on each. No front-end visible change.
 
 ---
@@ -157,6 +157,7 @@ Two hierarchy layers are collapsed into one. The builder cannot see or manage su
 | 05/06/26 | Phase 1 | `migrate_accordion_schema.py` written & run — 17 blocks promoted to `accordion_group` with `sub_blocks: []` in both JSON files | ✅ COMPLETE — commit `07a9811` |
 | 05/06/26 | Phase 2 (schema) | Audited form.html + QMapp.py — 8 hardcoded sub-questions found. `migrate_phase2_sub_blocks.py` written & run — sub_blocks populated for ew/er/id/dr accordions in both JSON files | ✅ COMPLETE — this session |
 | 05/06/26 | Architecture pivot | Reconsidered form structure end-to-end. Agreed to engineer from output backwards. Google Sheet CSV uploaded and analysed (~950 line items). Full `line_items` DB architecture defined — see new section below. | ✅ Architecture agreed — handoff committed |
+| 06/06/26 | Phase 2 (schema) | Session J | Resolved AttributeError on `/special_notes_page` caused by legacy `get_page_schema`. Smoke test (`smoke_submit.py`) now passing. Tests and routes for removed standalone builder are failing and need to be cleaned up. | ✅ COMPLETE — ready for cleanup |
 
 ---
 

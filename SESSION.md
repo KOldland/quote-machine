@@ -6,23 +6,23 @@
 * **Branch**: `master`
 
 ## Current Goal
-* **Pivot to Database-Driven Unified Hierarchy (Session I)**: Move away from standalone block builder and Google Sheets towards a fully database-driven, nested schema architecture mapped to the new V2 CSV.
+* **Pivot to Database-Driven Unified Hierarchy (Session J)**: Refine issues post-schema migration, specifically stabilizing test suites after removing the standalone block builder UI.
 
 ## Active Files for Context
-* @app/scripts/migrate_line_items_from_csv.py
-* @app/template_store.py
 * @app/QMapp.py
+* @app/tests/test_submit_production.py
+* @app/scripts/ui_regression.sh
 * @app/SESSION.md
 * @app/.continue/prompts/current_development.md
-* @app/context_archive /Plus Rooms Live input in doc formatting (back up) - Sheet1v2.csv
 
 ## What Was Completed Recently
-* **Session I**: Mapped the new V2 CSV to the DB hierarchy. Updated `migrate_line_items_from_csv.py` to ingest the new V2 CSV data structure. Removed old standalone block builder UI and enforced strict User Mode and Edit Mode via inline sidebar.
+* **Session J**: Resolved `AttributeError` on `/special_notes_page` caused by calling legacy `get_page_schema`. Verified that the new `line_items` schema and migration accurately ingested 1,022 rows from the V2 CSV. Confirmed general smoke tests (`smoke_submit.py`) now pass.
 
 ## Exact Stopping Point
-* Completed Session I goals.
+* Stopped after identifying that `ui_regression.sh` and `test_submit_production.py` are throwing numerous failures and errors because they still target removed routes (`/form_builder_demo`, `/builder_beta/render/`, etc.) from the deprecated standalone builder UI.
 
 ## Immediate Next Task (start here on reopen)
-### Session J: Next Steps
-1. Review and refine any remaining issues with the new database-driven unified hierarchy.
-2. Clean up removed standalone builder routes (e.g., `/form_builder_demo`) and fix/remove deprecated test cases in `test_submit_production.py` and `ui_regression.sh` since the standalone builder was removed in Session I.
+### Session K: Next Steps
+1. Clean up deprecated standalone builder routes in `QMapp.py` (e.g. `/form_builder_demo`, `/form_builder_demo/page/<page_id>`, `/builder_beta/render/<page_id>`).
+2. Update/remove deprecated test cases in `test_submit_production.py` to reflect the new inline-sidebar architecture and ensure unit tests pass.
+3. Fix `ui_regression.sh` to remove checks against deprecated endpoints so automated UI regression passes cleanly.
