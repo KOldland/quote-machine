@@ -1,4 +1,34 @@
-# Current Development: Accordion Hierarchy Sprint
+# Current Development: Session M — Verify 3-Column Canvas
+
+## Session L ✅ COMPLETE (commit 6afd05c, 06/06/26)
+
+All Session L build steps delivered:
+- `QMapp.py` — `/builder_beta/line_items_json` accepts `?page=` + `?category=` filters; `materials_page` and `further_requirements_page` edit_mode renders pass `form_page_key` + `li_categories`
+- `_builder_macros.html` — `render_li_sections_panel` (col 1) + `render_li_question_panel` (col 2 JS state machine: View One list, View Two 5-tab editor, CSRF save, Back btn)
+- `form.html` — edit_mode branches to 3-col canvas when `li_categories` set; legacy block builder otherwise
+
+## Session M Goal
+Boot the server and verify the 3-column canvas end-to-end. Fix any rendering / XHR issues found.
+
+### Steps
+1. `bash start_flask.sh` (or `QM_TEST_MODE=1 python3 QMapp.py`)
+2. Login as admin → `/materials_page?edit=1`
+3. Confirm 3-col canvas renders (sections panel, question panel with empty state)
+4. Click a section button → View One question list populates via XHR
+5. Click a question row → View Two editor shows with field values
+6. Edit + SAVE → `{"ok": true}`, title updates
+7. Back → View One re-renders cached list
+8. Repeat for `/further_requirements_page?edit=1`
+9. Commit any fixes as `fix(SessionM):`
+
+### Known Potential Issues
+- If `li_categories` is `[]` (no `line_items_by_category` block in `page_schemas.json`), legacy canvas shown — by design
+- `line_items` DB table needs rows with `form_page='3'` / `'3B'` for sections to appear
+- CSRF: JS reads `document.querySelector('[name=csrf_token]')` — injected at top of 3-col canvas
+
+---
+
+# Previous Sprint Reference: Accordion Hierarchy Sprint
 
 ## Phase Status
 
