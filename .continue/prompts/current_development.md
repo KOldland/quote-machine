@@ -355,13 +355,16 @@ Replace the current flat canvas (accordion list + floating properties panel) wit
 
 ### Testing Checklist (Session L)
 
-- [ ] L1 — `GET /api/builder/line_items?page=3` returns correct JSON grouped by category
-- [ ] L1 — `POST /api/builder/line_item/<id>/save` updates DB and returns 200
-- [ ] L2 — Section list renders in Col 1; active state highlights on click
-- [ ] L3 — Contextual panel renders empty state correctly before any selection
-- [ ] L4 — Click category → View One populates with correct question rows for that category
-- [ ] L4 — All item roles visible in question list (parent, standalone, auto_child, guidance, special)
-- [ ] L5 — Click question → View Two opens with correct pre-populated field values
-- [ ] L5 — All 5 collapsible sections render (Description, Logic, Costs, Meta, Output)
-- [ ] L5 — Save button POSTs correctly; DB field updated; return to View One
-- [ ] L6 — Full state machine works: category select → question list → question editor → save → back to list
+> ✅ **CODE COMPLETE** (commit `6afd05c`, 06/06/26). Browser verification **NOT YET DONE** — deferred to Session M.
+
+- [x] L1 — `/builder_beta/line_items_json?page=&category=` endpoint implemented with filters *(code complete — not yet browser-tested)*
+- [x] L1 — `POST /builder_beta/line_item_save/<id>` updates DB and returns `{"ok": true}` *(code complete)*
+- [x] L2 — `render_li_sections_panel` macro: section list renders in Col 1; active state on click *(code complete)*
+- [x] L3 — `render_li_question_panel` macro: contextual panel with empty state, View One, View Two containers *(code complete)*
+- [x] L4 — View One JS: category click fetches from API; question rows rendered *(code complete)*
+- [x] L4 — All item roles surface in question list *(code complete)*
+- [x] L5 — View Two JS: question click populates 5-tab editor with correct field values *(code complete)*
+- [x] L5 — All 5 collapsible sections (Description, Logic, Costs, Meta, Output) wired *(code complete)*
+- [x] L5 — Save button POSTs with CSRF header; updates item cache; returns to View One *(code complete)*
+- [x] L6 — Full state machine wired: category → View One → View Two → Save → back to View One *(code complete)*
+- [ ] **Session M** — End-to-end browser verification of all L items above
