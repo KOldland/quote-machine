@@ -16,6 +16,7 @@ This document tracks the migration of legacy form pages to the new 3-column edit
 ## DB Sync
 - [x] `template_store.sqlite3` synced with `page_schemas.json` via `sync_schemas.py` (commit `62533cb`) — fixes `special_notes_page` 3-column render
 - [x] `additional_costs_page` content migration — 206 line items re-tagged from legacy numeric `form_page` values to `'additional_costs_page'`; category names normalised (skylights→Skylights, velux→Velux, etc.); `line_items_by_category` block added to schema (commit `f30507c`, Session S)
+- [x] `summary_page` content migration — Planning Permission (8 items, `pp%`) + Council (3 items, `cs%`) re-tagged from legacy `form_page='2'` to `'summary_page'`; category case normalised to title case matching schema (commit `76e0912`, Session T)
 
 ## Agent Tooling Fix
 - [x] `context.md` updated with "Never Use replace_in_file on Large Files" pitfall — safe Python one-liner alternatives documented
@@ -28,4 +29,8 @@ This document tracks the migration of legacy form pages to the new 3-column edit
 - [x] Smoke test passed — all 7 refactored pages return 200/302. Zero 500 errors. (commit `3df127c`, Session R)
 
 ## Remaining
-- [ ] Question audit — iteratively verify each page shows correct questions in 3-col editor. Pages with likely missing data: `materials_page`, `further_requirements_page`, `additional_building_work_page`, `optional_extras_page`, `summary_page`. Audit method: check `form_page` column in `line_items` table matches new page ID naming.
+- [x] `summary_page` question audit — Planning Permission + Council confirmed visible after migration (Session T)
+- [ ] `materials_page` question audit — user confirmed ALL questions missing. Next target (Session U).
+- [ ] `further_requirements_page` question audit — not yet done
+- [ ] `additional_building_work_page` question audit — not yet done
+- [ ] `optional_extras_page` question audit — not yet done
