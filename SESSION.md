@@ -26,6 +26,7 @@
 * **Session U**: `materials_page` DB migration — 42 line items across 8 categories (`dr`, `id`, `wp`, `dm`, `er`, `ew`, `fs`, `ps`) re-tagged from legacy `form_page='3'` to `'materials_page'`; `Internal Doors` → `Internal doors` case fix; 4 stray `dm%` rows normalised.
 * **Session V**: `further_requirements_page` DB migration — `dw%` (9 items, `Demolition Works`) + `frc%` (53 items, `Further Requirements & Considerations`) re-tagged from legacy `form_page='3B'` to `'further_requirements_page'`; schema block already existed with correct category names (commit `70542f0`).
 * **Session V (UI fix)**: `.li-3col-canvas` viewport gap fixed — swapped `height: calc(100vh - 120px)` for `min-height: 400px` + `max-height: calc(100vh - 120px)` (commit `258ff27`). Follow-up: added `min-height:0` to flex columns + direct `max-height: calc(100vh - 170px)` on `#li-question-list` to cap overflow on long lists (commit `47de853`).
+* **Session W**: `additional_building_work_page` (51 items, ab%) + `optional_extras_page` (132 items) DB migration complete (commit `5e4d7ba`). Fixed `/?edit=1` crash — index route `edit_mode` forced to `False` since page has no editor UI (commit `85ab737`).
 
 ## Exact Stopping Point
 * `additional_costs_page` — ✅ DONE (206 items, 6 categories)
