@@ -13,7 +13,7 @@
 * @app/templates/form.html
 * @app/page_schemas.json
 * @app/template_store.sqlite3
-* @app/scripts/migrate_summary_page.py
+* @app/scripts/migrate_further_requirements_page.py
 * @app/.continue/prompts/current_development.md
 * @app/SESSION.md
 
@@ -23,25 +23,26 @@
 * **Session S (content)**: `additional_costs_page` content migration — 206 line items re-tagged from legacy numeric `form_page` to `'additional_costs_page'`; categories normalised; `line_items_by_category` block added to `page_schemas.json` (commit `f30507c`).
 * **Session T**: `summary_page` DB migration — Planning Permission (8 items, `pp%`) + Council (3 items, `cs%`) re-tagged from legacy `form_page='2'` to `'summary_page'`; category case normalised to match schema (commit `76e0912`).
 * **Session U**: `materials_page` DB migration — 42 line items across 8 categories (`dr`, `id`, `wp`, `dm`, `er`, `ew`, `fs`, `ps`) re-tagged from legacy `form_page='3'` to `'materials_page'`; `Internal Doors` → `Internal doors` case fix; 4 stray `dm%` rows normalised.
+* **Session V**: `further_requirements_page` DB migration — `dw%` (9 items, `Demolition Works`) + `frc%` (53 items, `Further Requirements & Considerations`) re-tagged from legacy `form_page='3B'` to `'further_requirements_page'`; schema block already existed with correct category names — no `page_schemas.json` changes needed.
 
 ## Exact Stopping Point
 * `additional_costs_page` — ✅ DONE (206 items, 6 categories)
 * `summary_page` — ✅ DONE: Planning Permission (8) + Council (3) migrated, verified via DB count
 * `materials_page` — ✅ DONE: 42 items, 8 categories migrated from form_page='3'
-* `further_requirements_page`, `additional_building_work_page`, `optional_extras_page` — not yet audited.
+* `further_requirements_page` — ✅ DONE: 9 dw% + 53 frc% items migrated from form_page='3B'; verified at browser
+* `additional_building_work_page`, `optional_extras_page` — not yet audited.
 
 ## Immediate Next Task (start here on reopen)
-### Session V — `further_requirements_page` question audit + DB migration
+### Session W — `additional_building_work_page` question audit + DB migration
 
-1. Run DB audit for `further_requirements_page` line item prefixes.
-2. Read `further_requirements_page` block from `page_schemas.json`.
-3. Write `app/scripts/migrate_further_requirements_page.py` and run it.
-4. Verify in browser at `/further_requirements_page?edit=1`
+1. Run DB audit: identify line item prefixes that belong to `additional_building_work_page` and their current `form_page` values.
+2. Read `additional_building_work_page` block from `page_schemas.json` — check if `line_items_by_category` block exists and note category names.
+3. Write `app/scripts/migrate_additional_building_work_page.py` and run it.
+4. Verify in browser at `/additional_building_work_page?edit=1`
 
 **Pattern for fixing remaining pages:** write a temp `.py` script (never `python3 -c "..."` for multiline), update `form_page` in DB + add `line_items_by_category` block to `page_schemas.json` if missing.
 
-### Pages still to audit after further_requirements_page:
-- `additional_building_work_page`
+### Pages still to audit after additional_building_work_page:
 - `optional_extras_page`
 
 ### Known Pitfalls
