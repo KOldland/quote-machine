@@ -1204,7 +1204,19 @@ def build_builder_beta_runtime_context(page_id, sheet_data, page_answers):
 		elif block_type in {'text_input', 'number_currency_input'}:
 			field_entry['value'] = str(page_answers.get(field_name, '') or '')
 		elif block_type == 'line_items_by_category':
-			li_groups = _get_line_items_for_page(page_id)
+			_li_raw = _get_line_items_for_page(page_id)
+			if isinstance(_li_raw, dict):
+				li_groups = [
+					{'category': c, 'items': [
+						{'value': r.get('line_code', ''),
+						 'label': r.get('internal_description') or r.get('line_code', ''),
+						 'include_default': r.get('include_default') or 'N'}
+						for r in v
+					]}
+					for c, v in _li_raw.items()
+				]
+			else:
+				li_groups = _li_raw
 			stored = get_preselected(field_name)
 			if not isinstance(stored, list):
 				stored = []
@@ -2892,6 +2904,7 @@ def materials_page():
 			selected_block_id=selected_block_id,
 			selected_block=selected_block,
 		)
+	page_schema = build_page_schema_context(page_id, sheet_data, session.get('checkbox_data', {}))
 	return render_template(
 		'form.html',
 		page_schema=page_schema,
@@ -2934,6 +2947,7 @@ def further_requirements_page():
 			selected_block_id=selected_block_id,
 			selected_block=selected_block,
 		)
+	page_schema = build_page_schema_context(page_id, sheet_data, session.get('checkbox_data', {}))
 	return render_template(
 		'form.html',
 		page_schema=page_schema,
@@ -3169,6 +3183,7 @@ def additional_costs_page():
 			selected_block_id=selected_block_id,
 			selected_block=selected_block,
 		)
+	page_schema = build_page_schema_context('additional_costs_page', get_catalog(), session.get('checkbox_data', {}))
 	return render_template(
 		'form.html',
 		page_schema=page_schema,

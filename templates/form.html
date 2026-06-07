@@ -306,7 +306,7 @@
                         {{ grp.category }}
                     </button>
                     <div id="li_{{ loop.index0 }}_{{ field.id }}" class="accordion-body">
-                        {% for item in grp.items %}
+                        {% for item in grp['items'] %}
                         <label class="checkbox-label">
                             <input type="checkbox" name="{{ field.name }}" value="{{ item.value }}"
                                 {% if item.value in field.value %}checked{% endif %}>

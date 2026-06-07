@@ -1,40 +1,137 @@
-# Migration to 3-Column Editor
+# Form-Mode Questions Not Rendering (7 Pages)
 
-This document tracks the migration of legacy form pages to the new 3-column editor.
+## Context
 
-## Migration Status
+All 7 refactored form pages render their questions correctly in **edit mode** (3-col builder), but show an **empty card** (title + PREVIOUS/NEXT only) in the normal **user-facing form mode**.
 
-- [x] `special_notes_page`
-- [x] `summary_page` (Refactored backend/frontend for unification)
-- [x] `additional_building_work_page`
-- [x] `optional_extras_page`
-- [x] Unified schema-driven rendering in `form.html`
-- [x] `materials_page` — legacy session-handling code removed; refactored to slim unified handler using `compile_builder_beta_page_to_runtime_schema` + `persist_schema_page_submission` (commit `5f676d3`)
-- [x] `further_requirements_page` — legacy session-handling removed; refactored to 17-line slim unified handler. 224 lines removed. py_compile EXIT:0. (commit `d7d6831`, Session Q)
-- [x] `additional_costs_page` — GET path refactored to slim schema-driven handler. POST pricing logic preserved. 124 lines removed. (commit `83143a9`, Session S)
+Previous work in `current_development_3.md` covers the DB migration and 3-col editor work. That is complete.
 
-## DB Sync
-- [x] `template_store.sqlite3` synced with `page_schemas.json` via `sync_schemas.py` (commit `62533cb`) — fixes `special_notes_page` 3-column render
-- [x] `additional_costs_page` content migration — 206 line items re-tagged from legacy numeric `form_page` values to `'additional_costs_page'`; category names normalised (skylights→Skylights, velux→Velux, etc.); `line_items_by_category` block added to schema (commit `f30507c`, Session S)
-- [x] `summary_page` content migration — Planning Permission (8 items, `pp%`) + Council (3 items, `cs%`) re-tagged from legacy `form_page='2'` to `'summary_page'`; category case normalised to title case matching schema (commit `76e0912`, Session T)
+---
 
-## Agent Tooling Fix
-- [x] `context.md` updated with "Never Use replace_in_file on Large Files" pitfall — safe Python one-liner alternatives documented
-- [x] `context.md` updated with shell quote escaping pitfall — never use `python3 -c "..."` for multiline edits; always write a temp `.py` script file and execute it
+## Root Cause
 
-## Bug Fixes
-- [x] `UndefinedError: 'current_page'` on `materials_page` + `further_requirements_page` when admin hits `?edit=1` — both slim handlers updated with full edit-mode branch passing `current_page`/`li_categories` (commit `5dc7c0b`, Session R)
+Every refactored page's non-edit GET path calls:
 
-## Smoke Test
-- [x] Smoke test passed — all 7 refactored pages return 200/302. Zero 500 errors. (commit `3df127c`, Session R)
+```python
+page_schema = compile_builder_beta_page_to_runtime_schema(page_id)
+```
 
-## Remaining
-- [x] `summary_page` question audit — Planning Permission + Council confirmed visible after migration (Session T)
-- [x] `materials_page` question audit — 42 items across 8 categories migrated from `form_page='3'`; `Internal Doors` case fix; 4 stray `dm%` rows normalised. Verified via DB count (commit `170d20f`, Session U).
-- [x] `further_requirements_page` question audit — dw% (9 items) + frc% (53 items) migrated from form_page='3B'; schema block already correct (commit `70542f0`, Session V)
-- [ ] `additional_building_work_page` question audit — not yet done
-- [ ] `optional_extras_page` question audit — not yet done
+`compile_builder_beta_page_to_runtime_schema` only builds the **schema skeleton** (block structure, field types) — it does **not** query the DB, populate `li_groups`, set `value`, or do any runtime data resolution.
 
-## UI Fixes
-- [x] `.li-3col-canvas` viewport gap — swapped fixed `height` for `min-height: 400px` + `max-height: calc(100vh - 120px)` (commit `258ff27`, Session V)
-- [x] Long list overflow cap — `min-height:0` on flex columns + direct `max-height: calc(100vh - 170px)` on `#li-question-list` (commit `47de853`, Session V)
+The correct function for form-mode rendering is:
+
+```python
+page_schema = build_page_schema_context(page_id, sheet_data, session.get('checkbox_data', {}))
+```
+
+`build_page_schema_context` calls `build_builder_beta_runtime_context` which:
+1. Queries `line_items` table via `_get_line_items_for_page(page_id)` → populates `field['li_groups']`
+2. Calls `get_preselected()` → populates `field['value']` (default-checked from `include_default='Y'`)
+3. Handles `checkbox_group`, `dropdown_select`, `text_input`, and `line_items_by_category` field types
+
+Without this, `field.li_groups` is Undefined in `form.html` and no items render.
+
+---
+
+## Page Status
+
+| Page | Form-mode status | Fix needed |
+|------|-----------------|-----------|
+| `special_notes_page` | ✅ already fixed — uses `build_page_schema_context` at ~line 2292 | None |
+| `summary_page` | ✅ already fixed — uses `build_page_schema_context` at ~line 2345 | None |
+| `materials_page` | ❌ empty — only `compile_...` at ~line 2872, no runtime override | Fix |
+| `further_requirements_page` | ❌ empty — only `compile_...` at ~line 2914, no runtime override | Fix |
+| `additional_costs_page` | ❌ empty — only `compile_...` at ~line 3150, no runtime override | Fix |
+| `additional_building_work_page` | ⚠️ needs route audit — not in compile_... grep, may be legacy | Audit first |
+| `optional_extras_page` | ⚠️ needs route audit — not in compile_... grep, may be legacy | Audit first |
+
+---
+
+## Fix Pattern
+
+For each broken route, the non-edit `return render_template(...)` block needs ONE line prepended:
+
+```python
+# BEFORE (broken):
+return render_template(
+    'form.html',
+    page_schema=page_schema,   # ← compiled skeleton, no li_groups
+    schema_render_mode='full',
+    ...
+)
+
+# AFTER (fix):
+page_schema = build_page_schema_context(page_id, sheet_data, session.get('checkbox_data', {}))
+return render_template(
+    'form.html',
+    page_schema=page_schema,   # ← fully populated with li_groups + value
+    schema_render_mode='full',
+    ...
+)
+```
+
+`sheet_data = get_catalog()` is already computed in each route before this point.
+
+The edit-mode paths keep using `compile_...` (the 3-col builder only needs the schema structure, not live data).
+
+---
+
+## Implementation Plan
+
+### Step 1 — Fix `materials_page`, `further_requirements_page`, `additional_costs_page`
+- Write `app/scripts/fix_form_mode_routes.py`
+- 3 targeted string replacements (unique anchors per route)
+- Verify syntax with `python3 -m py_compile app/QMapp.py`
+- Manual browser test each page
+
+### Step 2 — Audit `additional_building_work_page` + `optional_extras_page`
+- Grep route body — identify if `compile_...`, `build_page_schema_context`, or neither
+- If neither: check if route passes `page_schema` to template at all
+- Apply appropriate fix
+
+### Step 3 — Commit + update SESSION.md
+
+---
+
+## Additional Bug Found (Session Y)
+
+### Duplicate `_get_line_items_for_page` definition in QMapp.py
+
+There are **two definitions** of `_get_line_items_for_page` in `QMapp.py`:
+
+- **Line 1122** — `def _get_line_items_for_page(page_id)` — returns a **list** `[{'category': ..., 'items': [...]}, ...]`
+- **Line 2807** — `def _get_line_items_for_page(form_page_key, categories=None)` — returns a **dict** `{category_name: [row_dict, ...]}`
+
+Python silently uses the **second** definition, discarding the first. So when `build_builder_beta_runtime_context` at line 1207 calls `_get_line_items_for_page(page_id)`, it gets a **dict** back. The template at `form.html:302` iterates `field.li_groups` — iterating a dict yields only string keys, so no content renders.
+
+**Fix**: Patch the call at line 1207 using a temp script:
+
+```python
+# Replace line 1207 (0-indexed: 1206):
+_li_raw = _get_line_items_for_page(page_id)
+li_groups = [{'category': c, 'items': v} for c, v in _li_raw.items()] if isinstance(_li_raw, dict) else _li_raw
+```
+
+This must be fixed **before** or **alongside** the route fix — otherwise even the corrected routes still render blank.
+
+---
+
+## Implementation Tracking
+
+- [x] `_get_line_items_for_page` duplicate — dict→list normalisation + key remapping (line_code→value, internal_description→label) patched at line 1207 — SYNTAX OK (Session Y, needs browser confirm)
+- [ ] `materials_page` — form-mode fix applied + verified
+- [ ] `further_requirements_page` — form-mode fix applied + verified
+- [ ] `additional_costs_page` — form-mode fix applied + verified
+- [ ] `additional_building_work_page` — route audited + fix applied
+- [ ] `optional_extras_page` — route audited + fix applied
+- [ ] All 7 pages verified in browser showing correct questions
+- [ ] Session committed
+
+---
+
+## Key Files
+
+- `app/QMapp.py` — routes to fix
+- `app/templates/form.html` — `{% elif field.type == 'line_items_by_category' %}` render block (added Session X)
+- `app/template_store.sqlite3` — `line_items` table queried by `_get_line_items_for_page()`
+- `app/scripts/fix_form_mode_routes.py` — patch script (to be written)
