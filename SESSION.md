@@ -23,6 +23,7 @@
 
 ## Exact Stopping Point
 * `additional_costs_page` 3-col editor is now wired up with 6 categories (Electrics, Plumbing, Skylights, Velux, Aluminium Capping, Sliding Doors) and 206 questions.
+* `summary_page` — Planning Permission (8 items, pp%) and Council (3 items, cs%) migrated from legacy `form_page='2'` to `'summary_page'`, category case corrected to match schema (commit via Session T).
 * Remaining pages have NOT yet had their DB rows audited — `form_page` column likely still contains legacy numeric values for most pages.
 
 ## Immediate Next Task (start here on reopen)
