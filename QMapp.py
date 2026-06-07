@@ -1209,8 +1209,15 @@ def build_builder_beta_runtime_context(page_id, sheet_data, page_answers):
 			if not isinstance(stored, list):
 				stored = []
 			if not stored:
-				stored = [item['value'] for grp in li_groups for item in grp['items']
-				         if item.get('include_default') == 'Y']
+				stored = []
+				for grp in (li_groups or []):
+					if not isinstance(grp, dict):
+						continue
+					for item in (grp.get('items') or []):
+						if not isinstance(item, dict):
+							continue
+						if item.get('include_default') == 'Y' and item.get('value'):
+							stored.append(item['value'])
 			field_entry['li_groups'] = li_groups
 			field_entry['value'] = stored
 
