@@ -3091,146 +3091,41 @@ def additional_costs_page():
 			
 		session.modified = True  
 		return redirect(url_for('optional_extras_page'))
-	
-	# Fetch preselected values from session
-	preselected_kitchen_el = session.get('checkbox_data', {}).get('selected_kitchen_el', {}).get('preselected', [])
-	preselected_loft_el = session.get('checkbox_data', {}).get('selected_loft_el', {}).get('preselected', [])
-	preselected_sk = session.get('checkbox_data', {}).get('selected_sk', {}).get('preselected', [])
-	preselected_vl = session.get('checkbox_data', {}).get('selected_vl', {}).get('preselected', [])
-	preselected_ac = session.get('checkbox_data', {}).get('selected_ac', {}).get('preselected', [])
-	selected_sd = session.get("data", {}).get("selected_sd", "")
-	
-	# Load data from Google Sheets
-	sheet_data = get_catalog() or [] 
-	
-	# Initialize the `data` structure for this page
-	data = {
-		"selected_sd": {"data": {}, "preselected": [selected_sd] if selected_sd else []},
-		"selected_ac": {"data": {}, "preselected": preselected_ac.copy()},
-		"selected_vl": {"data": {}, "preselected": preselected_vl.copy()},
-		"selected_sk": {"data": {}, "preselected": preselected_sk.copy()},
-		"selected_kitchen_el": {"data": {}, "preselected": preselected_kitchen_el.copy()},
-		"selected_loft_el": {"data": {}, "preselected": preselected_loft_el.copy()},
-		"selected_kitchen_option": session.get('data', {}).get('selected_kitchen_option', ''),
-		"selected_loft_option": session.get('data', {}).get('selected_loft_option', ''),
-		"elkl0_amount": session.get('data', {}).get('elkl0_amount', 0),
-		"elkp0_amount": session.get('data', {}).get('elkp0_amount', 0),
-		"elll0_amount": session.get('data', {}).get('elll0_amount', 0),
-		"ellp0_amount": session.get('data', {}).get('ellp0_amount', 0),
-		"pd10_manual_input": session.get('data', {}).get('pd10_manual_input', ''),
-		"selected_pl": {"data": {}, "preselected": []},
-	}
-	
-	# Sliding Door dropdown options
-	data["selected_sd"]["data"] = {
-		row["Line Code"]: {"line_code": row["Line Code"], "description": row["Internal Description"]}
-		for row in sheet_data if row["Line Code"].startswith("sd")
-	}
-	
-	# Electrics dropdown options
-	data["selected_kitchen_option_data"] = {
-		row["Line Code"]: {"line_code": row["Line Code"], "description": row["Internal Description"]}
-		for row in sheet_data if row["Line Code"].startswith("elk")
-	}
 
-	data["selected_loft_option_data"] = {
-		row["Line Code"]: {"line_code": row["Line Code"], "description": row["Internal Description"]}
-		for row in sheet_data if row["Line Code"].startswith("ell")
-	}
-	
-	line_code_descriptions = {row['Line Code']: row['Internal Description'] for row in sheet_data}
-
-	# Filter relevant rows based on prefixes
-	for row in sheet_data:
-		line_code = str(row.get("Line Code", "")).strip()
-		alphanumeric_code = to_alphanumeric_code(line_code)
-		internal_description = str(row.get("Internal Description", "")).strip()
-		include = row.get("Include", '')
-		
-		
-		# Kitchen Electrics
-		if is_primary_numeric_code(line_code, 'elk'):
-			data["selected_kitchen_el"]["data"][line_code] = {
-				"description": internal_description,
-				"is_included": include == 'Y'
-			}
-			if line_code in preselected_kitchen_el and line_code not in data["selected_kitchen_el"]["preselected"]:
-				data["selected_kitchen_el"]["preselected"].append(line_code)
-				
-		# Loft Electrics
-		elif is_primary_numeric_code(line_code, 'ell'):
-			data["selected_loft_el"]["data"][line_code] = {
-				"description": internal_description,
-				"is_included": include == 'Y'
-			}
-			if line_code in preselected_loft_el and line_code not in data["selected_loft_el"]["preselected"]:
-				data["selected_loft_el"]["preselected"].append(line_code)
-				
-		elif is_primary_numeric_code(line_code, 'pl'):
-			data["selected_pl"]["data"][line_code] = {"description": internal_description, "is_included": include == 'Y'}
-			if include == 'Y':
-				data["selected_pl"]["preselected"].append(line_code)
-				
-		elif is_primary_numeric_code(line_code, 'sk'):
-			data["selected_sk"]["data"][line_code] = {"description": internal_description, "is_included": include == 'Y'}
-			if line_code in preselected_sk and line_code not in data["selected_sk"]["preselected"]:
-				data["selected_sk"]["preselected"].append(line_code)
-
-		elif is_primary_numeric_code(line_code, 'vl'):
-			data["selected_vl"]["data"][line_code] = {"description": internal_description, "is_included": include == 'Y'}
-			if line_code in preselected_vl and line_code not in data["selected_vl"]["preselected"]:
-				data["selected_vl"]["preselected"].append(line_code)
-				
-		elif is_primary_numeric_code(line_code, 'ac'):
-			data["selected_ac"]["data"][line_code] = {"description": internal_description, "is_included": include == 'Y'}
-			if line_code in preselected_ac and line_code not in data["selected_ac"]["preselected"]:
-				data["selected_ac"]["preselected"].append(line_code)
-				
-		if line_code_matches_source(line_code, 'sd') and parse_line_code_format(line_code).get('base_code') != 'sd_total' and line_code:
-			data["selected_sd"]["data"][line_code] = {
-				"line_code": line_code,
-				"description": internal_description 
-			}
-	
-				
-	edit_requested = request.args.get('edit', '').lower() in {'1', 'true', 'yes'}
-	edit_mode = session.get('role') == 'admin' and edit_requested
-	if edit_mode:
-		builder_state = get_builder_beta_state()
+	# GET logic — schema-driven
+	edit_requested = request.args.get('edit') == '1'
+	edit_mode_local = session.get('role') == 'admin' and edit_requested
+	page_schema = compile_builder_beta_page_to_runtime_schema('additional_costs_page')
+	if edit_mode_local:
+		builder_state = session.get('builder_state', {})
 		current_page_id = 'additional_costs_page'
 		current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
 		selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
 		selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
+		_li_cats = _get_li_categories_from_schema('additional_costs_page') or []
 		return render_template(
 			'form.html',
-			additional_costs_page=True,
-			previous_page=previous_page,
+			page_schema=page_schema,
+			schema_render_mode='full',
+			previous_page='additional_building_work_page',
 			next_page='optional_extras_page',
-			title="Additional Costs",
-			data=data,
-			selected_kitchen_option_data=data.get("selected_kitchen_option_data", {}),
-			selected_loft_option_data=data.get("selected_loft_option_data", {}),
-			pd10_label="Specify sliding door width (mm):",
-			builder_state=builder_state,
-			current_page={'id': current_page_id, 'title': "Additional Costs", 'blocks': current_page_blocks},
+			title='Additional Costs',
+			li_categories=_li_cats,
+			form_page_key='additional_costs_page',
+			current_page={'id': current_page_id, 'title': 'Additional Costs', 'blocks': current_page_blocks},
 			current_page_id=current_page_id,
 			selected_block_id=selected_block_id,
 			selected_block=selected_block,
-			pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
 		)
 	return render_template(
 		'form.html',
-		additional_costs_page=True,
-		previous_page=previous_page,
+		page_schema=page_schema,
+		schema_render_mode='full',
+		previous_page='additional_building_work_page',
 		next_page='optional_extras_page',
-		title="Additional Costs",
-		data=data,
-		selected_kitchen_option_data=data.get("selected_kitchen_option_data", {}),
-		selected_loft_option_data=data.get("selected_loft_option_data", {}),
-		pd10_label="Specify sliding door width (mm):" 
+		title='Additional Costs',
 	)
-	
-	
+
 ################################################################################################################################
 
 												# Optional Extras & Finishing Works.
