@@ -2179,7 +2179,7 @@ def index():
 		form_date = ''
 		
 	edit_requested = request.args.get('edit', '').lower() in {'1', 'true', 'yes'}
-	edit_mode = session.get('role') == 'admin' and edit_requested
+	edit_mode = False  # index page has no edit mode
 	if edit_mode:
 			builder_state = get_builder_beta_state()
 			current_page_id = 'special_notes_page'
