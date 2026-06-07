@@ -3,39 +3,24 @@
 ## Workspace Structure
 * **VS Code workspace root**: `/Users/krisoldland/Documents/QM_web_app/`
 * **Git repo root**: `/Users/krisoldland/Documents/QM_web_app/app/`
-* **Branch**: `master`
 
 ## Current Goal
-* **Session N: Migrate All Pages to 3-Column Editor** — Convert all remaining form pages from the legacy block editor to the modern 3-column canvas editor to unify the admin user experience.
+* **Session P: Unification and Refactoring** — Completed the backend and frontend refactoring of `summary_page` to use the unified schema-driven system.
 
 ## Active Files for Context
 * @app/QMapp.py
 * @app/templates/form.html
-* @app/templates/_builder_macros.html
-* @app/static/js/builder.js
-* @app/template_store.py
+* @app/page_schemas.json
 * @app/.continue/prompts/current_development.md
-* @app/SESSION.md
 
 ## What Was Completed Recently
-* **Session K**: Cleaned up deprecated standalone builder routes in `QMapp.py`. All tests pass. Committed as `bf9d5ea`.
-* **Session L**: Full 3-column line-item editor canvas implemented. Committed as `6afd05c`.
-* **Session M**: Patched `page_schemas.json` to enable the 3-column canvas. Verified that the canvas renders and all interactive features (section navigation, question list, editor, save/back buttons) are working correctly on both `/materials_page` and `/further_requirements_page`.
-* **Session N**: Migrated all remaining form pages (`special_notes_page`, `summary_page`, `additional_building_work_page`, `optional_extras_page`) to use the new 3-column editor by updating their block types in `page_schemas.json` to be compatible with the `builder_beta` system.
-* **Session O**: Fixed a critical bug in the `summary_page` route that caused a server error for non-admin users. Audited all other routes for similar issues and found none.
+* **Session P**: Refactored `summary_page` in `QMapp.py` to use `compile_builder_beta_page_to_runtime_schema` and `persist_schema_page_submission`, removing massive legacy session-handling code.
+* **Session P**: Updated `form.html` to render `summary_page` using the dynamic `page_schema.fields` loop, replacing the legacy hardcoded accordion structure.
+* **Session P**: Verified all migrated pages now use the unified rendering system.
 
 ## Exact Stopping Point
-* Session N completed. All form pages now use the 3-column editor.
+* All form pages are now fully migrated and refactored to use the unified 3-column/schema-aware system.
 
-## Immediate Next Task (start here on reopen)
-### Session P — Fix Special Notes Page Rendering
-*   **Goal:** Fix the `special_notes_page` to render with the new 3-column editor instead of the legacy block editor.
-*   **Root Cause:** The page is rendering incorrectly due to an outdated configuration being loaded from the `template_store.sqlite3` database, which overrides the correct schema in `page_schemas.json`.
-*   **Action:** Create and execute a script (`app/scripts/sync_schemas.py`) that calls the `initialize_template_store` function. This will synchronize the database with the latest schemas, resolving the rendering issue.
-
-### Known Potential Issues to Watch
-* If `li_categories` is an empty list (no `line_items_by_category` block configured in `page_schemas.json`), the canvas will show the legacy block builder — not a bug, by design
-* Jinja2 deprecation: `opt_pricing.get(...)` calls in `form.html` require Jinja2 ≥ 3.0 (mapping `.get()` method)
-* CSRF token: JS reads `document.querySelector('[name=csrf_token]')` — works because `<input type="hidden" name="csrf_token">` is injected at top of 3-col canvas
-
-
+## Immediate Next Task
+* **Audit and Test**: Perform a full end-to-end smoke test of the form submission process to ensure no data loss during the refactor.
+* **Refactor Other Pages**: Audit remaining legacy routes (`materials_page`, `further_requirements_page`) for similar refactoring opportunities to use `persist_schema_page_submission`.

@@ -331,278 +331,32 @@
 <!-------------------------------------------------------------------------------------------------------------------------->
 
 {% if summary_page %}
-
-<label><h3><b>Select items to include:</b></h3></label><br>
-    
-<!-- Accordion for Building Works -->
-<div class="accordion-section">
-    <button type="button" class="accordion-header" onclick="toggleAccordion('buildingWorksSection')">
-        Building Works
-    </button>
-    
-    <div id="buildingWorksSection" class="accordion-body">
-        {% set ns = namespace(schema_bw=None) %}
-        {% if page_schema and page_schema.fields %}
-            {% for field in page_schema.fields %}
-                {% if field.id == 'selected_building_works' %}
-                    {% set ns.schema_bw = field %}
-                {% endif %}
-            {% endfor %}
-        {% endif %}
-
-        {% if ns.schema_bw %}
-            {% for option in ns.schema_bw.options %}
-            <label class="checkbox-label">
-                <input type="checkbox" name="{{ ns.schema_bw.name }}" value="{{ option.value }}"
-                    {% if option.value in ns.schema_bw.preselected %} checked {% endif %}>
-                {{ option.label }}
-            </label><br>
-            {% endfor %}
-
-            <!-- Checkbox for Courtyard Lightwell -->
-            <label class="checkbox-label">
-                <input type="checkbox" id="courtyardLightwellCheckbox" name="selected_building_works" value="bw4^"
-                    {% if 'bw4^' in ns.schema_bw.preselected %} checked {% endif %}
-                    onchange="toggleVisibility('courtyardLightwellCheckbox', 'lightwellInputContainer', 'lightwell_dimensions')">
-                Create a courtyard lightwell
-            </label><br>
-            <p>Test print: {{ lightwell_dimensions_input }}</p>
-        
-            <!-- Hidden manual input for Courtyard Lightwell Dimensions -->
-            <div id="lightwellInputContainer" style="display: {{ 'block' if lightwell_dimensions_input else 'none' }}; margin-top: 10px;">
-                <label for="lightwell_dimensions_input">Enter dimensions:</label>
-                <input type="text" id="lightwell_dimensions_input" name="lightwell_dimensions_input" value="{{ lightwell_dimensions_input }}">
-            </div>
-        {% elif data is defined and data['selected_building_works'] is defined %}
-            {% for prefix, note in data['selected_building_works']['data'].items() %}
-            {% if prefix != 'bw4^' %} <!-- Exclude 'bw4' to avoid duplication -->
-            <label class="checkbox-label">
-                <input type="checkbox" name="selected_building_works" value="{{ prefix }}" 
-                    {% if prefix in data['selected_building_works']['preselected'] %} checked {% endif %}>
-                {{ note.description }}
-            </label><br>
-            {% endif %}
-            {% endfor %}
-                        
-            <!-- Checkbox for Courtyard Lightwell -->
-            <label class="checkbox-label">
-                <input type="checkbox" id="courtyardLightwellCheckbox" name="selected_building_works" value="bw4^"
-                    {% if 'bw4^' in data['selected_building_works']['preselected'] %} checked {% endif %}
-                    onchange="toggleVisibility('courtyardLightwellCheckbox', 'lightwellInputContainer', 'lightwell_dimensions')">
-                Create a courtyard lightwell
-            </label><br>
-            <p>Test print: {{ lightwell_dimensions_input }}</p>
-        
-            <!-- Hidden manual input for Courtyard Lightwell Dimensions -->
-            <div id="lightwellInputContainer" style="display: {{ 'block' if lightwell_dimensions_input else 'none' }}; margin-top: 10px;">
-                <label for="lightwell_dimensions_input">Enter dimensions:</label>
-                <input type="text" id="lightwell_dimensions_input" name="lightwell_dimensions_input" value="{{ lightwell_dimensions_input }}">
-            </div>
-        {% endif %}
-    </div> 
-</div> 
-    
-
-<!-- Accordion for Boundary Lines -->
-<div class="accordion-section">
-    <button type="button" class="accordion-header" onclick="toggleAccordion('boundaryLinesSection')">
-        Boundary Lines
-    </button>
-
-    <div id="boundaryLinesSection" class="accordion-body">
-        {% if data is defined and data['boundary_lines_bll'] is defined and data['boundary_lines_blr'] is defined %}
-
-            {% for prefix, note in data['boundary_lines_bll']['data'].items() %}
-            
-            <!-- Exclude child items of bll and blr from being displayed as standalone checkboxes -->
-                {% if not (data['boundary_lines_bll']['data'].get(prefix) or 
-                data['boundary_lines_blr']['data'].get(prefix)) %}
-                <label class="checkbox-label">
-                    <input type="checkbox" name="selected_boundary_lines" value="{{ prefix }}"
-                        {% if prefix in data['boundary_lines_bll']['preselected'] or 
-                        prefix in data['boundary_lines_blr']['preselected'] %} checked {% endif %}>
-                    {{ note.description }}
-                </label><br>
-                {% endif %}
-            {% endfor %}
-        
-            <!-- Checkbox for Wall Construction: Left Side (bll) -->
-            <label class="checkbox-label">
-                <input type="checkbox" id="bllCheckbox" name="selected_boundary_lines" value="bll"
-                    {% if 'bll' in preselected_bll_checkbox %} checked {% endif %}
-                    onchange="toggleVisibility('bllCheckbox', 'boundarySizeDropdownLeft', 'selected_bll')">
-                Wall Construction: Left Side
-            </label><br>
-            
-            <!-- Hidden Dropdown for Wall Construction: Left Side (bll) -->
-            <div class="hidden-dropdown" id="boundarySizeDropdownLeft" style="display: none; margin-top: 10px;">
-                <label for="selected_bll">Wall Construction: Left Side</label>
-                <select id="selected_bll" name="selected_bll" multiple>
-                    <option value="">-- Please select one or more options --</option>
-                    {% for prefix, note in data['boundary_lines_bll']['data'].items() %}
-                        <option value="{{ prefix }}" {% if prefix in data['boundary_lines_bll']['preselected'] %} selected {% endif %}>
-                                {{ note.description }}
-                        </option>
+    {% for field in page_schema.fields %}
+        <div class="accordion-section">
+            <button type="button" class="accordion-header" onclick="toggleAccordion('{{ field.id }}Section')">
+                {{ field.label }}
+            </button>
+            <div id="{{ field.id }}Section" class="accordion-body">
+                {% if field.type == 'checkbox_group' %}
+                    {% for option in field.options %}
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="{{ field.name }}" value="{{ option.value }}"
+                                {% if option.value in field.preselected %} checked {% endif %}>
+                            {{ option.label }}
+                        </label><br>
                     {% endfor %}
-                </select>
-            </div>
-            
-            <!-- Checkbox for Wall Construction: Right Side (blr) -->
-            <label class="checkbox-label">
-                <input type="checkbox" id="blrCheckbox" name="selected_boundary_lines" value="blr"
-                    {% if 'blr' in preselected_blr_checkbox %} checked {% endif %}
-                    onchange="toggleVisibility('blrCheckbox', 'boundarySizeDropdownRight', 'selected_blr')">
-                Wall Construction: Right Side
-            </label><br>
-            
-            <!-- Hidden Dropdown for Wall Construction: Right Side (blr) -->
-            <div class="hidden-dropdown" id="boundarySizeDropdownRight" style="display: none; margin-top: 10px;">
-                <label for="selected_blr">Wall Construction: Right Side</label>
-                <select id="selected_blr" name="selected_blr" multiple>
-                    <option value="">-- Please select one or more options --</option>
-                    {% for prefix, note in data['boundary_lines_blr']['data'].items() %}
-                        <option value="{{ prefix }}" {% if prefix in data['boundary_lines_blr']['preselected'] %} selected {% endif %}>
-                                {{ note.description }}
-                    </option>
-                    {% endfor %}
-                </select>
-            </div>
-        {% else %}
-        {% endif %}
-    </div>
-</div>
-        
-    
-<!-- Accordion for Planning Permission -->
-<div class="accordion-section">
-    <button type="button" class="accordion-header" onclick="toggleAccordion('planningPermissionSection')">
-        Planning Permission Status
-    </button>
-    <br>
-    <div id="planningPermissionSection" class="accordion-body">
-        {% if data is defined and data['selected_pp'] is defined %}
-        <label for="selected_pp"><b>Planning Permission Status:</b></label><br>
-        <select id="selected_pp" name="selected_pp">
-            <option value="">-- Please select --</option>
-            {% if 'selected_pp' in data and 'data' in data['selected_pp'] %}
-            {% for prefix, note in data['selected_pp']['data'].items() %}
-            {% if prefix != 'ppx' %} <!-- Ensures 'ppx' is not included -->
-            <option value="{{ prefix }}" 
-                {% if prefix in data.get('selected_pp', {}).get('preselected', []) %} selected {% endif %}>
-                {{ note.description }}
-            </option>
-            {% endif %}
-            {% endfor %}
-            {% endif %}
-        </select>
-        <br>
-        {% else %}
-            <p style="color: red; font-weight: bold;">Error: Missing data for Planning Permission section.</p>
-            <p>Debug Info: 
-                {% if data is not defined %} 
-                `data` is not defined. 
-                {% elif data['selected_pp'] is not defined %}
-                `data['selected_pp']` is not defined. 
+                {% elif field.type == 'dropdown_select' %}
+                    <select name="{{ field.name }}">
+                        {% for choice in field.builder_beta_meta.dropdown_choices %}
+                            <option value="{{ choice }}" {% if choice == field.value %}selected{% endif %}>{{ choice }}</option>
+                        {% endfor %}
+                    </select>
+                {% elif field.type == 'text_input' %}
+                    <input type="text" name="{{ field.name }}" value="{{ field.value }}">
                 {% endif %}
-            </p>
-        {% endif %}
-    </div>
-</div>
-        
-<!-- Accordion for Basement -->
-<div class="accordion-section">
-    <button type="button" class="accordion-header" onclick="toggleAccordion('basementSection')">
-        Basement
-    </button>
-    <div id="basementSection" class="accordion-body">
-        {% if data is defined and data['selected_basement'] is defined %}
-            <!-- Yes Checkbox -->
-            {% if 'bs1@' in data['selected_basement']['data'] %}
-                <label class="checkbox-label">
-                    <input type="checkbox" id="bs1Checkbox" name="selected_basement" value="bs1@"
-                        {% if 'bs1@' in data['selected_basement']['preselected'] %} checked {% endif %}>
-                    {{ data['selected_basement']['data']['bs1@'].description }}
-                </label><br>
-            {% endif %}
-            
-            <!-- No Checkbox -->
-            {% if 'bs2@' in data['selected_basement']['data'] %}
-                <label class="checkbox-label">
-                    <input type="checkbox" id="bs2Checkbox" name="selected_basement" value="bs2@"
-                        {% if 'bs2@' in data['selected_basement']['preselected'] %} checked {% endif %}>
-                    {{ data['selected_basement']['data']['bs2@'].description }}
-                </label><br>
-            {% endif %}
-        {% else %}
-        {% endif %}
-    </div>
-</div>
-    
-<!-- Accordion for Council -->
-<div class="accordion-section">
-    <button type="button" class="accordion-header" onclick="toggleAccordion('councilSection')">
-        Location
-    </button>
-    <div id="councilSection" class="accordion-body">
-        {% if data is defined and data['conservation_status'] is defined and data['selected_council'] is defined %}
-
-            <!-- Yes/No: Conservation Area -->
-            <label><b>Is the property located in a conservation area?</b></label><br><br>
-            
-            <!-- Yes Checkbox -->
-            {% if 'cs8^' in data['conservation_status']['data'] %}
-            <label class="checkbox-label">
-                <input type="checkbox" id="cs8Checkbox" name="conservation_status" value="cs8^"
-                    {% if 'cs8^' in data['conservation_status']['preselected'] %} checked {% endif %}>
-                {{ data['conservation_status']['data']['cs8^'].description }}
-            </label><br>
-            {% endif %}
-
-        
-            <!-- No Checkbox -->
-            {% if 'cs9^' in data['conservation_status']['data'] %}
-            <label class="checkbox-label">
-                <input type="checkbox" id="cs9Checkbox" name="conservation_status" value="cs9^"
-                    {% if 'cs9^' in data['conservation_status']['preselected'] %} checked {% endif %}>
-                {{ data['conservation_status']['data']['cs9^'].description }}
-            </label><br>
-            {% endif %}
-
-            
-            <!-- Dropdown for Local Council -->
-            <label><b>Local Council:</b></label><br>
-            <select id="selected_council" name="selected_council" onchange="toggleVisibility('selected_council', 'otherCouncilInput','cs0')">
-                <option value="">-- Please select --</option>
-                
-                {% for prefix, note in data['selected_council']['data'].items() %}
-                <option value="{{ prefix }}" 
-                    {% if data['selected_council']['preselected'] and prefix in data['selected_council']['preselected'] %} selected {% endif %}>
-                    {{ "Other" if prefix == 'cs0' else note.description }}
-                </option>
-                {% endfor %}
-            </select><br>
-            
-            <!-- Input for "Other" -->
-            <div id="otherCouncilInput" style="display: none; margin-top: 10px;">
-                <label for="other_council">If "Other", please specify:</label>
-                <input type="text" id="other_council" name="other_council" 
-                    value="{{ other_council }}">
             </div>
-        {% else %}
-            <p style="color: red; font-weight: bold;">Error: Missing data for Council section.</p>
-            <p>Debug Info: 
-                {% if data is not defined %} 
-                `data` is not defined. 
-                {% elif data['selected_council_area'] is not defined %}
-                `data['selected_council_area']` is not defined. 
-                {% elif data['selected_council'] is not defined %}
-                `data['selected_council']` is not defined. 
-                {% endif %}
-            </p>
-        {% endif %}
-    </div>
-</div>
-
+        </div>
+    {% endfor %}
 {% endif %}
 
         

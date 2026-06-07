@@ -2283,45 +2283,8 @@ def summary_page():
 
 	if request.method == 'POST':
 		checkbox_data = session.setdefault('checkbox_data', {})
-
-		selected_building_works = request.form.getlist('selected_building_works')
-		checkbox_data['selected_building_works'] = {'preselected': selected_building_works}
-		if not selected_building_works:
-			session.setdefault('data', {})['selected_building_works'] = []
-
-		lightwell_dimensions_input = request.form.get('lightwell_dimensions_input', '').strip()
-		if lightwell_dimensions_input:
-			session.setdefault('data', {})['lightwell_dimensions_input'] = lightwell_dimensions_input
-			session['lightwell_dimensions_input'] = lightwell_dimensions_input
-
-		selected_boundary_lines = request.form.getlist('selected_boundary_lines')
-		checkbox_data['selected_bll_checkbox'] = {'preselected': ['bll'] if 'bll' in selected_boundary_lines else []}
-		checkbox_data['selected_blr_checkbox'] = {'preselected': ['blr'] if 'blr' in selected_boundary_lines else []}
-
-		handle_multi_dropdown_session(checkbox_data, 'selected_bll', request.form.getlist('selected_bll'))
-		handle_multi_dropdown_session(checkbox_data, 'selected_blr', request.form.getlist('selected_blr'))
-
-		selected_basement = request.form.getlist('selected_basement')
-		session.setdefault('data', {})['selected_basement'] = selected_basement if selected_basement else []
-		session['bs1'] = 'Y' if 'bs1' in selected_basement else None
-		session['bs2'] = 'Y' if 'bs2' in selected_basement else None
-
-		selected_pp = request.form.getlist('selected_pp')
-		checkbox_data['selected_pp'] = {'preselected': selected_pp}
-		if not selected_pp:
-			session.setdefault('data', {})['selected_pp'] = []
-
-		conservation_status = request.form.getlist('conservation_status')
-		session.setdefault('data', {})['conservation_status'] = conservation_status if conservation_status else []
-		session['cs8'] = 'Y' if 'cs8' in conservation_status else None
-		session['cs9'] = 'Y' if 'cs9' in conservation_status else None
-
-		selected_council = request.form.getlist('selected_council')
-		other_council_input = request.form.get('other_council', '').strip()
-		session.setdefault('data', {})['selected_council'] = selected_council if selected_council else []
-		if other_council_input:
-			session.setdefault('data', {})['other_council'] = other_council_input
-
+		page_schema = compile_builder_beta_page_to_runtime_schema('summary_page')
+		checkbox_data = persist_schema_page_submission(page_schema, request.form, checkbox_data)
 		session['checkbox_data'] = checkbox_data
 		session.modified = True
 		return redirect(url_for('materials_page'))
@@ -2331,120 +2294,6 @@ def summary_page():
 	
 	edit_requested = request.args.get('edit', '').lower() in {'1', 'true', 'yes'}
 	edit_mode = session.get('role') == 'admin' and edit_requested
-
-	preselected_bw = session.get('checkbox_data', {}).get('selected_building_works', {}).get('preselected', [])
-	preselected_bll = session.get('checkbox_data', {}).get('selected_bll', {}).get('preselected', [])
-	preselected_blr = session.get('checkbox_data', {}).get('selected_blr', {}).get('preselected', [])
-	preselected_bll_checkbox = session.get('checkbox_data', {}).get('selected_bll_checkbox', {}).get('preselected', [])
-	preselected_blr_checkbox = session.get('checkbox_data', {}).get('selected_blr_checkbox', {}).get('preselected', [])
-	preselected_basement = session.get('data', {}).get('selected_basement', [])
-	lightwell_dimensions_input = session.get('data', {}).get('lightwell_dimensions_input', '')
-	preselected_pp = session.get('checkbox_data', {}).get('selected_pp', {}).get('preselected', [])
-	preselected_conservation_status = session.get('data', {}).get('conservation_status', [])
-	preselected_council = session.get('data', {}).get('selected_council', [])
-	other_council = session.get('data', {}).get('other_council', '')
-
-	data = {
-		"selected_building_works": {"data": {}, "preselected": preselected_bw.copy()},
-		"boundary_lines_bll": {"data": {}, "preselected": preselected_bll.copy()},
-		"boundary_lines_blr": {"data": {}, "preselected": preselected_blr.copy()},
-		"selected_basement": {"data": {}, "preselected": preselected_basement.copy()},
-		"selected_pp": {"data": {}, "preselected": preselected_pp.copy()},
-		"conservation_status": {"data": {}, "preselected": preselected_conservation_status.copy()},
-		"selected_council": {"data": {}, "preselected": preselected_council.copy()},
-	}
-
-	if lightwell_dimensions_input:
-		session.setdefault('data', {})['lightwell_dimensions_input'] = lightwell_dimensions_input
-
-	if other_council:
-		session.setdefault('data', {})['other_council'] = other_council
-
-	for row in sheet_data:
-		line_code = row.get('Line Code', '')
-		alphanumeric_code = to_alphanumeric_code(line_code)
-		internal_description = row.get('Internal Description', '')
-		include = row.get('Include', '')
-
-		if is_primary_numeric_code(line_code, 'bw'):
-			data["selected_building_works"]["data"][line_code] = {
-				"description": internal_description,
-				"is_included": include == 'Y'
-			}
-			if not preselected_bw and include == 'Y' and line_code not in data["selected_building_works"]["preselected"]:
-				data["selected_building_works"]["preselected"].append(line_code)
-
-		elif alphanumeric_code == 'bll':
-			data["boundary_lines_bll"]["data"][line_code] = {
-				"description": internal_description,
-				"is_included": include == 'Y'
-			}
-			if not session.get('checkbox_data', {}).get('selected_bll_checkbox', {}).get('preselected') and include == 'Y' and line_code not in data["boundary_lines_bll"]["preselected"]:
-				data["boundary_lines_bll"]["preselected"].append(line_code)
-
-		elif alphanumeric_code in ['bl1', 'bl2', 'bl3', 'bl4', 'bl5', 'bl6']:
-			data["boundary_lines_bll"]["data"][line_code] = {
-				"description": internal_description,
-				"is_included": include == 'Y'
-			}
-			if not preselected_bll and include == 'Y' and line_code not in data["boundary_lines_bll"]["preselected"]:
-				data["boundary_lines_bll"]["preselected"].append(line_code)
-
-		elif alphanumeric_code == 'blr':
-			data["boundary_lines_blr"]["data"][line_code] = {
-				"description": internal_description,
-				"is_included": include == 'Y'
-			}
-			if not session.get('checkbox_data', {}).get('selected_blr_checkbox', {}).get('preselected') and include == 'Y' and line_code not in data["boundary_lines_blr"]["preselected"]:
-				data["boundary_lines_blr"]["preselected"].append(line_code)
-
-		elif alphanumeric_code in ['bl7', 'bl8', 'bl9', 'bl10', 'bl11', 'bl12']:
-			data["boundary_lines_blr"]["data"][line_code] = {
-				"description": internal_description,
-				"is_included": include == 'Y'
-			}
-			if not preselected_blr and include == 'Y' and line_code not in data["boundary_lines_blr"]["preselected"]:
-				data["boundary_lines_blr"]["preselected"].append(line_code)
-
-		elif alphanumeric_code in ['bs1', 'bs2']:
-			data["selected_basement"]["data"][line_code] = {
-				"description": internal_description,
-				"is_included": include == 'Y'
-			}
-			if not preselected_basement and include == 'Y' and line_code not in data["selected_basement"]["preselected"]:
-				data["selected_basement"]["preselected"].append(line_code)
-
-		elif alphanumeric_code.startswith('pp') and line_code != 'ppx':
-			data["selected_pp"]["data"][line_code] = {
-				"description": internal_description,
-				"is_included": include == 'Y'
-			}
-			if not preselected_pp and include == 'Y' and line_code not in data["selected_pp"]["preselected"]:
-				data["selected_pp"]["preselected"].append(line_code)
-
-		elif alphanumeric_code in ['pp2', 'pp3', 'pp4', 'pp5', 'pp6', 'pp7', 'pp8']:
-			data["selected_pp"]["data"][line_code] = {
-				"description": internal_description,
-				"is_included": include == 'Y'
-			}
-			if not preselected_pp and include == 'Y' and line_code not in data["selected_pp"]["preselected"]:
-				data["selected_pp"]["preselected"].append(line_code)
-
-		elif alphanumeric_code in ['cs8', 'cs9']:
-			data["conservation_status"]["data"][line_code] = {
-				"description": internal_description,
-				"is_included": include == 'Y'
-			}
-			if not preselected_conservation_status and include == 'Y':
-				data["conservation_status"]["preselected"].append(line_code)
-
-		elif alphanumeric_code in ['cs0', 'cs1', 'cs2', 'cs3', 'cs4', 'cs5', 'cs6', 'cs7']:
-			data["selected_council"]["data"][line_code] = {
-				"description": internal_description,
-				"is_included": include == 'Y'
-			}
-			if not preselected_council and include == 'Y' and line_code not in data["selected_council"]["preselected"]:
-				data["selected_council"]["preselected"].append(line_code)
 
 	if edit_mode:
 		builder_state = get_builder_beta_state()
@@ -2462,11 +2311,6 @@ def summary_page():
 			previous_page=previous_page,
 			next_page='materials_page',
 			title="Summary Page",
-			data=data,
-			other_council=session.get('data', {}).get('other_council', ''),
-			preselected_bll_checkbox=preselected_bll_checkbox,
-			preselected_blr_checkbox=preselected_blr_checkbox,
-			lightwell_dimensions_input=lightwell_dimensions_input,
 			builder_state=builder_state,
 			current_page={'id': current_page_id, 'title': "Summary Page", 'blocks': current_page_blocks},
 			current_page_id=current_page_id,
@@ -2484,11 +2328,6 @@ def summary_page():
 			previous_page=previous_page,
 			next_page='materials_page',
 			title="Summary Page",
-			data=data,
-			other_council=session.get('data', {}).get('other_council', ''),
-			preselected_bll_checkbox=preselected_bll_checkbox,
-			preselected_blr_checkbox=preselected_blr_checkbox,
-			lightwell_dimensions_input=lightwell_dimensions_input,
 		)
 
 
