@@ -2210,7 +2210,10 @@ def index():
 			next_page='special_notes_page',
 			title="Project Details",
 			client_address=client_address,
-			proposal_date=form_date
+			proposal_date=form_date,
+			current_page=None,
+			selected_block_id=None,
+			edit_mode=False
 		)
 
 
