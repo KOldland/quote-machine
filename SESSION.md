@@ -6,7 +6,7 @@
 * **Branch**: `master`
 
 ## Current Goal
-* **Session R: Smoke Test** — All legacy routes refactored. Smoke test all 6 pages end-to-end.
+* **Session S** — Next development milestone (TBD).
 
 ## Active Files for Context
 * @app/QMapp.py
@@ -21,22 +21,13 @@
 * **Session Q**: Refactored `materials_page` — 231 lines removed (commit `5f676d3`).
 * **Session Q (complete)**: Refactored `further_requirements_page` — 224 lines of legacy session-handling removed, replaced with 17-line slim unified handler. py_compile EXIT:0 (commit `d7d6831`).
 * **Tooling**: Added shell quote escaping pitfall to `context.md` — always write temp `.py` script file instead of `python3 -c "..."`.
+* **Session R (complete)**: Smoke test passed — all 6 refactored pages return 200/302. Zero 500 errors. All routes verified via `smoke_routes.py` and `flask.log`.
 
 ## Exact Stopping Point
-* All 6 target pages refactored. Smoke test not yet run. Session closed due to token bloat.
+* Session R complete. All 6 pages smoke-tested green. Ready for next milestone.
 
 ## Immediate Next Task (start here on reopen)
-### Session R — Smoke Test
-
-1. Start server: `env QM_DISABLE_SHEETS=1 python3 -m flask --app app/QMapp.py run --port=5003 --with-threads`
-2. Verify all pages render with 3-column editor:
-   - `special_notes_page`
-   - `summary_page`
-   - `materials_page`
-   - `further_requirements_page`
-   - `additional_building_work_page`
-   - `optional_extras_page`
-3. Use `app/scripts/smoke_routes.py` for automated route checking if available.
+* Define next feature or fix. Review `current_development.md` for backlog items.
 
 ### Known Potential Issues to Watch
 * If `li_categories` is empty, canvas falls back to legacy block builder — by design
