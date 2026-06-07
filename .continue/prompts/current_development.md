@@ -30,7 +30,7 @@ This document tracks the migration of legacy form pages to the new 3-column edit
 
 ## Remaining
 - [x] `summary_page` question audit — Planning Permission + Council confirmed visible after migration (Session T)
-- [ ] `materials_page` question audit — user confirmed ALL questions missing. Next target (Session U).
+- [x] `materials_page` question audit — 42 items across 8 categories migrated from `form_page='3'`; `Internal Doors` case fix; 4 stray `dm%` rows normalised. Verified via DB count (commit `170d20f`, Session U).
 - [ ] `further_requirements_page` question audit — not yet done
 - [ ] `additional_building_work_page` question audit — not yet done
 - [ ] `optional_extras_page` question audit — not yet done
