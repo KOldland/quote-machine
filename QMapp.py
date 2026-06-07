@@ -2815,15 +2815,38 @@ def materials_page():
 		return redirect(url_for('further_requirements_page'))
 
 	# GET logic
+	edit_requested = request.args.get('edit') == '1'
+	edit_mode_local = session.get('role') == 'admin' and edit_requested
 	page_schema = compile_builder_beta_page_to_runtime_schema(page_id)
 	sheet_data = get_catalog()
+	if edit_mode_local:
+		builder_state = session.get('builder_state', {})
+		current_page_id = page_id
+		current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
+		selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
+		selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
+		_li_cats = _get_li_categories_from_schema(page_id) or []
+		return render_template(
+			'form.html',
+			page_schema=page_schema,
+			schema_render_mode='full',
+			previous_page='summary_page',
+			next_page='further_requirements_page',
+			title=page_schema.get('title', 'Materials and Details') if page_schema else 'Materials and Details',
+			li_categories=_li_cats,
+			form_page_key=page_id,
+			current_page={'id': current_page_id, 'title': page_schema.get('title', 'Materials and Details') if page_schema else 'Materials and Details', 'blocks': current_page_blocks},
+			current_page_id=current_page_id,
+			selected_block_id=selected_block_id,
+			selected_block=selected_block,
+		)
 	return render_template(
-'form.html',
+		'form.html',
 		page_schema=page_schema,
-schema_render_mode='full',
-previous_page='summary_page',
-next_page='further_requirements_page',
-title=page_schema.get('title', 'Materials and Details') if page_schema else 'Materials and Details'
+		schema_render_mode='full',
+		previous_page='summary_page',
+		next_page='further_requirements_page',
+		title=page_schema.get('title', 'Materials and Details') if page_schema else 'Materials and Details',
 	)
 
 @app.route('/further_requirements_page', methods=['POST', 'GET'])
@@ -2832,15 +2855,40 @@ def further_requirements_page():
 	if request.method == 'POST':
 		persist_schema_page_submission(page_id, request.form)
 		return redirect(url_for('additional_building_work_page'))
+
+	# GET logic
+	edit_requested = request.args.get('edit') == '1'
+	edit_mode_local = session.get('role') == 'admin' and edit_requested
 	page_schema = compile_builder_beta_page_to_runtime_schema(page_id)
 	sheet_data = get_catalog()
+	if edit_mode_local:
+		builder_state = session.get('builder_state', {})
+		current_page_id = page_id
+		current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
+		selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
+		selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
+		_li_cats = _get_li_categories_from_schema(page_id) or []
+		return render_template(
+			'form.html',
+			page_schema=page_schema,
+			schema_render_mode='full',
+			previous_page='materials_page',
+			next_page='additional_building_work_page',
+			title=page_schema.get('title', 'Further Requirements') if page_schema else 'Further Requirements',
+			li_categories=_li_cats,
+			form_page_key=page_id,
+			current_page={'id': current_page_id, 'title': page_schema.get('title', 'Further Requirements') if page_schema else 'Further Requirements', 'blocks': current_page_blocks},
+			current_page_id=current_page_id,
+			selected_block_id=selected_block_id,
+			selected_block=selected_block,
+		)
 	return render_template(
 		'form.html',
 		page_schema=page_schema,
 		schema_render_mode='full',
 		previous_page='materials_page',
 		next_page='additional_building_work_page',
-		title=page_schema.get('title', 'Further Requirements') if page_schema else 'Further Requirements'
+		title=page_schema.get('title', 'Further Requirements') if page_schema else 'Further Requirements',
 	)
 
 @app.route('/additional_building_work_page', methods=['POST', 'GET'])
