@@ -296,6 +296,27 @@
             </div>
             {% endif %}
             </div>
+            {% elif field.type == 'line_items_by_category' %}
+            {# ── Session W: line_items_by_category normal form render ──────────── #}
+            <div class="schema-field-block">
+                {% for grp in field.li_groups %}
+                <div class="accordion-section">
+                    <button type="button" class="accordion-header"
+                            onclick="toggleAccordion('li_{{ loop.index0 }}_{{ field.id }}')">
+                        {{ grp.category }}
+                    </button>
+                    <div id="li_{{ loop.index0 }}_{{ field.id }}" class="accordion-body">
+                        {% for item in grp.items %}
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="{{ field.name }}" value="{{ item.value }}"
+                                {% if item.value in field.value %}checked{% endif %}>
+                            {{ item.label }}
+                        </label><br>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
         {% endif %}
         {% endfor %}
         {% endif %}

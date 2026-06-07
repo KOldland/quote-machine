@@ -1119,6 +1119,37 @@ def _builder_beta_checkbox_options(field_schema, sheet_data):
 	return options
 
 
+def _get_line_items_for_page(page_id):
+	"""Query SQLite line_items for a page and return items grouped by category."""
+	try:
+		import sqlite3 as _sqlite3
+		from collections import OrderedDict
+		db_path = os.path.join(os.path.dirname(__file__), 'template_store.sqlite3')
+		conn = _sqlite3.connect(db_path)
+		conn.row_factory = _sqlite3.Row
+		rows = conn.execute(
+			"""SELECT line_code, internal_description, category, include_default
+			   FROM line_items WHERE form_page = ? AND form_visible = 1
+			   ORDER BY category, sort_order""",
+			(page_id,)
+		).fetchall()
+		conn.close()
+		groups = OrderedDict()
+		for row in rows:
+			cat = row['category'] or 'Uncategorised'
+			if cat not in groups:
+				groups[cat] = []
+			groups[cat].append({
+				'value': row['line_code'],
+				'label': row['internal_description'] or row['line_code'],
+				'include_default': row['include_default'] or 'N',
+			})
+		return [{'category': cat, 'items': items} for cat, items in groups.items()]
+	except Exception as e:
+		print(f'[line_items] Error loading items for {page_id}: {e}')
+		return []
+
+
 def build_builder_beta_runtime_context(page_id, sheet_data, page_answers):
 	compiled_page = compile_builder_beta_page_to_runtime_schema(page_id)
 	if not compiled_page:
@@ -1146,6 +1177,7 @@ def build_builder_beta_runtime_context(page_id, sheet_data, page_answers):
 			'label': field.get('label', field_name),
 			'note': field.get('note', ''),
 			'block_type': block_type,
+			'type': block_type,
 			'builder_beta_meta': deepcopy(meta),
 			'placeholder': meta.get('placeholder', ''),
 			'static_content': meta.get('static_content', ''),
@@ -1171,6 +1203,16 @@ def build_builder_beta_runtime_context(page_id, sheet_data, page_answers):
 
 		elif block_type in {'text_input', 'number_currency_input'}:
 			field_entry['value'] = str(page_answers.get(field_name, '') or '')
+		elif block_type == 'line_items_by_category':
+			li_groups = _get_line_items_for_page(page_id)
+			stored = get_preselected(field_name)
+			if not isinstance(stored, list):
+				stored = []
+			if not stored:
+				stored = [item['value'] for grp in li_groups for item in grp['items']
+				         if item.get('include_default') == 'Y']
+			field_entry['li_groups'] = li_groups
+			field_entry['value'] = stored
 
 		runtime_fields.append(field_entry)
 
@@ -1422,7 +1464,7 @@ def build_page_schema_context(page_id, sheet_data, checkbox_data):
 def persist_schema_page_submission(page_schema, form_data, checkbox_data):
 	for field_schema in page_schema.get('fields', []):
 		storage_key = field_schema.get('storage', {}).get('key', field_schema['name'])
-		if field_schema.get('type') == 'checkbox_group':
+		if field_schema.get('type') in {'checkbox_group', 'line_items_by_category'}:
 			selected_values = form_data.getlist(field_schema['name'])
 			checkbox_data[storage_key] = {'preselected': selected_values if selected_values else []}
 
