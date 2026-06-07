@@ -31,6 +31,10 @@ This document tracks the migration of legacy form pages to the new 3-column edit
 ## Remaining
 - [x] `summary_page` question audit — Planning Permission + Council confirmed visible after migration (Session T)
 - [x] `materials_page` question audit — 42 items across 8 categories migrated from `form_page='3'`; `Internal Doors` case fix; 4 stray `dm%` rows normalised. Verified via DB count (commit `170d20f`, Session U).
-- [ ] `further_requirements_page` question audit — not yet done
+- [x] `further_requirements_page` question audit — dw% (9 items) + frc% (53 items) migrated from form_page='3B'; schema block already correct (commit `70542f0`, Session V)
 - [ ] `additional_building_work_page` question audit — not yet done
 - [ ] `optional_extras_page` question audit — not yet done
+
+## UI Fixes
+- [x] `.li-3col-canvas` viewport gap — swapped fixed `height` for `min-height: 400px` + `max-height: calc(100vh - 120px)` (commit `258ff27`, Session V)
+- [x] Long list overflow cap — `min-height:0` on flex columns + direct `max-height: calc(100vh - 170px)` on `#li-question-list` (commit `47de853`, Session V)
