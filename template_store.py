@@ -743,6 +743,64 @@ def load_option_set(
     ]
 
 
+def get_line_items_by_category(category: str, db_path: Optional[Path] = None) -> list:
+    """Return all line_items for a given category."""
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    rows = conn.execute(
+        "SELECT * FROM line_items WHERE category = ? ORDER BY sort_order ASC, line_code ASC",
+        (category,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_structured_line_items_for_page(form_page: str, db_path: Optional[Path] = None) -> Dict[str, list]:
+    """
+    Return form-visible line_items for a page, structured into parent/child
+    relationships and grouped by category.
+    """
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    # Fetch ALL items for the page, including children that might be hidden at the top level
+    rows = conn.execute(
+        "SELECT * FROM line_items WHERE form_page=? ORDER BY category ASC, sort_order ASC, line_code ASC",
+        (form_page,),
+    ).fetchall()
+    conn.close()
+
+    if not rows:
+        return {}
+
+    # First pass: create a lookup map for all items
+    items_by_code = {dict(row)['line_code']: dict(row) for row in rows}
+    for item in items_by_code.values():
+        item['children'] = []
+
+    # Second pass: build the hierarchy
+    top_level_items = []
+    for item in items_by_code.values():
+        parent_code = item.get('parent_code')
+        if parent_code and parent_code in items_by_code:
+            # This is a child, add it to its parent's list
+            items_by_code[parent_code]['children'].append(item)
+        else:
+            # This is a top-level item
+            top_level_items.append(item)
+
+    # Third pass: group the top-level items by category
+    result: Dict[str, list] = {}
+    for item in top_level_items:
+        # Only include items that are supposed to be visible on the form
+        if item.get('form_visible'):
+            cat = item["category"]
+            if cat not in result:
+                result[cat] = []
+            result[cat].append(item)
+
+    return result
+
+
 def get_line_items_for_page(form_page: str, db_path: Optional[Path] = None) -> Dict[str, list]:
     """Return form-visible line_items for a given form_page, grouped by category.
 

@@ -625,7 +625,7 @@
   {% endfor %}
 {% endif %}
 
-{# ── Session C: line_items-driven accordion rendering ── #}
+{# ── Session C: line_items-driven accordion rendering (Enhanced for input_type) ── #}
 {% if line_items_by_category %}
   {% for category, items in line_items_by_category.items() %}
   <div class="accordion-section">
@@ -634,11 +634,28 @@
     </button>
     <div id="li_cat_{{ loop.index }}" class="accordion-body">
       {% for item in items %}
-      <label class="checkbox-label">
-        <input type="checkbox" name="li_sel" value="{{ item.line_code }}"
-               {% if item.include_default == 'Y' %}checked{% endif %}>
-        {% if item.item_role == 'parent' %}<strong>{{ item.internal_description }}</strong>{% else %}{{ item.internal_description }}{% endif %}
-      </label><br>
+        {% set input_type = item.input_type | default('checkbox') %}
+
+        {# Render based on input_type #}
+        {% if input_type == 'dropdown_with_other' %}
+          <div style="padding: .5rem; border: 1px dashed #ccc; margin: .5rem 0;">
+            <p><strong>{{ item.internal_description }}</strong><br><small style="color: #999;">(Dropdown with other - rendering not yet implemented)</small></p>
+          </div>
+        {% elif input_type == 'dropdown' %}
+          <div style="padding: .5rem; border: 1px dashed #ccc; margin: .5rem 0;">
+            <p><strong>{{ item.internal_description }}</strong><br><small style="color: #999;">(Dropdown - rendering not yet implemented)</small></p>
+          </div>
+        {% elif input_type == 'text_input' %}
+          <div style="padding: .5rem; border: 1px dashed #ccc; margin: .5rem 0;">
+            <p><strong>{{ item.internal_description }}</strong><br><small style="color: #999;">(Text input - rendering not yet implemented)</small></p>
+          </div>
+        {% else %} {# Default to checkbox #}
+          <label class="checkbox-label">
+            <input type="checkbox" name="li_sel" value="{{ item.line_code }}"
+                   {% if item.include_default == 'Y' %}checked{% endif %}>
+            {% if item.item_role == 'parent' %}<strong>{{ item.internal_description }}</strong>{% else %}{{ item.internal_description }}{% endif %}
+          </label><br>
+        {% endif %}
       {% endfor %}
     </div>
   </div>

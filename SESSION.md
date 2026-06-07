@@ -28,8 +28,10 @@
 * Session N completed. All form pages now use the 3-column editor.
 
 ## Immediate Next Task (start here on reopen)
-### Session P — Next Steps
-* Define the next development goal.
+### Session P — Fix Special Notes Page Rendering
+*   **Goal:** Fix the `special_notes_page` to render with the new 3-column editor instead of the legacy block editor.
+*   **Root Cause:** The page is rendering incorrectly due to an outdated configuration being loaded from the `template_store.sqlite3` database, which overrides the correct schema in `page_schemas.json`.
+*   **Action:** Create and execute a script (`app/scripts/sync_schemas.py`) that calls the `initialize_template_store` function. This will synchronize the database with the latest schemas, resolving the rendering issue.
 
 ### Known Potential Issues to Watch
 * If `li_categories` is an empty list (no `line_items_by_category` block configured in `page_schemas.json`), the canvas will show the legacy block builder — not a bug, by design
