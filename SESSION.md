@@ -32,21 +32,18 @@
 * `summary_page` — ✅ DONE: Planning Permission (8) + Council (3) migrated, verified via DB count
 * `materials_page` — ✅ DONE: 42 items, 8 categories migrated from form_page='3'
 * `further_requirements_page` — ✅ DONE: 9 dw% + 53 frc% items migrated from form_page='3B'; verified at browser
-* `additional_building_work_page`, `optional_extras_page` — not yet audited.
+* `additional_building_work_page` — ✅ DONE: 51 items (ab%) re-tagged from form_page='3C'; category renamed 'Additional Building Items' → 'Additional Building Works' to match schema (Session W)
+* `optional_extras_page` — ✅ DONE: 132 items (oe%/op%/ex%) re-tagged from form_page=NULL to 'optional_extras_page'; category 'Optional Extras' already matched schema (Session W)
 
 ## Immediate Next Task (start here on reopen)
-### Session W — `additional_building_work_page` question audit + DB migration
+### Session X — Browser verification + final smoke test
 
-1. Run DB audit: query `ab%` line item prefixes — check their current `form_page` values.
-2. Read `additional_building_work_page` block from `page_schemas.json` — confirm `line_items_by_category` block exists and note exact category names.
-3. Write `app/scripts/migrate_additional_building_work_page.py` and run it.
-4. Verify in browser at `/additional_building_work_page?edit=1`
-5. Then repeat for `optional_extras_page`.
-
-**Pattern for fixing remaining pages:** write a temp `.py` script (never `python3 -c "..."` for multiline), update `form_page` in DB + add `line_items_by_category` block to `page_schemas.json` if missing.
-
-### Pages still to audit after additional_building_work_page:
-- `optional_extras_page`
+1. Start server: `env QM_DISABLE_SHEETS=1 python3 -m flask --app app/QMapp.py run --port=5003 --with-threads`
+2. Verify all 7 refactored pages show correct questions in 3-col editor:
+   - `/additional_building_work_page?edit=1` — expect 51 items under "Additional Building Works"
+   - `/optional_extras_page?edit=1` — expect 130 items under "Optional Extras"
+   - Spot-check previously migrated pages still show correctly
+3. All 7 pages ✅ → Session T goal ("Question audit") complete.
 
 ### Known Pitfalls
 * **Never use `replace_in_file` on `QMapp.py`** — use write-to-temp-script pattern
