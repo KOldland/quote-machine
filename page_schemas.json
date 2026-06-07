@@ -767,6 +767,20 @@
         },
         "blocks": [
           {
+            "id": "li_additional_costs",
+            "block_type": "line_items_by_category",
+            "config": {
+              "categories": [
+                "Electrics",
+                "Plumbing",
+                "Skylights",
+                "Velux",
+                "Aluminium Capping",
+                "Sliding Doors"
+              ]
+            }
+          },
+          {
             "id": "additional_costs_page__electrics_section",
             "block_type": "static_text_heading",
             "standard": {
