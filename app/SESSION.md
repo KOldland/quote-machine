@@ -5,40 +5,38 @@
 * **Branch**: `master`
 
 ## Current Goal
-* **Session AE — Accordion system fully diagnosed and fixed**
+* **Session AE — COMPLETE: Accordion system fixed ✅**
 
-## Active Files for Context
+## Active Files for Context (next session)
 * @app/templates/_builder_macros.html
 * @app/static/js/builder.js
 * @app/static/css/main.css
 * @app/SESSION.md
+* @app/.continue/prompts/current_development.md
 
 ## What Was Completed — Session AE (Accordion Fix)
 
-### True Root Cause (found after extensive diagnostics):
-The `container.addEventListener('click', ...)` accordion handler was placed INSIDE the `renderEditorForm()` JavaScript function in `_builder_macros.html`. This function is called every time a user clicks a line item in the editor. Each call **accumulated** an additional listener on the same container element. After N selections: odd N = works (net 1 toggle), even N = fails (net 0 change). This was the "alternating behaviour" reported in the original bug.
+### True Root Cause (confirmed working with `d16e71d`):
+The accordion click listener was re-added to `#li-editor-content` inside `renderEditorForm()` on every line item selection. Since `addEventListener` stacks listeners (doesn't replace), after N selections there were N handlers firing:
+- Odd N → net 1 toggle → **works**
+- Even N → net 0 change → **broken**
 
-### Fix Applied (`ecab30a`):
-1. Removed the container listener from inside `renderEditorForm()`
-2. Moved accordion event delegation to the IIFE initialization block (single bind, runs once at page load)
-3. Changed container from `#li-editor-content` to `#li-edit-form` (broader static container)
+This was the "alternating behaviour" since session AC.
 
-### Supporting commits this session:
+### Fix Applied (`d16e71d`):
+Used a named function variable `_accordionHandler` in IIFE scope. Inside `renderEditorForm()`, call `removeEventListener` with the named handler BEFORE `addEventListener`. This ensures exactly **1 listener is active at all times**, regardless of how many items are selected.
+
+### Key commits this session:
 * `9f20974` — canvas null guard in builder.js
-* `eac676c` — prop-section accordion fix (builder properties panel)
-* `5492475` — fallback listener attempt (superseded)
-* `bbacf05` — form.html listener attempt (superseded)
-* `13e21a4` — SESSION.md update
-* `6b4fdbd` — DOMContentLoaded restore (superseded)
-* `ecab30a` — **Final fix: move listener out of render loop (the real fix)**
+* `eac676c` — prop-section accordion fix (builder canvas properties panel)
+* `d16e71d` — **Final fix: named handler + removeEventListener prevents accordion listener accumulation**
 
-## What Works
-* `li-editor-section-header` accordions now toggle consistently on every item selection
-* No listener accumulation on repeated item selections
-* `prop-section-header` accordions in builder properties panel also fixed
+## What Works ✅
+* `li-editor-section-header` accordions toggle correctly on every item selection (1st, 2nd, 3rd...) 
+* `prop-section-header` accordions in builder properties panel also work
+* No more alternating behaviour
 
 ## Immediate Next Task
-### Session AF — Verify accordions + identify next feature
-1. Hard-refresh (`Cmd+Shift+R`) on any edit page (e.g. `special_notes_page?edit=1`)
-2. Click 3-4 different line items, test accordion toggle on each — should work every time
-3. Identify next feature/bug from backlog in `current_development.md`
+### Session AF — Identify next feature from backlog
+1. Review `current_development.md` for next milestone item
+2. Check if any form pages still need testing/validation
