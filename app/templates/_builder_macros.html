@@ -553,15 +553,22 @@
         }
 
         // Collapsible section headers
-        $id('li-editor-content').querySelectorAll('.li-editor-section-header').forEach(function (hdr) {
-            hdr.addEventListener('click', function () {
-                var body = hdr.nextElementSibling;
-                if (body) {
-                    body.classList.toggle('collapsed');
-                    hdr.querySelector('.li-sec-toggle').textContent = body.classList.contains('collapsed') ? '▸' : '▾';
+        var container = $id('li-editor-content');
+        if (container) {
+            container.addEventListener('click', function(e) {
+                var hdr = e.target.closest('.li-editor-section-header');
+                if (hdr) {
+                    var body = hdr.nextElementSibling;
+                    if (body) {
+                        body.classList.toggle('collapsed');
+                        var toggleSpan = hdr.querySelector('.li-sec-toggle');
+                        if (toggleSpan) {
+                            toggleSpan.textContent = body.classList.contains('collapsed') ? '▸' : '▾';
+                        }
+                    }
                 }
             });
-        });
+        }
 
         // Save
         var form = $id('li-edit-form');
