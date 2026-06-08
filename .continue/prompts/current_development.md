@@ -43,7 +43,7 @@ Without this, `field.li_groups` is Undefined in `form.html` and no items render.
 | `further_requirements_page` | ❌ empty — only `compile_...` at ~line 2914, no runtime override | Fix |
 | `additional_costs_page` | ❌ empty — only `compile_...` at ~line 3150, no runtime override | Fix |
 | `additional_building_work_page` | ⚠️ needs route audit — not in compile_... grep, may be legacy | Audit first |
-| `optional_extras_page` | ⚠️ needs route audit — not in compile_... grep, may be legacy | Audit first |
+| `optional_extras_page` | ✅ FIXED (Session Z.1) — context injected via surgical script | None |
 
 ---
 
@@ -123,7 +123,7 @@ This must be fixed **before** or **alongside** the route fix — otherwise even 
 - [x] `further_requirements_page` — form-mode fix applied + verified
 - [x] `additional_costs_page` — form-mode fix applied + verified
 - [x] `additional_building_work_page` — route audited + fix applied
-- [ ] `optional_extras_page` — route audited + fix applied
+- [x] `optional_extras_page` — route audited + fix applied (Session Z.1)
 - [ ] All 7 pages verified in browser showing correct questions
 - [ ] Session committed
 

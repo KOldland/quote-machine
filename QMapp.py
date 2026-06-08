@@ -3188,7 +3188,6 @@ def additional_costs_page():
 			selected_block=selected_block,
 		)
 	page_schema = build_page_schema_context('additional_costs_page', get_catalog(), session.get('checkbox_data', {}))
-	page_schema = build_page_schema_context('additional_costs_page', get_catalog(), session.get('checkbox_data', {}))
 	return render_template(
 		'form.html',
 		page_schema=page_schema,
@@ -3312,8 +3311,11 @@ def optional_extras_page():
 			pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
 			li_categories=_li_cats,
 		)
+	page_schema = build_page_schema_context('optional_extras_page', get_catalog(), session.get('checkbox_data', {}))
 	return render_template(
 		'form.html',
+		page_schema=page_schema,
+		schema_render_mode='full',
 		optional_extras_page=True,
 		previous_page=previous_page,
 		next_page='image_upload_page',

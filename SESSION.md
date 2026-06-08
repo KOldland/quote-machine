@@ -5,7 +5,7 @@
 * **Branch**: `master`
 
 ## Current Goal
-* **Session Z** — Complete form-mode fix for remaining pages.
+* **Session Z.1** — Complete form-mode context injection and verify all refactored form pages.
 
 ## Active Files for Context
 * @app/QMapp.py
@@ -14,15 +14,16 @@
 * @app/SESSION.md
 
 ## What Was Completed Recently
-* **Session Z (Successes)**:
-  - Fixed non-edit GET paths for: `materials_page`, `further_requirements_page`, `additional_costs_page`, and `additional_building_work_page`.
-  - Injected `page_schema = build_page_schema_context(...)` into the above routes in `QMapp.py`.
+* **Session Z.1 (Successes)**:
+  - Fixed `optional_extras_page` in `QMapp.py` by auditing indentation and surgically injecting `page_schema = build_page_schema_context(...)`.
+  - Removed duplicate `page_schema` line in `additional_costs_page` route using dynamic anchoring script.
   - Verified `QMapp.py` syntax (SYNTAX_OK).
 
 ## Exact Stopping Point
-* **Blocked on `optional_extras_page`**: Patch script anchor failed due to indentation mismatch (suspected 3-tab indent in source).
+* **Documentation updated**: `SESSION.md` and `current_development.md` reflect the latest fixes.
+* **Ready for verification**: All 7 form pages have been patched.
 
 ## Immediate Next Task
-### Session Z.1 — Finalize `optional_extras_page`
-1. **Fix `optional_extras_page`**: Audit indentation/structure and inject `page_schema` context in `QMapp.py`.
-2. **Verify in Browser**: `env QM_DISABLE_SHEETS=1 python3 -m flask --app app/QMapp.py run --port=5003` - Check all 7 pages show labelled checkboxes grouped by category.
+### Session Z.2 — Final UI Verification
+1. **Verify in Browser**: Launch server with `env QM_DISABLE_SHEETS=1 python3 -m flask --app app/QMapp.py run --port=5003 --with-threads`.
+2. **Check all 7 pages**: Verify that Special Notes, Summary, Materials, Further Requirements, Additional Costs, Additional Building Work, and Optional Extras all show labeled checkboxes grouped by category in user-facing form mode.
