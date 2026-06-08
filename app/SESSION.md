@@ -5,21 +5,18 @@
 * **Branch**: `master`
 
 ## Current Goal
-* **Session AE — COMPLETE: Accordion system fixed ✅**
+* **Session AF — COMPLETE: Secondary Questions UI logic ✅**
 
 ## Active Files for Context (next session)
 * @app/templates/_builder_macros.html
 * @app/static/js/builder.js
-* @app/static/css/main.css
 * @app/SESSION.md
-* @app/.continue/prompts/current_development.md
 
-## What Was Completed — Session AE (Accordion Fix)
-* **True Root Cause:** The accordion click listener was re-added to `#li-editor-content` inside `renderEditorForm()` on every line item selection, causing listener accumulation and "alternating behaviour" (works on odd clicks, fails on even clicks).
-* **Fix Applied (`d16e71d`):** Used a named function variable `_accordionHandler` in IIFE scope. Inside `renderEditorForm()`, `removeEventListener` was called with the named handler BEFORE `addEventListener`, ensuring exactly 1 listener is active.
-* **Key commits:** `9f20974`, `eac676c`, `d16e71d`.
+## What Was Completed — Session AF (Secondary Questions UI logic)
+* **Secondary Questions Tab:** Renamed the "Logic / Secondary Questions" tab to "Secondary Questions".
+* **Dimension Dynamic Logic:** In the `_builder_macros.html` macro `renderEditorForm`, added JS logic to grey out and make `Default Dimension 2` and `Default Dimension 3` inputs read-only when their respective `Enable Dimension` checkboxes are unchecked.
+* **Cost Override Logic:** Left `Default Unit Cost (£)` always editable in the edit mode (frontend behavior remains driven by the data).
 
 ## Immediate Next Task
-### Session AF — Identify next feature from backlog
-1. Review `current_development.md` for next milestone item
-2. Check if any form pages still need testing/validation
+### Session AG — Change Pricing Visibility
+1. Modify the `Pricing Visibility` setting within the `Costs` tab of the question builder in edit mode.

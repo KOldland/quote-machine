@@ -478,7 +478,7 @@
             _field('output_guidance',     'Output Guidance',     'textarea', item.output_guidance || ''),
         ]);
 
-        html += _section('Logic / Secondary Questions', false, [
+        html += _section('Secondary Questions', false, [
             _checkField('is_follow_up', 'Include follow-up question', item.is_follow_up === 1 || item.is_follow_up === '1'),
             '<div id="group_follow_up_type" style="display:' + (item.is_follow_up === 1 || item.is_follow_up === '1' ? 'block' : 'none') + ';">' +
                 _selectField('follow_up_type', 'Follow-up Type', item.follow_up_type || 'Dropdown (text)',
@@ -641,10 +641,10 @@
         },
         'dimension': function(cfg) {
             return _field('fu_default_dim1', 'Default Dimension 1', 'number', cfg.default_dim1 || '') +
-                   _checkField('fu_enable_dim2', 'Enable Dimension 2', cfg.enable_dim2 === true) +
-                   _field('fu_default_dim2', 'Default Dimension 2', 'number', cfg.default_dim2 || '') +
-                   _checkField('fu_enable_dim3', 'Enable Dimension 3', cfg.enable_dim3 === true) +
-                   _field('fu_default_dim3', 'Default Dimension 3', 'number', cfg.default_dim3 || '') +
+                   _checkField('fu_enable_dim2', 'Enable Dimension 2', cfg.enable_dim2 === true, 'fu_enable_dim2_cb') +
+                   _field('fu_default_dim2', 'Default Dimension 2', 'number', cfg.default_dim2 || '', !cfg.enable_dim2, 'fu_default_dim2') +
+                   _checkField('fu_enable_dim3', 'Enable Dimension 3', cfg.enable_dim3 === true, 'fu_enable_dim3_cb') +
+                   _field('fu_default_dim3', 'Default Dimension 3', 'number', cfg.default_dim3 || '', !cfg.enable_dim3, 'fu_default_dim3') +
                    _field('fu_unit', 'Measurement Unit (e.g. m, sqm)', 'text', cfg.unit || '');
         },
         'dropdown': function(cfg, subType) {
@@ -678,6 +678,25 @@
         if (otherCheck && otherDiv) {
             otherCheck.addEventListener('change', function() {
                 otherDiv.style.display = otherCheck.checked ? 'block' : 'none';
+            });
+        }
+
+        // Attach listeners for dynamic field enabling/disabling
+        var cbDim2 = container.querySelector('#fu_enable_dim2_cb');
+        var inputDim2 = container.querySelector('#fu_default_dim2');
+        if (cbDim2 && inputDim2) {
+            cbDim2.addEventListener('change', function() {
+                inputDim2.readOnly = !cbDim2.checked;
+                inputDim2.style.background = cbDim2.checked ? '' : '#f5f5f5';
+            });
+        }
+
+        var cbDim3 = container.querySelector('#fu_enable_dim3_cb');
+        var inputDim3 = container.querySelector('#fu_default_dim3');
+        if (cbDim3 && inputDim3) {
+            cbDim3.addEventListener('change', function() {
+                inputDim3.readOnly = !cbDim3.checked;
+                inputDim3.style.background = cbDim3.checked ? '' : '#f5f5f5';
             });
         }
     }
@@ -751,14 +770,15 @@
             + '</div></div>';
     }
 
-    function _field(name, label, type, value, readonly) {
+    function _field(name, label, type, value, readonly, id) {
         var ro = readonly ? ' readonly style="background:#f5f5f5;"' : '';
+        var idAttr = id ? ' id="' + id + '"' : '';
         if (type === 'textarea') {
             return '<div class="li-form-group"><label>' + label + '</label>'
-                + '<textarea name="' + name + '"' + (readonly?' readonly style="background:#f5f5f5;"':'') + '>' + _esc(value) + '</textarea></div>';
+                + '<textarea name="' + name + '"' + idAttr + (readonly?' readonly style="background:#f5f5f5;"':'') + '>' + _esc(value) + '</textarea></div>';
         }
         return '<div class="li-form-group"><label>' + label + '</label>'
-            + '<input type="' + type + '" name="' + name + '" value="' + _esc(value) + '"' + ro + '></div>';
+            + '<input type="' + type + '" name="' + name + '"' + idAttr + ' value="' + _esc(value) + '"' + ro + '></div>';
     }
 
     function _selectField(name, label, value, options) {
@@ -768,8 +788,8 @@
         return '<div class="li-form-group"><label>' + label + '</label><select name="' + name + '">' + opts + '</select></div>';
     }
 
-    function _checkField(name, label, checked) {
-        var id = 'lich_' + name; // Standard prefix for checkboxes
+    function _checkField(name, label, checked, specific_id) {
+        var id = specific_id || 'lich_' + name; // Standard prefix for checkboxes
         return '<div class="li-form-group" style="display:flex;align-items:center;gap:.4rem;">'
             + '<input type="checkbox" name="' + name + '" id="' + id + '"' + (checked ? ' checked' : '') + ' style="width:auto;">'
             + '<label for="' + id + '" style="margin:0;font-weight:400;">' + label + '</label></div>';
