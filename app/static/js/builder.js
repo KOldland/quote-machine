@@ -945,6 +945,9 @@ window.toggleSection = function(sectionId) {
     function _renderProperties(item) {
         const panel = document.getElementById('li-properties-content');
         if (!panel) return;
+        var allCats = LI.data.map(i => i.category).filter((v, i, a) => v && a.indexOf(v) === i);
+        var catOpts = allCats.map(c => `<option value="${_esc(c)}" ${c===item.category?'selected':''}>${_esc(c)}</option>`).join('');
+
         panel.innerHTML = `
             <div style="font-weight:700;font-size:.85rem;color:#1b3a6b;padding:.4rem 0 .6rem;border-bottom:1px solid #ddd;margin-bottom:.75rem;">
                 <span style="font-weight:400;color:#888;font-size:.78rem;">id:${item.id}</span>
@@ -956,13 +959,22 @@ window.toggleSection = function(sectionId) {
                 ${_tf('output_guidance','Output Guidance', item.output_guidance,'textarea')}
                 ${_tf('unit_cost','Unit Cost (£)', item.unit_cost,'number')}
                 ${_tf('units','Units', item.units,'number')}
-                <div class="form-group">
-                    <label>Include Default</label>
-                    <select name="include_default">
-                        <option value="Y" ${item.include_default==='Y'?'selected':''}>Yes (Y)</option>
-                        <option value="N" ${item.include_default!=='Y'?'selected':''}>No (N)</option>
-                    </select>
+                
+                <div style="margin-top:1rem; border-top:1px solid #eee; padding-top:0.5rem;">
+                    <h4 style="font-size:0.85rem; color:#1b3a6b; margin-bottom:0.5rem;">Meta</h4>
+                    <div class="form-group"><label>Line Code</label><input type="text" value="${_esc(item.line_code || '')}" readonly style="background:#f5f5f5;"></div>
+                    <div class="form-group">
+                        <label>Category</label>
+                        <select name="category">
+                            ${catOpts}
+                        </select>
+                    </div>
+                    <div class="form-group" style="display:flex;align-items:center;gap:.4rem;margin-top:.5rem;">
+                        <input type="checkbox" name="form_visible" id="lich_form_visible_canvas" ${item.form_visible===1||item.form_visible==='1'||item.form_visible===true?'checked':''} style="width:auto;">
+                        <label for="lich_form_visible_canvas" style="margin:0;font-weight:400;">Form Visible</label>
+                    </div>
                 </div>
+
                 <div class="form-group" style="display:flex;align-items:center;gap:.4rem;margin-top:.5rem;">
                     <input type="checkbox" name="price_override_enabled" id="lich_price_override_canvas" ${item.pricing_visibility==='user_edit'?'checked':''} style="width:auto;">
                     <label for="lich_price_override_canvas" style="margin:0;font-weight:400;">Price Override Enabled</label>
@@ -982,9 +994,10 @@ window.toggleSection = function(sectionId) {
             payload.pricing_visibility = payload.price_override_enabled ? 'user_edit' : 'admin_only';
             delete payload.price_override_enabled;
 
+            payload.form_visible = fd.has('form_visible') ? 1 : 0;
+
             if (payload.unit_cost !== undefined) payload.unit_cost = parseFloat(payload.unit_cost) || 0;
             if (payload.units !== undefined) payload.units = parseFloat(payload.units) || 0;
-            if (payload.form_visible !== undefined) payload.form_visible = parseInt(payload.form_visible, 10);
             try {
                 const res = await fetch(`/builder_beta/line_item_save/${fd.get('li_id')}`, {
                     method: 'POST',

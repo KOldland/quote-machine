@@ -250,7 +250,7 @@
 {% macro render_li_sections_panel(li_categories, form_page_key) %}
 <div class="li-sections-panel" id="li-sections-panel">
     <div class="li-sections-header">
-        <span style="font-weight:700;font-size:.85rem;color:#1b3a6b;">Sections</span>
+        <span style="font-weight:700;font-size:.85rem;color:#1b3a6b;">Categories</span>
     </div>
     <div class="li-sections-list" id="li-sections-list">
         {% if li_categories %}
@@ -294,14 +294,14 @@
 {% macro render_li_question_panel(form_page_key) %}
 <div class="li-question-panel" id="li-question-panel" data-page="{{ form_page_key }}">
 
-    {# View One — question list for selected section #}
+    {# View One — question list for selected category #}
     <div id="li-view-one" style="display:none;flex-direction:column;height:100%;">
         <div class="li-qp-header" style="display:flex;align-items:center;gap:.5rem;padding:.55rem .75rem;border-bottom:1px solid #dee2e6;background:#f0f4ff;">
-            <span id="li-view-one-title" style="font-weight:700;font-size:.85rem;color:#1b3a6b;flex:1;">— Select a section —</span>
+            <span id="li-view-one-title" style="font-weight:700;font-size:.85rem;color:#1b3a6b;flex:1;">— Select a category —</span>
             <span id="li-view-one-count" style="font-size:.75rem;color:#6c757d;"></span>
         </div>
         <div id="li-question-list" style="overflow-y:auto;flex:1;padding:.25rem 0;max-height:calc(100vh - 170px);">
-            <p style="color:#999;font-size:.85rem;padding:.5rem .75rem;">Click a section on the left to load questions.</p>
+            <p style="color:#999;font-size:.85rem;padding:.5rem .75rem;">Click a category on the left to load questions.</p>
         </div>
     </div>
 
@@ -319,7 +319,7 @@
 
     {# Empty state #}
     <div id="li-view-empty" style="display:flex;flex:1;align-items:center;justify-content:center;color:#aaa;font-size:.9rem;">
-        Select a section to begin editing
+        Select a category to begin editing
     </div>
 </div>
 
@@ -501,11 +501,17 @@
             _checkField('price_override_enabled', 'Price Override Enabled', item.pricing_visibility === 'user_edit', 'lich_price_override'),
         ]);
 
+        // Generate category options
+        var allCats = Array.from(document.querySelectorAll('.li-section-btn')).map(function(btn) { return btn.dataset.category; });
+        if (allCats.length === 0 && window._allCategories) allCats = window._allCategories; // Fallback
+        if (allCats.length === 0 && item.category) allCats = [item.category]; // Fallback to current if none found
+        // Ensure unique categories
+        allCats = allCats.filter(function(v, i, a) { return a.indexOf(v) === i; });
+
         html += _section('Meta', false, [
-            _field('category',        'Category',        'text',   item.category    || ''),
-            _field('form_page',       'Form Page',       'text',   item.form_page   || ''),
-            _field('sort_order',      'Sort Order',      'number', item.sort_order  != null ? item.sort_order : ''),
-            _checkField('include_default', 'Include Default', item.include_default === 'Y'),
+            _field('line_code',       'Line Code',       'text',   item.line_code   || '', true),
+            _selectField('category',  'Category',        item.category || '', allCats),
+            _checkField('form_visible', 'Form Visible', item.form_visible === 1 || item.form_visible === '1' || item.form_visible === true),
         ]);
 
         html += _section('Output (Preview)', false, [
@@ -585,7 +591,7 @@
                 fields.forEach(function (f) {
                     if (f.name.startsWith('fu_')) return; // Skip internal follow-up fields
                     if (f.type === 'checkbox') {
-                        payload[f.name] = f.checked ? (f.name === 'include_default' ? 'Y' : 1) : (f.name === 'include_default' ? 'N' : 0);
+                        payload[f.name] = f.checked ? 1 : 0;
                     } else {
                         payload[f.name] = f.value;
                     }
