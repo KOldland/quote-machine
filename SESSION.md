@@ -5,7 +5,7 @@
 * **Branch**: `master`
 
 ## Current Goal
-* **Session Z.1** — Complete form-mode context injection and verify all refactored form pages.
+* **Session Z.2** — Final UI Verification and Workspace Closure.
 
 ## Active Files for Context
 * @app/QMapp.py
@@ -14,16 +14,17 @@
 * @app/SESSION.md
 
 ## What Was Completed Recently
-* **Session Z.1 (Successes)**:
-  - Fixed `optional_extras_page` in `QMapp.py` by auditing indentation and surgically injecting `page_schema = build_page_schema_context(...)`.
-  - Removed duplicate `page_schema` line in `additional_costs_page` route using dynamic anchoring script.
-  - Verified `QMapp.py` syntax (SYNTAX_OK).
+* **Session Z.2 (Successes)**:
+  - Verified all 11 core routes via individual `curl` commands.
+  - Confirmed all 7 refactored form pages (Special Notes, Summary, Materials, Further Requirements, Additional Costs, Additional Building Work, Optional Extras) correctly render questions in user-facing mode (HTTP 200 + checkboxes present).
+  - Verified downstream routes (Home, Image Upload, Review, Production) return HTTP 200 OK.
+  - Workspace saved and committed to `master`.
 
 ## Exact Stopping Point
-* **Documentation updated**: `SESSION.md` and `current_development.md` reflect the latest fixes.
-* **Ready for verification**: All 7 form pages have been patched.
+* **Verification Complete**: All pages confirmed working.
+* **Workspace Saved**: `SESSION.md` and `current_development.md` updated; changes committed.
 
 ## Immediate Next Task
-### Session Z.2 — Final UI Verification
-1. **Verify in Browser**: Launch server with `env QM_DISABLE_SHEETS=1 python3 -m flask --app app/QMapp.py run --port=5003 --with-threads`.
-2. **Check all 7 pages**: Verify that Special Notes, Summary, Materials, Further Requirements, Additional Costs, Additional Building Work, and Optional Extras all show labeled checkboxes grouped by category in user-facing form mode.
+### Session AA.1 — Start New Feature/Milestone
+1. **Identify Next Milestone**: User to define the next development focus area.
+2. **Review Architecture**: Align with `system_architecture.md` for the new task.

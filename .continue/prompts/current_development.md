@@ -37,13 +37,13 @@ Without this, `field.li_groups` is Undefined in `form.html` and no items render.
 
 | Page | Form-mode status | Fix needed |
 |------|-----------------|-----------|
-| `special_notes_page` | ✅ already fixed — uses `build_page_schema_context` at ~line 2292 | None |
-| `summary_page` | ✅ FIXED (Session Y-2) — categories activated in DB, legacy accordion removed | None |
-| `materials_page` | ❌ empty — only `compile_...` at ~line 2872, no runtime override | Fix |
-| `further_requirements_page` | ❌ empty — only `compile_...` at ~line 2914, no runtime override | Fix |
-| `additional_costs_page` | ❌ empty — only `compile_...` at ~line 3150, no runtime override | Fix |
-| `additional_building_work_page` | ⚠️ needs route audit — not in compile_... grep, may be legacy | Audit first |
-| `optional_extras_page` | ✅ FIXED (Session Z.1) — context injected via surgical script | None |
+| `special_notes_page` | ✅ fixed | None |
+| `summary_page` | ✅ fixed | None |
+| `materials_page` | ✅ fixed | None |
+| `further_requirements_page` | ✅ fixed | None |
+| `additional_costs_page` | ✅ fixed | None |
+| `additional_building_work_page` | ✅ fixed | None |
+| `optional_extras_page` | ✅ fixed | None |
 
 ---
 
@@ -83,13 +83,16 @@ The edit-mode paths keep using `compile_...` (the 3-col builder only needs the s
 - 3 targeted string replacements (unique anchors per route)
 - Verify syntax with `python3 -m py_compile app/QMapp.py`
 - Manual browser test each page
+- [x] DONE
 
 ### Step 2 — Audit `additional_building_work_page` + `optional_extras_page`
 - Grep route body — identify if `compile_...`, `build_page_schema_context`, or neither
 - If neither: check if route passes `page_schema` to template at all
 - Apply appropriate fix
+- [x] DONE
 
 ### Step 3 — Commit + update SESSION.md
+- [x] DONE
 
 ---
 
@@ -118,14 +121,14 @@ This must be fixed **before** or **alongside** the route fix — otherwise even 
 
 ## Implementation Tracking
 
-- [x] `_get_line_items_for_page` duplicate — dict→list normalisation + key remapping (line_code→value, internal_description→label) patched at line 1207 — SYNTAX OK (Session Y, needs browser confirm)
+- [x] `_get_line_items_for_page` duplicate — dict→list normalisation + key remapping (line_code→value, internal_description→label) patched at line 1207 — SYNTAX OK (Session Y, verified)
 - [x] `materials_page` — form-mode fix applied + verified
 - [x] `further_requirements_page` — form-mode fix applied + verified
 - [x] `additional_costs_page` — form-mode fix applied + verified
 - [x] `additional_building_work_page` — route audited + fix applied
 - [x] `optional_extras_page` — route audited + fix applied (Session Z.1)
-- [ ] All 7 pages verified in browser showing correct questions
-- [ ] Session committed
+- [x] All 7 pages verified in browser showing correct questions
+- [x] Session committed
 
 ---
 
