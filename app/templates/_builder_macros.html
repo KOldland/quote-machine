@@ -544,7 +544,11 @@
         // Initial render if active
         if (item.is_follow_up === 1 || item.is_follow_up === '1') {
             var cfg = {};
-            try { cfg = JSON.parse(item.follow_up_config || '{}'); } catch(e) {}
+            try { 
+                cfg = JSON.parse(item.follow_up_config || '{}'); 
+            } catch(e) {
+                console.error("Failed to parse follow_up_config JSON for item ID " + item.id + ":", e, item.follow_up_config);
+            }
             _renderFollowUpConfig(item.follow_up_type || 'Dropdown (text)', cfg);
         }
 
@@ -662,7 +666,7 @@
         container.innerHTML = html;
 
         // Attach sub-toggle for 'Other' in dropdowns
-        var otherCheck = container.querySelector('[name="fu_include_other"]');
+        var otherCheck = container.querySelector('[id="lich_fu_include_other"]');
         var otherDiv = $id('fu_other_config');
         if (otherCheck && otherDiv) {
             otherCheck.addEventListener('change', function() {
@@ -680,7 +684,10 @@
         var getVal = function(name) {
             var el = container.querySelector('[name="' + name + '"]');
             if (!el) return undefined;
-            return el.type === 'checkbox' ? el.checked : el.value;
+            if (el.type === 'checkbox') {
+                return el.checked;
+            }
+            return el.value;
         };
 
         if (type.startsWith('Dropdown')) {
@@ -761,23 +768,8 @@
             + '<label for="' + id + '" style="margin:0;font-weight:400;">' + label + '</label></div>';
     }
 
-    // ── Document Ready ─────────────────────────────────────────────────────
-    document.addEventListener('DOMContentLoaded', function() {
-        showEmpty(); // Initial state for line item panel
-
-        // The main block properties panel collapsible sections
-        $id('li-editor-content').querySelectorAll('.li-editor-section-header').forEach(function (hdr) {
-            hdr.addEventListener('click', function () {
-                var body = hdr.nextElementSibling;
-                if (body) {
-                    body.classList.toggle('collapsed');
-                    hdr.querySelector('.li-sec-toggle').textContent = body.classList.contains('collapsed') ? '▸' : '▾';
-                }
-            });
-        });
-
-    });
-
+    // Init
+    showEmpty();
 
 }());
 </script>
