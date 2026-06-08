@@ -963,13 +963,9 @@ window.toggleSection = function(sectionId) {
                         <option value="N" ${item.include_default!=='Y'?'selected':''}>No (N)</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <label>Pricing Visibility</label>
-                    <select name="pricing_visibility">
-                        <option value="admin_only" ${item.pricing_visibility==='admin_only'?'selected':''}>Admin Only</option>
-                        <option value="user_view" ${item.pricing_visibility==='user_view'?'selected':''}>User View</option>
-                        <option value="user_edit" ${item.pricing_visibility==='user_edit'?'selected':''}>User Edit</option>
-                    </select>
+                <div class="form-group" style="display:flex;align-items:center;gap:.4rem;margin-top:.5rem;">
+                    <input type="checkbox" name="price_override_enabled" id="lich_price_override_canvas" ${item.pricing_visibility==='user_edit'?'checked':''} style="width:auto;">
+                    <label for="lich_price_override_canvas" style="margin:0;font-weight:400;">Price Override Enabled</label>
                 </div>
                 <button type="submit" class="btn btn-primary" style="width:100%;margin-top:.5rem;">Save Changes</button>
             </form>
@@ -981,6 +977,11 @@ window.toggleSection = function(sectionId) {
             for (const [k, v] of fd.entries()) {
                 if (k !== 'li_id') payload[k] = v;
             }
+            
+            // Map pricing visibility checkbox
+            payload.pricing_visibility = payload.price_override_enabled ? 'user_edit' : 'admin_only';
+            delete payload.price_override_enabled;
+
             if (payload.unit_cost !== undefined) payload.unit_cost = parseFloat(payload.unit_cost) || 0;
             if (payload.units !== undefined) payload.units = parseFloat(payload.units) || 0;
             if (payload.form_visible !== undefined) payload.form_visible = parseInt(payload.form_visible, 10);

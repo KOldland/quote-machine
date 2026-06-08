@@ -18,5 +18,9 @@
 * **Cost Override Logic:** Left `Default Unit Cost (£)` always editable in the edit mode (frontend behavior remains driven by the data).
 
 ## Immediate Next Task
-### Session AG — Change Pricing Visibility
-1. Modify the `Pricing Visibility` setting within the `Costs` tab of the question builder in edit mode.
+### Session AH — Ready for Next Assignment
+
+## What Was Completed — Session AG (Change Pricing Visibility)
+* **Simplified Pricing Visibility:** Converted the `Pricing Visibility` setting from a three-option dropdown (`admin_only`, `user_view`, `user_edit`) into a single "Price Override Enabled" checkbox.
+* **Backend Compatibility:** Ensured that the form submission correctly translates the checkbox state back to the `user_edit` (if checked) or `admin_only` (if unchecked) format expected by the database.
+* **Consistency:** Applied these changes both to the primary 3-column page editor in `_builder_macros.html` and the Line Items Library canvas in `builder.js`.

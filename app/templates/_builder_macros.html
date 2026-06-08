@@ -498,8 +498,7 @@
         html += _section('Costs', false, [
             _field('unit_cost', 'Unit Cost (£)', 'number', item.unit_cost != null ? item.unit_cost : ''),
             _field('units',     'Units',         'number', item.units     != null ? item.units     : ''),
-            _selectField('pricing_visibility', 'Pricing Visibility', item.pricing_visibility || 'admin_only',
-                ['admin_only','user_view','user_edit']),
+            _checkField('price_override_enabled', 'Price Override Enabled', item.pricing_visibility === 'user_edit', 'lich_price_override'),
         ]);
 
         html += _section('Meta', false, [
@@ -591,6 +590,13 @@
                         payload[f.name] = f.value;
                     }
                 });
+                
+                // Map pricing visibility checkbox
+                if (payload.price_override_enabled !== undefined) {
+                    payload.pricing_visibility = payload.price_override_enabled ? 'user_edit' : 'admin_only';
+                    delete payload.price_override_enabled;
+                }
+
                 // Remove readonly line_code from payload
                 delete payload['line_code'];
 
