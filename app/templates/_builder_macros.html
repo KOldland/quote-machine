@@ -522,7 +522,8 @@
         // Follow-up toggle logic
         var isFollowUpCheck = $id('lich_is_follow_up');
         var followUpTypeGroup = $id('group_follow_up_type');
-        var followUpTypeSelect = form.querySelector('[name="follow_up_type"]');
+        var editForm = $id('li-edit-form');
+        var followUpTypeSelect = editForm ? editForm.querySelector('[name="follow_up_type"]') : null;
         var configContainer = $id('follow-up-config-fields');
         var configHidden = $id('li_follow_up_config_hidden');
 
