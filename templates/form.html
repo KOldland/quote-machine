@@ -371,6 +371,40 @@
 
 {# ── Session C: line_items-driven accordion rendering (Enhanced for input_type) ── #}
 {% if line_items_by_category %}
+  {% macro render_li_item(item, depth=0) %}
+    <div class="li-item-row" style="margin-left: {{ depth * 20 }}px; margin-bottom: 5px;">
+      {% set input_type = item.input_type | default('checkbox') %}
+      
+      {% if input_type == 'dropdown_with_other' %}
+        <div style="padding: .5rem; border: 1px dashed #ccc; margin: .5rem 0;">
+          <p><strong>{{ item.internal_description }}</strong><br><small style="color: #999;">(Dropdown with other - rendering not yet implemented)</small></p>
+        </div>
+      {% elif input_type == 'dropdown' %}
+        <div style="padding: .5rem; border: 1px dashed #ccc; margin: .5rem 0;">
+          <p><strong>{{ item.internal_description }}</strong><br><small style="color: #999;">(Dropdown - rendering not yet implemented)</small></p>
+        </div>
+      {% elif input_type == 'text_input' %}
+        <div style="padding: .5rem; border: 1px dashed #ccc; margin: .5rem 0;">
+          <p><strong>{{ item.internal_description }}</strong><br><small style="color: #999;">(Text input - rendering not yet implemented)</small></p>
+        </div>
+      {% else %} {# Default to checkbox #}
+        <label class="checkbox-label">
+          <input type="checkbox" name="li_sel" value="{{ item.line_code }}"
+                 {% if item.include_default == 'Y' %}checked{% endif %}>
+          {% if item.item_role == 'parent' %}<strong>{{ item.internal_description }}</strong>{% else %}{{ item.internal_description }}{% endif %}
+        </label>
+      {% endif %}
+
+      {% if item.children %}
+        <div class="li-children">
+          {% for child in item.children %}
+            {{ render_li_item(child, depth + 1) }}
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+  {% endmacro %}
+
   {% for category, items in line_items_by_category.items() %}
   <div class="accordion-section">
     <button type="button" class="accordion-header" onclick="toggleAccordion('li_cat_{{ loop.index }}')">
@@ -378,28 +412,7 @@
     </button>
     <div id="li_cat_{{ loop.index }}" class="accordion-body">
       {% for item in items %}
-        {% set input_type = item.input_type | default('checkbox') %}
-
-        {# Render based on input_type #}
-        {% if input_type == 'dropdown_with_other' %}
-          <div style="padding: .5rem; border: 1px dashed #ccc; margin: .5rem 0;">
-            <p><strong>{{ item.internal_description }}</strong><br><small style="color: #999;">(Dropdown with other - rendering not yet implemented)</small></p>
-          </div>
-        {% elif input_type == 'dropdown' %}
-          <div style="padding: .5rem; border: 1px dashed #ccc; margin: .5rem 0;">
-            <p><strong>{{ item.internal_description }}</strong><br><small style="color: #999;">(Dropdown - rendering not yet implemented)</small></p>
-          </div>
-        {% elif input_type == 'text_input' %}
-          <div style="padding: .5rem; border: 1px dashed #ccc; margin: .5rem 0;">
-            <p><strong>{{ item.internal_description }}</strong><br><small style="color: #999;">(Text input - rendering not yet implemented)</small></p>
-          </div>
-        {% else %} {# Default to checkbox #}
-          <label class="checkbox-label">
-            <input type="checkbox" name="li_sel" value="{{ item.line_code }}"
-                   {% if item.include_default == 'Y' %}checked{% endif %}>
-            {% if item.item_role == 'parent' %}<strong>{{ item.internal_description }}</strong>{% else %}{{ item.internal_description }}{% endif %}
-          </label><br>
-        {% endif %}
+        {{ render_li_item(item) }}
       {% endfor %}
     </div>
   </div>
@@ -1163,182 +1176,9 @@
     
 {% if optional_extras_page %}
     
-    <h3><b>Optional Extras & Finishing Works</b></h3>
     
-    {% if data is defined and data['selected_oe'] is defined %}
-    <!-- Accordion for Optional Extras -->
-    <div class="accordion-section">
-        <button type="button" class="accordion-header" onclick="toggleAccordion('optionalExtrasSection')">
-            Optional Extras
-        </button>
-        
-        <div id="optionalExtrasSection" class="accordion-body">
-            <h3>Please select any Optional Extras:</h3>
-            {% for line_code, item in data['selected_oe']['data'].items() %}
-            {% if line_code not in ['oe1#', 'oe111', 'oe112'] %}
-            <label class="checkbox-label">
-                <input type="checkbox" name="selected_oe" value="{{ line_code }}"
-                    {% if line_code in data['selected_oe']['preselected'] %} checked {% endif %}>
-                {{ item.description }}
-            </label><br>
-            {% endif %}
-            {% endfor %}
-            
-            <!-- Chimney Breasts toggle + dropdown -->
-            <label class="checkbox-label">
-                <input type="checkbox" id="chimneyBreastCheckbox" name="selected_oe" value="oe1"
-                    {% if 'oe1' in data['selected_oe']['preselected'] %} checked {% endif %}
-                    onchange="toggleVisibility('chimneyBreastCheckbox', 'chimneyDropdown')">
-                Removal of Chimney Breast
-            </label><br>
-            
-            <div id="chimneyDropdown" style="display: {% if 'oe1' in data['selected_oe']['preselected'] %}block{% else %}none{% endif %}; margin-top: 10px;">
-                <label for="selected_oe1">Please Select:</label>
-                <select id="selected_oe1" name="selected_oe1">
-                    
-                    <option value="">-- Please select --</option>
-                    {% for code, item in data['selected_oe']['data'].items() %}
-                    {% if code in ['oe111','oe112'] %}
-                    <option value="{{ code }}"
-                        {% if code in data['selected_oe']['preselected'] %} selected {% endif %}>
-                        {{ item.description }}
-                    </option>
-                    {% endif %}
-                    {% endfor %}
-                </select><br>
-            </div>
-        </div>
-    </div>
-    {% endif %}
     
-        <!-- Accordion for Finishing Works -->
-        {% if data is defined and data['selected_fw'] is defined %}
-        <div class="accordion-section">
-            <button type="button" class="accordion-header" onclick="toggleAccordion('finishingWorksSection')">
-                Finishing Works
-            </button>
-            <div id="finishingWorksSection" class="accordion-body">
-                
-                <!-- Section: Ground Floor Kitchen -->
-                <h3>Ground Floor Kitchen Finishing Works</h3>
-                <label class="checkbox-label">
-                    <input type="checkbox" id="fw1_toggle" name="selected_fw" value="fw1@"
-                        {% if 'fw1@' in data['selected_fw']['preselected'] %} checked {% endif %}>
-                    Enable Kitchen Finishing Works
-                </label><br>
-                <div id="fw1_dropdown" style="{% if 'fw1@' not in data['selected_fw']['preselected'] %}display: none;{% endif %} margin-top: 10px;">
-                    <label for="selected_fw_option">Select Finishing Option:</label>
-                    <select name="selected_fw_option" id="selected_fw_option">
-                        {% for code in ['fw12', 'fw13', 'fw14', 'fw15', 'fw16', 'fw17'] %}
-                        {% if code in data['selected_fw']['data'] %}
-                        <option value="{{ code }}"
-                            {% if code == data['selected_fw_option'] %} selected {% endif %}>
-                            {{ data['selected_fw']['data'][code].description }}
-                        </option>
-                        {% endif %}
-                        {% endfor %}
-                    </select>
-                </div>
-                
-                <!-- fw2@ = Independent checkbox -->
-                {% if 'fw2@' in data['selected_fw']['data'] %}
-                <div style="margin-top: 15px;">
-                    <label class="checkbox-label">
-                        <input type="checkbox" name="selected_fw" value="fw2"
-                            {% if 'fw2@' in data['selected_fw']['preselected'] %} checked {% endif %}>
-                        {{ data['selected_fw']['data']['fw2@'].description }}
-                    </label><br>
-                </div>
-                {% endif %}
-                
-                <!-- Section: Ground Floor Utility -->
-                <h3>Ground Floor Utility Finishing Works</h3>
-                <label class="checkbox-label">
-                    <input type="checkbox" id="fw3_toggle" name="selected_fw" value="fw3@"
-                        {% if 'fw3@' in data['selected_fw']['preselected'] %} checked {% endif %}>
-                    Enable Utility Finishing Works
-                </label><br>
-                <div id="fw3_dropdown" style="{% if 'fw3@' not in data['selected_fw']['preselected'] %}display: none;{% endif %} margin-top: 10px;">
-                    <label for="selected_fw_utility_option">Select Utility Finishing Option:</label>
-                    <select name="selected_fw_utility_option" id="selected_fw_utility_option">
-                        {% for code in ['fw31', 'fw32', 'fw33'] %}
-                        {% if code in data['selected_fw']['data'] %}
-                        <option value="{{ code }}"
-                            {% if code == data['selected_fw_utility_option'] %} selected {% endif %}>
-                            {{ data['selected_fw']['data'][code].description }}
-                        </option>
-                        {% endif %}
-                        {% endfor %}
-                    </select>
-                </div>
-                
-                <!-- Section: Ground Floor Bathroom -->
-                <h3>Ground Floor Bathroom Finishing Works</h3>
-                <label class="checkbox-label">
-                    <input type="checkbox" id="fw4_toggle" name="selected_fw" value="fw4@"
-                        {% if 'fw4@' in data['selected_fw']['preselected'] %} checked {% endif %}>
-                    Enable Bathroom Finishing Works
-                </label><br>
-                <div id="fw4_dropdown" style="{% if 'fw4@' not in data['selected_fw']['preselected'] %}display: none;{% endif %} margin-top: 10px;">
-                    <label for="selected_fw_bathroom_option">Select Bathroom Finishing Option:</label>
-                    <select name="selected_fw_bathroom_option" id="selected_fw_bathroom_option">
-                        {% for code in ['fw41', 'fw42', 'fw43'] %}
-                        {% if code in data['selected_fw']['data'] %}
-                        <option value="{{ code }}"
-                            {% if code == data['selected_fw_bathroom_option'] %} selected {% endif %}>
-                            {{ data['selected_fw']['data'][code].description }}
-                        </option>
-                        {% endif %}
-                        {% endfor %}
-                    </select>
-                </div>
-                
-                <!-- Section: Ground Floor Rear Reception (Half) -->
-                <h3>Ground Floor Rear Reception (Half) Finishing Works</h3>
-                <label class="checkbox-label">
-                    <input type="checkbox" id="fw5_toggle" name="selected_fw" value="fw5@"
-                        {% if 'fw5@' in data['selected_fw']['preselected'] %} checked {% endif %}>
-                    Enable Rear Reception (Half) Finishing Works
-                </label><br>
-                <div id="fw5_dropdown" style="{% if 'fw5@' not in data['selected_fw']['preselected'] %}display: none;{% endif %} margin-top: 10px;">
-                    <label for="selected_fw_rear_half_option">Select Rear Reception Finishing Option:</label>
-                    <select name="selected_fw_rear_half_option" id="selected_fw_rear_half_option">
-                        {% for code in ['fw51', 'fw52', 'fw53'] %}
-                        {% if code in data['selected_fw']['data'] %}
-                        <option value="{{ code }}"
-                            {% if code == data['selected_fw_rear_half_option'] %} selected {% endif %}>
-                            {{ data['selected_fw']['data'][code].description }}
-                        </option>
-                        {% endif %}
-                        {% endfor %}
-                    </select>
-                </div>
-                
-                <!-- Section: Ground Floor Rear Reception (Full) -->
-                <h3>Ground Floor Rear Reception (Full) Finishing Works</h3>
-                <label class="checkbox-label">
-                    <input type="checkbox" id="fw6_toggle" name="selected_fw" value="fw6@"
-                        {% if 'fw6@' in data['selected_fw']['preselected'] %} checked {% endif %}>
-                    Enable Rear Reception (Full) Finishing Works
-                </label><br>
-                <div id="fw6_dropdown" style="{% if 'fw6@' not in data['selected_fw']['preselected'] %}display: none;{% endif %} margin-top: 10px;">
-                    <label for="selected_fw_rear_full_option">Select Rear Reception Finishing Option:</label>
-                    <select name="selected_fw_rear_full_option" id="selected_fw_rear_full_option">
-                        {% for code in ['fw61', 'fw62', 'fw63'] %}
-                        {% if code in data['selected_fw']['data'] %}
-                        <option value="{{ code }}"
-                            {% if code == data['selected_fw_rear_full_option'] %} selected {% endif %}>
-                            {{ data['selected_fw']['data'][code].description }}
-                        </option>
-                        {% endif %}
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-        </div>
-        {% endif %}
 
-{% endif %}
 
 
 <!-------------------------------------------------------------------------------------------------------------------------->
@@ -1755,6 +1595,7 @@
 </script>
 {% endif %}
 
+    {% endif %}
 {% endblock %}
 
         

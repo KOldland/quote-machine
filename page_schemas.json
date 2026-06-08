@@ -869,7 +869,9 @@
             "block_type": "line_items_by_category",
             "config": {
               "categories": [
-                "Optional Extras"
+                "Optional Extras",
+                "Finishing Works",
+                "Finishing Works Optional Extras"
               ]
             }
           }
