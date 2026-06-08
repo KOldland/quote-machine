@@ -2905,6 +2905,7 @@ def materials_page():
 			selected_block=selected_block,
 		)
 	page_schema = build_page_schema_context(page_id, sheet_data, session.get('checkbox_data', {}))
+	page_schema = build_page_schema_context(page_id, sheet_data, session.get('checkbox_data', {}))
 	return render_template(
 		'form.html',
 		page_schema=page_schema,
@@ -2947,6 +2948,7 @@ def further_requirements_page():
 			selected_block_id=selected_block_id,
 			selected_block=selected_block,
 		)
+	page_schema = build_page_schema_context(page_id, sheet_data, session.get('checkbox_data', {}))
 	page_schema = build_page_schema_context(page_id, sheet_data, session.get('checkbox_data', {}))
 	return render_template(
 		'form.html',
@@ -3024,8 +3026,10 @@ def additional_building_work_page():
 			pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
 			li_categories=_li_cats,
 		)
+	page_schema = build_page_schema_context('additional_building_work_page', sheet_data, session.get('checkbox_data', {}))
 	return render_template(
 		'form.html',
+		page_schema=page_schema,
 		additional_building_work_page=True,
 		previous_page=previous_page,
 		next_page='additional_costs_page',
@@ -3183,6 +3187,7 @@ def additional_costs_page():
 			selected_block_id=selected_block_id,
 			selected_block=selected_block,
 		)
+	page_schema = build_page_schema_context('additional_costs_page', get_catalog(), session.get('checkbox_data', {}))
 	page_schema = build_page_schema_context('additional_costs_page', get_catalog(), session.get('checkbox_data', {}))
 	return render_template(
 		'form.html',

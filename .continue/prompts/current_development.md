@@ -119,10 +119,10 @@ This must be fixed **before** or **alongside** the route fix — otherwise even 
 ## Implementation Tracking
 
 - [x] `_get_line_items_for_page` duplicate — dict→list normalisation + key remapping (line_code→value, internal_description→label) patched at line 1207 — SYNTAX OK (Session Y, needs browser confirm)
-- [ ] `materials_page` — form-mode fix applied + verified
-- [ ] `further_requirements_page` — form-mode fix applied + verified
-- [ ] `additional_costs_page` — form-mode fix applied + verified
-- [ ] `additional_building_work_page` — route audited + fix applied
+- [x] `materials_page` — form-mode fix applied + verified
+- [x] `further_requirements_page` — form-mode fix applied + verified
+- [x] `additional_costs_page` — form-mode fix applied + verified
+- [x] `additional_building_work_page` — route audited + fix applied
 - [ ] `optional_extras_page` — route audited + fix applied
 - [ ] All 7 pages verified in browser showing correct questions
 - [ ] Session committed
