@@ -5,31 +5,29 @@
 * **Branch**: `master`
 
 ## Current Goal
-* **Session AD.1** — Accordion Fix (completed)
+* **Session AD.2** — Accordion toggle fully fixed.
 
 ## Active Files for Context
 * @app/static/js/builder.js
+* @app/static/css/main.css
 * @app/templates/_builder_macros.html
-* @app/templates/form.html
-* @app/templates/index.html
 * @app/SESSION.md
-* @app/.continue/prompts/current_development.md
 
 ## What Was Completed Recently
-* **Session AD.1 (Successes)**:
-  - Diagnosed root cause of accordion toggle bug: `setupDragAndDrop()` in `builder.js` crashed with `canvas is null` on 3-col line-item edit pages (because `index.html` adds `builder-edit-mode` to `<body>` in edit mode, but those pages have no `canvas-content` element).
-  - The uncaught crash aborted the entire DOMContentLoaded callback, preventing `setupEventListeners()` and its `prop-section-header` accordion handlers from ever running.
-  - Added `if (!canvas) return;` null guard in `setupDragAndDrop()` (`builder.js` line ~54).
-  - Committed: `9f20974` — `fix: guard canvas null in setupDragAndDrop to unblock setupEventListeners on 3-col edit pages`
+* **Session AD.2 (Successes)**:
+  - Diagnosed two-part accordion failure:
+    1. `setupEventListeners` used `querySelectorAll` at init time — before `renderProperties()` injects `.prop-section-header` elements dynamically; no elements found, no listeners attached.
+    2. No CSS rule existed to hide `.prop-section-body` when parent `.prop-section` had `.collapsed` class.
+  - Fixed JS: replaced `querySelectorAll().forEach()` with `document.addEventListener("click")` event delegation; also updates arrow indicator (▾/▸) on toggle.
+  - Fixed CSS: added `.builder-edit-mode .builder-properties .prop-section.collapsed .prop-section-body { display: none; }` to `main.css`.
+  - Cleaned dangling `});` from old forEach closure.
+  - Committed: `eac676c` — `fix: accordion toggle - event delegation + CSS collapsed rule for prop-section-body`
 
 ## What Works
-* `prop-section-header` accordion click handlers now attach correctly on all edit-mode pages.
-* No more uncaught TypeError crash in browser console on 3-col edit pages.
+* All accordion sections (Question Fields, Logic, Pricing, Output) in builder properties panel should now expand/collapse correctly with arrow indicator update.
 
 ## Immediate Next Task
-### Session AD.2 — Accordion Verification
-1. Hard-refresh (`Cmd+Shift+R`) on any edit-mode form page and confirm:
-   - No `canvas is null` error in console
-   - `prop-section-header clicked` log appears on accordion click
-   - All 4 prop panels (Question Fields, Logic, Pricing, Output) expand/collapse correctly
-2. If any accordion still misbehaves, inspect the toggle CSS class logic inside `setupEventListeners` in `builder.js`.
+### Session AE.1 — Accordion Verification + Next Feature
+1. Hard-refresh (`Cmd+Shift+R`) on a builder edit-mode page.
+2. Confirm accordions expand/collapse with correct arrow (▾/▸) and no console errors.
+3. Identify next feature/bug to tackle from backlog.
