@@ -5,28 +5,31 @@
 * **Branch**: `master`
 
 ## Current Goal
-* **Session AC.1** — Accordion Fix & Session Wrap.
+* **Session AD.1** — Accordion Fix (completed)
 
 ## Active Files for Context
-* @app/templates/_builder_macros.html
-* @app/templates/index.html
-* @app/templates/form.html
-* @app/templates/builder_beta.html
 * @app/static/js/builder.js
+* @app/templates/_builder_macros.html
+* @app/templates/form.html
+* @app/templates/index.html
 * @app/SESSION.md
 * @app/.continue/prompts/current_development.md
 
 ## What Was Completed Recently
-* **Session AC.1 (Successes)**:
-  - Diagnosed and resolved alternating accordion bug in the builder UI.
-  - Removed conflicting inline `onclick` handlers from `_builder_macros.html`.
-  - Scoped `builder.js` to load only on necessary pages (`form.html` and `builder_beta.html`), preventing script conflicts on other pages.
+* **Session AD.1 (Successes)**:
+  - Diagnosed root cause of accordion toggle bug: `setupDragAndDrop()` in `builder.js` crashed with `canvas is null` on 3-col line-item edit pages (because `index.html` adds `builder-edit-mode` to `<body>` in edit mode, but those pages have no `canvas-content` element).
+  - The uncaught crash aborted the entire DOMContentLoaded callback, preventing `setupEventListeners()` and its `prop-section-header` accordion handlers from ever running.
+  - Added `if (!canvas) return;` null guard in `setupDragAndDrop()` (`builder.js` line ~54).
+  - Committed: `9f20974` — `fix: guard canvas null in setupDragAndDrop to unblock setupEventListeners on 3-col edit pages`
 
-## Exact Stopping Point
-* **Accordion Fix Complete**: The accordion UI is now stable and functioning correctly.
-* **Wrap Protocol Initiated**: `current_development.md` and `SESSION.md` have been updated to reflect the completed work.
+## What Works
+* `prop-section-header` accordion click handlers now attach correctly on all edit-mode pages.
+* No more uncaught TypeError crash in browser console on 3-col edit pages.
 
 ## Immediate Next Task
-### Session AD.1 — Full System Audit
-1. **Functional Regression**: Perform a full walkthrough of all 7 refactored pages in "Form Mode" to ensure selections and pricing still calculate correctly after the recent UI and script loading changes.
-2. **Builder UI Audit**: Briefly re-verify the builder UI on both `form.html` (in edit mode) and `builder_beta.html` to ensure no regressions were introduced by the accordion fix.
+### Session AD.2 — Accordion Verification
+1. Hard-refresh (`Cmd+Shift+R`) on any edit-mode form page and confirm:
+   - No `canvas is null` error in console
+   - `prop-section-header clicked` log appears on accordion click
+   - All 4 prop panels (Question Fields, Logic, Pricing, Output) expand/collapse correctly
+2. If any accordion still misbehaves, inspect the toggle CSS class logic inside `setupEventListeners` in `builder.js`.
