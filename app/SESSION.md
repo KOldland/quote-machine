@@ -5,7 +5,7 @@
 * **Branch**: `master`
 
 ## Current Goal
-* **Session AE.1** — Accordion system fully diagnosed and fixed across all pages.
+* **Session AE — Accordion system fully diagnosed and fixed**
 
 ## Active Files for Context
 * @app/templates/_builder_macros.html
@@ -13,24 +13,32 @@
 * @app/static/css/main.css
 * @app/SESSION.md
 
-## What Was Completed Recently
-* **Session AD.1–AE.1 (Accordion Fix — Full History)**:
-  - AD.1: Added `if (!canvas) return;` guard in `builder.js` `setupDragAndDrop` — prevented uncaught crash that was aborting subsequent init (wrong accordion type was being fixed).
-  - AD.2: Added `document.addEventListener` click delegation + `.prop-section.collapsed .prop-section-body { display:none; }` CSS for `prop-section-header` accordions in builder properties panel.
-  - AE.1 (final fix): Diagnosed that the REAL broken accordions are `li-editor-section-header` elements — these are rendered OUTSIDE `#li-editor-content` (which was null on builder pages), so the container-scoped click listener was never attached. Added document-level fallback delegation in `_builder_macros.html` with `document._liAccordionBound` one-time guard.
+## What Was Completed — Session AE (Accordion Fix)
 
-* **Commits:**
-  - `9f20974` — canvas null guard
-  - `eac676c` — prop-section accordion fix (JS + CSS)
-  - `5492475` — li-editor-section-header document fallback listener
+### True Root Cause (found after extensive diagnostics):
+The `container.addEventListener('click', ...)` accordion handler was placed INSIDE the `renderEditorForm()` JavaScript function in `_builder_macros.html`. This function is called every time a user clicks a line item in the editor. Each call **accumulated** an additional listener on the same container element. After N selections: odd N = works (net 1 toggle), even N = fails (net 0 change). This was the "alternating behaviour" reported in the original bug.
+
+### Fix Applied (`ecab30a`):
+1. Removed the container listener from inside `renderEditorForm()`
+2. Moved accordion event delegation to the IIFE initialization block (single bind, runs once at page load)
+3. Changed container from `#li-editor-content` to `#li-edit-form` (broader static container)
+
+### Supporting commits this session:
+* `9f20974` — canvas null guard in builder.js
+* `eac676c` — prop-section accordion fix (builder properties panel)
+* `5492475` — fallback listener attempt (superseded)
+* `bbacf05` — form.html listener attempt (superseded)
+* `13e21a4` — SESSION.md update
+* `6b4fdbd` — DOMContentLoaded restore (superseded)
+* `ecab30a` — **Final fix: move listener out of render loop (the real fix)**
 
 ## What Works
-* All `li-editor-section-header` accordions now toggle on ALL pages regardless of whether `#li-editor-content` container exists.
-* `prop-section-header` accordions in builder properties panel also now work via event delegation.
-* No `canvas is null` errors in console.
+* `li-editor-section-header` accordions now toggle consistently on every item selection
+* No listener accumulation on repeated item selections
+* `prop-section-header` accordions in builder properties panel also fixed
 
 ## Immediate Next Task
-### Session AE.2 — Verify + Next Feature
-1. Hard-refresh (`Cmd+Shift+R`) on `special_notes_page?edit=1` (or any edit page).
-2. Confirm all accordions expand/collapse correctly with arrow indicator updates.
-3. Identify next feature/bug from backlog.
+### Session AF — Verify accordions + identify next feature
+1. Hard-refresh (`Cmd+Shift+R`) on any edit page (e.g. `special_notes_page?edit=1`)
+2. Click 3-4 different line items, test accordion toggle on each — should work every time
+3. Identify next feature/bug from backlog in `current_development.md`
