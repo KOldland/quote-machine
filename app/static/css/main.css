@@ -1,0 +1,1403 @@
+/* Main Wrapper */
+.wrapper {
+    display: flex;
+    justify-content: flex-start; /* Align content to start of available space */
+    align-items: flex-start;
+    min-height: 100vh;
+    padding-top: 150px; /* Added padding to create space from the header */
+}
+
+/* Sidebar */
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 20%;
+    height: 87vh; /* Full viewport height for scrolling */
+    padding: 100px 20px 50px 100px;
+    background-color: #1F2D3D;
+    overflow-y: auto; /* In case the sidebar gets too long */
+    overflow-x: hidden; /* Prevent horizontal scroll */
+    transition: width 0.3s ease; /* Smooth transition for sidebar toggle */
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar .nav-link {
+    color: #ffffff;
+    text-decoration: none;
+    margin-bottom: 10px;
+    padding: 5px 30px 5px 5px;
+    display: block;
+    font-size: 16px;
+}
+
+.sidebar .nav-link:hover {
+    background-color: #2D3A4B;
+    padding-left: 10px;
+}
+
+/* Highlight the active sidebar link */
+.sidebar .nav-link.active {
+    background-color: #007BFF;  /* Highlight background color */
+    color: white;  /* Text color */
+    font-weight: bold;  /* Make text bold to emphasize */
+    border-left: 5px solid #0056b3; /* Optional border indicator */
+}
+
+
+/* Builder Edit Mode — Page Selector and Nav Controls */
+.builder-edit-mode .sidebar-section-title {
+    color: #fff;
+    font-size: .9rem;
+    font-weight: 600;
+    padding: .5rem 0;
+    border-bottom: 1px solid rgba(255,255,255,.1);
+    margin-bottom: .5rem;
+}
+
+.builder-edit-mode .page-selector-list {
+    display: flex;
+    flex-direction: column;
+    gap: .2rem;
+}
+
+.builder-edit-mode .page-selector-item {
+    display: block;
+    color: rgba(255,255,255,.75);
+    text-decoration: none;
+    font-size: .82rem;
+    padding: .3rem .5rem;
+    border-radius: 3px;
+    transition: background .15s, color .15s;
+}
+
+.builder-edit-mode .page-selector-item:hover {
+    background: rgba(255,255,255,.1);
+    color: #fff;
+}
+
+.builder-edit-mode .page-selector-item.active {
+    background: #1b3a6b;
+    color: #fff;
+    font-weight: 600;
+}
+
+/* Collapsible page list — details/summary styled as sidebar button */
+.builder-edit-mode .page-list-details {
+    margin-top: .75rem;
+    margin-bottom: .35rem;
+}
+
+/* Override .btn base class to make summary identical to btn-sidebar */
+.builder-edit-mode summary.page-list-summary {
+    list-style: none;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: .45rem .65rem !important;
+    margin: .35rem 0 !important;
+    cursor: pointer;
+    user-select: none;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+.builder-edit-mode .page-list-summary::-webkit-details-marker { display: none; }
+
+.builder-edit-mode .page-list-arrow {
+    font-size: .7rem;
+    opacity: .7;
+    transition: transform .2s;
+    flex-shrink: 0;
+    margin-left: auto;
+}
+
+.builder-edit-mode .page-list-details[open] .page-list-arrow {
+    transform: rotate(180deg);
+}
+
+.builder-edit-mode .page-list-details:not([open]) .page-list-arrow {
+    transform: rotate(0deg);
+}
+
+/* nav-user block — flex-pushed to bottom of sidebar */
+.sidebar .nav-user,
+.sidebar.builder-edit-mode .nav-user {
+    margin-top: auto;
+    padding: 1.5rem 0 1rem 0;
+    border-top: 1px solid rgba(255,255,255,.15);
+}
+
+.nav-user-identity {
+    font-size: .78rem;
+    color: rgba(255,255,255,.6);
+    margin-bottom: .75rem;
+    letter-spacing: .02em;
+}
+
+.builder-edit-mode .btn-nav-prev,
+.builder-edit-mode .btn-nav-next {
+    display: inline-block;
+    text-align: center;
+    padding: .35rem .6rem;
+    border-radius: 3px;
+    font-size: .78rem;
+    background: rgba(255,255,255,.12);
+    color: rgba(255,255,255,.85);
+    text-decoration: none;
+    border: 1px solid rgba(255,255,255,.2);
+    transition: background .15s;
+}
+
+.builder-edit-mode .btn-nav-prev:hover,
+.builder-edit-mode .btn-nav-next:hover {
+    background: rgba(255,255,255,.25);
+    color: #fff;
+}
+
+.builder-edit-mode .btn-nav-prev {
+    margin-right: auto;
+}
+
+/* ── Step 4: Three-Panel Layout for Builder Edit Mode ── */
+
+/* Wider sidebar in edit mode to accommodate the palette + controls */
+.sidebar.builder-edit-mode {
+    width: 22%;
+    padding: 100px 15px 50px 20px;
+    min-width: 220px;
+}
+
+/* When sidebar is wider, main-content shrinks accordingly */
+.builder-edit-mode ~ .main-content,
+.sidebar.builder-edit-mode + .main-content {
+    margin-left: 24% !important;
+    width: 76% !important;
+}
+
+/* Sidebar collapse in edit mode — min-width must be zeroed so it actually collapses */
+.sidebar.builder-edit-mode.collapsed {
+    width: 0 !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+}
+
+.sidebar.builder-edit-mode.collapsed + .main-content {
+    margin-left: 0 !important;
+    width: 100% !important;
+}
+
+/* Builder container: two-column grid, canvas 1/3, properties 2/3 */
+.builder-container {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 1rem;
+    align-items: flex-start;
+    width: 100%;
+    min-width: 0;
+}
+
+/* Left canvas column */
+.builder-container .builder-canvas {
+    min-width: 0; /* Prevent grid overflow */
+    overflow: hidden;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 1rem 1rem 1rem 1rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+}
+
+/* Canvas page title area */
+.builder-container .builder-canvas h1 {
+    font-size: 1.4rem;
+    text-align: left;
+    margin: 0 0 1rem 0;
+    padding-bottom: .6rem;
+    border-bottom: 2px solid #1b3a6b;
+    color: #1b3a6b;
+}
+
+/* Right properties panel — 2/3 of grid, scrollable */
+.builder-container .builder-properties {
+    min-width: 0;
+    background: #f8f9fa;
+    border: 1px solid #d0d0d0;
+    border-radius: 6px;
+    padding: 1rem;
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+}
+
+/* Properties panel header */
+.builder-container .builder-properties .properties-header {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #1b3a6b;
+    margin-bottom: .8rem;
+    padding-bottom: .4rem;
+    border-bottom: 1px solid #d0d0d0;
+}
+
+/* Properties empty state */
+.builder-container .builder-properties .properties-empty {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: #888;
+}
+
+.builder-container .builder-properties .properties-empty-icon {
+    font-size: 2rem;
+    margin-bottom: .5rem;
+}
+
+/* Canvas page selector bar inside canvas */
+.builder-container .canvas-page-selector {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: .8rem;
+}
+
+.builder-container .canvas-page-selector h2 {
+    font-size: 1.15rem;
+    margin: 0;
+    color: #333;
+}
+
+/* Edit mode indicator for the form container */
+.form-container.builder-edit-mode {
+    max-width: 100%;
+    width: 100%;
+    padding: 1.5rem 1.5rem 1.5rem 1.5rem;
+    box-sizing: border-box;
+    box-shadow: none;
+    border: 1px solid #e0e0e0;
+    background: #fafafa;
+}
+
+/* Canvas inner content padding */
+.builder-canvas-wrapper {
+    padding: .5rem .75rem .75rem .75rem;
+}
+
+/* Canvas empty state */
+.canvas-empty {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #999;
+    border: 2px dashed #ccc;
+    border-radius: 6px;
+}
+
+.canvas-empty-icon {
+    font-size: 2.5rem;
+    margin-bottom: .5rem;
+}
+
+/* ── Step 7: Foundation Visual Polish ── */
+/* ── 7a. Left Sidebar: Question Palette Tool Panel ── */
+
+.builder-edit-mode .question-type-palette {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 0 0 .25rem 0;
+}
+
+.builder-edit-mode .question-type-item {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .45rem .55rem;
+    background: rgba(255,255,255,.06);
+    border: 1px solid transparent;
+    border-radius: 4px;
+    cursor: grab;
+    transition: background .15s, border-color .15s, transform .1s;
+    user-select: none;
+}
+
+.builder-edit-mode .question-type-item:hover {
+    background: rgba(255,255,255,.13);
+    border-color: rgba(255,255,255,.2);
+}
+
+.builder-edit-mode .question-type-item:active {
+    cursor: grabbing;
+    transform: scale(.97);
+    background: rgba(255,255,255,.18);
+}
+
+.builder-edit-mode .question-type-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    background: rgba(255,255,255,.12);
+    font-size: .95rem;
+    color: #fff;
+}
+
+.builder-edit-mode .question-type-label {
+    font-size: .82rem;
+    font-weight: 600;
+    color: #fff;
+    line-height: 1.2;
+}
+
+.builder-edit-mode .question-type-desc {
+    font-size: .68rem;
+    color: rgba(255,255,255,.55);
+    line-height: 1.2;
+    margin-top: 1px;
+}
+
+/* ── 7b. Center Canvas: Question Block Cards ── */
+
+.builder-edit-mode .question-block {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    margin-bottom: .6rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,.04);
+    transition: box-shadow .15s, border-color .15s;
+    overflow: hidden;
+}
+
+.builder-edit-mode .question-block:hover {
+    border-color: #b8b8b8;
+    box-shadow: 0 2px 8px rgba(0,0,0,.07);
+}
+
+.builder-edit-mode .question-block.selected {
+    border-color: #1b3a6b;
+    box-shadow: 0 0 0 2px rgba(27,58,107,.15);
+}
+
+.builder-edit-mode .question-block-header {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    padding: .45rem .6rem;
+    background: #f7f8fa;
+    border-bottom: 1px solid #e8e8e8;
+    cursor: move;
+}
+
+.builder-edit-mode .drag-handle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    color: #999;
+    font-size: 1rem;
+    cursor: grab;
+    user-select: none;
+}
+
+.builder-edit-mode .drag-handle:active {
+    cursor: grabbing;
+}
+
+.builder-edit-mode .block-type-badge {
+    display: inline-block;
+    font-size: .65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    padding: .15rem .45rem;
+    border-radius: 3px;
+    background: #e3eaf3;
+    color: #1b3a6b;
+    flex-shrink: 0;
+}
+
+.builder-edit-mode .block-title {
+    flex: 1;
+    font-size: .85rem;
+    font-weight: 500;
+    color: #333;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.builder-edit-mode .block-actions {
+    display: flex;
+    gap: .2rem;
+    flex-shrink: 0;
+}
+
+.builder-edit-mode .block-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border: 1px solid #d0d0d0;
+    border-radius: 3px;
+    background: #fff;
+    font-size: .82rem;
+    cursor: pointer;
+    transition: background .12s, border-color .12s;
+    color: #555;
+    padding: 0;
+}
+
+.builder-edit-mode .block-action-btn:hover {
+    background: #eee;
+    border-color: #aaa;
+    color: #333;
+}
+
+.builder-edit-mode .block-action-btn.delete:hover {
+    background: #fbe9e7;
+    border-color: #c62828;
+    color: #c62828;
+}
+
+.builder-edit-mode .question-block-body {
+    padding: .6rem .7rem .7rem .7rem;
+}
+
+/* ── 7c. Right Properties Panel: Collapsible Sections ── */
+
+.builder-edit-mode .builder-properties .prop-section {
+    margin-bottom: .5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: #fff;
+    overflow: hidden;
+}
+
+.builder-edit-mode .builder-properties .prop-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: .5rem .65rem;
+    background: #f0f2f5;
+    font-size: .82rem;
+    font-weight: 600;
+    color: #333;
+    cursor: pointer;
+    user-select: none;
+    transition: background .12s;
+}
+
+.builder-edit-mode .builder-properties .prop-section-header:hover {
+    background: #e4e7eb;
+}
+
+.builder-edit-mode .builder-properties .prop-section-toggle {
+    font-size: .7rem;
+    color: #888;
+    transition: transform .15s;
+}
+
+.builder-edit-mode .builder-properties .prop-section-body {
+    padding: .6rem .65rem .4rem;
+    border-top: 1px solid #eee;
+}
+
+.builder-edit-mode .builder-properties .form-group {
+    margin-bottom: .55rem;
+}
+
+.builder-edit-mode .builder-properties .form-group label {
+    display: block;
+    font-size: .75rem;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: .2rem;
+}
+
+.builder-edit-mode .builder-properties .form-group input[type="text"],
+.builder-edit-mode .builder-properties .form-group input[type="number"],
+.builder-edit-mode .builder-properties .form-group textarea,
+.builder-edit-mode .builder-properties .form-group select {
+    width: 100%;
+    font-size: .8rem;
+    padding: .35rem .5rem;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    background: #fff;
+    box-sizing: border-box;
+    margin-bottom: 0;
+}
+
+.builder-edit-mode .builder-properties .form-group textarea {
+    min-height: 48px;
+    resize: vertical;
+}
+
+.builder-edit-mode .builder-properties .checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: .3rem;
+}
+
+.builder-edit-mode .builder-properties .checkbox-group input[type="checkbox"] {
+    margin: 0;
+}
+
+.builder-edit-mode .builder-properties .checkbox-group label {
+    margin-bottom: 0;
+}
+
+/* ── 7d. Edit Mode Indicator Bar ── */
+
+.builder-edit-mode .edit-mode-bar {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .55rem .8rem;
+    margin-bottom: .8rem;
+    background: linear-gradient(135deg, #fff8e1 0%, #fff3cd 100%);
+    border: 1px solid #f0d68a;
+    border-left: 4px solid #f0ad4e;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.04);
+}
+
+.builder-edit-mode .edit-mode-bar .btn-sm {
+    font-size: .75rem;
+    padding: .3rem .6rem;
+    letter-spacing: 1px;
+    border-radius: 3px;
+    margin: 0;
+}
+
+.builder-edit-mode .edit-mode-bar .btn-success {
+    background: #28a745;
+    border-color: #28a745;
+    color: #fff;
+}
+
+.builder-edit-mode .edit-mode-bar .btn-success:hover {
+    background: #218838;
+    border-color: #1e7e34;
+    color: #fff;
+}
+
+.builder-edit-mode .edit-mode-bar .btn-warning {
+    background: #ffc107;
+    border-color: #ffc107;
+    color: #333;
+}
+
+.builder-edit-mode .edit-mode-bar .btn-warning:hover {
+    background: #e0a800;
+    border-color: #d39e00;
+    color: #333;
+}
+
+.builder-edit-mode .edit-mode-bar .btn-info {
+    background: #17a2b8;
+    border-color: #17a2b8;
+    color: #fff;
+}
+
+.builder-edit-mode .edit-mode-bar .btn-info:hover {
+    background: #138496;
+    border-color: #117a8b;
+    color: #fff;
+}
+
+.builder-edit-mode .edit-mode-bar .btn-secondary {
+    background: #6c757d;
+    border-color: #6c757d;
+    color: #fff;
+}
+
+.builder-edit-mode .edit-mode-bar .btn-secondary:hover {
+    background: #5a6268;
+    border-color: #545b62;
+    color: #fff;
+}
+
+/* ── 7e. Sidebar Controls Polish ── */
+
+.builder-edit-mode .sidebar-edit-controls {
+    display: flex;
+    flex-direction: column;
+    gap: .75rem;
+}
+
+.builder-edit-mode .sidebar-section-title {
+    color: #fff;
+    font-size: .85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    padding-bottom: .4rem;
+    margin-bottom: .4rem;
+    border-bottom: 1px solid rgba(255,255,255,.12);
+}
+
+.builder-edit-mode #btn-add-block {
+    font-size: .8rem;
+    padding: .4rem .6rem;
+    letter-spacing: 1px;
+    border-radius: 3px;
+    background: #1b3a6b;
+    border-color: #1b3a6b;
+    color: #fff;
+    transition: background .15s;
+}
+
+.builder-edit-mode #btn-add-block:hover {
+    background: #254e8a;
+    border-color: #254e8a;
+    color: #fff;
+}
+
+/* Uniform sidebar control buttons */
+.builder-edit-mode .btn-sidebar {
+    display: block;
+    width: 100%;
+    background: #1b3a6b;
+    color: #fff;
+    border: 1px solid #1b3a6b;
+    padding: .45rem .65rem;
+    text-align: left;
+    font-size: .82rem;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background .15s;
+    font-family: inherit;
+}
+
+.builder-edit-mode .btn-sidebar:hover {
+    background: #254e8a;
+    border-color: #254e8a;
+    color: #fff;
+}
+
+/* ── 7f. Type Picker Modal (from builder.js showTypePicker) ── */
+
+.type-picker-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,.45);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.type-picker-modal {
+    background: #fff;
+    border-radius: 8px;
+    padding: 1.25rem;
+    max-width: 480px;
+    width: 90%;
+    box-shadow: 0 8px 30px rgba(0,0,0,.2);
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.type-picker-modal h3 {
+    margin: 0 0 .75rem 0;
+    font-size: 1.05rem;
+    color: #333;
+    font-weight: 700;
+}
+
+.type-picker-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .5rem;
+}
+
+.type-picker-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .2rem;
+    padding: .75rem .5rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: #fafafa;
+    cursor: pointer;
+    transition: background .12s, border-color .12s, box-shadow .12s;
+    text-align: center;
+}
+
+.type-picker-btn:hover {
+    background: #eef3fa;
+    border-color: #1b3a6b;
+    box-shadow: 0 1px 4px rgba(27,58,107,.12);
+}
+
+.type-picker-btn .type-icon {
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
+.type-picker-btn .type-label {
+    font-size: .82rem;
+    font-weight: 600;
+    color: #333;
+}
+
+.type-picker-btn .type-desc {
+    font-size: .68rem;
+    color: #888;
+    line-height: 1.2;
+}
+
+.type-picker-close {
+    display: block;
+    margin-top: .75rem;
+    padding: .35rem .75rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: #f5f5f5;
+    cursor: pointer;
+    font-size: .82rem;
+    color: #666;
+    text-align: center;
+    width: 100%;
+}
+
+.type-picker-close:hover {
+    background: #e8e8e8;
+    color: #333;
+}
+
+/* ── End Step 7 ── */
+
+/* Toggle sidebar */
+
+
+.sidebar.collapsed {
+    width: 0; /* Hide the sidebar when collapsed */
+    padding: 0; /* Remove left padding when collapsed */
+    overflow-y: hidden; /* In case the sidebar gets too long */
+    transition: width 0.3s ease; /* Smooth collapse transition */
+}
+
+/* Adjust main content when sidebar is collapsed or visible */
+.main-content {
+    flex: 1;
+    margin-left: 25% !important; /* Space for sidebar when visible */
+    width: 75% !important;  /* Main content takes up the remaining 75% */
+    justify-content: center;
+    align-items: center;
+    padding: 20px !important; /* Ensure padding is consistent */
+    transition: margin-left 0.3s ease, width 0.3s ease;
+}
+
+.main-content.expanded {
+    margin-left: 0 !important; /* Remove margin when sidebar is collapsed */
+    width: 100% !important;  /* Expand content to full width */
+}
+
+.sidebar.collapsed + .main-content {
+    margin-left: 0; /* Remove margin when sidebar is collapsed */
+    width: 100%;  /* Make main content take full width */
+}
+
+/* Sidebar Toggle Button */
+.sidebar-toggle {
+    display: block;
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 1000;
+    background-color: #1F2D3D;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    cursor: pointer;
+    font-size: 20px;
+}
+
+/* Toggle Button Position when Sidebar is Collapsed */
+.sidebar-toggle.collapsed {
+    left: 20px;
+}
+
+/* Form*/
+
+.form-container {
+    background-color: #ffffff;
+    padding: 40px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    max-width: 80%;
+    width: 100%;
+    margin: 0 auto;  /* Center the form horizontally */
+}
+
+h1 {
+    text-align: center;
+    font-size: 28px;
+    margin-bottom: 20px;
+}
+
+input[type="text"], input[type="date"] {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 20px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+/* Fonts */
+body {
+    font-family: 'CynthoNextRegular', sans-serif;
+}
+
+h1 {
+    font-family: 'CynthoNextBold', sans-serif;
+}
+
+input, label {
+    font-family: 'CynthoNextRegular', sans-serif;
+}
+
+/* Header styles */
+.app-header {
+    display: flex;
+    background-color: #1F2D3D;
+    color: white;
+    padding: 50px 20%;
+    box-sizing: border-box;
+    justify-content: space-between;
+    align-items: center;
+    position: fixed;
+    width: 100%;
+    top: 0;
+    left: 0;
+    z-index: 999; /* Ensure the header stays on top */
+}
+
+/* Logo styles */
+.app-header .logo {
+    position: absolute;
+    left: 15%;
+    transform: translateX(-15%);
+}
+
+.app-header .qm-logo {
+    position: absolute;
+    right: 15%;
+    transform: translateX(15%);
+    text-align: right; /* Keeps the QM logo justified to the right */
+}
+
+.logo img, .qm-logo img {
+    max-height: 60px; /* Adjust this value to ensure the logos fit well */
+}
+
+/* Adjust image sizes */
+.app-header .logo img,
+.app-header .qm-logo img {
+    height: 40px;
+}
+
+/* Button Container */
+.button-container {
+    display: flex;
+    justify-content: space-between; /* Space buttons apart */
+    margin: 20px 0;  /* Margin around the button container */
+}
+
+/* Buttons - Merging Client's Style with Your Setup */
+.btn {
+    display: inline-block;
+    width: auto; /* Removed full-width from your button setup to match client's */
+    margin: 5px;
+    padding: 11px 35px;
+    background-color: #1F2D3D;
+    color: #ffffff;
+    font-family: 'CynthoNextBold', sans-serif; /* Keeping your custom font */
+    font-size: 15px;
+    line-height: 16px;
+    letter-spacing: 3px; /* Client's uppercase styling */
+    font-weight: 600;
+    text-transform: uppercase; /* Matches client’s design */
+    border: 1px solid #1F2D3D;
+    border-radius: 0px; /* No rounding */
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+    vertical-align: middle;
+    transition: background-color 0.5s ease, color 0.5s ease;
+    outline: none;
+    box-shadow: none;
+    overflow: hidden;
+}
+
+/* Hover effect */
+.btn:hover,
+.btn:focus {
+    background-color: #ffffff;
+    color: #1F2D3D;
+}
+
+/* Disabled state */
+input[type="submit"]:disabled, button:disabled {
+    background-color: #6c757d; /* Grey for disabled buttons */
+    color: white; /* Keep white for disabled text */
+    cursor: not-allowed;
+}
+
+/* Checkbox hanging ident */
+.checkbox-label {
+    display: block;
+    padding-left: 30px; /* Ensure enough space for checkbox */
+    text-indent: 0; /* Align text to be in line with checkbox */
+    line-height: 1; /* Adjust the line height if necessary */
+    position: relative;
+}
+
+.checkbox-label input[type="checkbox"] {
+    position: absolute;
+    left: 0;
+    top: 0;
+}
+
+.checkbox-label span {
+    display: inline-block;
+    vertical-align: middle;
+    padding-left: 5px; /* Adjust the space between the checkbox and text */
+    text-align: justify; /* Align the text properly */
+}
+
+/* Background Image */
+
+body {
+    background-image: url('/static/images/Alternative glazing1.jpg'); /* Replace with your image path */
+    background-size: cover; /* This ensures the image covers the whole background */
+    background-repeat: no-repeat; /* Prevents the image from repeating */
+    background-attachment: fixed; /* Ensures the image stays in place while scrolling */
+    background-position: center; /* Centers the image */
+}
+
+/* Footer styles */
+.app-footer {
+    background-color: #1F2D3D;
+    color: white;
+    text-align: center;
+    padding: 15px 0;
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+}
+
+.app-footer a {
+    color: white;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.app-footer a:hover {
+    text-decoration: underline;
+}
+
+/* Checkbox label styles */
+.checkbox-label {
+    display: block;
+    margin-bottom: 10px;
+}
+
+/* Responsive Small Screens*/
+@media (max-width: 768px) {
+    .sidebar {
+            width: 0; /* Hide sidebar by default on small screens */
+            padding: 0; /* Remove padding */
+            overflow: hidden; /* Prevent content overflow */
+            position: absolute;
+            left: 0;
+            top: 0;
+            background-color: #1F2D3D;
+            z-index: 1000; /* Bring sidebar above other content */
+            transition: width 0.3s ease; /* Smooth transition for sidebar toggle */
+        }
+
+/* When the sidebar is toggled open */
+.sidebar.expanded {
+    width: 250px; /* Set the desired width when open */
+    padding: 150px 30px 20px 50px;
+    overflow-y: auto; /* Enable scrolling if content is long */
+}
+    
+    .main-content {
+            margin-left: 0; /* Remove margin when sidebar is collapsed */
+            width: 100%;  /* Expand main content to full width */
+            padding: 10px; /* Maintain padding for main content */
+            transition: margin-left 0.3s ease, width 0.3s ease, visibility 0s 0.3s; /* Smooth transition for content expansion */
+        }
+    /* Full-width buttons */
+    .btn {
+        width: 100%;  /* Full width button */
+        padding: 15px;  /* Larger padding for easier tapping */
+        font-size: 18px;  /* Slightly larger font size for readability */
+        margin-bottom: 50px;  /* Add some margin at the bottom */
+    }
+    
+    /* Button hover effect */
+    .btn:hover {
+        background-color: #0056b3;  /* Slightly darker hover color for mobile */
+        color: #ffffff;  /* Ensure text color stays readable */
+    }
+    
+    /* Additional spacing around buttons */
+    .btn{
+        padding: 20px 0;  /* Add padding around the button for a cleaner look */
+        text-align: center;  /* Center the buttons if not full width */
+    }
+    
+    /* Form container */
+    .form-container {
+        max-width: 100%; /* Full width for smaller screens */
+        padding: 20px; /* Reduce padding for mobile views */
+        box-sizing: border-box; /* Ensure padding and margin don't affect width */
+        width: 100%; /* Force it to take up 100% of the available space */
+    }
+
+/* Sidebar toggle button positioning */
+    
+.sidebar-toggle {
+    display: block; /* Show the toggle button */
+    position: fixed;
+    top: 10px; /* Adjusted to 10px for consistency */
+    left: 10px; /* Adjusted to 10px for smaller screens */
+    z-index: 1200;
+    background-color: rgba(31, 45, 61, 0.0); /* Semi-transparent background */
+    color: white; /* Ensure the icon stays visible */
+    border: none; /* Remove border for cleaner look */
+    padding: 10px 15px;
+    cursor: pointer;
+    font-size: 20px;
+    margin-right: 40px; /* Add margin to the right to create space between the button and the logo */
+}
+    
+    /* Adjust the logo's position on mobile */
+    .logo {
+        position: relative; /* Change to relative so it moves naturally with the page layout */
+        margin-left: 15px; /* Adjust margin to position it properly */
+    }
+
+    /* Ensure wrapper and main-content are full width in mobile view */
+    .wrapper, .main-content {
+        margin-top: 50px;    
+        margin-left: 0 !important; /* Reset any margin pushing content away from the left */
+        padding: 0; /* Remove unnecessary padding */
+        width: 100% !important; /* Ensure the wrapper takes full width */
+    }
+
+    /* Adjust input fields for mobile */
+    input[type="text"], input[type="date"], input[type="submit"] {
+        width: 90%; /* Ensure inputs take full width */
+        padding: 12px;
+        font-size: 16px;
+        }
+
+    /* Ensure header takes full width */
+    .app-header {
+        padding: 30px; /* Reduce padding for mobile */
+        text-align: center; /* Center the logo and text */
+        background-color: rgba(31, 45, 61, 0.2); /* Semi-transparent background */
+        z-index: 1100; /* Higher than the sidebar */
+        box-shadow: none; /* Remove any shadow to keep it clean */
+        }
+
+        
+    }
+
+/* Expanded sidebar for larger screens */
+@media (min-width: 769px) {
+    .sidebar-toggle {
+        display: true; 
+    }
+    
+    .sidebar {
+        width: 20%; /* Show sidebar by default */
+        padding: 150px 30px 20px 50px; /* Add padding back */
+        overflow-y: auto; /* Allow scrolling */
+    }
+    
+    .main-content {
+        margin-left: 25%; /* Restore margin for sidebar */
+        width: 75%;  /* Main content takes up the remaining space */
+    }
+}
+
+.image-preview {
+    display: block;            /* Puts the image on a new line */
+    width: 150px;               /* Adjust the width as needed */
+    height: auto;               /* Maintains aspect ratio */
+    margin-top: 5px;            /* Adds spacing from the input field */
+    border: 1px solid #ccc;     /* Adds a border for visibility */
+    border-radius: 4px;         /* Optional: rounded corners */
+}
+
+
+/*** ACCORDIAN STYLNG ***/
+
+/* Accordion Section Styling */
+.accordion-section {
+    margin-bottom: 15px;
+}
+
+.accordion-body ul {
+    margin-top: 10px;
+    margin-bottom: 15px; /* Adds space between list and next heading */
+}
+
+.accordion-body ul li {
+    margin-bottom: 5px; /* Space between list items */
+}
+
+/* Optional: Add consistent padding inside the accordion headers and bodies */
+.accordion-header {
+    padding: 10px; /* Same padding for all headers */
+}
+
+.accordion-body {
+    padding: 10px; /* Same padding for all body content */
+}
+
+/* Header Styling */
+.accordion-header {
+    width: 100%;
+    background-color: #f0f0f0;
+    border: none;
+    padding: 10px;
+    text-align: left;
+    font-size: 16px;
+    cursor: pointer;
+    font-weight: bold;
+    outline: none;
+    border-radius: 5px;
+    transition: background-color 0.3s ease;
+}
+
+.accordion-header:hover {
+    background-color: #e0e0e0;
+}
+
+/* Body Styling (Initially Hidden) */
+.accordion-body {
+    display: none; /* Hidden by default */
+    padding: 10px;
+    background-color: #ffffff;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    margin-top: 5px;
+}
+
+.hidden-dropdown {
+    margin-top: 5x; /* Adjust the top margin */
+    margin-bottom: 15px; /* Add proper spacing below */
+    display: none; /* Hidden by default */
+}
+
+/* OPen Txt field Styling */
+input[type="text"], input[type="date"], textarea, select {
+    width: 100%; /* Ensure all inputs are full-width within the form container */
+    max-width: 100%; /* Prevent the input from exceeding the container's width */
+    box-sizing: border-box; /* Include padding and border in the width calculation */
+    padding: 10px;
+    margin-bottom: 20px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.hidden {
+    display: none;
+}
+
+/* Image processing */
+
+.uploaded-images-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.image-thumb {
+    width: 120px;
+    text-align: center;
+    margin: 5px; /* Ensures consistent spacing even if wrapping */
+}
+
+.image-thumb img {
+    width: 100%;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.filename {
+    font-size: 0.75rem;
+    color: #555;
+    margin-top: 4px;
+    word-break: break-word;
+}
+
+/* Final output image (composed template) - A4-safe container */
+.template-output {
+    max-width: 800px;        /* Approx A4 width at 96dpi */
+    margin: 40px auto;        /* 1-inch top/bottom margin, centered horizontally */
+    padding: 10px;
+    border: 1px solid #ddd;
+    background: #fff;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+}
+
+.template-output img {
+    width: 100%;
+    height: auto;
+    max-height: 80vh;
+    object-fit: contain;
+}
+
+.image-thumb.selected {
+    border: 3px solid #2B7DAA;
+    box-shadow: 0 0 10px rgba(0,0,0,0.2);
+}
+
+.hidden-checkbox {
+    display: none;
+}
+
+.selected-template {
+    border: 3px solid #007bff;
+    box-shadow: 0 0 10px rgba(0, 123, 255, 0.6);
+    cursor: pointer;
+}
+
+.template-preview-img {
+    max-width: 300px;
+    height: auto;
+    object-fit: contain;
+    display: block;
+    margin: 0 auto;
+}
+
+.template-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+.button-row {
+    display: flex;
+    gap: 20px;
+    align-items: flex-end;
+    margin-top: 1rem;
+}
+
+.upload-wrapper {
+    margin-bottom: 1.5rem;
+}
+
+.styled-upload-button {
+    display: inline-block;
+    padding: 12px 24px;
+    background-color: #ccc;
+    border: 1px solid #333;
+    border-radius: 4px;
+    font-weight: bold;
+    font-size: 1rem;
+    letter-spacing: 0.15rem;
+    text-transform: uppercase;
+    text-align: center;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    margin-bottom: 1rem;
+    width: 100%;
+    max-width: 320px;
+}
+
+.styled-upload-button:hover {
+    background-color: #bbb;
+}
+
+.styled-upload-button input[type="file"] {
+    display: none;
+}
+
+.flash-container {
+    margin-top: 10px;
+    margin-bottom: 20px;
+}
+
+.flash {
+    padding: 12px 18px;
+    border: 1px solid #ccc;
+    background-color: #f9f9f9;
+    font-size: 14px;
+    font-weight: 600;
+    border-left: 6px solid #666;
+    color: #333;
+}
+
+.flash-success {
+    border-color: #3c763d;
+    background-color: #dff0d8;
+    color: #3c763d;
+}
+
+.flash-danger {
+    border-color: #a94442;
+    background-color: #f2dede;
+    color: #a94442;
+}
+
+.layout-preview-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 60px;
+    margin-top: 40px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+}
+
+.current-layout {
+    flex: 1 1 60%;
+    text-align: center;
+}
+
+.final-preview-img {
+    max-width: 100%;
+    width: 100%;
+    max-height: 900px;
+    object-fit: contain;
+    border: 1px solid #ccc;
+}
+
+.alternate-templates {
+    flex: 1 1 30%;
+}
+
+.template-option {
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.template-thumb {
+    max-width: 100%;
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+    border: 1px solid #999;
+}

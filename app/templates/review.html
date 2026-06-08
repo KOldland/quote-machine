@@ -1,0 +1,140 @@
+{% extends "index.html" %}
+
+{% block content %}
+<div class="form-container"> 
+    <h1>Review Your Submission</h1>
+    
+    
+    {% for section, items in review_data.items() %}
+    <div class="accordion-section">
+        <button type="button" class="accordion-header" onclick="toggleAccordion('section{{ loop.index }}');">
+            {{ section }}
+        </button>
+        <div id="section{{ loop.index }}" class="accordion-body">
+            {% if items is mapping %}
+            <ul>
+                {% for key, value in items.items() %}
+                {% if value and value is iterable and not value is string %}
+                <li><strong>{{ TITLE_MAPPING.get(key, key) }}:</strong>
+                    <ul>
+                        {% for item in value %}
+                        <li>{{ item }}</li>
+                        {% endfor %}
+                    </ul>
+                </li>
+                {% elif value %}
+                <li><strong>{{ TITLE_MAPPING.get(key, key) }}:</strong>
+                    <ul>
+                        <li>{{ value }}</li> 
+                    </ul>
+                </li>
+                {% else %}
+                    <li><strong>{{ TITLE_MAPPING.get(key, key) }}:</strong> 
+                        <ul>Not required for this project</ul>
+                    </li>
+                {% endif %}
+                {% endfor %}
+            </ul>
+            <br><br>
+            {% else %}
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+
+    
+
+
+    <!-- Line Items Output Section -->
+    {% if li_by_category %}
+    <div class="accordion-section">
+        <button type="button" class="accordion-header" onclick="toggleAccordion('li_output_section');">
+            Selected Line Items
+        </button>
+        <div id="li_output_section" class="accordion-body">
+            {% for category, rows in li_by_category.items() %}
+            <h4 style="margin-top:1rem;">{{ category }}</h4>
+            <ul>
+                {% for row in rows %}
+                <li>
+                    <strong>{{ row.output_title or row.internal_description or row.line_code }}</strong>
+                    {% if row.output_notes %}
+                    <br><span style="color:#555;">{{ row.output_notes }}</span>
+                    {% endif %}
+                    {% if row.output_guidance %}
+                    <br><em>{{ row.output_guidance }}</em>
+                    {% endif %}
+                    {% if row.pricing_visibility != 'admin_only' and row.unit_cost %}
+                    <br><span>Unit cost: £{{ "%.2f"|format(row.unit_cost) }}</span>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Uploaded Images Section -->
+    {% if uploaded_images %}
+    <h3>Uploaded Image Previews:</h3>
+        <div class="image-previews">
+            {% for label, image_url in uploaded_images.items() %}
+                {% if image_url %}
+                    <div class="image-container">
+                        <h4>{{ label }}</h4>
+                        <img src="{{ image_url }}" alt="{{ label }}" width="300">
+                    </div>
+                {% else %}
+                    <p>No image uploaded for {{ label }}</p>
+                {% endif %}
+            {% endfor %}
+        </div>
+    {% endif %}
+            
+    <!-- Button container with Commit Data button -->
+    <div class="button-container">
+        <form id="commit-form" method="POST" action="{{ url_for('submit') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" id="commitButton" class="btn">Commit Data</button>
+        </form>
+    </div>
+        
+    <script>
+        document.getElementById('commit-form').addEventListener('submit', function(event) {
+            event.preventDefault();  // Prevent default form submission
+
+            const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+            if (!csrfToken) {
+                alert('Missing CSRF token. Please refresh the page and try again.');
+                return;
+            }
+
+            fetch('{{ url_for('submit') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({ csrf_token: csrfToken })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert(data.message);
+                    window.location.href = '{{ url_for('trigger_production') }}';
+                } else {
+                    alert('Error: ' + (data.message || 'Submission failed.'));
+                    window.location.href = '{{ url_for('review') }}';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred during submission.');
+                window.location.href = '{{ url_for('review') }}';
+            });
+        });
+    </script>
+
+</div>
+{% endblock %}

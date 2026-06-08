@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <title>{{ title }}</title>
+</head>
+
+<body{% if edit_mode %} class="builder-edit-mode"{% endif %}>
+    <!-- Sidebar Toggle Button -->
+    <button id="sidebarToggle" class="sidebar-toggle">☰</button>
+
+    <!-- Header -->
+    <header class="app-header">
+        <div class="logo">
+            <img src="{{ url_for('static', filename='images/logo-white-plus-rooms.png') }}" alt="Plus Rooms Logo">
+        </div>
+        <div class="qm-logo">
+            <img src="{{ url_for('static', filename='images/qmlogo.png') }}" alt="Quote Machine Logo">
+        </div>
+    </header>
+
+    <div class="wrapper">
+        <!-- Sidebar Navigation -->
+        <div id="sidebar" class="sidebar{% if edit_mode %} builder-edit-mode{% endif %}">  
+            {% if session.get('username') %}
+                {% if edit_mode %}
+                {% import '_builder_macros.html' as builder with context %}
+                <!-- Edit Mode: Builder Controls -->
+                <div class="sidebar-edit-controls">
+                    <div class="sidebar-section">
+                        <details class="page-list-details" open>
+                            <summary class="btn-sidebar page-list-summary">
+                                <span>Select Page</span><span class="page-list-arrow">▼</span>
+                            </summary>
+                            <div class="page-selector-list">
+                                {% set ordered_pages = ['index', 'special_notes_page', 'summary_page', 'materials_page', 'further_requirements_page', 'additional_building_work_page', 'additional_costs_page', 'optional_extras_page', 'image_upload_page'] %}
+                                {% set page_titles = {'index': 'Project Details', 'special_notes_page': 'Special Notes', 'summary_page': 'Summary', 'materials_page': 'Materials & Details', 'further_requirements_page': 'Further Reqs', 'additional_building_work_page': 'Add. Building Works', 'additional_costs_page': 'Additional Costs', 'optional_extras_page': 'Optional Extras', 'image_upload_page': 'Images'} %}
+                                {% for page_id in ordered_pages %}
+                                <a href="{{ url_for(page_id) }}?edit=1" 
+                                   class="page-selector-item {% if current_page and page_id == current_page.id %}active{% endif %}">
+                                    {{ page_titles[page_id] }}
+                                </a>
+                                {% endfor %}
+                            </div>
+                        </details>
+                        <button type="button" class="btn btn-sidebar" id="btn-add-block" style="width:100%;margin-top:.5rem;">Add Question</button>
+                        <div class="edit-mode-actions" style="margin-top:.5rem;display:flex;flex-direction:column;gap:.35rem;">
+                            <button type="button" id="btn-publish-draft" class="btn btn-sidebar" style="width:100%;">Publish</button>
+                            <button type="button" id="btn-rollback" class="btn btn-sidebar" style="width:100%;">Undo</button>
+                            <form method="GET" action="{{ url_for('index') }}" style="width:100%;">
+                                <button type="submit" class="btn btn-sidebar" style="width:100%;">Exit Edit Mode</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <div class="nav-user">
+                    <div class="nav-user-identity">user: {{ session['username'] }} ({{ session.get('role','user') }})</div>
+                    <form method="POST" action="{{ url_for('logout') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-sidebar" style="width:100%;">Log out</button>
+                    </form>
+                </div>
+                {% else %}
+                <!-- Authenticated User Navigation -->
+                <nav class="nav flex-column">
+                    <a href="{{ url_for('index') }}" class="nav-link {% if request.endpoint == 'index' %}active{% endif %}">Project Details</a>
+                    <a href="{{ url_for('special_notes_page') }}" class="nav-link {% if request.endpoint == 'special_notes_page' %}active{% endif %}">Special Notes</a>
+                    <a href="{{ url_for('summary_page') }}" class="nav-link {% if request.endpoint == 'summary_page' %}active{% endif %}">Summary</a>
+                    <a href="{{ url_for('materials_page') }}" class="nav-link {% if request.endpoint == 'materials_page' %}active{% endif %}">Extension Details & Material Summary</a>
+                    <a href="{{ url_for('further_requirements_page') }}" class="nav-link {% if request.endpoint == 'further_requirements_page' %}active{% endif %}">Further Requirements</a>
+                    <a href="{{ url_for('additional_building_work_page') }}" class="nav-link {% if request.endpoint == 'additional_building_work_page' %}active{% endif %}">Additional Building Works</a>
+                    <a href="{{ url_for('additional_costs_page') }}" class="nav-link {% if request.endpoint == 'additional_costs_page' %}active{% endif %}">Additional Costs</a>
+                    <a href="{{ url_for('optional_extras_page') }}" class="nav-link {% if request.endpoint == 'optional_extras_page' %}active{% endif %}">Optional Extras & Finishing Works</a>
+                    <a href="{{ url_for('image_upload_page') }}" class="nav-link {% if request.endpoint == 'image_upload' %}active{% endif %}">Upload Images</a>
+                    <a href="{{ url_for('review') }}" class="nav-link {% if request.endpoint == 'review' %}active{% endif %}">Review</a>
+                    <a href="{{ url_for('trigger_production_page') }}" class="nav-link {% if request.endpoint == 'trigger_production_page' %}active{% endif %}">Production</a>
+                    {% if session.get('role') == 'admin' %}
+                    <a href="{{ url_for('list_users') }}" class="nav-link {% if request.endpoint == 'list_users' %}active{% endif %}">User Management</a>
+                    {% endif %}
+                </nav>
+                <div class="nav-user">
+                    <div class="nav-user-identity">user: {{ session['username'] }} ({{ session.get('role','user') }})</div>
+                    <form method="POST" action="{{ url_for('logout') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-sidebar" style="width:100%;">Log out</button>
+                    </form>
+                </div>
+                {% endif %}
+            {% else %}
+            <!-- Guest Navigation (Login Required) -->
+            <div class="nav-guest" style="padding: 1rem; text-align: center;">
+                <p style="margin: 0 0 .75rem 0; font-size: .85rem; color: rgba(255,255,255,.7);">Please log in to access the form</p>
+                <a href="{{ url_for('login') }}" class="nav-link" style="
+                    display: inline-block;
+                    background: #1b3a6b;
+                    color: #fff;
+                    padding: .5rem 1rem;
+                    border-radius: 4px;
+                    text-decoration: none;
+                    font-size: .9rem;
+                    margin-top: .5rem;
+                ">Log In</a>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Main content block -->
+        <div class="main-content">
+            {% block content %}
+            {% endblock %}
+        </div>
+    </div>
+
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    {% if edit_mode %}
+    <script>
+        // Inject builder state as JS globals
+        window.blocks = {{ current_page.blocks | tojson | safe if current_page else '[]' }};
+        window.pageId = {{ current_page_id | tojson | safe if current_page_id else "''" }};
+        window.selectedBlockId = {{ selected_block_id | tojson | safe if selected_block_id else 'null' }};
+        window.builderStateQuestionTypes = {{ builder_state.question_types | tojson | safe if builder_state else '{}' }};
+    </script>
+    <script src="{{ url_for('static', filename='js/builder.js') }}" defer></script>
+    {% endif %}
+</body>
+
+</html>

@@ -1,0 +1,604 @@
+{
+  "template_1p": {
+    "num_images": 1,
+    "orientation_sequence": ["portrait"],
+    "layout": "full_page",
+    "positions": ["center"],
+    "canvas_use": "max",
+    "image_aspect_ratio": 1.414
+  },
+  "template_1l": {
+    "num_images": 1,
+    "orientation_sequence": ["landscape"],
+    "layout": "full_page",
+    "positions": ["center"],
+    "canvas_use": "max",
+    "image_aspect_ratio": 1.414
+  },
+  "template_2p": {
+    "num_images": 2,
+    "orientation_sequence": ["portrait", "portrait"],
+    "layout": "side_by_side",
+    "positions": ["left", "right"],
+    "canvas_use": "max",
+    "image_aspect_ratio": 1.414
+  },
+  "template_2l": {
+    "num_images": 2,
+    "orientation_sequence": ["landscape", "landscape"],
+    "layout": "stacked",
+    "positions": ["top", "bottom"],
+    "canvas_use": "max",
+    "image_aspect_ratio": 1.414
+  },
+  "template_3p": {
+    "num_images": 3,
+    "orientation_sequence": ["portrait", "portrait", "portrait"],
+    "layout": "side_by_side",
+    "positions": ["left", "center", "right"],
+    "canvas_use": "max",
+    "image_aspect_ratio": 1.414
+  },
+  "template_3p_split_top": {
+    "num_images": 3,
+    "orientation_sequence": ["portrait", "portrait", "portrait"],
+    "layout": "split_top",
+    "positions": ["top-left", "top-right", "bottom-full"],
+    "canvas_use": "max",
+    "image_aspect_ratio": 1.414
+  },
+  "template_3p_split_bottom": {
+    "num_images": 3,
+    "orientation_sequence": ["portrait", "portrait", "portrait"],
+    "layout": "split_bottom",
+    "positions": ["top-full", "bottom-left", "bottom-right"],
+    "canvas_use": "max",
+    "image_aspect_ratio": 1.414
+  },
+  "template_3l_split_right": {
+    "num_images": 3,
+    "orientation_sequence": ["landscape", "landscape", "landscape"],
+    "layout": "split_right",
+    "positions": ["left-large", "right-top", "right-bottom"],
+    "canvas_use": "max",
+    "image_aspect_ratio": 1.414
+  },
+  "template_3l_split_left": {
+    "num_images": 3,
+    "orientation_sequence": ["landscape", "landscape", "landscape"],
+    "layout": "split_left",
+    "positions": ["right-large", "left-top", "left-bottom"],
+    "canvas_use": "max",
+    "image_aspect_ratio": 1.414
+  },
+  "template_3l_split_bottom": {
+    "num_images": 3,
+    "orientation_sequence": ["landscape", "landscape", "landscape"],
+    "layout": "split_bottom",
+    "positions": ["top-full", "bottom-left", "bottom-right"],
+    "canvas_use": "max",
+    "image_aspect_ratio": 1.414
+  },
+  "template_3l_split_top": {
+    "num_images": 3,
+    "orientation_sequence": ["landscape", "landscape", "landscape"],
+    "layout": "split_top",
+    "positions": ["top-left", "top-right", "bottom-full"],
+    "canvas_use": "max",
+    "image_aspect_ratio": 1.414
+  },
+  "template_3l_vertical_stack": {
+    "num_images": 3,
+    "orientation_sequence": ["landscape", "landscape", "landscape"],
+    "layout": "stacked",
+    "positions": ["top", "middle", "bottom"],
+    "canvas_use": "max",
+    "image_aspect_ratio": 1.414
+  },
+  "template_mix3a": {
+    "num_images": 3,
+    "orientation_sequence": ["portrait", "portrait", "landscape"],
+    "layout": "split_bottom",
+    "positions": ["top-left", "top-right", "bottom-full"],
+    "canvas_use": "max",
+    "image_aspect_ratio": 1.414
+  },
+  "template_mix3b": {
+    "num_images": 3,
+    "orientation_sequence": ["landscape", "portrait", "portrait"],
+    "layout": "split_top",
+    "positions": ["top-full", "bottom-left", "bottom-right"],
+    "canvas_use": "max",
+    "image_aspect_ratio": 1.414
+  },
+  "template_4p": {
+    "num_images": 4,
+    "orientation_sequence": ["portrait", "portrait", "portrait", "portrait"],
+    "layout": "2x2_grid",
+    "positions": ["top-left", "top-right", "bottom-left", "bottom-right"],
+    "canvas_use": "max",
+    "image_aspect_ratio": 1.414
+  },
+  "template_4l": {
+    "num_images": 4,
+    "orientation_sequence": ["landscape", "landscape", "landscape", "landscape"],
+    "layout": "2x2_grid",
+    "positions": ["top-left", "top-right", "bottom-left", "bottom-right"],
+    "canvas_use": "max",
+    "image_aspect_ratio": 1.414
+  },
+  "template_mix4a_l": {
+    "num_images": 4,
+    "orientation_sequence": ["portrait", "landscape", "landscape", "landscape"],
+    "layout": "portrait_left_landscape_stack_right",
+    "positions": ["left-full", "right-top", "right-middle", "right-bottom"],
+    "canvas_use": "max",
+    "image_aspect_ratio": 1.414
+  },
+  "template_mix4a_r": {
+    "num_images": 4,
+    "orientation_sequence": ["landscape", "landscape", "landscape", "portrait"],
+    "layout": "landscape_stack_left_portrait_right",
+    "positions": ["left-top", "left-middle", "left-bottom", "right-full"],
+    "canvas_use": "max",
+    "image_aspect_ratio": 1.414
+  },
+  "template_mix4b_t": {
+    "num_images": 4,
+    "orientation_sequence": ["landscape", "portrait", "portrait", "portrait"],
+    "layout": "landscape_top_3portrait_bottom",
+    "positions": ["top-full", "bottom-left", "bottom-center", "bottom-right"],
+    "canvas_use": "max",
+    "image_aspect_ratio": 1.414
+  },
+  "template_mix4b_b": {
+    "num_images": 4,
+    "orientation_sequence": ["portrait", "portrait", "portrait", "landscape"],
+    "layout": "3portrait_top_landscape_bottom",
+    "positions": ["top-left", "top-center", "top-right", "bottom-full"],
+    "canvas_use": "max",
+    "image_aspect_ratio": 1.414
+  },
+  "template_mix4c_top": {
+    "num_images": 4,
+    "orientation_sequence": ["landscape", "portrait", "portrait", "landscape"],
+    "layout": "landscape_top_bottom_2portrait_middle",
+    "positions": ["top-full", "middle-left", "middle-right", "bottom-full"],
+    "canvas_use": "max",
+    "image_aspect_ratio": 1.414
+  },
+  "template_mix4c_bottom": {
+    "num_images": 4,
+    "orientation_sequence": ["landscape", "portrait", "portrait", "landscape"],
+    "layout": "2landscape_top_2portrait_bottom",
+    "positions": ["top-left", "top-right", "bottom-left", "bottom-right"],
+    "canvas_use": "max",
+    "image_aspect_ratio": 1.414
+  },
+  "template_mix5a": {
+    "num_images": 5,
+    "orientation_sequence": ["portrait", "portrait", "portrait", "portrait", "portrait"],
+    "layout": "2portrait_top_3portrait_bottom_left",
+    "positions": ["top-left", "top-right", "bottom-left", "bottom-middle", "bottom-right"],
+    "canvas_use": "max",
+    "image_aspect_ratio": 1.414
+  },
+  
+  "template_mix5b": {
+    "num_images": 5,
+    "orientation_sequence": ["portrait", "portrait", "portrait", "portrait", "portrait"],
+    "layout": "3portrait_left_2portrait_right",
+    "positions": ["left-top", "left-middle", "right-middle", "left-bottom", "right-bottom"],
+    "canvas_use": "max",
+    "image_aspect_ratio": 1.414
+  },
+  "template_mix5c": {
+    "num_images": 5,
+    "orientation_sequence": ["portrait", "portrait", "portrait", "portrait", "portrait"],
+    "layout": "2portrait_top_2portrait_middle_1portrait_bottom",
+    "positions": ["top-left", "top-right", "middle-left", "middle-right", "bottom-left"],
+    "canvas_use": "max",
+    "image_aspect_ratio": 1.414
+  },
+  "template_mix5d": {
+    "num_images": 5,
+    "orientation_sequence": ["portrait", "portrait", "portrait", "portrait", "portrait"],
+    "layout": "1portrait_left_4portrait_stack_right",
+    "positions": ["left-full", "right-top", "right-upper-middle", "right-lower-middle", "right-bottom"],
+    "canvas_use": "max",
+    "image_aspect_ratio": 1.414
+  },
+  "template_mix5e": {
+    "num_images": 5,
+    "orientation_sequence": ["portrait", "portrait", "portrait", "portrait", "portrait"],
+    "layout": "1portrait_right_4portrait_stack_left",
+    "positions": ["right-full", "left-top", "left-upper-middle", "left-lower-middle", "left-bottom"],
+    "canvas_use": "max",
+    "image_aspect_ratio": 1.414
+  },
+  "template_mix5f": {
+    "num_images": 5,
+    "orientation_sequence": ["portrait", "portrait", "portrait", "portrait", "portrait"],
+    "layout": "3portrait_stack_left_2portrait_stack_right",
+    "positions": ["left-top", "left-middle", "left-bottom", "right-top", "right-bottom"],
+    "canvas_use": "max",
+    "image_aspect_ratio": 1.414
+  },
+  "template_mix5g": {
+    "num_images": 5,
+    "orientation_sequence": ["portrait", "portrait", "portrait", "portrait", "portrait"],
+    "layout": "3portrait_stack_right_2portrait_stack_left",
+    "positions": ["right-top", "right-middle", "right-bottom", "left-top", "left-bottom"],
+    "canvas_use": "max",
+    "image_aspect_ratio": 1.414
+  },
+
+  "template_5l_a": {
+    "num_images": 5,
+    "orientation_sequence": ["landscape", "landscape", "landscape", "landscape", "landscape"],
+    "layout": "2landscape_top_3landscape_bottom",
+    "positions": ["top-left", "top-right", "bottom-left", "bottom-middle", "bottom-right"],
+    "canvas_use": "max",
+    "image_aspect_ratio": 1.414
+  },
+  "template_5l_b": {
+    "num_images": 5,
+    "orientation_sequence": ["landscape", "landscape", "landscape", "landscape", "landscape"],
+    "layout": "3landscape_top_2landscape_bottom",
+    "positions": ["top-left", "top-middle", "top-right", "bottom-left", "bottom-right"],
+    "canvas_use": "max",
+    "image_aspect_ratio": 1.414
+  },
+  "template_mix5_3l2p_a": {
+    "num_images": 5,
+    "orientation_sequence": ["landscape", "landscape", "landscape", "portrait", "portrait"],
+    "layout": "3landscape_left_2portrait_right",
+    "positions": ["left-top", "left-middle", "left-bottom", "right-top", "right-bottom"],
+    "canvas_use": "max",
+    "image_aspect_ratio": 1.414
+  },
+  "template_mix5_3l2p_b": {
+    "num_images": 5,
+    "orientation_sequence": ["landscape", "portrait", "portrait", "portrait", "landscape"],
+    "layout": "3landscape_right_2portrait_left",
+    "positions": ["right-top", "left-top", "right-middle", "right-bottom", "left-bottom"],
+    "canvas_use": "max",
+    "image_aspect_ratio": 1.414
+  },
+  "template_mix5_3l2p_c": {
+    "num_images": 5,
+    "orientation_sequence": ["portrait", "portrait", "landscape", "landscape", "portrait"],
+    "layout": "2portrait_top_3landscape_bottom",
+    "positions": ["top-left", "top-right", "bottom-left", "bottom-middle", "bottom-right"],
+    "canvas_use": "max",
+    "image_aspect_ratio": 1.414
+  },
+  "template_mix5_2l3p_a": {
+    "num_images": 5,
+    "orientation_sequence": ["portrait", "portrait", "landscape", "landscape", "portrait"],
+    "layout": "3portrait_top_2landscape_bottom",
+    "positions": ["top-left", "top-middle", "top-right", "bottom-left", "bottom-right"],
+    "canvas_use": "max",
+    "image_aspect_ratio": 1.414
+  },
+  "template_mix5_2l3p_b": {
+    "num_images": 5,
+    "orientation_sequence": ["landscape", "landscape", "landscape", "portrait", "portrait"],
+    "layout": "3landscape_top_2portrait_bottom",
+    "positions": ["top-left", "top-middle", "top-right", "bottom-left", "bottom-right"],
+    "canvas_use": "max",
+    "image_aspect_ratio": 1.414
+  },
+
+  "template_mix5_1l4p_a": {
+    "num_images": 5,
+    "orientation_sequence": ["landscape", "portrait", "portrait", "portrait", "portrait"],
+    "layout": "1landscape_top_4portrait_bottom",
+    "positions": ["top-full", "bottom-left", "bottom-middle", "bottom-right", "bottom-far-right"],
+    "canvas_use": "max",
+    "image_aspect_ratio": 1.414
+  },
+  "template_mix5_1l4p_b": {
+    "num_images": 5,
+    "orientation_sequence": ["portrait", "portrait", "portrait", "portrait", "landscape"],
+    "layout": "4portrait_top_1landscape_bottom",
+    "positions": ["top-left", "top-middle", "top-right", "top-far-right", "bottom-full"],
+    "canvas_use": "max",
+    "image_aspect_ratio": 1.414
+  },
+  
+  "template_mix5c_top_variant": {
+    "num_images": 5,
+    "orientation_sequence": ["landscape", "portrait", "portrait", "portrait", "landscape"],
+    "layout": "landscape_top_bottom_3portrait_middle",
+    "positions": ["top-full", "middle-left", "middle-center", "middle-right", "bottom-full"],
+    "canvas_use": "max",
+    "image_aspect_ratio": 1.414
+  },
+  "template_mix5c_bottom_variant": {
+    "num_images": 5,
+    "orientation_sequence": ["landscape", "portrait", "portrait", "landscape", "landscape"],
+    "layout": "2top_row_l_and_p_2middle_row_p_and_l_1bottom_l",
+    "positions": ["top-left", "top-right", "middle-left", "middle-right", "bottom-full"],
+    "canvas_use": "max",
+    "image_aspect_ratio": 1.414
+  },
+    "template_6p_grid_3x2": {
+      "num_images": 6,
+      "orientation_sequence": ["portrait", "portrait", "portrait", "portrait", "portrait", "portrait"],
+      "layout": "3portrait_top_3portrait_bottom",
+      "positions": ["top-left", "top-middle", "top-right", "bottom-left", "bottom-middle", "bottom-right"],
+      "canvas_use": "max",
+      "image_aspect_ratio": 1.414
+    },
+    "template_6p_grid_2x3": {
+      "num_images": 6,
+      "orientation_sequence": ["portrait", "portrait", "portrait", "portrait", "portrait", "portrait"],
+      "layout": "2portrait_left_2portrait_center_2portrait_right",
+      "positions": ["left-top", "left-bottom", "center-top", "center-bottom", "right-top", "right-bottom"],
+      "canvas_use": "max",
+      "image_aspect_ratio": 1.414
+    },
+      "template_6l_grid_3x2": {
+        "num_images": 6,
+        "orientation_sequence": ["landscape", "landscape", "landscape", "landscape", "landscape", "landscape"],
+        "layout": "3landscape_top_3landscape_bottom",
+        "positions": ["top-left", "top-middle", "top-right", "bottom-left", "bottom-middle", "bottom-right"],
+        "canvas_use": "max",
+        "image_aspect_ratio": 1.414
+      },
+      "template_6l_grid_2x3": {
+        "num_images": 6,
+        "orientation_sequence": ["landscape", "landscape", "landscape", "landscape", "landscape", "landscape"],
+        "layout": "2landscape_left_2landscape_center_2landscape_right",
+        "positions": ["left-top", "left-bottom", "center-top", "center-bottom", "right-top", "right-bottom"],
+        "canvas_use": "max",
+        "image_aspect_ratio": 1.414
+      },
+      "template_5p1l_top2mid3bot1l": {
+        "num_images": 6,
+        "orientation_sequence": ["portrait", "portrait", "portrait", "portrait", "portrait", "landscape"],
+        "layout": "2portrait_top_3portrait_middle_1landscape_bottom",
+        "positions": ["top-left", "top-right", "middle-left", "middle-center", "middle-right", "bottom-full"],
+        "canvas_use": "max",
+        "image_aspect_ratio": 1.414
+      },
+      "template_5p1l_top1lmid3bot2": {
+        "num_images": 6,
+        "orientation_sequence": ["landscape", "portrait", "portrait", "portrait", "portrait", "portrait"],
+        "layout": "1landscape_top_3portrait_middle_2portrait_bottom",
+        "positions": ["top-full", "middle-left", "middle-center", "middle-right", "bottom-left", "bottom-right"],
+        "canvas_use": "max",
+        "image_aspect_ratio": 1.414
+      },
+      "template_5p1l_grid4l1p1lbot": {
+        "num_images": 6,
+        "orientation_sequence": ["portrait", "portrait", "portrait", "portrait", "portrait", "landscape"],
+        "layout": "2x2portrait_grid_left_1portrait_right_1landscape_bottom",
+        "positions": ["left-top-left", "left-top-right", "left-bottom-left", "left-bottom-right", "right-top", "bottom-full"],
+        "canvas_use": "max",
+        "image_aspect_ratio": 1.414
+      },
+      "template_5p1l_ringpluslandscape": {
+        "num_images": 6,
+        "orientation_sequence": ["portrait", "portrait", "portrait", "portrait", "portrait", "landscape"],
+        "layout": "2portrait_left_2portrait_right_1portrait_center_1landscape_bottom",
+        "positions": ["left-top", "left-bottom", "right-top", "right-bottom", "center", "bottom-full"],
+        "canvas_use": "max",
+        "image_aspect_ratio": 1.414
+      },
+    "template_4p2l_portraitstack_landscapebottom": {
+      "num_images": 6,
+      "orientation_sequence": ["portrait", "portrait", "portrait", "portrait", "landscape", "landscape"],
+      "layout": "2portrait_top_2portrait_middle_2landscape_bottom",
+      "positions": ["top-left", "top-right", "middle-left", "middle-right", "bottom-left", "bottom-right"],
+      "canvas_use": "max",
+      "image_aspect_ratio": 1.414
+    },
+    "template_4p2l_landscapetop_bottom": {
+      "num_images": 6,
+      "orientation_sequence": ["landscape", "portrait", "portrait", "portrait", "portrait", "landscape"],
+      "layout": "1landscape_top_2portrait_row_2portrait_row_1landscape_bottom",
+      "positions": ["top-full", "middle-top-left", "middle-top-right", "middle-bottom-left", "middle-bottom-right", "bottom-full"],
+      "canvas_use": "max",
+      "image_aspect_ratio": 1.414
+    },
+    "template_4p2l_portraitsides_landscapemiddle": {
+      "num_images": 6,
+      "orientation_sequence": ["portrait", "portrait", "landscape", "landscape", "portrait", "portrait"],
+      "layout": "2portrait_left_2landscape_middle_2portrait_right",
+      "positions": ["left-top", "left-bottom", "middle-top", "middle-bottom", "right-top", "right-bottom"],
+      "canvas_use": "max",
+      "image_aspect_ratio": 1.414
+    },
+    "template_3p3l_altrow_ls_p": {
+      "num_images": 6,
+      "orientation_sequence": ["landscape", "portrait", "portrait", "landscape", "landscape", "portrait"],
+      "layout": "row1_landscape_left_portrait_right_row2_portrait_left_landscape_right_row3_landscape_left_portrait_right",
+      "positions": ["row1-left", "row1-right", "row2-left", "row2-right", "row3-left", "row3-right"],
+      "canvas_use": "max",
+      "image_aspect_ratio": 1.414
+    },
+    "template_3p3l_altrow_p_ls": {
+      "num_images": 6,
+      "orientation_sequence": ["portrait", "landscape", "landscape", "portrait", "portrait", "landscape"],
+      "layout": "row1_portrait_left_landscape_right_row2_landscape_left_portrait_right_row3_portrait_left_landscape_right",
+      "positions": ["row1-left", "row1-right", "row2-left", "row2-right", "row3-left", "row3-right"],
+      "canvas_use": "max",
+      "image_aspect_ratio": 1.414
+    },
+    "template_3p3l_bandstack_lsp": {
+      "num_images": 6,
+      "orientation_sequence": ["landscape", "portrait", "portrait", "portrait", "landscape", "landscape"],
+      "layout": "ls_band_top_3portrait_row_ls_band_middle_3portrait_row_ls_band_bottom",
+      "positions": ["top-full", "row2-left", "row2-center", "row2-right", "middle-full", "bottom-full"],
+      "canvas_use": "max",
+      "image_aspect_ratio": 1.414
+    },
+    "template_2p4l_grid_top_pstack_left": {
+      "num_images": 6,
+      "orientation_sequence": ["landscape", "landscape", "landscape", "landscape", "portrait", "portrait"],
+      "layout": "2landscape_top_row_2landscape_middle_row_2portrait_stack_left",
+      "positions": ["row1-left", "row1-right", "row2-left", "row2-right", "left-top", "left-bottom"],
+      "canvas_use": "max",
+      "image_aspect_ratio": 1.414
+    },
+    "template_2p4l_grid_top_pstack_right": {
+      "num_images": 6,
+      "orientation_sequence": ["landscape", "landscape", "landscape", "landscape", "portrait", "portrait"],
+      "layout": "2landscape_top_row_2landscape_middle_row_2portrait_stack_right",
+      "positions": ["row1-left", "row1-right", "row2-left", "row2-right", "right-top", "right-bottom"],
+      "canvas_use": "max",
+      "image_aspect_ratio": 1.414
+    },
+    "template_2p4l_landscape_band_top_bottom": {
+      "num_images": 6,
+      "orientation_sequence": ["landscape", "portrait", "portrait", "landscape", "landscape", "landscape"],
+      "layout": "landscape_band_top_2portrait_middle_row_landscape_band_bottom",
+      "positions": ["top-full", "middle-left", "middle-right", "bottom-left", "bottom-center", "bottom-right"],
+      "canvas_use": "max",
+      "image_aspect_ratio": 1.414
+    },
+      "template_1p5l_portrait_left_landscapes_right_grid": {
+        "num_images": 6,
+        "orientation_sequence": ["portrait", "landscape", "landscape", "landscape", "landscape", "landscape"],
+        "layout": "portrait_left_5landscape_grid_right",
+        "positions": ["left-full", "right-top-left", "right-top-right", "right-middle", "right-bottom-left", "right-bottom-right"],
+        "canvas_use": "max",
+        "image_aspect_ratio": 1.414
+      },
+      "template_1p5l_portrait_right_landscapes_left_grid": {
+        "num_images": 6,
+        "orientation_sequence": ["landscape", "landscape", "landscape", "landscape", "landscape", "portrait"],
+        "layout": "5landscape_grid_left_portrait_right",
+        "positions": ["left-top-left", "left-top-right", "left-middle", "left-bottom-left", "left-bottom-right", "right-full"],
+        "canvas_use": "max",
+        "image_aspect_ratio": 1.414
+      },
+      "template_7p_3top_4bottom_equal_widths": {
+        "num_images": 7,
+        "orientation_sequence": ["portrait", "portrait", "portrait", "portrait", "portrait", "portrait", "portrait"],
+        "layout": "3portrait_top_4portrait_bottom_equal_widths",
+        "positions": ["top-left", "top-middle", "top-right", "bottom-left", "bottom-left-center", "bottom-right-center", "bottom-right"],
+        "canvas_use": "max",
+        "image_aspect_ratio": 1.414
+      },
+      "template_6p1l_landscape_bottom": {
+        "num_images": 7,
+        "orientation_sequence": ["portrait", "portrait", "portrait", "portrait", "portrait", "portrait", "landscape"],
+        "layout": "6portrait_grid_top_1landscape_bottom",
+        "positions": ["top-left", "top-middle-left", "top-middle-right", "top-right", "bottom-left", "bottom-middle", "bottom-full"],
+        "canvas_use": "max",
+        "image_aspect_ratio": 1.414
+      },
+      "template_6p1l_landscape_top": {
+        "num_images": 7,
+        "orientation_sequence": ["landscape", "portrait", "portrait", "portrait", "portrait", "portrait", "portrait"],
+        "layout": "1landscape_top_6portrait_grid_below",
+        "positions": ["top-full", "middle-left", "middle-middle-left", "middle-middle-right", "middle-right", "bottom-left", "bottom-right"],
+        "canvas_use": "max",
+        "image_aspect_ratio": 1.414
+      },
+      
+      "template_5p2l_matrix_with_center": {
+        "num_images": 7,
+        "orientation_sequence": ["portrait", "portrait", "portrait", "portrait", "portrait", "landscape", "landscape"],
+        "layout": "5portrait_matrix_centered_2landscape_bands",
+        "positions": ["top-left", "top-middle", "top-right", "bottom-left", "bottom-right", "middle-top-full", "middle-bottom-full"],
+        "canvas_use": "max",
+        "image_aspect_ratio": 1.414
+      },
+      "template_5p2l_lsandwich_portraits_center": {
+        "num_images": 7,
+        "orientation_sequence": ["landscape", "portrait", "portrait", "portrait", "portrait", "portrait", "landscape"],
+        "layout": "landscape_top_and_bottom_5portrait_grid_center",
+        "positions": ["top-full", "middle-left", "middle-middle-left", "middle-middle-right", "middle-right", "bottom-left", "bottom-full"],
+        "canvas_use": "max",
+        "image_aspect_ratio": 1.414
+      },
+      
+      "template_4p3l_split_rows": {
+        "num_images": 7,
+        "orientation_sequence": ["portrait", "portrait", "portrait", "portrait", "landscape", "landscape", "landscape"],
+        "layout": "2portrait_row_top_1landscape_mid_2portrait_row_lower_2landscape_bottom",
+        "positions": ["top-left", "top-right", "middle-full", "lower-left", "lower-right", "bottom-left", "bottom-right"],
+        "canvas_use": "max",
+        "image_aspect_ratio": 1.414
+      },
+      "template_4p3l_cascade_columns": {
+        "num_images": 7,
+        "orientation_sequence": ["portrait", "portrait", "portrait", "portrait", "landscape", "landscape", "landscape"],
+        "layout": "portrait_stack_left_landscape_stack_center_portrait_stack_right",
+        "positions": ["left-top", "left-bottom", "right-top", "right-bottom", "center-top", "center-middle", "center-bottom"],
+        "canvas_use": "max",
+        "image_aspect_ratio": 1.414
+      },
+      
+      "template_3p4l_landscape_top_bottom": {
+        "num_images": 7,
+        "orientation_sequence": ["portrait", "portrait", "portrait", "landscape", "landscape", "landscape", "landscape"],
+        "layout": "3portrait_stack_middle_2landscape_top_2landscape_bottom",
+        "positions": ["middle-top", "middle-center", "middle-bottom", "top-left", "top-right", "bottom-left", "bottom-right"],
+        "canvas_use": "max",
+        "image_aspect_ratio": 1.414
+      },
+      "template_3p4l_landscape_grid_right": {
+        "num_images": 7,
+        "orientation_sequence": ["portrait", "portrait", "portrait", "landscape", "landscape", "landscape", "landscape"],
+        "layout": "3portrait_stack_left_4landscape_grid_right",
+        "positions": ["left-top", "left-middle", "left-bottom", "right-top-left", "right-top-right", "right-bottom-left", "right-bottom-right"],
+        "canvas_use": "max",
+        "image_aspect_ratio": 1.414
+      },
+      
+      "template_2p5l_landscape_grid_with_side_portraits": {
+        "num_images": 7,
+        "orientation_sequence": ["portrait", "portrait", "landscape", "landscape", "landscape", "landscape", "landscape"],
+        "layout": "2portrait_stack_left_5landscape_grid_right",
+        "positions": ["left-top", "left-bottom", "right-top-left", "right-top-right", "right-middle-left", "right-middle-right", "right-bottom"],
+        "canvas_use": "max",
+        "image_aspect_ratio": 1.414
+      },
+      "template_2p5l_portraits_flank_landscape_center": {
+        "num_images": 7,
+        "orientation_sequence": ["landscape", "landscape", "landscape", "landscape", "landscape", "portrait", "portrait"],
+        "layout": "5landscape_centered_1portrait_left_1portrait_right",
+        "positions": ["center-top", "center-middle-top", "center-middle", "center-middle-bottom", "center-bottom", "left-center", "right-center"],
+        "canvas_use": "max",
+        "image_aspect_ratio": 1.414
+      },
+      
+      "template_1p6l_landscape_matrix_with_side_portrait": {
+        "num_images": 7,
+        "orientation_sequence": ["landscape", "landscape", "landscape", "landscape", "landscape", "landscape", "portrait"],
+        "layout": "3landscape_top_3landscape_bottom_1portrait_sidebar",
+        "positions": ["top-left", "top-middle", "top-right", "bottom-left", "bottom-middle", "bottom-right", "side-center"],
+        "canvas_use": "max",
+        "image_aspect_ratio": 1.414
+      },
+      "template_1p6l_portrait_stack_left_landscape_grid_right": {
+        "num_images": 7,
+        "orientation_sequence": ["portrait", "landscape", "landscape", "landscape", "landscape", "landscape", "landscape"],
+        "layout": "portrait_stack_left_6landscape_grid_right",
+        "positions": ["left-top", "right-top-left", "right-top-right", "right-middle-left", "right-middle-right", "right-bottom-left", "right-bottom-right"],
+        "canvas_use": "max",
+        "image_aspect_ratio": 1.414
+      },
+      
+      "template_7l_mosaic_grid": {
+        "num_images": 7,
+        "orientation_sequence": ["landscape", "landscape", "landscape", "landscape", "landscape", "landscape", "landscape"],
+        "layout": "3landscape_top_2landscape_middle_2landscape_bottom",
+        "positions": ["top-left", "top-middle", "top-right", "middle-left", "middle-right", "bottom-left", "bottom-right"],
+        "canvas_use": "max",
+        "image_aspect_ratio": 1.414
+      },
+      "template_7l_vertical_blocks": {
+        "num_images": 7,
+        "orientation_sequence": ["landscape", "landscape", "landscape", "landscape", "landscape", "landscape", "landscape"],
+        "layout": "7landscape_stacked_in_column_blocks",
+        "positions": ["top", "upper-middle", "middle-top", "center", "middle-bottom", "lower-middle", "bottom"],
+        "canvas_use": "max",
+        "image_aspect_ratio": 1.414
+      }
+}

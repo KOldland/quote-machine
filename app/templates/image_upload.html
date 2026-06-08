@@ -1,0 +1,212 @@
+{% extends "index.html" %}
+
+
+{% block content %}
+
+<!-- Flickity CSS CDN -->
+<link rel="stylesheet" href="https://unpkg.com/flickity@2/dist/flickity.min.css">
+
+<!-- Flickity JS CDN -->
+<script src="https://unpkg.com/flickity@2/dist/flickity.pkgd.min.js"></script>
+
+<style>
+	.carousel {
+		background: transparent;
+		margin-top: 1rem;
+	}
+	.carousel-cell {
+		width: 220px;
+		height: 340px; /* increased height for taller layout cards */
+		margin-right: 10px;
+		background: #f8f8f8;
+		border-radius: 6px;
+		overflow: hidden;
+		text-align: center;
+	}
+	.carousel-cell img {
+		max-width: 100%;
+		height: auto;
+		display: block;
+	}
+	.template-thumb {
+		padding: 0.5rem;
+	}
+</style>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+	{% if messages %}
+	<div class="flash-container">
+		{% for category, message in messages %}
+		<div class="flash flash-{{ category }}">{{ message }}</div>
+		{% endfor %}
+	</div>
+	{% endif %}
+{% endwith %}
+
+<div class="form-container">  <!-- Matches shared layout -->
+	
+	<h1 class="section-heading">Upload Images for Your Quote</h1>
+	<p>Upload all quote-specific images here. You can upload site images, and add standalone images for cover, CGI, and floorplan.</p>
+	
+	<!-- Accordion: Cover Image -->
+	<div class="accordion-section">
+		<button type="button" class="accordion-header" onclick="toggleAccordion('coverImageSection')">
+			Cover Image
+		</button>
+		<div id="coverImageSection" class="accordion-body">
+			<form method="POST" enctype="multipart/form-data">
+				<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+				<input type="file" name="cover_image" accept="image/*" onchange="this.form.submit()">
+			</form>
+		</div>
+	</div>
+	
+	<!-- Accordion: CGI Image -->
+	<div class="accordion-section">
+		<button type="button" class="accordion-header" onclick="toggleAccordion('cgiImageSection')">
+			CGI Render / CAD
+		</button>
+		<div id="cgiImageSection" class="accordion-body">
+			<form method="POST" enctype="multipart/form-data">
+				<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+				<input type="file" name="cgi_image" accept="image/*" onchange="this.form.submit()">
+			</form>
+		</div>
+	</div>
+	
+	<!-- Accordion: Floorplan -->
+	<div class="accordion-section">
+		<button type="button" class="accordion-header" onclick="toggleAccordion('floorplanImageSection')">
+			Floorplan
+		</button>
+		<div id="floorplanImageSection" class="accordion-body">
+			<form method="POST" enctype="multipart/form-data">
+				<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+				<input type="file" name="floorplan_image" accept="image/*" onchange="this.form.submit()">
+			</form>
+		</div>
+	</div>
+	
+	<!-- Accordion: Site Images -->
+	<div class="accordion-section">
+		<button type="button" class="accordion-header" onclick="toggleAccordion('siteImagesSection')">
+			Site Images
+		</button>
+		<div id="siteImagesSection" class="accordion-body{% if open_accordion == 'siteImagesSection' %} active{% endif %}">
+			
+			<form method="POST" enctype="multipart/form-data">
+				<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+				<input type="hidden" name="open_accordion" value="siteImagesSection">
+				<div class="form-group upload-wrapper">
+					<label for="site_images" class="btn">
+						Select Site Images
+						<input 
+							type="file" 
+							name="site_images" 
+							id="site_images" 
+							accept="image/*" 
+							multiple 
+							hidden
+							required
+							onchange="this.form.submit()"
+						>
+					</label>
+				</div>
+			</form>
+			
+			<form method="POST" action="{{ url_for('image_upload_page') }}">
+				<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+				<input type="hidden" name="reset_session" value="1">
+				<input type="hidden" name="open_accordion" value="siteImagesSection">
+				<button type="submit" class="btn btn-warning mt-2">Reset Image Upload</button>
+			</form>
+			
+			{% if uploaded_images %}
+			<hr>
+			<h4>Uploaded Images</h4>
+			<form method="POST" action="{{ url_for('image_upload_page') }}">
+				<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+				<input type="hidden" name="open_accordion" value="siteImagesSection">
+				<div class="uploaded-images-grid">
+					{% for filename, url in uploaded_images.items() %}
+					{% if filename.startswith('img_site_') or filename in ['cover_image.jpg', 'cgi_image.jpg', 'floorplan_image.jpg'] %}
+					<div class="image-thumb selectable" data-filename="{{ filename }}">
+						<label>
+							<input type="checkbox" name="selected_images" value="{{ filename }}">
+							<img src="{{ url }}" alt="{{ filename }}" class="img-thumbnail uploaded-img-thumb">
+						</label>
+						<p class="filename">{{ filename }}</p>
+					</div>
+					{% endif %}
+					{% endfor %}
+				</div>
+				<button type="submit" name="action" value="delete" class="btn btn-danger mt-3">Delete Selected</button>
+			</form>
+			{% endif %}
+			
+			{% set chosen = session.get('chosen_template') %}
+			{% set plan = session.get('site_image_plan', []) %}
+			{% set all_templates = plan[0]['templates'] if plan else [] %}
+			{% set final_output_url = uploaded_images.get('final_output_1.jpg') %}
+			
+			{% if final_output_url %}
+			<hr>
+			<h4>Selected Layout Preview</h4>
+			<div class="layout-preview-row">
+				<div class="current-layout">
+					<h5>Current Layout Preview</h5>
+					<img src="{{ final_output_url }}" alt="Selected Layout Preview" class="final-preview-img">
+					<p class="text-muted">Currently selected template: <strong>{{ chosen }}</strong></p>
+				</div>
+				
+				{% if all_templates|length > 1 %}
+				<div class="alternate-templates">
+					<h5>Choose Alternate Layout</h5>
+					<form method="POST" action="{{ url_for('image_upload_page') }}">
+						<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+						<input type="hidden" name="open_accordion" value="siteImagesSection">
+						<div class="carousel" data-flickity='{
+						"cellAlign": "center",
+						"contain": true,
+						"wrapAround": true,
+						"pageDots": false,
+						"prevNextButtons": {{ "true" if all_templates|length > 2 else "false" }}
+					}'>
+							{% for template_key in all_templates if template_key != chosen %}
+							<div class="carousel-cell">
+								<label>
+									<input type="radio" name="selected_template" value="{{ template_key }}">
+									<img src="{{ url_for('static', filename='layout_templates/' ~ template_key ~ '.jpg') }}" class="template-thumb">
+									<p>{{ template_key }}</p>
+								</label>
+							</div>
+							{% endfor %}
+						</div>
+						<button type="submit" class="btn btn-primary mt-3">Preview Selected Template</button>
+					</form>
+				</div>
+				{% endif %}
+			</div>
+			{% endif %}
+			
+		</div>
+	</div>
+
+
+	
+<br><hr><br>	
+
+	<!-- Nav Buttons -->
+	<div class="button-container">
+		{% if previous_page and previous_page != '/' %}
+		<button type="button" class="btn" onclick="window.location.href='{{ url_for(previous_page) }}'">Previous</button>
+		{% endif %}
+		{% if next_page %}
+		<button type="button" class="btn" onclick="window.location.href='{{ url_for(next_page) }}'">Next</button>
+		{% endif %}
+	</div>
+	
+</div>
+{% endblock %}
+
+	

@@ -1,0 +1,59 @@
+Page
+-----Section (accoridon)
+----------Question - Always a checkbox as it is a toggle for inclusion in output
+----------------Question Logic <--- is there a follow up question
+----------------------Drop down option
+----------------------Manual input 
+----------------------Dropdown with other option for manual input
+----------------Costs
+----------------------Cost per unit
+----------------------Units
+----------------------Allow User override <--- currently this is pricing visibility it should be simplified to a toggle
+---------------Output
+---------------------Output Title 
+---------------------Output description
+---------------------Output Additoional Note
+---------------Meta
+--------------------Line Code 
+--------------------Category <---- is same as section by looks of it) 
+--------------------Sort Order <--- don't actually know what this is 
+--------------------Form Visible <---- I think this is the visibility toggle - we will repurpose this elsewhere
+--------------------Include default <---- again not sure what this is. 
+
+
+
+Map to CSV
+
+Page ----> not defined in the spreadsheet use existing code as source of truth
+
+Section - maps to ---> column C - category
+
+Question Include in Output -----> Maps to column E Include (Y/N)
+
+Question Logic ----> not mapped but we can infer via oroginal code see below note
+
+
+Costs
+
+Cost per unit - maps to ---> column F 'Unit Cost'
+Units - maps to column G - 'Unit'
+Allow User override ----> not mapped new function
+
+Description
+
+Output Title - Maps to ---> column K description (title) 
+Output description - Maps to ---> column M Description (notes)
+Output Additoional Note - Maps to ---> column N description (additional guidance) 
+
+Meta
+Line Code - Maps to ---> column B Line Code
+Category - Maps to ---> column C - Category
+--------------------Sort Order <--- don't actually know what this is 
+--------------------Form Visible <---- I think this is the visibility toggle - we will repurpose this elsewhere
+--------------------Include default <---- again not sure what this is. 
+
+Question Logic note... 
+
+If my memory serves me correct manual entry and drop downs were originally handled seperately from line codes in the original flask. If we can look at older git entries we should be able to dientify which were handled separately and these will all be secondary questions. 
+
+Additionally we can use the parent/child logic to help populate description fields. Looking at the origiunal spreadsheet. Column D duplicates columns K, M and N for the children which is probably causeing major noise. 

@@ -1,0 +1,848 @@
+{% macro render_properties_panel(selected_block, blocks, pricing_modes, current_page_id) %}
+    <div class="builder-properties">
+        <div class="properties-header">Block Properties</div>
+        <div class="properties-content" id="properties-content">
+            {% if selected_block %}
+                <form id="block-properties-form" method="POST" action="{{ url_for("builder_beta_page_editor", page_id=current_page_id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="save_block">
+                    <input type="hidden" name="block_id" value="{{ selected_block.id }}">
+                    
+                    <div class="prop-section" id="prop-fields">
+                        <div class="prop-section-header" onclick='toggleSection("prop-fields")'>
+                            <span>Question Fields</span>
+                            <span class="prop-section-toggle">▾</span>
+                        </div>
+                        <div class="prop-section-body">
+                            <div class="form-group">
+                                <label>Label</label>
+                                <input type="text" name="standard_label" value="{{ selected_block.standard.label }}">
+                            </div>
+                            <div class="form-group">
+                                <label>Name (unique identifier)</label>
+                                <input type="text" name="standard_name" value="{{ selected_block.standard.name }}">
+                            </div>
+                            <div class="form-group">
+                                <label>Help Text</label>
+                                <textarea name="standard_help_text">{{ selected_block.standard.help_text }}</textarea>
+                            </div>
+                            <div class="form-group checkbox-group">
+                                <input type="checkbox" name="standard_required" {% if selected_block.standard.required %}checked{% endif %}>
+                                <label>Required</label>
+                            </div>
+                            
+                            {% if selected_block.block_type == "text_input" or selected_block.block_type == "number_currency_input" %}
+                            <div class="form-group">
+                                <label>Placeholder</label>
+                                <input type="text" name="standard_placeholder" value="{{ selected_block.standard.placeholder }}">
+                            </div>
+                            {% elif selected_block.block_type == "dropdown_select" or selected_block.block_type == "checkbox_group" %}
+                            <div class="form-group">
+                                <label>Choices (one per line)</label>
+                                <textarea name="standard_dropdown_choices" rows="4">{{ selected_block.standard.dropdown_choices|join('\n') }}</textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>Source Prefix</label>
+                                <input type="text" name="standard_source_prefix" value="{{ selected_block.standard.source_prefix }}">
+                            </div>
+                            {% elif selected_block.block_type == "static_text_heading" %}
+                            <div class="form-group">
+                                <label>Content</label>
+                                <textarea name="standard_static_content" rows="3">{{ selected_block.standard.static_content }}</textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>Variant</label>
+                                <select name="standard_static_variant">
+                                    <option value="body" {% if selected_block.standard.static_variant == "body" %}selected{% endif %}>Body</option>
+                                    <option value="heading" {% if selected_block.standard.static_variant == "heading" %}selected{% endif %}>Heading</option>
+                                    <option value="subheading" {% if selected_block.standard.static_variant == "subheading" %}selected{% endif %}>Subheading</option>
+                                    <option value="note" {% if selected_block.standard.static_variant == "note" %}selected{% endif %}>Note</option>
+                                </select>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="prop-section" id="prop-logic">
+                        <div class="prop-section-header" onclick='toggleSection("prop-logic")'>
+                            <span>Logic</span>
+                            <span class="prop-section-toggle">▾</span>
+                        </div>
+                        <div class="prop-section-body">
+                            <div class="form-group">
+                                <label>Visibility</label>
+                                <select name="logic_visibility">
+                                    <option value="always" {% if selected_block.logic_options.visibility == "always" %}selected{% endif %}>Always show</option>
+                                    <option value="conditional" {% if selected_block.logic_options.visibility == "conditional" %}selected{% endif %}>Show conditionally</option>
+                                </select>
+                            </div>
+                            <div id="logic-conditions" style="display: {% if selected_block.logic_options.visibility == "conditional" %}block{% else %}none{% endif %};">
+                                <div class="logic-condition">
+                                    <select name="logic_depends_on_field">
+                                        <option value="">Select field...</option>
+                                        {% for block_item in blocks %}
+                                            {% if block_item.id != selected_block.id %}
+                                            <option value="{{ block_item.id }}" {% if block_item.id == selected_block.logic_options.depends_on_field %}selected{% endif %}>{{ block_item.standard.label }}</option>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="logic-condition">
+                                    <input type="text" name="logic_depends_on_value" value="{{ selected_block.logic_options.depends_on_value }}" placeholder="Required value...">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="prop-section" id="prop-pricing">
+                        <div class="prop-section-header" onclick='toggleSection("prop-pricing")'>
+                            <span>Pricing</span>
+                            <span class="prop-section-toggle">▾</span>
+                        </div>
+                        <div class="prop-section-body">
+                            <div class="form-group">
+                                <label>Enabled</label>
+                                <div class="form-group checkbox-group">
+                                    <input type="checkbox" name="pricing_enabled" {% if selected_block.pricing_options.enabled %}checked{% endif %}>
+                                    <label>Enable pricing</label>
+                                </div>
+                            </div>
+                            <div class="form-group pricing-mode-select">
+                                <label>Mode</label>
+                                <select name="pricing_mode" onchange="updatePricingFields(this.value)">
+                                    {% for mode in pricing_modes %}
+                                    <option value="{{ mode }}" {% if selected_block.pricing_options.mode == mode %}selected{% endif %}>{{ mode.replace("_", " ").title() }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div id="pricing-fields" class="pricing-fields {% if selected_block.pricing_options.enabled %}active{% endif %}">
+                                {% if selected_block.pricing_options.mode == "fixed" %}
+                                <div class="form-group">
+                                    <label>Fixed Amount (£)</label>
+                                    <input type="number" step="0.01" min="0" name="pricing_fixed_amount" value="{{ selected_block.pricing_options.fixed_amount }}">
+                                </div>
+                                {% elif selected_block.pricing_options.mode == "entered" %}
+                                <div class="form-group">
+                                    <label>Reference Field</label>
+                                    <select name="pricing_entered_key">
+                                        <option value="">Select field...</option>
+                                        {% for block_item in blocks %}
+                                            <option value="{{ block_item.id }}" {% if block_item.id == selected_block.pricing_options.entered_key %}selected{% endif %}>{{ block_item.standard.label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                {% elif selected_block.pricing_options.mode == "quantity_rate" %}
+                                <div class="form-group">
+                                    <label>Quantity Field</label>
+                                    <select name="pricing_quantity_key">
+                                        <option value="">Select field...</option>
+                                        {% for block_item in blocks %}
+                                            <option value="{{ block_item.id }}" {% if block_item.id == selected_block.pricing_options.quantity_key %}selected{% endif %}>{{ block_item.standard.label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Rate (£ per unit)</label>
+                                    <input type="number" step="0.01" min="0" name="pricing_rate" value="{{ selected_block.pricing_options.rate }}">
+                                </div>
+                                {% elif selected_block.pricing_options.mode == "percent_subtotal" %}
+                                <div class="form-group">
+                                    <label>Percentage (%)</label>
+                                    <input type="number" step="0.01" min="0" max="100" name="pricing_percent_of_subtotal" value="{{ selected_block.pricing_options.percent_of_subtotal }}">
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="prop-section" id="prop-output">
+                        <div class="prop-section-header" onclick='toggleSection("prop-output")'>
+                            <span>Output</span>
+                            <span class="prop-section-toggle">▾</span>
+                        </div>
+                        <div class="prop-section-body">
+                            <div class="form-group checkbox-group">
+                                <input type="checkbox" name="output_include_in_output" {% if selected_block.output_options.include_in_output %}checked{% endif %}>
+                                <label>Include in Output</label>
+                            </div>
+                            <div class="form-group">
+                                <label>Output Label</label>
+                                <input type="text" name="output_label" value="{{ selected_block.output_options.output_label }}">
+                            </div>
+                            <div class="form-group">
+                                <label>Output Group</label>
+                                <input type="text" name="output_group" value="{{ selected_block.output_options.group }}">
+                            </div>
+                            <div class="form-group">
+                                <label>Value Mode</label>
+                                <select name="output_value_mode">
+                                    <option value="show_value" {% if selected_block.output_options.value_mode == "show_value" %}selected{% endif %}>Show Value</option>
+                                    <option value="show_label" {% if selected_block.output_options.value_mode == "show_label" %}selected{% endif %}>Show Label Only</option>
+                                    <option value="hide_value" {% if selected_block.output_options.value_mode == "hide_value" %}selected{% endif %}>Hide Value</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">Save Block</button>
+                </form>
+            {% else %}
+                <div class="properties-empty">
+                    <p>Select a block to edit its properties</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+{% endmacro %}
+
+{# ── Line Items Canvas Macros ─────────────────────────────────────────────── #}
+
+{% macro render_line_items_canvas() %}
+<div class="li-canvas-wrap" id="li-canvas">
+    <div class="li-canvas-toolbar" style="padding:.6rem .75rem;background:#f8f9fa;border-bottom:1px solid #dee2e6;display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-weight:600;font-size:.9rem;color:#1b3a6b;">Line Items — All Categories</span>
+        <span id="li-save-status" style="font-size:.8rem;color:#28a745;"></span>
+    </div>
+    <div id="li-accordion-container" style="padding:.75rem;overflow-y:auto;max-height:calc(100vh - 160px);">
+        <p style="color:#999;font-size:.9rem;">Loading…</p>
+    </div>
+</div>
+<style>
+.li-category { border:1px solid #dee2e6; border-radius:6px; margin-bottom:.5rem; overflow:hidden; }
+.li-category summary.li-category-header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:.5rem .75rem; background:#f0f4ff; cursor:pointer;
+    font-size:.85rem; font-weight:600; color:#1b3a6b; list-style:none;
+}
+.li-category summary.li-category-header::-webkit-details-marker { display:none; }
+.li-count { font-size:.75rem; color:#6c757d; font-weight:400; }
+.li-items-list { padding:.25rem 0; }
+.li-row {
+    display:grid; grid-template-columns:110px 1fr 90px 30px;
+    gap:.4rem; align-items:center;
+    padding:.3rem .75rem; font-size:.8rem; cursor:pointer;
+    border-bottom:1px solid #f3f3f3;
+    transition:background .1s;
+}
+.li-row:hover { background:#eef2ff; }
+.li-row--selected { background:#dde7ff !important; }
+.li-row-code { font-family:monospace; font-weight:600; color:#344; font-size:.78rem; }
+.li-row-desc { color:#444; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.li-row-role { font-size:.72rem; color:#888; text-align:right; }
+.li-row-visible { text-align:center; font-size:.8rem; }
+</style>
+{% endmacro %}
+
+{% macro render_line_item_properties() %}
+<div class="builder-properties" id="li-properties-panel" style="display:flex;flex-direction:column;height:100%;">
+    <div class="properties-header">Line Item Fields</div>
+    <div class="properties-content" id="li-properties-content" style="overflow-y:auto;flex:1;padding:.75rem;">
+        <div class="properties-empty">
+            <p>Select a line item row to edit its fields</p>
+        </div>
+    </div>
+</div>
+{% endmacro %}
+
+{# ── End Line Items Canvas Macros ─────────────────────────────────────────── #}
+
+{# ── Session L: 3-Column Line Item Canvas Macros ──────────────────────────── #}
+
+{% macro render_li_sections_panel(li_categories, form_page_key) %}
+<div class="li-sections-panel" id="li-sections-panel">
+    <div class="li-sections-header">
+        <span style="font-weight:700;font-size:.85rem;color:#1b3a6b;">Sections</span>
+    </div>
+    <div class="li-sections-list" id="li-sections-list">
+        {% if li_categories %}
+            {% for cat in li_categories %}
+            <button type="button"
+                    class="li-section-btn"
+                    data-category="{{ cat }}"
+                    data-page="{{ form_page_key }}">
+                {{ cat }}
+            </button>
+            {% endfor %}
+        {% else %}
+            <p style="font-size:.8rem;color:#999;padding:.5rem .75rem;">No categories configured for this page.</p>
+        {% endif %}
+    </div>
+</div>
+<style>
+.li-sections-panel {
+    width:220px; min-width:180px; border-right:1px solid #dee2e6;
+    background:#f8f9fa; display:flex; flex-direction:column; height:100%; min-height:0;
+}
+.li-sections-header {
+    padding:.6rem .75rem; border-bottom:1px solid #dee2e6; background:#f0f4ff;
+}
+.li-sections-list { padding:.4rem 0; overflow-y:auto; flex:1; }
+.li-section-btn {
+    display:block; width:100%; text-align:left;
+    padding:.45rem .85rem; border:none; background:none;
+    font-size:.82rem; color:#1b3a6b; cursor:pointer;
+    border-left:3px solid transparent;
+    transition:background .1s, border-color .1s;
+}
+.li-section-btn:hover { background:#e8eeff; }
+.li-section-btn.active {
+    background:#dde7ff; border-left-color:#1b3a6b; font-weight:700;
+}
+</style>
+{% endmacro %}
+
+
+{% macro render_li_question_panel(form_page_key) %}
+<div class="li-question-panel" id="li-question-panel" data-page="{{ form_page_key }}">
+
+    {# View One — question list for selected section #}
+    <div id="li-view-one" style="display:none;flex-direction:column;height:100%;">
+        <div class="li-qp-header" style="display:flex;align-items:center;gap:.5rem;padding:.55rem .75rem;border-bottom:1px solid #dee2e6;background:#f0f4ff;">
+            <span id="li-view-one-title" style="font-weight:700;font-size:.85rem;color:#1b3a6b;flex:1;">— Select a section —</span>
+            <span id="li-view-one-count" style="font-size:.75rem;color:#6c757d;"></span>
+        </div>
+        <div id="li-question-list" style="overflow-y:auto;flex:1;padding:.25rem 0;max-height:calc(100vh - 170px);">
+            <p style="color:#999;font-size:.85rem;padding:.5rem .75rem;">Click a section on the left to load questions.</p>
+        </div>
+    </div>
+
+    {# View Two — question editor for selected question #}
+    <div id="li-view-two" style="display:none;flex-direction:column;height:100%;">
+        <div class="li-qp-header" style="display:flex;align-items:center;gap:.5rem;padding:.55rem .75rem;border-bottom:1px solid #dee2e6;background:#f0f4ff;">
+            <button type="button" id="li-back-btn" style="border:none;background:none;cursor:pointer;font-size:.85rem;color:#1b3a6b;padding:0 .4rem;">← Back</button>
+            <span id="li-view-two-title" style="font-weight:700;font-size:.85rem;color:#1b3a6b;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+            <span id="li-save-status-v2" style="font-size:.75rem;color:#28a745;min-width:60px;text-align:right;"></span>
+        </div>
+        <div id="li-editor-content" style="overflow-y:auto;flex:1;padding:.75rem;">
+            {# populated via JS #}
+        </div>
+    </div>
+
+    {# Empty state #}
+    <div id="li-view-empty" style="display:flex;flex:1;align-items:center;justify-content:center;color:#aaa;font-size:.9rem;">
+        Select a section to begin editing
+    </div>
+</div>
+
+<style>
+.li-question-panel {
+    flex:1; display:flex; flex-direction:column; height:100%;
+    min-width:0; min-height:0; background:#fff;
+}
+.li-qlist-row {
+    display:grid;
+    grid-template-columns:1fr 60px;
+    gap:.4rem; align-items:center;
+    padding:.35rem .75rem; font-size:.8rem; cursor:pointer;
+    border-bottom:1px solid #f3f3f3; transition:background .1s;
+}
+.li-qlist-row:hover { background:#eef2ff; }
+.li-qlist-row.selected { background:#dde7ff; }
+.li-qlist-code { font-family:monospace; font-weight:600; color:#344; font-size:.76rem; }
+.li-qlist-desc { color:#333; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.li-qlist-role { font-size:.7rem; color:#888; text-align:right; }
+.li-qlist-vis { text-align:center; font-size:.8rem; }
+
+/* Editor sections */
+.li-editor-section { border:1px solid #dee2e6; border-radius:5px; margin-bottom:.6rem; overflow:hidden; }
+.li-editor-section-header {
+    padding:.45rem .7rem;
+    background:#f0f4ff; font-size:.82rem; font-weight:700; color:#1b3a6b;
+    cursor:pointer; display:flex; justify-content:space-between; align-items:center;
+}
+.li-editor-section-body { padding:.5rem .7rem; display:block; }
+.li-editor-section-body.collapsed { display:none; }
+.li-form-group { margin-bottom:.55rem; }
+.li-form-group label { display:block; font-size:.75rem; font-weight:600; color:#555; margin-bottom:.2rem; }
+.li-form-group input[type="text"],
+.li-form-group input[type="number"],
+.li-form-group textarea,
+.li-form-group select {
+    width:100%; padding:.3rem .45rem; border:1px solid #ced4da; border-radius:4px;
+    font-size:.8rem; color:#333;
+}
+.li-form-group textarea { resize:vertical; min-height:52px; }
+.li-save-btn {
+    width:100%; padding:.45rem; margin-top:.5rem;
+    background:#1b3a6b; color:#fff; border:none; border-radius:5px;
+    font-size:.82rem; font-weight:700; cursor:pointer; letter-spacing:.04em;
+}
+.li-save-btn:hover { background:#264d8e; }
+</style>
+
+<script>
+(function () {
+    'use strict';
+
+    // ── State ──────────────────────────────────────────────────────────────
+    var _activeCategory = null;
+    var _activeItem     = null;
+    var _categoryItems  = []; // rows for active category (from last fetch)
+    var _pageKey        = document.getElementById('li-question-panel')
+                              ? document.getElementById('li-question-panel').dataset.page || ''
+                              : '';
+
+    // ── DOM refs ───────────────────────────────────────────────────────────
+    function $id(id) { return document.getElementById(id); }
+
+    // ── View switching ─────────────────────────────────────────────────────
+    function showEmpty() {
+        $id('li-view-empty').style.display = 'flex';
+        $id('li-view-one').style.display   = 'none';
+        $id('li-view-two').style.display   = 'none';
+    }
+    function showViewOne(title) {
+        $id('li-view-empty').style.display = 'none';
+        $id('li-view-one').style.display   = 'flex';
+        $id('li-view-two').style.display   = 'none';
+        if (title) $id('li-view-one-title').textContent = title;
+    }
+    function showViewTwo(item) {
+        $id('li-view-empty').style.display = 'none';
+        $id('li-view-one').style.display   = 'none';
+        $id('li-view-two').style.display   = 'flex';
+        $id('li-view-two-title').textContent = (item.output_title || item.internal_description || '');
+        renderEditorForm(item);
+    }
+
+    // ── Category click ─────────────────────────────────────────────────────
+    document.querySelectorAll('.li-section-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            document.querySelectorAll('.li-section-btn').forEach(function (b) { b.classList.remove('active'); });
+            btn.classList.add('active');
+            _activeCategory = btn.dataset.category;
+            var url = '/builder_beta/line_items_json?page=' + encodeURIComponent(_pageKey) + '&category=' + encodeURIComponent(_activeCategory);
+            showViewOne(_activeCategory);
+            $id('li-question-list').innerHTML = '<p style="color:#999;font-size:.8rem;padding:.5rem .75rem;">Loading…</p>';
+            fetch(url, {credentials: 'same-origin'})
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    _categoryItems = [];
+                    if (data.categories && data.categories.length > 0) {
+                        _categoryItems = data.categories[0].items || [];
+                    }
+                    renderQuestionList(_categoryItems);
+                })
+                .catch(function (e) {
+                    $id('li-question-list').innerHTML = '<p style="color:red;font-size:.8rem;padding:.5rem .75rem;">Error loading items.</p>';
+                });
+        });
+    });
+
+    // ── Render question list (View One) ────────────────────────────────────
+    function renderQuestionList(items) {
+        var list = $id('li-question-list');
+        $id('li-view-one-count').textContent = items.length + ' items';
+        if (!items.length) {
+            list.innerHTML = '<p style="color:#999;font-size:.8rem;padding:.5rem .75rem;">No items in this category.</p>';
+            return;
+        }
+        var html = '';
+        items.forEach(function (item) {
+            var desc = item.internal_description || item.output_title || '—';
+            var vis  = item.form_visible ? '✓' : '–';
+            html += '<div class="li-qlist-row" data-id="' + item.id + '">'
+                +   '<span class="li-qlist-desc" title="' + _esc(desc) + '">' + _esc(desc) + '</span>'
+                +   '<span class="li-qlist-vis">' + vis + '</span>'
+                + '</div>';
+        });
+        list.innerHTML = html;
+        list.querySelectorAll('.li-qlist-row').forEach(function (row) {
+            row.addEventListener('click', function () {
+                list.querySelectorAll('.li-qlist-row').forEach(function (r) { r.classList.remove('selected'); });
+                row.classList.add('selected');
+                var id = parseInt(row.dataset.id, 10);
+                _activeItem = items.find(function (i) { return i.id === id; }) || null;
+                if (_activeItem) { showViewTwo(_activeItem); }
+            });
+        });
+    }
+
+    // ── Back button (View Two → View One) ─────────────────────────────────
+    var backBtn = $id('li-back-btn');
+    if (backBtn) {
+        backBtn.addEventListener('click', function () {
+            _activeItem = null;
+            showViewOne(_activeCategory);
+            // re-render the list (highlight was cleared, items still cached)
+            renderQuestionList(_categoryItems);
+        });
+    }
+
+    // ── Render question editor (View Two) ─────────────────────────────────
+    function renderEditorForm(item) {
+        var html = '<form id="li-edit-form" autocomplete="off">';
+
+        html += _section('Description', true, [
+            _field('output_title',        'Internal Description',  'text',     item.output_title || item.internal_description || ''),
+            _field('output_notes',        'Output Notes',        'textarea', item.output_notes || ''),
+            _field('output_guidance',     'Output Guidance',     'textarea', item.output_guidance || ''),
+        ]);
+
+        html += _section('Logic / Secondary Questions', false, [
+            _checkField('is_follow_up', 'Include follow-up question', item.is_follow_up === 1 || item.is_follow_up === '1'),
+            '<div id="group_follow_up_type" style="display:' + (item.is_follow_up === 1 || item.is_follow_up === '1' ? 'block' : 'none') + ';">' +
+                _selectField('follow_up_type', 'Follow-up Type', item.follow_up_type || 'Dropdown (text)',
+                    [
+                        'Dropdown (text)', 
+                        'Dropdown (cost)', 
+                        'Dropdown (dimension)', 
+                        'Single Entry (text)', 
+                        'Single Entry (cost)', 
+                        'Single Entry (dimension)'
+                    ]) +
+                '<div id="follow-up-config-fields" style="margin-top:0.5rem; padding-top:0.5rem; border-top:1px dashed #ddd;"></div>' +
+                '<input type="hidden" name="follow_up_config" id="li_follow_up_config_hidden">' +
+            '</div>',
+        ]);
+
+        html += _section('Costs', false, [
+            _field('unit_cost', 'Unit Cost (£)', 'number', item.unit_cost != null ? item.unit_cost : ''),
+            _field('units',     'Units',         'number', item.units     != null ? item.units     : ''),
+            _selectField('pricing_visibility', 'Pricing Visibility', item.pricing_visibility || 'admin_only',
+                ['admin_only','user_view','user_edit']),
+        ]);
+
+        html += _section('Meta', false, [
+            _field('category',        'Category',        'text',   item.category    || ''),
+            _field('form_page',       'Form Page',       'text',   item.form_page   || ''),
+            _field('sort_order',      'Sort Order',      'number', item.sort_order  != null ? item.sort_order : ''),
+            _checkField('include_default', 'Include Default', item.include_default === 'Y'),
+        ]);
+
+        html += _section('Output (Preview)', false, [
+            '<div class="li-form-group"><label>Internal Description</label><p style="font-size:.8rem;color:#555;padding:.2rem 0;margin:0;">' + _esc(item.output_title || item.internal_description || '—') + '</p></div>',
+            '<div class="li-form-group"><label>Output Notes</label><p style="font-size:.8rem;color:#555;padding:.2rem 0;margin:0;white-space:pre-wrap;">' + _esc(item.output_notes || '—') + '</p></div>',
+            '<div class="li-form-group"><label>Output Guidance</label><p style="font-size:.8rem;color:#555;padding:.2rem 0;margin:0;white-space:pre-wrap;">' + _esc(item.output_guidance || '—') + '</p></div>',
+        ]);
+
+        html += '<button type="submit" class="li-save-btn">SAVE LINE ITEM</button>';
+        html += '</form>';
+        $id('li-editor-content').innerHTML = html;
+
+        // Follow-up toggle logic
+        var isFollowUpCheck = $id('lich_is_follow_up');
+        var followUpTypeGroup = $id('group_follow_up_type');
+        var followUpTypeSelect = form.querySelector('[name="follow_up_type"]');
+        var configContainer = $id('follow-up-config-fields');
+        var configHidden = $id('li_follow_up_config_hidden');
+
+        if (isFollowUpCheck && followUpTypeGroup) {
+            isFollowUpCheck.addEventListener('change', function() {
+                followUpTypeGroup.style.display = isFollowUpCheck.checked ? 'block' : 'none';
+                if (isFollowUpCheck.checked) {
+                    _renderFollowUpConfig(followUpTypeSelect.value, {});
+                }
+            });
+        }
+
+        if (followUpTypeSelect) {
+            followUpTypeSelect.addEventListener('change', function() {
+                _renderFollowUpConfig(followUpTypeSelect.value, {});
+            });
+        }
+
+        // Initial render if active
+        if (item.is_follow_up === 1 || item.is_follow_up === '1') {
+            var cfg = {};
+            try { cfg = JSON.parse(item.follow_up_config || '{}'); } catch(e) {}
+            _renderFollowUpConfig(item.follow_up_type || 'Dropdown (text)', cfg);
+        }
+
+        // Collapsible section headers
+        $id('li-editor-content').querySelectorAll('.li-editor-section-header').forEach(function (hdr) {
+            hdr.addEventListener('click', function () {
+                var body = hdr.nextElementSibling;
+                if (body) {
+                    body.classList.toggle('collapsed');
+                    hdr.querySelector('.li-sec-toggle').textContent = body.classList.contains('collapsed') ? '▸' : '▾';
+                }
+            });
+        });
+
+        // Save
+        var form = $id('li-edit-form');
+        if (form) {
+            form.addEventListener('submit', function (e) {
+                e.preventDefault();
+                var payload = {};
+                
+                // Collect specialized follow-up config before standard gathering
+                if ($id('li_follow_up_config_hidden')) {
+                    $id('li_follow_up_config_hidden').value = _collectFollowUpConfig();
+                }
+
+                var fields = form.querySelectorAll('[name]');
+                fields.forEach(function (f) {
+                    if (f.name.startsWith('fu_')) return; // Skip internal follow-up fields
+                    if (f.type === 'checkbox') {
+                        payload[f.name] = f.checked ? (f.name === 'include_default' ? 'Y' : 1) : (f.name === 'include_default' ? 'N' : 0);
+                    } else {
+                        payload[f.name] = f.value;
+                    }
+                });
+                // Remove readonly line_code from payload
+                delete payload['line_code'];
+
+                var saveBtn = form.querySelector('.li-save-btn');
+                if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
+                var status = $id('li-save-status-v2');
+
+                fetch('/builder_beta/line_item_save/' + item.id, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''
+                    },
+                    body: JSON.stringify(payload)
+                })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.ok) {
+                        // Update cache
+                        Object.assign(item, payload);
+                        if (status) { status.textContent = '✓ Saved'; setTimeout(function(){ status.textContent=''; }, 2500); }
+                        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'SAVE LINE ITEM'; }
+                        // Refresh view-two title
+                        $id('li-view-two-title').textContent = (item.line_code || '') + ' — ' + (item.output_title || item.internal_description || '');
+                    } else {
+                        if (status) { status.textContent = '✗ Error'; status.style.color='#dc3545'; }
+                        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'SAVE LINE ITEM'; }
+                    }
+                })
+                .catch(function () {
+                    if (status) { status.textContent = '✗ Network error'; status.style.color='#dc3545'; }
+                    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'SAVE LINE ITEM'; }
+                });
+            });
+        }
+    }
+
+    // ── Follow-up Config Rendering ─────────────────────────────────────────
+    var _followUpTemplates = {
+        'text': function(cfg) {
+            return _field('fu_helper_text', 'Helper Text', 'text', cfg.helper_text || '');
+        },
+        'cost': function(cfg) {
+            return _field('fu_default_cost', 'Default Unit Cost (£)', 'number', cfg.default_cost || '') +
+                   _field('fu_default_units', 'Default Unit Amount', 'number', cfg.default_units || '') +
+                   _checkField('fu_allow_override', 'Allow Cost Override', cfg.allow_override === true);
+        },
+        'dimension': function(cfg) {
+            return _field('fu_default_dim1', 'Default Dimension 1', 'number', cfg.default_dim1 || '') +
+                   _checkField('fu_enable_dim2', 'Enable Dimension 2', cfg.enable_dim2 === true) +
+                   _field('fu_default_dim2', 'Default Dimension 2', 'number', cfg.default_dim2 || '') +
+                   _checkField('fu_enable_dim3', 'Enable Dimension 3', cfg.enable_dim3 === true) +
+                   _field('fu_default_dim3', 'Default Dimension 3', 'number', cfg.default_dim3 || '') +
+                   _field('fu_unit', 'Measurement Unit (e.g. m, sqm)', 'text', cfg.unit || '');
+        },
+        'dropdown': function(cfg, subType) {
+            var html = _field('fu_choices', 'Choices (one per line)', 'textarea', (cfg.choices || []).join('\n')) +
+                       _checkField('fu_include_other', 'Include "Other" field', cfg.include_other === true);
+            html += '<div id="fu_other_config" style="display:' + (cfg.include_other ? 'block' : 'none') + '; margin-left:1rem; border-left:2px solid #eee; padding-left:0.5rem;">';
+            if (subType === 'text') html += _followUpTemplates.text(cfg.other_config || {});
+            if (subType === 'cost') html += _followUpTemplates.cost(cfg.other_config || {});
+            if (subType === 'dimension') html += _followUpTemplates.dimension(cfg.other_config || {});
+            html += '</div>';
+            return html;
+        }
+    };
+
+    function _renderFollowUpConfig(type, cfg) {
+        var container = $id('follow-up-config-fields');
+        if (!container) return;
+        var html = '';
+        if (type === 'Dropdown (text)') html = _followUpTemplates.dropdown(cfg, 'text');
+        else if (type === 'Dropdown (cost)') html = _followUpTemplates.dropdown(cfg, 'cost');
+        else if (type === 'Dropdown (dimension)') html = _followUpTemplates.dropdown(cfg, 'dimension');
+        else if (type === 'Single Entry (text)') html = _followUpTemplates.text(cfg);
+        else if (type === 'Single Entry (cost)') html = _followUpTemplates.cost(cfg);
+        else if (type === 'Single Entry (dimension)') html = _followUpTemplates.dimension(cfg);
+        
+        container.innerHTML = html;
+
+        // Attach sub-toggle for 'Other' in dropdowns
+        var otherCheck = container.querySelector('[name="fu_include_other"]');
+        var otherDiv = $id('fu_other_config');
+        if (otherCheck && otherDiv) {
+            otherCheck.addEventListener('change', function() {
+                otherDiv.style.display = otherCheck.checked ? 'block' : 'none';
+            });
+        }
+    }
+
+    function _collectFollowUpConfig() {
+        var container = $id('follow-up-config-fields');
+        if (!container) return '{}';
+        var type = document.querySelector('[name="follow_up_type"]').value;
+        var cfg = {};
+        
+        var getVal = function(name) {
+            var el = container.querySelector('[name="' + name + '"]');
+            if (!el) return undefined;
+            return el.type === 'checkbox' ? el.checked : el.value;
+        };
+
+        if (type.startsWith('Dropdown')) {
+            cfg.choices = (getVal('fu_choices') || '').split('\n').filter(Boolean);
+            cfg.include_other = getVal('fu_include_other');
+            if (cfg.include_other) {
+                cfg.other_config = {};
+                if (type.includes('text')) cfg.other_config.helper_text = getVal('fu_helper_text');
+                if (type.includes('cost')) {
+                    cfg.other_config.default_cost = getVal('fu_default_cost');
+                    cfg.other_config.default_units = getVal('fu_default_units');
+                    cfg.other_config.allow_override = getVal('fu_allow_override');
+                }
+                if (type.includes('dimension')) {
+                    cfg.other_config.default_dim1 = getVal('fu_default_dim1');
+                    cfg.other_config.enable_dim2 = getVal('fu_enable_dim2');
+                    cfg.other_config.default_dim2 = getVal('fu_default_dim2');
+                    cfg.other_config.enable_dim3 = getVal('fu_enable_dim3');
+                    cfg.other_config.default_dim3 = getVal('fu_default_dim3');
+                    cfg.other_config.unit = getVal('fu_unit');
+                }
+            }
+        } else {
+            if (type.includes('text')) cfg.helper_text = getVal('fu_helper_text');
+            if (type.includes('cost')) {
+                cfg.default_cost = getVal('fu_default_cost');
+                cfg.default_units = getVal('fu_default_units');
+                cfg.allow_override = getVal('fu_allow_override');
+            }
+            if (type.includes('dimension')) {
+                cfg.default_dim1 = getVal('fu_default_dim1');
+                cfg.enable_dim2 = getVal('fu_enable_dim2');
+                cfg.default_dim2 = getVal('fu_default_dim2');
+                cfg.enable_dim3 = getVal('fu_enable_dim3');
+                cfg.default_dim3 = getVal('fu_default_dim3');
+                cfg.unit = getVal('fu_unit');
+            }
+        }
+        return JSON.stringify(cfg);
+    }
+
+    // ── Helpers ────────────────────────────────────────────────────────────
+    function _esc(s) {
+        return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function _section(title, open, fieldHtmlArr) {
+        return '<div class="li-editor-section">'
+            + '<div class="li-editor-section-header">'
+            + '<span>' + title + '</span><span class="li-sec-toggle">' + (open ? '▾' : '▸') + '</span>'
+            + '</div>'
+            + '<div class="li-editor-section-body' + (open ? '' : ' collapsed') + '">'
+            + fieldHtmlArr.join('')
+            + '</div></div>';
+    }
+
+    function _field(name, label, type, value, readonly) {
+        var ro = readonly ? ' readonly style="background:#f5f5f5;"' : '';
+        if (type === 'textarea') {
+            return '<div class="li-form-group"><label>' + label + '</label>'
+                + '<textarea name="' + name + '"' + (readonly?' readonly style="background:#f5f5f5;"':'') + '>' + _esc(value) + '</textarea></div>';
+        }
+        return '<div class="li-form-group"><label>' + label + '</label>'
+            + '<input type="' + type + '" name="' + name + '" value="' + _esc(value) + '"' + ro + '></div>';
+    }
+
+    function _selectField(name, label, value, options) {
+        var opts = options.map(function (o) {
+            return '<option value="' + _esc(o) + '"' + (o === value ? ' selected' : '') + '>' + _esc(o) + '</option>';
+        }).join('');
+        return '<div class="li-form-group"><label>' + label + '</label><select name="' + name + '">' + opts + '</select></div>';
+    }
+
+    function _checkField(name, label, checked) {
+        var id = 'lich_' + name; // Standard prefix for checkboxes
+        return '<div class="li-form-group" style="display:flex;align-items:center;gap:.4rem;">'
+            + '<input type="checkbox" name="' + name + '" id="' + id + '"' + (checked ? ' checked' : '') + ' style="width:auto;">'
+            + '<label for="' + id + '" style="margin:0;font-weight:400;">' + label + '</label></div>';
+    }
+
+    // ── Document Ready ─────────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', function() {
+        showEmpty(); // Initial state for line item panel
+
+        // The main block properties panel collapsible sections
+        $id('li-editor-content').querySelectorAll('.li-editor-section-header').forEach(function (hdr) {
+            hdr.addEventListener('click', function () {
+                var body = hdr.nextElementSibling;
+                if (body) {
+                    body.classList.toggle('collapsed');
+                    hdr.querySelector('.li-sec-toggle').textContent = body.classList.contains('collapsed') ? '▸' : '▾';
+                }
+            });
+        });
+
+    });
+
+
+}());
+</script>
+{% endmacro %}
+
+{# ── End Session L Macros ──────────────────────────────────────────────────── #}
+
+{% macro render_canvas_content(current_page, selected_block_id) %}
+    <div class="builder-canvas-wrapper" id="builder-canvas">
+        <div class="canvas-page-selector">
+            <h2 id="canvas-page-title">{{ current_page.title }}</h2>
+        </div>
+        <div class="canvas-content" id="canvas-content">
+            {% if current_page.blocks %}
+                {% for block in current_page.blocks %}
+                <div class="question-block {{ "selected" if block.id == selected_block_id else "" }}{% if block.hidden %} block-is-hidden{% endif %}" 
+                     data-block-id="{{ block.id }}" 
+                     data-type="{{ block.block_type }}"
+                     draggable="true"
+                     style="{% if block.hidden %}opacity:0.45;{% endif %}">
+                    <div class="question-block-header">
+                        <span class="drag-handle">⠿</span>
+                        <span class="block-type-badge">{{ block.block_type }}</span>
+                        {% if block.hidden %}<span style="background:#dc3545;color:#fff;font-size:.65rem;font-weight:700;padding:.15rem .4rem;border-radius:3px;margin-left:.3rem;letter-spacing:.04em;">HIDDEN</span>{% endif %}
+                        <span class="block-title">{% if block.hidden %}<s>{{ block.standard.label }}</s>{% else %}{{ block.standard.label }}{% endif %}</span>
+                        <div class="block-actions">
+                            <button type="button" class="block-action-btn" data-action="edit" title="Edit">✎</button>
+                            <button type="button" class="block-action-btn delete" data-action="delete" title="Delete">🗑️</button>
+                        </div>
+                    </div>
+                    <div class="question-block-body">
+                        {% if block.block_type == "checkbox_group" %}
+                        <div class="checkbox-options">
+                            {% for choice in block.standard.dropdown_choices %}
+                            <div class="checkbox-option">
+                                <input type="checkbox" id="{{ block.id }}_opt_{{ loop.index }}" checked>
+                                <label for="{{ block.id }}_opt_{{ loop.index }}">{{ choice }}</label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% elif block.block_type == "text_input" %}
+                        <div style="padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem; color: #666;">
+                            {{ block.standard.placeholder or "Enter text..." }}
+                        </div>
+                        {% elif block.block_type == "number_currency_input" %}
+                        <div style="padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem; color: #666;">
+                            £{{ block.standard.placeholder or "0.00" }}
+                        </div>
+                        {% elif block.block_type == "dropdown_select" %}
+                        <select style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem;">
+                            {% for choice in block.standard.dropdown_choices %}<option>{{ choice }}</option>{% endfor %}
+                        </select>
+                        {% elif block.block_type == "static_text_heading" %}
+                            {% set variant_tag = "h3" if block.standard.static_variant == "heading" else "h4" if block.standard.static_variant == "subheading" else "p" %}
+                            <{{ variant_tag }} style="margin: 0; color: #333;">{{ block.standard.static_content or block.standard.label }}</{{ variant_tag }}>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+            <div class="canvas-empty">
+                <div class="canvas-empty-icon">📋</div>
+                <p>No questions yet. Click "+ Add Question" in the sidebar to add your first question.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+{% endmacro %}
