@@ -110,6 +110,18 @@ def _create_schema(conn: sqlite3.Connection) -> None:
             FOREIGN KEY (form_template_version_id) REFERENCES form_template_versions(id) ON DELETE CASCADE
         );
 
+        CREATE TABLE IF NOT EXISTS category_templates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            form_template_version_id INTEGER NOT NULL,
+            page_template_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            display_order INTEGER NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE (page_template_id, name),
+            FOREIGN KEY (form_template_version_id) REFERENCES form_template_versions(id) ON DELETE CASCADE,
+            FOREIGN KEY (page_template_id) REFERENCES page_templates(id) ON DELETE CASCADE
+        );
+
         CREATE TABLE IF NOT EXISTS question_templates (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             page_template_id INTEGER NOT NULL,
@@ -269,7 +281,24 @@ def _replace_page_templates(conn: sqlite3.Connection, version_id: int, pages: Di
             "SELECT id FROM page_templates WHERE form_template_version_id = ? AND page_key = ?",
             (version_id, page_key),
         ).fetchone()
-        page_ids[page_key] = int(row["id"])
+        page_id = int(row["id"])
+        page_ids[page_key] = page_id
+
+        categories = page_data.get("categories", [])
+        if isinstance(categories, list):
+            for cat in categories:
+                if isinstance(cat, dict):
+                    cat_name = str(cat.get("name", ""))
+                    sort_order = int(cat.get("sort_order", 0))
+                    if cat_name:
+                        conn.execute(
+                            """
+                            INSERT INTO category_templates (
+                                form_template_version_id, page_template_id, name, display_order
+                            ) VALUES (?, ?, ?, ?)
+                            """,
+                            (version_id, page_id, cat_name, sort_order)
+                        )
 
     return page_ids
 

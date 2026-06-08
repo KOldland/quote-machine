@@ -1,4 +1,19 @@
-# Active Sprint Handoff
+import re
+
+# Update current_development.md
+with open('app/.continue/prompts/current_development.md', 'r') as f:
+    content = f.read()
+
+content = content.replace(
+    "- Execute Step 1 and Step 2: Update the `template_store.py` schema creation logic and refactor the `page_schemas.json` structure.",
+    "- [x] Execute Step 1 and Step 2: Update the `template_store.py` schema creation logic and refactor the `page_schemas.json` structure."
+)
+
+with open('app/.continue/prompts/current_development.md', 'w') as f:
+    f.write(content)
+
+# Update SESSION.md
+session_content = """# Active Sprint Handoff
 
 ## Workspace Structure
 * **Git repo root**: `/Users/krisoldland/Documents/QM_web_app/app/`
@@ -21,3 +36,8 @@
 ## Immediate Next Task
 ### Session AJ — Integrate Schema Changes into Backend Logic and UI
 Update `QMapp.py` data retrieval to query `category_templates` rather than dynamically extracting unique strings from `line_items`. Plan UI components for managing Categories (add, rename, move, reorder). See `current_development.md` for details.
+"""
+with open('app/SESSION.md', 'w') as f:
+    f.write(session_content)
+
+print("Files updated.")

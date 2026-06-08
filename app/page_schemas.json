@@ -94,11 +94,13 @@
           {
             "id": "special_notes_page__line_items",
             "block_type": "line_items_by_category",
-            "config": {
-              "categories": [
-                "Special Notes"
-              ]
-            }
+            "config": {}
+          }
+        ],
+        "categories": [
+          {
+            "name": "Special Notes",
+            "sort_order": 0
           }
         ]
       },
@@ -113,17 +115,37 @@
           {
             "id": "summary_page__line_items",
             "block_type": "line_items_by_category",
-            "config": {
-              "categories": [
-                "Building Works",
-                "Boundary Lines",
-                "Planning Permission",
-                "Basement",
-                "Council",
-                "Dimensions",
-                "Additional Notes"
-              ]
-            }
+            "config": {}
+          }
+        ],
+        "categories": [
+          {
+            "name": "Building Works",
+            "sort_order": 0
+          },
+          {
+            "name": "Boundary Lines",
+            "sort_order": 1
+          },
+          {
+            "name": "Planning Permission",
+            "sort_order": 2
+          },
+          {
+            "name": "Basement",
+            "sort_order": 3
+          },
+          {
+            "name": "Council",
+            "sort_order": 4
+          },
+          {
+            "name": "Dimensions",
+            "sort_order": 5
+          },
+          {
+            "name": "Additional Notes",
+            "sort_order": 6
           }
         ]
       },
@@ -490,18 +512,7 @@
           {
             "id": "materials_page__line_items",
             "block_type": "line_items_by_category",
-            "config": {
-              "categories": [
-                "Drainage",
-                "Internal doors",
-                "Waste & Parking",
-                "dimension",
-                "external roofing finish",
-                "external wall finish & height",
-                "floor structure",
-                "plastering"
-              ]
-            },
+            "config": {},
             "standard": {
               "label": "materials_page__line_items",
               "name": "materials_page__line_items",
@@ -534,6 +545,40 @@
               "sort_order": 0,
               "value_mode": "show_value"
             }
+          }
+        ],
+        "categories": [
+          {
+            "name": "Drainage",
+            "sort_order": 0
+          },
+          {
+            "name": "Internal doors",
+            "sort_order": 1
+          },
+          {
+            "name": "Waste & Parking",
+            "sort_order": 2
+          },
+          {
+            "name": "dimension",
+            "sort_order": 3
+          },
+          {
+            "name": "external roofing finish",
+            "sort_order": 4
+          },
+          {
+            "name": "external wall finish & height",
+            "sort_order": 5
+          },
+          {
+            "name": "floor structure",
+            "sort_order": 6
+          },
+          {
+            "name": "plastering",
+            "sort_order": 7
           }
         ]
       },
@@ -700,12 +745,7 @@
           {
             "id": "further_requirements_page__line_items",
             "block_type": "line_items_by_category",
-            "config": {
-              "categories": [
-                "Demolition Works",
-                "Further Requirements & Considerations"
-              ]
-            },
+            "config": {},
             "standard": {
               "label": "further_requirements_page__line_items",
               "name": "further_requirements_page__line_items",
@@ -739,6 +779,16 @@
               "value_mode": "show_value"
             }
           }
+        ],
+        "categories": [
+          {
+            "name": "Demolition Works",
+            "sort_order": 0
+          },
+          {
+            "name": "Further Requirements & Considerations",
+            "sort_order": 1
+          }
         ]
       },
       "additional_building_work_page": {
@@ -752,11 +802,13 @@
           {
             "id": "additional_building_work_page__line_items",
             "block_type": "line_items_by_category",
-            "config": {
-              "categories": [
-                "Additional Building Works"
-              ]
-            }
+            "config": {}
+          }
+        ],
+        "categories": [
+          {
+            "name": "Additional Building Works",
+            "sort_order": 0
           }
         ]
       },
@@ -771,16 +823,7 @@
           {
             "id": "li_additional_costs",
             "block_type": "line_items_by_category",
-            "config": {
-              "categories": [
-                "Electrics",
-                "Plumbing",
-                "Skylights",
-                "Velux",
-                "Aluminium Capping",
-                "Sliding Doors"
-              ]
-            }
+            "config": {}
           },
           {
             "id": "additional_costs_page__electrics_section",
@@ -854,6 +897,32 @@
               "value_mode": "show_value"
             }
           }
+        ],
+        "categories": [
+          {
+            "name": "Electrics",
+            "sort_order": 0
+          },
+          {
+            "name": "Plumbing",
+            "sort_order": 1
+          },
+          {
+            "name": "Skylights",
+            "sort_order": 2
+          },
+          {
+            "name": "Velux",
+            "sort_order": 3
+          },
+          {
+            "name": "Aluminium Capping",
+            "sort_order": 4
+          },
+          {
+            "name": "Sliding Doors",
+            "sort_order": 5
+          }
         ]
       },
       "optional_extras_page": {
@@ -867,13 +936,21 @@
           {
             "id": "optional_extras_page__line_items",
             "block_type": "line_items_by_category",
-            "config": {
-              "categories": [
-                "Optional Extras",
-                "Finishing Works",
-                "Finishing Works Optional Extras"
-              ]
-            }
+            "config": {}
+          }
+        ],
+        "categories": [
+          {
+            "name": "Optional Extras",
+            "sort_order": 0
+          },
+          {
+            "name": "Finishing Works",
+            "sort_order": 1
+          },
+          {
+            "name": "Finishing Works Optional Extras",
+            "sort_order": 2
           }
         ]
       },
