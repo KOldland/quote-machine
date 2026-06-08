@@ -553,6 +553,23 @@
             _renderFollowUpConfig(item.follow_up_type || 'Dropdown (text)', cfg);
         }
 
+        // Collapsible section headers — remove then re-add to prevent listener accumulation
+        var _container = $id('li-editor-content');
+        if (_container) {
+            if (_accordionHandler) _container.removeEventListener('click', _accordionHandler);
+            _accordionHandler = function(e) {
+                var hdr = e.target.closest('.li-editor-section-header');
+                if (!hdr) return;
+                var body = hdr.nextElementSibling;
+                if (body) {
+                    body.classList.toggle('collapsed');
+                    var sp = hdr.querySelector('.li-sec-toggle');
+                    if (sp) sp.textContent = body.classList.contains('collapsed') ? '▸' : '▾';
+                }
+            };
+            _container.addEventListener('click', _accordionHandler);
+        }
+
         // Save
         var form = $id('li-edit-form');
         if (form) {
@@ -758,20 +775,8 @@
             + '<label for="' + id + '" style="margin:0;font-weight:400;">' + label + '</label></div>';
     }
 
-    // ── Accordion: single delegation bound once at IIFE-init time ──────────
-    var _liEditForm = $id('li-edit-form');
-    if (_liEditForm) {
-        _liEditForm.addEventListener('click', function(e) {
-            var hdr = e.target.closest('.li-editor-section-header');
-            if (!hdr) return;
-            var body = hdr.nextElementSibling;
-            if (body) {
-                body.classList.toggle('collapsed');
-                var sp = hdr.querySelector('.li-sec-toggle');
-                if (sp) sp.textContent = body.classList.contains('collapsed') ? '▸' : '▾';
-            }
-        });
-    }
+    // Accordion handler reference — defined here for removeEventListener support
+    var _accordionHandler = null;
 
     // Init
     showEmpty();
