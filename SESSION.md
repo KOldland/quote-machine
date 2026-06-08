@@ -5,7 +5,7 @@
 * **Branch**: `master`
 
 ## Current Goal
-* **Session Z.2** — Final UI Verification and Workspace Closure.
+* **Session AB.1** — Legacy UI Cleanup for Additional Building Works.
 
 ## Active Files for Context
 * @app/QMapp.py
@@ -14,17 +14,15 @@
 * @app/SESSION.md
 
 ## What Was Completed Recently
-* **Session Z.2 (Successes)**:
-  - Verified all 11 core routes via individual `curl` commands.
-  - Confirmed all 7 refactored form pages (Special Notes, Summary, Materials, Further Requirements, Additional Costs, Additional Building Work, Optional Extras) correctly render questions in user-facing mode (HTTP 200 + checkboxes present).
-  - Verified downstream routes (Home, Image Upload, Review, Production) return HTTP 200 OK.
-  - Workspace saved and committed to `master`.
+* **Session AB.1 (Successes)**:
+  - Audited `additional_building_work_page` and confirmed legacy categories ('Chimney Breasts', etc.) are empty in the database.
+  - Surgically removed legacy hardcoded accordion block from `app/templates/form.html` using a defensive string signature replacement.
+  - Verified that only the schema-driven "Additional Building Works" section remains.
 
 ## Exact Stopping Point
-* **Verification Complete**: All pages confirmed working.
-* **Workspace Saved**: `SESSION.md` and `current_development.md` updated; changes committed.
+* **Legacy UI Cleanup Complete**: Ghost accordions removed from `additional_building_work_page`.
+* **Workspace Saved**: `SESSION.md` and `current_development.md` updated.
 
 ## Immediate Next Task
-### Session AA.1 — Start New Feature/Milestone
-1. **Identify Next Milestone**: User to define the next development focus area.
-2. **Review Architecture**: Align with `system_architecture.md` for the new task.
+### Session AB.2 — Workspace Review
+1. **Final Verification**: Confirm with user that the visual layout is now correct.

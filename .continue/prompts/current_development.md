@@ -47,6 +47,19 @@ Without this, `field.li_groups` is Undefined in `form.html` and no items render.
 
 ---
 
+## Ghost UI Cleanup (Session AB.1)
+
+All 7 refactored form pages were rendering correctly, but `additional_building_work_page` contained several empty (ghost) accordion sections.
+
+**Root Cause:** Legacy hardcoded Jinja blocks in `form.html` were attempting to render items by old categories, but all items had been migrated to the primary "Additional Building Works" category.
+
+**Action Taken:**
+- Verified DB item counts for legacy categories (all 0).
+- Removed the legacy Jinja block from `app/templates/form.html` using a literal string signature replacement.
+- Left the Python route flag `additional_building_work_page=True` intact for navigation safety.
+
+---
+
 ## Fix Pattern
 
 For each broken route, the non-edit `return render_template(...)` block needs ONE line prepended:
