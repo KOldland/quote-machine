@@ -1604,19 +1604,6 @@
     window.selectedBlockId = {{ selected_block_id | tojson | safe if selected_block_id else 'null' }};
     window.builderStateQuestionTypes = {{ builder_state.question_types | tojson | safe if builder_state else '{}' }};
 </script>
-<script>
-// Document-level delegation for li-editor-section-header accordions (statically rendered by Jinja2)
-document.addEventListener('click', function(e) {
-    var hdr = e.target.closest('.li-editor-section-header');
-    if (!hdr) return;
-    var body = hdr.nextElementSibling;
-    if (body) {
-        body.classList.toggle('collapsed');
-        var sp = hdr.querySelector('.li-sec-toggle');
-        if (sp) sp.textContent = body.classList.contains('collapsed') ? '▸' : '▾';
-    }
-});
-</script>
 <script src="{{ url_for('static', filename='js/builder.js') }}" defer></script>
 {% endif %}
 {% endblock %}

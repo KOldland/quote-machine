@@ -571,21 +571,6 @@
             });
         }
 
-        // Fallback: catch li-editor-section-header clicks outside the container (e.g. on builder pages)
-        if (!document._liAccordionBound) {
-            document._liAccordionBound = true;
-            document.addEventListener('click', function(e) {
-                var hdr = e.target.closest('.li-editor-section-header');
-                if (!hdr) return;
-                var body = hdr.nextElementSibling;
-                if (body) {
-                    body.classList.toggle('collapsed');
-                    var sp = hdr.querySelector('.li-sec-toggle');
-                    if (sp) sp.textContent = body.classList.contains('collapsed') ? '▸' : '▾';
-                }
-            });
-        }
-
         // Save
         var form = $id('li-edit-form');
         if (form) {
@@ -790,6 +775,21 @@
             + '<input type="checkbox" name="' + name + '" id="' + id + '"' + (checked ? ' checked' : '') + ' style="width:auto;">'
             + '<label for="' + id + '" style="margin:0;font-weight:400;">' + label + '</label></div>';
     }
+
+    // ── Document Ready ─────────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', function() {
+        // Per-element click handlers for ALL li-editor-section-header elements
+        document.querySelectorAll('.li-editor-section-header').forEach(function(hdr) {
+            hdr.addEventListener('click', function() {
+                var body = hdr.nextElementSibling;
+                if (body) {
+                    body.classList.toggle('collapsed');
+                    var sp = hdr.querySelector('.li-sec-toggle');
+                    if (sp) sp.textContent = body.classList.contains('collapsed') ? '▸' : '▾';
+                }
+            });
+        });
+    });
 
     // Init
     showEmpty();
