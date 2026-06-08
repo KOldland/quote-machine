@@ -151,3 +151,12 @@ This must be fixed **before** or **alongside** the route fix — otherwise even 
 - `app/templates/form.html` — `{% elif field.type == 'line_items_by_category' %}` render block (added Session X)
 - `app/template_store.sqlite3` — `line_items` table queried by `_get_line_items_for_page()`
 - `app/scripts/fix_form_mode_routes.py` — patch script (to be written)
+
+---
+
+## Session Wrap: UI Polish & Title Standardization
+
+- [x] Standardized "Output Title" labels across all page schemas to match schema expectations.
+- [x] Cleaned up Builder UI in `builder.js`: removed technical line codes and visibility flags from list and editor views.
+- [x] Aligned labels and values in `_builder_macros.html` for consistency.
+- [x] Verified all 7 refactored pages render correctly in form mode.

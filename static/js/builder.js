@@ -923,12 +923,8 @@ window.toggleSection = function(sectionId) {
 
     function _rowHtml(item) {
         const sel = LI.selected === item.id ? ' li-row--selected' : '';
-        const vis = item.form_visible ? '✅' : '—';
         return `<div class="li-row${sel}" data-li-id="${item.id}">
-            <span class="li-row-code">${_esc(item.line_code)}</span>
             <span class="li-row-desc">${_esc(item.internal_description || '')}</span>
-            <span class="li-row-role">${_esc(item.item_role || '')}</span>
-            <span class="li-row-visible">${vis}</span>
         </div>`;
     }
 
@@ -946,12 +942,11 @@ window.toggleSection = function(sectionId) {
         if (!panel) return;
         panel.innerHTML = `
             <div style="font-weight:700;font-size:.85rem;color:#1b3a6b;padding:.4rem 0 .6rem;border-bottom:1px solid #ddd;margin-bottom:.75rem;">
-                ${_esc(item.line_code)} <span style="font-weight:400;color:#888;font-size:.78rem;">id:${item.id}</span>
+                <span style="font-weight:400;color:#888;font-size:.78rem;">id:${item.id}</span>
             </div>
             <form id="li-edit-form">
                 <input type="hidden" name="li_id" value="${item.id}">
-                ${_tf('internal_description','Description', item.internal_description,'text')}
-                ${_tf('output_title','Output Title', item.output_title,'text')}
+                ${_tf('output_title','Internal Description', item.output_title || item.internal_description,'text')}
                 ${_tf('output_notes','Output Notes', item.output_notes,'textarea')}
                 ${_tf('output_guidance','Output Guidance', item.output_guidance,'textarea')}
                 ${_tf('unit_cost','Unit Cost (£)', item.unit_cost,'number')}
@@ -969,13 +964,6 @@ window.toggleSection = function(sectionId) {
                         <option value="admin_only" ${item.pricing_visibility==='admin_only'?'selected':''}>Admin Only</option>
                         <option value="user_view" ${item.pricing_visibility==='user_view'?'selected':''}>User View</option>
                         <option value="user_edit" ${item.pricing_visibility==='user_edit'?'selected':''}>User Edit</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Form Visible</label>
-                    <select name="form_visible">
-                        <option value="1" ${item.form_visible?'selected':''}>Yes</option>
-                        <option value="0" ${!item.form_visible?'selected':''}>No</option>
                     </select>
                 </div>
                 <button type="submit" class="btn btn-primary" style="width:100%;margin-top:.5rem;">Save Changes</button>

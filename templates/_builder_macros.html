@@ -476,10 +476,9 @@
         var html = '<form id="li-edit-form" autocomplete="off">';
 
         html += _section('Description', true, [
-            _field('output_title',        'Output Title',        'text',     item.output_title || ''),
+            _field('output_title',        'Internal Description',  'text',     item.output_title || item.internal_description || ''),
             _field('output_notes',        'Output Notes',        'textarea', item.output_notes || ''),
             _field('output_guidance',     'Output Guidance',     'textarea', item.output_guidance || ''),
-            _field('internal_description','Internal Description','textarea', item.internal_description || ''),
         ]);
 
         html += _section('Logic / Secondary Questions', false, [
@@ -497,16 +496,14 @@
         ]);
 
         html += _section('Meta', false, [
-            _field('line_code',       'Line Code',       'text',   item.line_code   || '', true),
             _field('category',        'Category',        'text',   item.category    || ''),
             _field('form_page',       'Form Page',       'text',   item.form_page   || ''),
             _field('sort_order',      'Sort Order',      'number', item.sort_order  != null ? item.sort_order : ''),
-            _checkField('form_visible',    'Form Visible',    !!item.form_visible),
             _checkField('include_default', 'Include Default', item.include_default === 'Y'),
         ]);
 
         html += _section('Output (Preview)', false, [
-            '<div class="li-form-group"><label>Output Title</label><p style="font-size:.8rem;color:#555;padding:.2rem 0;margin:0;">' + _esc(item.output_title || '—') + '</p></div>',
+            '<div class="li-form-group"><label>Internal Description</label><p style="font-size:.8rem;color:#555;padding:.2rem 0;margin:0;">' + _esc(item.output_title || item.internal_description || '—') + '</p></div>',
             '<div class="li-form-group"><label>Output Notes</label><p style="font-size:.8rem;color:#555;padding:.2rem 0;margin:0;white-space:pre-wrap;">' + _esc(item.output_notes || '—') + '</p></div>',
             '<div class="li-form-group"><label>Output Guidance</label><p style="font-size:.8rem;color:#555;padding:.2rem 0;margin:0;white-space:pre-wrap;">' + _esc(item.output_guidance || '—') + '</p></div>',
         ]);
