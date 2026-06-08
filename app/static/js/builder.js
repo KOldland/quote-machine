@@ -50,6 +50,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const canvas = document.getElementById('canvas-content');
         let draggedBlock = null; // For reordering existing blocks
 
+        if (!canvas) return; // Guard: no canvas on 3-col line-item edit pages
+
         // Dragging existing blocks on canvas
         canvas.addEventListener('dragstart', (e) => {
             const blockEl = e.target.closest('.question-block');
