@@ -38,7 +38,7 @@ Without this, `field.li_groups` is Undefined in `form.html` and no items render.
 | Page | Form-mode status | Fix needed |
 |------|-----------------|-----------|
 | `special_notes_page` | ✅ already fixed — uses `build_page_schema_context` at ~line 2292 | None |
-| `summary_page` | ✅ already fixed — uses `build_page_schema_context` at ~line 2345 | None |
+| `summary_page` | ✅ FIXED (Session Y-2) — categories activated in DB, legacy accordion removed | None |
 | `materials_page` | ❌ empty — only `compile_...` at ~line 2872, no runtime override | Fix |
 | `further_requirements_page` | ❌ empty — only `compile_...` at ~line 2914, no runtime override | Fix |
 | `additional_costs_page` | ❌ empty — only `compile_...` at ~line 3150, no runtime override | Fix |

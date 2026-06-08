@@ -13,7 +13,7 @@ cur = conn.cursor()
 # Fix Planning Permission items
 cur.execute("""
     UPDATE line_items
-    SET form_page = 'summary_page', category = 'Planning Permission'
+    SET form_page = 'summary_page', category = 'Planning Permission', form_visible = 1
     WHERE line_code LIKE 'pp%'
 """)
 pp_count = cur.rowcount
@@ -22,11 +22,56 @@ print(f"Updated {pp_count} Planning Permission rows (pp%)")
 # Fix Council items
 cur.execute("""
     UPDATE line_items
-    SET form_page = 'summary_page', category = 'Council'
+    SET form_page = 'summary_page', category = 'Council', form_visible = 1
     WHERE line_code LIKE 'cs%'
 """)
 cs_count = cur.rowcount
 print(f"Updated {cs_count} Council rows (cs%)")
+
+# Fix Building Works items
+cur.execute("""
+    UPDATE line_items
+    SET form_page = 'summary_page', category = 'Building Works', form_visible = 1
+    WHERE line_code LIKE 'bw%'
+""")
+bw_count = cur.rowcount
+print(f"Updated {bw_count} Building Works rows (bw%)")
+
+# Fix Boundary Lines items
+cur.execute("""
+    UPDATE line_items
+    SET form_page = 'summary_page', category = 'Boundary Lines', form_visible = 1
+    WHERE line_code LIKE 'bl%'
+""")
+bl_count = cur.rowcount
+print(f"Updated {bl_count} Boundary Lines rows (bl%)")
+
+# Fix Basement items
+cur.execute("""
+    UPDATE line_items
+    SET form_page = 'summary_page', category = 'Basement', form_visible = 1
+    WHERE line_code LIKE 'bs%'
+""")
+bs_count = cur.rowcount
+print(f"Updated {bs_count} Basement rows (bs%)")
+
+# Fix Dimensions items
+cur.execute("""
+    UPDATE line_items
+    SET form_page = 'summary_page', category = 'Dimensions', form_visible = 1
+    WHERE line_code LIKE 'dm%'
+""")
+dm_count = cur.rowcount
+print(f"Updated {dm_count} Dimensions rows (dm%)")
+
+# Fix Additional Notes items (for Neighbours)
+cur.execute("""
+    UPDATE line_items
+    SET form_page = 'summary_page', category = 'Additional Notes', form_visible = 1
+    WHERE line_code LIKE 'an%'
+""")
+an_count = cur.rowcount
+print(f"Updated {an_count} Additional Notes rows (an%)")
 
 conn.commit()
 conn.close()

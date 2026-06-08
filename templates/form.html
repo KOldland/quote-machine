@@ -348,38 +348,6 @@
     {% endif %}
 {% endif %}      
 
-<!-------------------------------------------------------------------------------------------------------------------------->
-<!---------------------------                        Page: Building Works                            ----------------------->
-<!-------------------------------------------------------------------------------------------------------------------------->
-
-{% if summary_page %}
-    {% for field in page_schema.fields %}
-        <div class="accordion-section">
-            <button type="button" class="accordion-header" onclick="toggleAccordion('{{ field.id }}Section')">
-                {{ field.label }}
-            </button>
-            <div id="{{ field.id }}Section" class="accordion-body">
-                {% if field.type == 'checkbox_group' %}
-                    {% for option in field.options %}
-                        <label class="checkbox-label">
-                            <input type="checkbox" name="{{ field.name }}" value="{{ option.value }}"
-                                {% if option.value in field.preselected %} checked {% endif %}>
-                            {{ option.label }}
-                        </label><br>
-                    {% endfor %}
-                {% elif field.type == 'dropdown_select' %}
-                    <select name="{{ field.name }}">
-                        {% for choice in field.builder_beta_meta.dropdown_choices %}
-                            <option value="{{ choice }}" {% if choice == field.value %}selected{% endif %}>{{ choice }}</option>
-                        {% endfor %}
-                    </select>
-                {% elif field.type == 'text_input' %}
-                    <input type="text" name="{{ field.name }}" value="{{ field.value }}">
-                {% endif %}
-            </div>
-        </div>
-    {% endfor %}
-{% endif %}
 
         
 <!-------------------------------------------------------------------------------------------------------------------------->
