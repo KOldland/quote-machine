@@ -718,6 +718,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Toggle collapsible sections in properties panel
         document.querySelectorAll(".prop-section-header").forEach(header => {
             header.addEventListener("click", (e) => {
+                console.log('prop-section-header clicked');
                 const section = header.closest(".prop-section");
                 if (section) {
                     section.classList.toggle("collapsed");
