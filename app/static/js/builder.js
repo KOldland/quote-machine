@@ -718,14 +718,16 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         // Toggle collapsible sections in properties panel
-        document.querySelectorAll(".prop-section-header").forEach(header => {
-            header.addEventListener("click", (e) => {
-                console.log('prop-section-header clicked');
-                const section = header.closest(".prop-section");
-                if (section) {
-                    section.classList.toggle("collapsed");
-                }
-            });
+        document.addEventListener("click", (e) => {
+            const header = e.target.closest(".prop-section-header");
+            if (!header) return;
+            console.log('prop-section-header clicked');
+            const section = header.closest(".prop-section");
+            if (section) {
+                section.classList.toggle("collapsed");
+                const arrow = header.querySelector(".prop-section-toggle");
+                if (arrow) arrow.textContent = section.classList.contains("collapsed") ? "▸" : "▾";
+            }
         });
 
         // Logic visibility toggle
