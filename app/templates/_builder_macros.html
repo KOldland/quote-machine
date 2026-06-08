@@ -553,24 +553,6 @@
             _renderFollowUpConfig(item.follow_up_type || 'Dropdown (text)', cfg);
         }
 
-        // Collapsible section headers
-        var container = $id('li-editor-content');
-        if (container) {
-            container.addEventListener('click', function(e) {
-                var hdr = e.target.closest('.li-editor-section-header');
-                if (hdr) {
-                    var body = hdr.nextElementSibling;
-                    if (body) {
-                        body.classList.toggle('collapsed');
-                        var toggleSpan = hdr.querySelector('.li-sec-toggle');
-                        if (toggleSpan) {
-                            toggleSpan.textContent = body.classList.contains('collapsed') ? '▸' : '▾';
-                        }
-                    }
-                }
-            });
-        }
-
         // Save
         var form = $id('li-edit-form');
         if (form) {
@@ -776,20 +758,20 @@
             + '<label for="' + id + '" style="margin:0;font-weight:400;">' + label + '</label></div>';
     }
 
-    // ── Document Ready ─────────────────────────────────────────────────────
-    document.addEventListener('DOMContentLoaded', function() {
-        // Per-element click handlers for ALL li-editor-section-header elements
-        document.querySelectorAll('.li-editor-section-header').forEach(function(hdr) {
-            hdr.addEventListener('click', function() {
-                var body = hdr.nextElementSibling;
-                if (body) {
-                    body.classList.toggle('collapsed');
-                    var sp = hdr.querySelector('.li-sec-toggle');
-                    if (sp) sp.textContent = body.classList.contains('collapsed') ? '▸' : '▾';
-                }
-            });
+    // ── Accordion: single delegation bound once at IIFE-init time ──────────
+    var _liEditForm = $id('li-edit-form');
+    if (_liEditForm) {
+        _liEditForm.addEventListener('click', function(e) {
+            var hdr = e.target.closest('.li-editor-section-header');
+            if (!hdr) return;
+            var body = hdr.nextElementSibling;
+            if (body) {
+                body.classList.toggle('collapsed');
+                var sp = hdr.querySelector('.li-sec-toggle');
+                if (sp) sp.textContent = body.classList.contains('collapsed') ? '▸' : '▾';
+            }
         });
-    });
+    }
 
     // Init
     showEmpty();
