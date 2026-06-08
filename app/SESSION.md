@@ -20,4 +20,4 @@
 
 ## Immediate Next Task
 ### Session AJ — Integrate Schema Changes into Backend Logic and UI
-Update `QMapp.py` data retrieval to query `category_templates` rather than dynamically extracting unique strings from `line_items`. Plan UI components for managing Categories (add, rename, move, reorder). See `current_development.md` for details.
+Update `QMapp.py` data retrieval to query `category_templates` rather than dynamically extracting unique strings from `line_items`. Plan UI components for managing Categories (add, rename, move, reorder) and Pages, following the Pages > Categories > Questions hierarchy. Implement up/down ordering for all 3 levels. See `current_development.md` for details.
