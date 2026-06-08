@@ -571,6 +571,21 @@
             });
         }
 
+        // Fallback: catch li-editor-section-header clicks outside the container (e.g. on builder pages)
+        if (!document._liAccordionBound) {
+            document._liAccordionBound = true;
+            document.addEventListener('click', function(e) {
+                var hdr = e.target.closest('.li-editor-section-header');
+                if (!hdr) return;
+                var body = hdr.nextElementSibling;
+                if (body) {
+                    body.classList.toggle('collapsed');
+                    var sp = hdr.querySelector('.li-sec-toggle');
+                    if (sp) sp.textContent = body.classList.contains('collapsed') ? '▸' : '▾';
+                }
+            });
+        }
+
         // Save
         var form = $id('li-edit-form');
         if (form) {
