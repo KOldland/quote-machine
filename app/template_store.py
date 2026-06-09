@@ -255,14 +255,15 @@ def _upsert_version(conn: sqlite3.Connection, template_id: int, version: int, pa
 
 
 def _replace_page_templates(conn: sqlite3.Connection, version_id: int, pages: Dict[str, Any]) -> Dict[str, int]:
-    conn.execute("DELETE FROM page_templates WHERE form_template_version_id = ?", (version_id,))
+    # SAFE: use INSERT OR IGNORE so existing UI-created pages are never deleted.
+    # The old DELETE+INSERT pattern was wiping pages on every restart.
 
     page_ids: Dict[str, int] = {}
     for idx, (page_key, page_data) in enumerate(pages.items()):
         nav = page_data.get("navigation", {}) if isinstance(page_data, dict) else {}
         conn.execute(
             """
-            INSERT INTO page_templates (
+            INSERT OR IGNORE INTO page_templates (
                 form_template_version_id, page_key, title, previous_endpoint, next_endpoint,
                 display_order, metadata_json
             ) VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -293,7 +294,7 @@ def _replace_page_templates(conn: sqlite3.Connection, version_id: int, pages: Di
                     if cat_name:
                         conn.execute(
                             """
-                            INSERT INTO category_templates (
+                            INSERT OR IGNORE INTO category_templates (
                                 form_template_version_id, page_template_id, name, display_order
                             ) VALUES (?, ?, ?, ?)
                             """,
@@ -384,7 +385,35 @@ def initialize_template_store(page_schemas: Dict[str, Any], *, template_key: str
             name="First Client Template V1",
             description="Baseline template mirrored from current first-client configuration.",
         )
-        version_id = _upsert_version(conn, template_id, version=1, payload=page_schemas)
+        
+        # IDEMPOTENT GUARD: If ANY version already exists for this template,
+        # treat the database as the permanent source of truth and skip seeding entirely.
+        # This prevents server restarts from creating rogue new versions and wiping
+        # UI-created pages. The database is the canonical record — page_schemas.json
+        # is only used for the very first seed on a blank database.
+        existing_count = conn.execute(
+            "SELECT COUNT(*) AS cnt FROM form_template_versions WHERE form_template_id = ?",
+            (template_id,)
+        ).fetchone()["cnt"]
+
+        if existing_count > 0:
+            latest = conn.execute(
+                "SELECT id, version FROM form_template_versions "
+                "WHERE form_template_id = ? ORDER BY version DESC LIMIT 1",
+                (template_id,)
+            ).fetchone()
+            return {
+                "db_path": str(db_path),
+                "template_key": template_key,
+                "version": int(latest["version"]),
+                "pages": "skipped (already seeded — database is source of truth)",
+                "questions": 0,
+                "logic_rules": 0,
+            }
+
+        # Only reached on a completely fresh database with no existing versions.
+        version = 1
+        version_id = _upsert_version(conn, template_id, version=version, payload=page_schemas)
 
         page_ids = _replace_page_templates(conn, version_id, pages)
         question_count = _replace_questions(conn, page_ids, pages)
@@ -395,7 +424,7 @@ def initialize_template_store(page_schemas: Dict[str, Any], *, template_key: str
     return {
         "db_path": str(db_path),
         "template_key": template_key,
-        "version": 1,
+        "version": version,
         "pages": len(page_ids),
         "questions": question_count,
         "logic_rules": logic_rule_count,
