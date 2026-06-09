@@ -2941,7 +2941,8 @@ def materials_page():
 	page_id = 'materials_page'
 	if request.method == 'POST':
 		checkbox_data = session.setdefault('checkbox_data', {})
-		persist_schema_page_submission(page_id, request.form, checkbox_data)
+		page_schema = build_page_schema_context(page_id, get_catalog(), checkbox_data)
+		persist_schema_page_submission(page_schema or {}, request.form, checkbox_data)
 		session['checkbox_data'] = checkbox_data
 		session.modified = True
 		return redirect(url_for('further_requirements_page'))
@@ -2971,6 +2972,9 @@ def materials_page():
 			current_page_id=current_page_id,
 			selected_block_id=selected_block_id,
 			selected_block=selected_block,
+			db_pages=get_all_pages(template_key=TEMPLATE_STORE_KEY),
+			pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
+			edit_mode=True
 		)
 	page_schema = build_page_schema_context(page_id, sheet_data, session.get('checkbox_data', {}))
 	return render_template(
@@ -2981,7 +2985,8 @@ def materials_page():
 		next_page='further_requirements_page',
 		title=page_schema.get('title', 'Materials and Details') if page_schema else 'Materials and Details',
 		li_categories=_li_cats,
-		form_page_key=page_id
+		form_page_key=page_id,
+		db_pages=get_all_pages(template_key=TEMPLATE_STORE_KEY)
 	)
 
 @app.route('/further_requirements_page', methods=['POST', 'GET'])
@@ -2989,7 +2994,8 @@ def further_requirements_page():
 	page_id = 'further_requirements_page'
 	if request.method == 'POST':
 		checkbox_data = session.setdefault('checkbox_data', {})
-		persist_schema_page_submission(page_id, request.form, checkbox_data)
+		page_schema = build_page_schema_context(page_id, get_catalog(), checkbox_data)
+		persist_schema_page_submission(page_schema or {}, request.form, checkbox_data)
 		session['checkbox_data'] = checkbox_data
 		session.modified = True
 		return redirect(url_for('additional_building_work_page'))
@@ -3019,6 +3025,9 @@ def further_requirements_page():
 			current_page_id=current_page_id,
 			selected_block_id=selected_block_id,
 			selected_block=selected_block,
+			db_pages=get_all_pages(template_key=TEMPLATE_STORE_KEY),
+			pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
+			edit_mode=True
 		)
 	page_schema = build_page_schema_context(page_id, sheet_data, session.get('checkbox_data', {}))
 	return render_template(
@@ -3029,7 +3038,8 @@ def further_requirements_page():
 		next_page='additional_building_work_page',
 		title=page_schema.get('title', 'Further Requirements') if page_schema else 'Further Requirements',
 		li_categories=_li_cats,
-		form_page_key=page_id
+		form_page_key=page_id,
+		db_pages=get_all_pages(template_key=TEMPLATE_STORE_KEY)
 	)
 
 @app.route('/additional_building_work_page', methods=['POST', 'GET'])
@@ -3255,7 +3265,7 @@ def additional_costs_page():
 
 		# Fallback to DB schema if session blocks empty
 		if not current_page_blocks:
-			current_page_blocks = page_schema.get('blocks', [])
+			current_page_blocks = page_schema.get('blocks', []) if page_schema else []
 
 		selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
 		selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
@@ -3319,10 +3329,49 @@ def optional_extras_page():
 		session.modified = True
 		return redirect(url_for('image_upload_page'))
 	
-	# Schema-driven context building (replaces manual filtering)
-	page_schema = build_page_schema_context('optional_extras_page', get_catalog(), session.get('checkbox_data', {}))
+	# GET logic — schema-driven
+	edit_requested = request.args.get('edit') == '1'
+	
+	# Force sync parameter to clear cached state
+	if edit_requested and request.args.get('force_sync') == '1':
+		session.pop('builder_state', None)
+		session.modified = True
+
+	edit_mode_local = session.get('role') == 'admin' and edit_requested
+	page_schema = compile_builder_beta_page_to_runtime_schema('optional_extras_page')
 	_li_cats = _get_li_categories_from_schema('optional_extras_page') or []
 	
+	if edit_mode_local:
+		builder_state = get_builder_beta_state()
+		current_page_id = 'optional_extras_page'
+		current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
+
+		# Fallback to DB schema if session blocks empty
+		if not current_page_blocks:
+			current_page_blocks = page_schema.get('blocks', []) if page_schema else []
+
+		selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
+		selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
+		
+		return render_template(
+			'form.html',
+			page_schema=page_schema,
+			schema_render_mode='full',
+			previous_page='additional_costs_page',
+			next_page='image_upload_page',
+			title="Optional Extras & Finishing Works",
+			li_categories=_li_cats,
+			form_page_key='optional_extras_page',
+			current_page={'id': current_page_id, 'title': 'Optional Extras & Finishing Works', 'blocks': current_page_blocks},
+			current_page_id=current_page_id,
+			selected_block_id=selected_block_id,
+			selected_block=selected_block,
+			db_pages=get_all_pages(template_key=TEMPLATE_STORE_KEY),
+			pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
+			edit_mode=True
+		)
+
+	page_schema = build_page_schema_context('optional_extras_page', get_catalog(), session.get('checkbox_data', {}))
 	return render_template(
 		'form.html',
 		page_schema=page_schema,
@@ -3331,7 +3380,8 @@ def optional_extras_page():
 		previous_page=previous_page,
 		next_page='image_upload_page',
 		title="Optional Extras & Finishing Works",
-		li_categories=_li_cats
+		li_categories=_li_cats,
+		db_pages=get_all_pages(template_key=TEMPLATE_STORE_KEY)
 	)
 @app.route('/image_upload_page', methods=['GET', 'POST'])
 def image_upload_page():

@@ -361,7 +361,7 @@ def _sync_logic_rules(conn: sqlite3.Connection, version_id: int) -> int:
     return len(rows)
 
 
-def initialize_template_store(page_schemas: Dict[str, Any], *, template_key: str = "first_client_template_v1") -> Dict[str, Any]:
+def initialize_template_store(page_schemas: Dict[str, Any], *, template_key: str = "kitchen_only_template_test") -> Dict[str, Any]:
     """
     Bootstrap and sync Template V1 metadata into a lightweight SQLite store.
 

@@ -38,15 +38,22 @@
     </style>
 
     {% else %}
-    {# ── Legacy schema block builder ───────────────────────────────────────── #}
-    <div class="builder-container">
-        <div class="builder-canvas">
-            <h1>{{ title }}</h1>
-            <form action="{{ url_for(request.endpoint) }}" method="POST" {% if twenty_ninth_page %}enctype="multipart/form-data"{% endif %}>
-            {{ builder_macros.render_canvas_content(current_page, selected_block_id) }}
-            </form>
+    {# ── No li_categories: clean modern canvas for schema-field pages ─────────
+         The old builder-container / render_canvas_content path has been removed.
+         Version-480 pages that carry a page_schema but no li_categories (e.g.
+         Project Details, composite pages) now render a neutral placeholder in
+         edit mode; field editing is done directly in Form View.                 #}
+    <div class="builder-canvas-wrapper" id="builder-canvas"
+         style="padding:1.5rem;background:#fafbff;border:1px solid #dee2e6;
+                border-radius:6px;min-height:200px;display:flex;
+                align-items:center;justify-content:center;">
+        <div style="text-align:center;color:#6c757d;">
+            <p style="font-size:1rem;font-weight:600;color:#1b3a6b;margin-bottom:.5rem;">{{ title }}</p>
+            <p style="font-size:.9rem;margin:0;">
+                This page uses schema-driven fields.<br>
+                Switch to <strong>Form View</strong> to edit options and values directly.
+            </p>
         </div>
-        {{ builder_macros.render_properties_panel(selected_block, current_page.blocks, pricing_modes, current_page_id) }}
     </div>
     {% endif %}
     {% else %}
@@ -732,7 +739,8 @@
 {% endif %}
 
 <!-- Further Requirements & Considerations -->
-{% if further_requirements_page %}
+{# Guard: only render legacy hardcoded sections when no modern page_schema exists for this page #}
+{% if further_requirements_page and not page_schema %}
 <div class="accordion-section">
     <button type="button" class="accordion-header" onclick="toggleAccordion('furtherRequirementsSection')">
         Further Requirements & Considerations
@@ -974,7 +982,8 @@
 <!----------------                           PAGE -  Additional Costs                              ------------------------->
 <!-------------------------------------------------------------------------------------------------------------------------->
         
-        {% if additional_costs_page %}
+        {# Guard: only render legacy Additional Costs when no modern page_schema exists for this page #}
+        {% if additional_costs_page and not page_schema %}
         
         <h3><b>Additional Costs</b></h3>
         
