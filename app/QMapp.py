@@ -97,11 +97,18 @@ def inject_ui_context():
 	is_admin = role == 'admin'
 	edit_requested = request.args.get('edit', '').lower() in {'1', 'true', 'yes'}
 	edit_mode = is_admin and edit_requested
+	
+	db_pages = []
+	if edit_mode:
+		from app.template_store import get_all_pages
+		db_pages = get_all_pages()
+		
 	return dict(
 		current_user_role=role,
 		current_username=session.get('username'),
 		is_admin=is_admin,
 		edit_mode=edit_mode,
+		db_pages=db_pages,
 	)
 
 
@@ -4327,6 +4334,30 @@ def admin_promote():
 
 
 #####################################################################################################################################
+
+@app.route('/builder_beta/page/add', methods=['POST'])
+@require_role('admin')
+def builder_beta_page_add():
+	import app.template_store as _ts
+	data = request.json
+	if not data or 'page_key' not in data or 'title' not in data:
+		return jsonify({'success': False, 'error': 'Missing page_key or title'}), 400
+	res = _ts.add_page(data['page_key'], data['title'])
+	if res.get('success'):
+		return jsonify({'success': True})
+	return jsonify(res), 500
+
+@app.route('/builder_beta/category/add', methods=['POST'])
+@require_role('admin')
+def builder_beta_category_add():
+	import app.template_store as _ts
+	data = request.json
+	if not data or 'page_key' not in data or 'category_name' not in data:
+		return jsonify({'success': False, 'error': 'Missing page_key or category_name'}), 400
+	res = _ts.add_category(data['page_key'], data['category_name'])
+	if res.get('success'):
+		return jsonify({'success': True})
+	return jsonify(res), 500
 
 if __name__ == '__main__': 
 	debug_mode = os.getenv('FLASK_DEBUG', '').lower() in {'1', 'true', 'yes', 'on'}

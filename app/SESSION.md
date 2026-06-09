@@ -13,12 +13,12 @@
 * @app/templates/_builder_macros.html
 * @app/static/js/builder.js
 
-## What Was Completed — Session AJ (Part 2)
-* **Backend Endpoint:** Built the unified atomic SQL swap endpoint (`/builder_beta/swap_order`) in `QMapp.py` handling `page`, `category`, and `question` scopes using strict neighbor lookup queries.
-* **Schema IDs:** Updated `_get_li_categories_from_schema` and `builder_line_items_json` to supply the actual integer `id` from the database to track category scope instead of string names.
-* **UI Controls:** Added Up/Down (▲/▼) buttons next to categories and questions in `_builder_macros.html` and wired them to the `/builder_beta/swap_order` endpoint using AJAX.
+## What Was Completed — Session AK (Page Ordering & Creation)
+* **Creation Endpoints & DB Helpers:** Built `add_page` and `add_category` logic using atomic max display order increments in `template_store.py` and exposed them via POST endpoints in `QMapp.py`.
+* **Sidebar Page Ordering:** Updated the left-hand navigation sidebar in `index.html` to dynamically render `db_pages` exposed globally via `inject_ui_context`, integrating up/down order manipulation leveraging the `swap_order` API.
+* **Builder Canvas UI:** Added Add Category and Add Page prompt-driven JS creation buttons in `_builder_macros.html` and `index.html`.
 
 ## Immediate Next Blocker
-### Session AK — Page Ordering UI & Further Builder Refinements
-1. Build the UI to display and reorder the high-level Pages using the new swap endpoint logic.
-2. Create native creation and persistence mechanisms for adding new Pages and Categories via the UI.
+### Session AL — Builder QA & Further Polish
+1. Test and verify the full Pages -> Categories -> Questions UI management loop in isolation.
+2. Evaluate what further UI components or builder refinements are necessary (e.g., Delete/Rename capabilities, handling empty page navigation without explicit endpoints).

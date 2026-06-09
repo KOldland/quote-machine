@@ -276,7 +276,37 @@
             <p style="font-size:.8rem;color:#999;padding:.5rem .75rem;">No categories configured for this page.</p>
         {% endif %}
     </div>
+    <div style="padding: .5rem; border-top: 1px solid #dee2e6; background: #f0f4ff;">
+        <button type="button" id="btn-add-category" class="li-save-btn" style="margin-top:0;" data-page="{{ form_page_key }}">Add Category</button>
+    </div>
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const btnAddCat = document.getElementById('btn-add-category');
+    if (btnAddCat) {
+        btnAddCat.addEventListener('click', function() {
+            const pageKey = this.dataset.page;
+            if (!pageKey) {
+                alert("Cannot add category: unknown page context.");
+                return;
+            }
+            const catName = prompt("Enter new Category Name:");
+            if (!catName) return;
+            
+            fetch('/builder_beta/category/add', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ page_key: pageKey, category_name: catName })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) { window.location.reload(); }
+                else { alert("Failed to add category: " + data.error); }
+            });
+        });
+    }
+});
+</script>
 <style>
 .li-sections-panel {
     width:220px; min-width:180px; border-right:1px solid #dee2e6;

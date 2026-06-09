@@ -894,3 +894,102 @@ def get_line_items_by_codes(codes: list, db_path=None) -> list:
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+def get_all_pages(template_key: str = "first_client_template_v1", db_path: Optional[Path] = None) -> list:
+    """Return all page_templates for the latest version of a template, ordered by display_order."""
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    
+    version_id = _get_latest_version_id(conn, template_key)
+    if version_id is None:
+        conn.close()
+        return []
+        
+    rows = conn.execute(
+        "SELECT id, page_key, title, display_order FROM page_templates WHERE form_template_version_id = ? ORDER BY display_order ASC",
+        (version_id,)
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def add_page(page_key: str, title: str, template_key: str = "first_client_template_v1", db_path: Optional[Path] = None) -> Dict[str, Any]:
+    """Create a new page_template."""
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    
+    version_id = _get_latest_version_id(conn, template_key)
+    if version_id is None:
+        conn.close()
+        return {"success": False, "error": "Template version not found"}
+        
+    try:
+        max_order_row = conn.execute(
+            "SELECT MAX(display_order) as max_order FROM page_templates WHERE form_template_version_id = ?",
+            (version_id,)
+        ).fetchone()
+        
+        next_order = 0
+        if max_order_row and max_order_row["max_order"] is not None:
+            next_order = int(max_order_row["max_order"]) + 1
+            
+        conn.execute(
+            """
+            INSERT INTO page_templates (
+                form_template_version_id, page_key, title, display_order, metadata_json
+            ) VALUES (?, ?, ?, ?, ?)
+            """,
+            (version_id, page_key, title, next_order, "{}")
+        )
+        conn.commit()
+        return {"success": True}
+    except Exception as e:
+        conn.rollback()
+        return {"success": False, "error": str(e)}
+    finally:
+        conn.close()
+
+def add_category(page_key: str, category_name: str, template_key: str = "first_client_template_v1", db_path: Optional[Path] = None) -> Dict[str, Any]:
+    """Create a new category_template for a page."""
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    
+    version_id = _get_latest_version_id(conn, template_key)
+    if version_id is None:
+        conn.close()
+        return {"success": False, "error": "Template version not found"}
+        
+    try:
+        page_row = conn.execute(
+            "SELECT id FROM page_templates WHERE form_template_version_id = ? AND page_key = ?",
+            (version_id, page_key)
+        ).fetchone()
+        
+        if not page_row:
+            return {"success": False, "error": "Page not found"}
+            
+        page_id = page_row["id"]
+        
+        max_order_row = conn.execute(
+            "SELECT MAX(display_order) as max_order FROM category_templates WHERE page_template_id = ?",
+            (page_id,)
+        ).fetchone()
+        
+        next_order = 0
+        if max_order_row and max_order_row["max_order"] is not None:
+            next_order = int(max_order_row["max_order"]) + 1
+            
+        conn.execute(
+            """
+            INSERT INTO category_templates (
+                form_template_version_id, page_template_id, name, display_order
+            ) VALUES (?, ?, ?, ?)
+            """,
+            (version_id, page_id, category_name, next_order)
+        )
+        conn.commit()
+        return {"success": True}
+    except Exception as e:
+        conn.rollback()
+        return {"success": False, "error": str(e)}
+    finally:
+        conn.close()
