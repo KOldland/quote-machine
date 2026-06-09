@@ -8,11 +8,13 @@
 * **Session AI/AJ — COMPLETE: Formalize Pages and Categories in Schema ✅**
 
 ## Active Files for Context (next session)
-* @app/template_store.py
-* @app/QMapp.py
-* @app/templates/_builder_macros.html
+* @app/templates/builder_beta.html
+* @app/templates/form.html
 * @app/static/js/builder.js
-* @force_sync_schema.py
+* @app/template_store.py
+* @app/templates/index.html
+* @app/templates/_builder_macros.html
+* @app/QMapp.py
 
 ## What Was Completed — Session AK (Page Ordering & Creation)
 * **Creation Endpoints & DB Helpers:** Built `add_page` and `add_category` logic using atomic max display order increments in `template_store.py` and exposed them via POST endpoints in `QMapp.py`.
