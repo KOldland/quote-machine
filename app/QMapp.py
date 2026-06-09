@@ -2683,6 +2683,92 @@ def builder_beta_page_editor(page_id):
 
 
 
+
+@app.route('/builder_beta/swap_order', methods=['POST'])
+@require_role('admin')
+def builder_beta_swap_order():
+	import sqlite3 as _sq
+	from pathlib import Path as _P
+	data = request.json
+	if not data:
+		return jsonify({'success': False, 'error': 'No data provided'}), 400
+
+	scope = data.get('scope')
+	direction = data.get('direction')
+	identifier = data.get('identifier')
+	page_key = data.get('page_key')
+
+	if scope not in ['page', 'category', 'question'] or direction not in ['up', 'down'] or identifier is None:
+		return jsonify({'success': False, 'error': 'Invalid parameters'}), 400
+
+	db_path = str(_P(os.environ.get('QM_TEMPLATE_DB_PATH', '') or _P(__file__).parent / 'template_store.sqlite3'))
+	conn = _sq.connect(db_path)
+	conn.row_factory = _sq.Row
+	cursor = conn.cursor()
+
+	try:
+		if scope == 'page':
+			curr_row = cursor.execute("SELECT id, display_order FROM page_templates WHERE id = ?", [identifier]).fetchone()
+			if not curr_row:
+				return jsonify({'success': False, 'error': 'Page not found'}), 404
+			
+			curr_id = curr_row['id']
+			curr_order = curr_row['display_order']
+
+			if direction == 'up':
+				adj_row = cursor.execute("SELECT id, display_order FROM page_templates WHERE display_order < ? ORDER BY display_order DESC LIMIT 1", [curr_order]).fetchone()
+			else:
+				adj_row = cursor.execute("SELECT id, display_order FROM page_templates WHERE display_order > ? ORDER BY display_order ASC LIMIT 1", [curr_order]).fetchone()
+
+			if adj_row:
+				cursor.execute("UPDATE page_templates SET display_order = ? WHERE id = ?", [adj_row['display_order'], curr_id])
+				cursor.execute("UPDATE page_templates SET display_order = ? WHERE id = ?", [curr_order, adj_row['id']])
+
+		elif scope == 'category':
+			curr_row = cursor.execute("SELECT id, display_order, page_template_id FROM category_templates WHERE id = ?", [identifier]).fetchone()
+			if not curr_row:
+				return jsonify({'success': False, 'error': 'Category not found'}), 404
+			
+			curr_id = curr_row['id']
+			curr_order = curr_row['display_order']
+			page_template_id = curr_row['page_template_id']
+
+			if direction == 'up':
+				adj_row = cursor.execute("SELECT id, display_order FROM category_templates WHERE page_template_id = ? AND display_order < ? ORDER BY display_order DESC LIMIT 1", [page_template_id, curr_order]).fetchone()
+			else:
+				adj_row = cursor.execute("SELECT id, display_order FROM category_templates WHERE page_template_id = ? AND display_order > ? ORDER BY display_order ASC LIMIT 1", [page_template_id, curr_order]).fetchone()
+
+			if adj_row:
+				cursor.execute("UPDATE category_templates SET display_order = ? WHERE id = ?", [adj_row['display_order'], curr_id])
+				cursor.execute("UPDATE category_templates SET display_order = ? WHERE id = ?", [curr_order, adj_row['id']])
+
+		elif scope == 'question':
+			curr_row = cursor.execute("SELECT id, sort_order, form_page, category FROM line_items WHERE id = ?", [identifier]).fetchone()
+			if not curr_row:
+				return jsonify({'success': False, 'error': 'Question not found'}), 404
+			
+			curr_id = curr_row['id']
+			curr_order = curr_row['sort_order']
+			q_page = curr_row['form_page']
+			q_cat = curr_row['category']
+
+			if direction == 'up':
+				adj_row = cursor.execute("SELECT id, sort_order FROM line_items WHERE form_page = ? AND category = ? AND sort_order < ? ORDER BY sort_order DESC LIMIT 1", [q_page, q_cat, curr_order]).fetchone()
+			else:
+				adj_row = cursor.execute("SELECT id, sort_order FROM line_items WHERE form_page = ? AND category = ? AND sort_order > ? ORDER BY sort_order ASC LIMIT 1", [q_page, q_cat, curr_order]).fetchone()
+
+			if adj_row:
+				cursor.execute("UPDATE line_items SET sort_order = ? WHERE id = ?", [adj_row['sort_order'], curr_id])
+				cursor.execute("UPDATE line_items SET sort_order = ? WHERE id = ?", [curr_order, adj_row['id']])
+
+		conn.commit()
+		return jsonify({'success': True})
+	except Exception as e:
+		conn.rollback()
+		return jsonify({'success': False, 'error': str(e)}), 500
+	finally:
+		conn.close()
+
 @app.route('/builder_beta/line_items_json', methods=['GET'])
 @require_role('admin')
 def builder_line_items_json():
@@ -2848,23 +2934,20 @@ def _get_line_items_for_page(form_page_key, categories=None):
 
 
 def _get_li_categories_from_schema(page_id):
-	"""Read page_schemas.json and return config.categories for the
-	line_items_by_category block on the given page.
-	Returns a list of category strings, or None if not configured (= show all).
+	"""Query category_templates to get the ordered list of categories for the given page.
+	Returns a list of dicts: [{'id': 1, 'name': '...'}], or None if none.
 	"""
-	import json as _json
-	_schema_path = os.path.join(os.path.dirname(__file__), 'page_schemas.json')
-	try:
-		with open(_schema_path) as _f:
-			_schema = _json.load(_f)
-		_page = _schema.get('builder_beta', {}).get('pages', {}).get(page_id, {})
-		for _b in _page.get('blocks', []):
-			if _b.get('block_type') == 'line_items_by_category':
-				cats = _b.get('config', {}).get('categories', [])
-				return cats if cats else None
-	except Exception:
-		pass
-	return None
+	import sqlite3 as _sq
+	from pathlib import Path as _P
+	_db = str(_P(os.environ.get('QM_TEMPLATE_DB_PATH', '') or _P(__file__).parent / 'template_store.sqlite3'))
+	_conn = _sq.connect(_db)
+	_conn.row_factory = _sq.Row
+	_cat_query = "SELECT c.id, c.name FROM category_templates c JOIN page_templates p ON c.page_template_id = p.id WHERE p.page_key = ? ORDER BY c.display_order ASC"
+	_cat_rows = _conn.execute(_cat_query, [page_id]).fetchall()
+	_conn.close()
+	if not _cat_rows:
+		return None
+	return [{'id': r['id'], 'name': r['name']} for r in _cat_rows]
 
 
 @app.route('/materials_page', methods=['POST', 'GET'])

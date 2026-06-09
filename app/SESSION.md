@@ -13,11 +13,11 @@
 * @app/templates/_builder_macros.html
 * @app/static/js/builder.js
 
-## What Was Completed — Session AJ (Part 1)
-* **Backend Refactor:** Consolidated duplicate `_get_line_items_for_page` definitions in `QMapp.py`.
-* **Schema Integration:** Updated data retrieval in both `QMapp.py` and `template_store.py` to query the formal `category_templates` table, ensuring empty categories are preserved and items are strictly sorted by `display_order`.
+## What Was Completed — Session AI
+* **Database Schema Update:** Added `category_templates` table in `template_store.py`.
+* **Data Integration:** Parsed and inserted categories natively into `category_templates` linked via `page_template_id`.
+* **JSON Schema Refactor:** Migrated the `categories` array out of `line_items_by_category` blocks directly into root page configurations across `page_schemas.json` and `page_schemas_published.json`.
 
-## Immediate Next Blocker
-### Session AJ (Part 2) — Reordering Endpoint & UI Controls
-1. Build the unified atomic SQL swap endpoint (`/builder_beta/swap_order`) in `QMapp.py` handling `page`, `category`, and `question` scopes via `display_order` or `sort_order`.
-2. Add the Up/Down buttons to the Builder UI in `_builder_macros.html` and wire them up in `builder.js`.
+## Immediate Next Task
+### Session AJ — Integrate Schema Changes into Backend Logic and UI
+Update `QMapp.py` data retrieval to query `category_templates` rather than dynamically extracting unique strings from `line_items`. Plan UI components for managing Categories (add, rename, move, reorder). See `current_development.md` for details.
