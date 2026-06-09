@@ -100,7 +100,7 @@ def inject_ui_context():
 	
 	db_pages = []
 	if edit_mode:
-		from app.template_store import get_all_pages
+		from template_store import get_all_pages
 		db_pages = get_all_pages()
 		
 	return dict(
@@ -2185,6 +2185,24 @@ def index():
 	# Store the current page in the session
 	session['last_visited'] = 'index'
 	
+	edit_requested = request.args.get('edit', '').lower() in {'1', 'true', 'yes'}
+	edit_mode = session.get('role') == 'admin' and edit_requested
+
+	if edit_mode:
+		builder_state = get_builder_beta_state()
+		# Redirect to the first page in the builder
+		if builder_state.get('pages'):
+			# The pages are not ordered, so we need to find the first one.
+			# We can't rely on insertion order. Let's find 'index' or the first page.
+			first_page_id = 'index'
+			if first_page_id not in builder_state['pages']:
+				first_page_id = next(iter(builder_state['pages']))
+			return redirect(url_for('builder_beta_page_editor', page_id=first_page_id, edit='1'))
+		else:
+			# Handle case with no pages
+			flash("No pages found in builder.", "warning")
+			return render_template('form.html', edit_mode=True, current_page=None)
+
 	if request.method == 'POST':
 		data = session.setdefault('data', {})
 		
@@ -2217,43 +2235,17 @@ def index():
 	except ValueError:
 		form_date = ''
 		
-	edit_requested = request.args.get('edit', '').lower() in {'1', 'true', 'yes'}
-	edit_mode = False  # index page has no edit mode
-	if edit_mode:
-			builder_state = get_builder_beta_state()
-			current_page_id = 'special_notes_page'
-			current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
-			selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
-			selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
-			_li_cats = _get_li_categories_from_schema('special_notes_page') or []
-
-			return render_template(
-				'form.html',
-				page_schema=page_schema,
-				schema_render_mode='full',
-				previous_page=page_schema.get('navigation', {}).get('previous_endpoint', 'index') if page_schema else 'index',
-				next_page=page_schema.get('navigation', {}).get('next_endpoint', 'summary_page') if page_schema else 'summary_page',
-				title=page_schema.get('title', 'Special Notes') if page_schema else 'Special Notes',
-				builder_state=builder_state,
-				current_page={'id': current_page_id, 'title': page_schema.get('title', 'Special Notes') if page_schema else 'Special Notes', 'blocks': current_page_blocks},
-				current_page_id=current_page_id,
-				selected_block_id=selected_block_id,
-				selected_block=selected_block,
-				pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
-				li_categories=_li_cats,
-			)
-	else:
-		return render_template(
-			'form.html',
-			first_page=True,
-			next_page='special_notes_page',
-			title="Project Details",
-			client_address=client_address,
-			proposal_date=form_date,
-			current_page=None,
-			selected_block_id=None,
-			edit_mode=False
-		)
+	return render_template(
+		'form.html',
+		first_page=True,
+		next_page='special_notes_page',
+		title="Project Details",
+		client_address=client_address,
+		proposal_date=form_date,
+		current_page=None,
+		selected_block_id=None,
+		edit_mode=False
+	)
 
 
 ################################################################################################################################
@@ -2961,7 +2953,10 @@ def _get_li_categories_from_schema(page_id):
 def materials_page():
 	page_id = 'materials_page'
 	if request.method == 'POST':
-		persist_schema_page_submission(page_id, request.form)
+		checkbox_data = session.setdefault('checkbox_data', {})
+		persist_schema_page_submission(page_id, request.form, checkbox_data)
+		session['checkbox_data'] = checkbox_data
+		session.modified = True
 		return redirect(url_for('further_requirements_page'))
 
 	# GET logic
@@ -2970,7 +2965,7 @@ def materials_page():
 	page_schema = compile_builder_beta_page_to_runtime_schema(page_id)
 	sheet_data = get_catalog()
 	if edit_mode_local:
-		builder_state = session.get('builder_state', {})
+		builder_state = get_builder_beta_state()
 		current_page_id = page_id
 		current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
 		selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
@@ -3005,7 +3000,10 @@ def materials_page():
 def further_requirements_page():
 	page_id = 'further_requirements_page'
 	if request.method == 'POST':
-		persist_schema_page_submission(page_id, request.form)
+		checkbox_data = session.setdefault('checkbox_data', {})
+		persist_schema_page_submission(page_id, request.form, checkbox_data)
+		session['checkbox_data'] = checkbox_data
+		session.modified = True
 		return redirect(url_for('additional_building_work_page'))
 
 	# GET logic
@@ -3014,7 +3012,7 @@ def further_requirements_page():
 	page_schema = compile_builder_beta_page_to_runtime_schema(page_id)
 	sheet_data = get_catalog()
 	if edit_mode_local:
-		builder_state = session.get('builder_state', {})
+		builder_state = get_builder_beta_state()
 		current_page_id = page_id
 		current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
 		selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
@@ -3253,7 +3251,7 @@ def additional_costs_page():
 	edit_mode_local = session.get('role') == 'admin' and edit_requested
 	page_schema = compile_builder_beta_page_to_runtime_schema('additional_costs_page')
 	if edit_mode_local:
-		builder_state = session.get('builder_state', {})
+		builder_state = get_builder_beta_state()
 		current_page_id = 'additional_costs_page'
 		current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
 		selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
@@ -4338,7 +4336,7 @@ def admin_promote():
 @app.route('/builder_beta/page/add', methods=['POST'])
 @require_role('admin')
 def builder_beta_page_add():
-	import app.template_store as _ts
+	import template_store as _ts
 	data = request.json
 	if not data or 'page_key' not in data or 'title' not in data:
 		return jsonify({'success': False, 'error': 'Missing page_key or title'}), 400
@@ -4350,7 +4348,7 @@ def builder_beta_page_add():
 @app.route('/builder_beta/category/add', methods=['POST'])
 @require_role('admin')
 def builder_beta_category_add():
-	import app.template_store as _ts
+	import template_store as _ts
 	data = request.json
 	if not data or 'page_key' not in data or 'category_name' not in data:
 		return jsonify({'success': False, 'error': 'Missing page_key or category_name'}), 400

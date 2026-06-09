@@ -1,0 +1,1158 @@
+{
+  "builder_beta": {
+    "pages": {
+      "index": {
+        "id": "index",
+        "title": "Project Details",
+        "navigation": {
+          "next_endpoint": "special_notes_page",
+          "previous_endpoint": ""
+        },
+        "blocks": [
+          {
+            "id": "index__client_address",
+            "block_type": "text_input",
+            "standard": {
+              "label": "Address:",
+              "name": "client_address",
+              "required": true,
+              "help_text": "",
+              "source_prefix": "",
+              "placeholder": "Enter client address",
+              "dropdown_choices": [],
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "Address:",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
+            }
+          },
+          {
+            "id": "index__Date",
+            "block_type": "text_input",
+            "standard": {
+              "label": "Date:",
+              "name": "Date",
+              "required": true,
+              "help_text": "",
+              "source_prefix": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "Date:",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
+            }
+          }
+        ]
+      },
+      "special_notes_page": {
+        "id": "special_notes_page",
+        "title": "Special Notes",
+        "navigation": {
+          "next_endpoint": "summary_page",
+          "previous_endpoint": "index"
+        },
+        "blocks": [
+          {
+            "id": "special_notes_page__line_items",
+            "block_type": "line_items_by_category",
+            "config": {}
+          }
+        ],
+        "categories": [
+          {
+            "name": "Special Notes",
+            "sort_order": 0
+          }
+        ]
+      },
+      "summary_page": {
+        "id": "summary_page",
+        "title": "Summary Page",
+        "navigation": {
+          "next_endpoint": "materials_page",
+          "previous_endpoint": "special_notes_page"
+        },
+        "blocks": [
+          {
+            "id": "summary_page__line_items",
+            "block_type": "line_items_by_category",
+            "config": {}
+          }
+        ],
+        "categories": [
+          {
+            "name": "Building Works",
+            "sort_order": 0
+          },
+          {
+            "name": "Boundary Lines",
+            "sort_order": 1
+          },
+          {
+            "name": "Planning Permission",
+            "sort_order": 2
+          },
+          {
+            "name": "Basement",
+            "sort_order": 3
+          },
+          {
+            "name": "Council",
+            "sort_order": 4
+          },
+          {
+            "name": "Dimensions",
+            "sort_order": 5
+          },
+          {
+            "name": "Additional Notes",
+            "sort_order": 6
+          }
+        ]
+      },
+      "materials_page": {
+        "id": "materials_page",
+        "title": "Materials and Details",
+        "navigation": {
+          "next_endpoint": "further_requirements_page",
+          "previous_endpoint": "summary_page"
+        },
+        "blocks": [
+          {
+            "id": "materials_page__selected_ew",
+            "block_type": "accordion_group",
+            "standard": {
+              "label": "External Walls",
+              "name": "selected_ew",
+              "required": false,
+              "source_prefix": "ew",
+              "help_text": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "External Walls",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
+            },
+            "sub_blocks": [
+              {
+                "id": "materials_page__ew_wall_height_metres",
+                "block_type": "dropdown_select",
+                "standard": {
+                  "label": "Wall Height \u2014 Metres",
+                  "name": "wall_height_metres",
+                  "required": false,
+                  "trigger_value": "ew0",
+                  "dropdown_choices": [
+                    "2m",
+                    "3m"
+                  ],
+                  "help_text": "Shown when 'External Wall Height' checkbox (ew0) is selected"
+                }
+              },
+              {
+                "id": "materials_page__ew_wall_height_centimetres",
+                "block_type": "dropdown_select",
+                "standard": {
+                  "label": "Wall Height \u2014 Centimetres",
+                  "name": "wall_height_centimetres",
+                  "required": false,
+                  "trigger_value": "ew0",
+                  "dropdown_choices": [
+                    "0cm",
+                    "5cm",
+                    "10cm",
+                    "15cm",
+                    "20cm",
+                    "25cm",
+                    "30cm",
+                    "35cm",
+                    "40cm",
+                    "45cm",
+                    "50cm",
+                    "55cm",
+                    "60cm",
+                    "65cm",
+                    "70cm",
+                    "75cm",
+                    "80cm",
+                    "85cm",
+                    "90cm",
+                    "95cm"
+                  ],
+                  "help_text": "Shown when 'External Wall Height' checkbox (ew0) is selected"
+                }
+              }
+            ],
+            "hidden": true
+          },
+          {
+            "id": "materials_page__selected_er",
+            "block_type": "accordion_group",
+            "standard": {
+              "label": "External Roof",
+              "name": "selected_er",
+              "required": false,
+              "source_prefix": "er",
+              "help_text": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "External Roof",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
+            },
+            "sub_blocks": [
+              {
+                "id": "materials_page__er_pitched_roof_option",
+                "block_type": "dropdown_select",
+                "standard": {
+                  "label": "Choose Roofing Finish",
+                  "name": "pitched_roof_option",
+                  "required": false,
+                  "trigger_value": "er1#",
+                  "source_codes": [
+                    "er4^",
+                    "er5^",
+                    "er6^",
+                    "er7^"
+                  ],
+                  "help_text": "Shown when Pitched Roof checkbox (er1#) is selected"
+                }
+              },
+              {
+                "id": "materials_page__er_other_roofing_description",
+                "block_type": "text_input",
+                "standard": {
+                  "label": "Other Roofing \u2014 Please Specify",
+                  "name": "other_roofing_description",
+                  "required": false,
+                  "trigger_value": "er7^",
+                  "help_text": "Shown when 'Other' (er7^) is selected in roofing finish"
+                }
+              }
+            ],
+            "hidden": true
+          },
+          {
+            "id": "materials_page__selected_id",
+            "block_type": "accordion_group",
+            "standard": {
+              "label": "Internal Doors",
+              "name": "selected_id",
+              "required": false,
+              "source_prefix": "id",
+              "help_text": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "Internal Doors",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
+            },
+            "sub_blocks": [
+              {
+                "id": "materials_page__id_fire_doors_number",
+                "block_type": "number_input",
+                "standard": {
+                  "label": "Number of Fire Doors",
+                  "name": "fire_doors_number",
+                  "required": false,
+                  "min": 0,
+                  "help_text": "Maps to session key fire_doors_number"
+                }
+              },
+              {
+                "id": "materials_page__id_non_fire_doors_number",
+                "block_type": "number_input",
+                "standard": {
+                  "label": "Number of Non-Fire Doors",
+                  "name": "non_fire_doors_number",
+                  "required": false,
+                  "min": 0,
+                  "help_text": "Maps to session key non_fire_doors_number"
+                }
+              }
+            ],
+            "hidden": true
+          },
+          {
+            "id": "materials_page__selected_dr",
+            "block_type": "accordion_group",
+            "standard": {
+              "label": "Drainage",
+              "name": "selected_dr",
+              "required": false,
+              "source_prefix": "dr",
+              "help_text": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "Drainage",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
+            },
+            "sub_blocks": [
+              {
+                "id": "materials_page__dr_drainage_other_input",
+                "block_type": "text_input",
+                "standard": {
+                  "label": "Drainage details",
+                  "name": "drainage_other_input",
+                  "required": false,
+                  "trigger_value": "dr4^",
+                  "help_text": "Shown when 'Specify other drainage works' (dr4^) is selected"
+                }
+              },
+              {
+                "id": "materials_page__dr_drainage_other_cost",
+                "block_type": "number_input",
+                "standard": {
+                  "label": "Additional Drainage Cost (\u00a3)",
+                  "name": "drainage_other_cost",
+                  "required": false,
+                  "trigger_value": "dr4^",
+                  "min": 0,
+                  "step": 0.01,
+                  "help_text": "Cost for 'other' drainage work"
+                }
+              }
+            ],
+            "hidden": true
+          },
+          {
+            "id": "materials_page__selected_wp",
+            "block_type": "accordion_group",
+            "standard": {
+              "label": "Waste and Parking",
+              "name": "selected_wp",
+              "required": false,
+              "source_prefix": "wp",
+              "help_text": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "Waste and Parking",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
+            },
+            "sub_blocks": [],
+            "hidden": true
+          },
+          {
+            "id": "materials_page__checkbox_group_1780662574072",
+            "block_type": "checkbox_group",
+            "standard": {
+              "label": "New checkbox group",
+              "name": "materials_page__checkbox_group_1780662574072",
+              "required": false,
+              "help_text": "",
+              "source_prefix": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "New checkbox group",
+              "group": "General",
+              "sort_order": 5,
+              "value_mode": "show_value"
+            }
+          },
+          {
+            "id": "materials_page__line_items",
+            "block_type": "line_items_by_category",
+            "config": {},
+            "standard": {
+              "label": "materials_page__line_items",
+              "name": "materials_page__line_items",
+              "required": false,
+              "help_text": "",
+              "source_prefix": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "materials_page__line_items",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
+            }
+          }
+        ],
+        "categories": [
+          {
+            "name": "Drainage",
+            "sort_order": 0
+          },
+          {
+            "name": "Internal doors",
+            "sort_order": 1
+          },
+          {
+            "name": "Waste & Parking",
+            "sort_order": 2
+          },
+          {
+            "name": "dimension",
+            "sort_order": 3
+          },
+          {
+            "name": "external roofing finish",
+            "sort_order": 4
+          },
+          {
+            "name": "external wall finish & height",
+            "sort_order": 5
+          },
+          {
+            "name": "floor structure",
+            "sort_order": 6
+          },
+          {
+            "name": "plastering",
+            "sort_order": 7
+          }
+        ]
+      },
+      "further_requirements_page": {
+        "id": "further_requirements_page",
+        "title": "Further Requirements and Considerations",
+        "navigation": {
+          "next_endpoint": "additional_building_work_page",
+          "previous_endpoint": "materials_page"
+        },
+        "blocks": [
+          {
+            "id": "further_requirements_page__selected_frc",
+            "block_type": "accordion_group",
+            "standard": {
+              "label": "Further requirements",
+              "name": "selected_frc",
+              "required": false,
+              "source_prefix": "frc",
+              "help_text": "Testing again2",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "Further requirements",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
+            },
+            "sub_blocks": [],
+            "hidden": true
+          },
+          {
+            "id": "further_requirements_page__selected_dw",
+            "block_type": "accordion_group",
+            "standard": {
+              "label": "Demolition Works",
+              "name": "selected_dw",
+              "required": false,
+              "source_prefix": "dw",
+              "help_text": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "Demolition Works",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
+            },
+            "sub_blocks": [],
+            "hidden": true
+          },
+          {
+            "id": "further_requirements_page__selected_fs",
+            "block_type": "accordion_group",
+            "standard": {
+              "label": "Floor Structure",
+              "name": "selected_fs",
+              "required": false,
+              "source_prefix": "fs",
+              "help_text": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "Floor Structure",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
+            },
+            "sub_blocks": [],
+            "hidden": true
+          },
+          {
+            "id": "further_requirements_page__selected_gv",
+            "block_type": "accordion_group",
+            "standard": {
+              "label": "Glass Valley",
+              "name": "selected_gv",
+              "required": false,
+              "source_prefix": "gv",
+              "help_text": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "Glass Valley",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
+            },
+            "sub_blocks": [],
+            "hidden": true
+          },
+          {
+            "id": "further_requirements_page__line_items",
+            "block_type": "line_items_by_category",
+            "config": {},
+            "standard": {
+              "label": "further_requirements_page__line_items",
+              "name": "further_requirements_page__line_items",
+              "required": false,
+              "help_text": "",
+              "source_prefix": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "further_requirements_page__line_items",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
+            }
+          }
+        ],
+        "categories": [
+          {
+            "name": "Demolition Works",
+            "sort_order": 0
+          },
+          {
+            "name": "Further Requirements & Considerations",
+            "sort_order": 1
+          }
+        ]
+      },
+      "additional_building_work_page": {
+        "id": "additional_building_work_page",
+        "title": "Additional Building Works",
+        "navigation": {
+          "next_endpoint": "additional_costs_page",
+          "previous_endpoint": "further_requirements_page"
+        },
+        "blocks": [
+          {
+            "id": "additional_building_work_page__line_items",
+            "block_type": "line_items_by_category",
+            "config": {}
+          }
+        ],
+        "categories": [
+          {
+            "name": "Additional Building Works",
+            "sort_order": 0
+          }
+        ]
+      },
+      "additional_costs_page": {
+        "id": "additional_costs_page",
+        "title": "Additional Costs",
+        "navigation": {
+          "next_endpoint": "optional_extras_page",
+          "previous_endpoint": "additional_building_work_page"
+        },
+        "blocks": [
+          {
+            "id": "li_additional_costs",
+            "block_type": "line_items_by_category",
+            "config": {}
+          },
+          {
+            "id": "additional_costs_page__electrics_section",
+            "block_type": "static_text_heading",
+            "standard": {
+              "label": "Electrics (Kitchen and Loft)",
+              "name": "electrics_section",
+              "required": false,
+              "help_text": "Rates are controlled via Pricing Rules settings below",
+              "static_content": "",
+              "static_variant": "heading",
+              "source_prefix": "",
+              "placeholder": "",
+              "dropdown_choices": []
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "Electrics (Kitchen and Loft)",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
+            }
+          },
+          {
+            "id": "additional_costs_page__other_demolition_cost",
+            "block_type": "number_currency_input",
+            "standard": {
+              "label": "Other Demolition Cost",
+              "name": "other_demolition_cost",
+              "required": false,
+              "help_text": "",
+              "source_prefix": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "Other Demolition Cost",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
+            }
+          }
+        ],
+        "categories": [
+          {
+            "name": "Electrics",
+            "sort_order": 0
+          },
+          {
+            "name": "Plumbing",
+            "sort_order": 1
+          },
+          {
+            "name": "Skylights",
+            "sort_order": 2
+          },
+          {
+            "name": "Velux",
+            "sort_order": 3
+          },
+          {
+            "name": "Aluminium Capping",
+            "sort_order": 4
+          },
+          {
+            "name": "Sliding Doors",
+            "sort_order": 5
+          }
+        ]
+      },
+      "optional_extras_page": {
+        "id": "optional_extras_page",
+        "title": "Optional Extras",
+        "navigation": {
+          "next_endpoint": "image_upload_page",
+          "previous_endpoint": "additional_costs_page"
+        },
+        "blocks": [
+          {
+            "id": "optional_extras_page__line_items",
+            "block_type": "line_items_by_category",
+            "config": {}
+          }
+        ],
+        "categories": [
+          {
+            "name": "Optional Extras",
+            "sort_order": 0
+          },
+          {
+            "name": "Finishing Works",
+            "sort_order": 1
+          },
+          {
+            "name": "Finishing Works Optional Extras",
+            "sort_order": 2
+          }
+        ]
+      },
+      "image_upload_page": {
+        "id": "image_upload_page",
+        "title": "Image Upload",
+        "navigation": {
+          "next_endpoint": "review",
+          "previous_endpoint": "optional_extras_page"
+        },
+        "blocks": [
+          {
+            "id": "image_upload_page__site_image",
+            "block_type": "static_text_heading",
+            "standard": {
+              "label": "Site / Property Image",
+              "name": "site_image",
+              "required": false,
+              "static_content": "Image upload placeholder",
+              "static_variant": "body",
+              "help_text": "",
+              "source_prefix": "",
+              "placeholder": "",
+              "dropdown_choices": []
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "Site / Property Image",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
+            }
+          },
+          {
+            "id": "image_upload_page__layout_template",
+            "block_type": "dropdown_select",
+            "standard": {
+              "label": "Layout Template",
+              "name": "layout_template",
+              "required": false,
+              "help_text": "",
+              "source_prefix": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "Layout Template",
+              "group": "General",
+              "sort_order": 0,
+              "value_mode": "show_value"
+            }
+          }
+        ]
+      }
+    },
+    "question_types": {
+      "checkbox_group": {
+        "label": "Checkbox Group",
+        "default_label": "New checkbox group",
+        "supports": {
+          "logic": true,
+          "pricing": true,
+          "output": true
+        }
+      },
+      "text_input": {
+        "label": "Text Input",
+        "default_label": "New text input",
+        "supports": {
+          "logic": true,
+          "pricing": true,
+          "output": true
+        }
+      },
+      "number_currency_input": {
+        "label": "Number/Currency Input",
+        "default_label": "New number/currency input",
+        "supports": {
+          "logic": true,
+          "pricing": true,
+          "output": true
+        }
+      },
+      "dropdown_select": {
+        "label": "Dropdown Select",
+        "default_label": "New dropdown select",
+        "supports": {
+          "logic": true,
+          "pricing": true,
+          "output": true
+        }
+      },
+      "static_text_heading": {
+        "label": "Static Text/Heading",
+        "default_label": "New static text",
+        "supports": {
+          "logic": false,
+          "pricing": false,
+          "output": true
+        }
+      }
+    },
+    "version": 1
+  },
+  "pages": {
+    "materials_page": {
+      "id": "materials_page",
+      "blocks": [
+        {
+          "id": "li_by_cat_materials",
+          "block_type": "line_items_by_category",
+          "config": {
+            "categories": [
+              "Drainage",
+              "Internal doors",
+              "Waste & Parking",
+              "dimension",
+              "external roofing finish",
+              "external wall finish & height",
+              "floor structure",
+              "plastering"
+            ]
+          }
+        }
+      ]
+    },
+    "further_requirements_page": {
+      "id": "further_requirements_page",
+      "blocks": [
+        {
+          "id": "li_by_cat_further",
+          "block_type": "line_items_by_category",
+          "config": {
+            "categories": [
+              "Demolition Works",
+              "Further Requirements & Considerations"
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "settings": {
+    "pricing_rules": {
+      "kitchen_light_rate": 30.0,
+      "kitchen_point_rate": 65.0,
+      "loft_light_rate": 30.0,
+      "loft_point_rate": 65.0,
+      "rounding_precision": 2
+    },
+    "payment_plan_rules": {
+      "deposit_percent": 10.0,
+      "stages": [
+        {
+          "name": "Weeks 1-8",
+          "percent": 50.0
+        },
+        {
+          "name": "Weeks 9-12",
+          "percent": 30.0
+        },
+        {
+          "name": "Completion",
+          "percent": 10.0
+        }
+      ]
+    },
+    "last_publish": {
+      "published_at": "2026-06-05T08:14:18.469120Z",
+      "published_by": "admin",
+      "db_version": 1
+    }
+  }
+}
