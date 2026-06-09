@@ -1119,39 +1119,6 @@ def _builder_beta_checkbox_options(field_schema, sheet_data):
 	return options
 
 
-def _get_line_items_for_page(page_id):
-	"""Query SQLite line_items for a page and return items grouped by category."""
-	try:
-		import sqlite3 as _sqlite3
-		from collections import OrderedDict
-		db_path = os.path.join(os.path.dirname(__file__), 'template_store.sqlite3')
-		conn = _sqlite3.connect(db_path)
-		conn.row_factory = _sqlite3.Row
-		rows = conn.execute(
-			"""SELECT line_code, internal_description, category, include_default,
-			          is_follow_up, follow_up_type, follow_up_config
-			   FROM line_items WHERE form_page = ? AND form_visible = 1
-			   ORDER BY category, sort_order""",
-			(page_id,)
-		).fetchall()
-		conn.close()
-		groups = OrderedDict()
-		for row in rows:
-			cat = row['category'] or 'Uncategorised'
-			if cat not in groups:
-				groups[cat] = []
-			groups[cat].append({
-				'value': row['line_code'],
-				'label': row['internal_description'] or row['line_code'],
-				'include_default': row['include_default'] or 'N',
-				'is_follow_up': row['is_follow_up'] or 0,
-				'follow_up_type': row['follow_up_type'] or '',
-				'follow_up_config': row['follow_up_config'] or '{}',
-			})
-		return [{'category': cat, 'items': items} for cat, items in groups.items()]
-	except Exception as e:
-		print(f'[line_items] Error loading items for {page_id}: {e}')
-		return []
 
 
 def build_builder_beta_runtime_context(page_id, sheet_data, page_answers):
@@ -2824,9 +2791,8 @@ def builder_block_config_save(page_id, block_id):
 
 def _get_line_items_for_page(form_page_key, categories=None):
 	"""Query line_items table for a form page key, grouped by category.
-	Returns {category: [row_dict, ...]} ordered by sort_order.
+	Returns {category: [row_dict, ...]} ordered by category_templates.display_order.
 	Only rows with form_visible=1 are included.
-	Pass categories=[...] to restrict to specific category names.
 	"""
 	import sqlite3 as _sq
 	from pathlib import Path as _P
@@ -2834,6 +2800,23 @@ def _get_line_items_for_page(form_page_key, categories=None):
 				 _P(__file__).parent / 'template_store.sqlite3'))
 	_conn = _sq.connect(_db)
 	_conn.row_factory = _sq.Row
+	
+	# Get ordered categories from category_templates
+	_cat_query = """
+		SELECT c.name
+		FROM category_templates c
+		JOIN page_templates p ON c.page_template_id = p.id
+		WHERE p.page_key = ?
+		ORDER BY c.display_order ASC
+	"""
+	_cat_rows = _conn.execute(_cat_query, [form_page_key]).fetchall()
+	_result = {}
+	for _r in _cat_rows:
+		_result[_r['name']] = []
+		
+	# Fallback if no category_templates
+	_cat_fallback = len(_result) == 0
+
 	_query = (
 		"SELECT id, line_code, form_page, category, internal_description, include_default, "
 		"unit_cost, units, pricing_visibility, output_title, output_notes, output_guidance, "
@@ -2846,15 +2829,21 @@ def _get_line_items_for_page(form_page_key, categories=None):
 		_placeholders = ','.join('?' * len(categories))
 		_query += f"AND category IN ({_placeholders}) "
 		_params.extend(categories)
-	_query += "ORDER BY category ASC, sort_order ASC, line_code ASC"
+	_query += "ORDER BY sort_order ASC, line_code ASC"
+	
 	_rows = _conn.execute(_query, _params).fetchall()
 	_conn.close()
-	_result = {}
+	
 	for _r in _rows:
 		_cat = _r['category']
 		if _cat not in _result:
 			_result[_cat] = []
 		_result[_cat].append(dict(_r))
+		
+	# If we used fallback, we might want to sort alphabetically just to be safe
+	if _cat_fallback:
+		_result = dict(sorted(_result.items()))
+		
 	return _result
 
 
