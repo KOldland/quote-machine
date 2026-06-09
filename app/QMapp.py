@@ -32,6 +32,7 @@ from template_store import (
 	load_option_set,
 	import_sheet_rows_to_catalog,
 	get_line_items_by_codes,
+	get_all_pages,
 )
 
 app = Flask(__name__)
@@ -101,7 +102,7 @@ def inject_ui_context():
 	db_pages = []
 	if edit_mode:
 		from template_store import get_all_pages
-		db_pages = get_all_pages()
+		db_pages = get_all_pages(template_key=TEMPLATE_STORE_KEY)
 		
 	return dict(
 		current_user_role=role,
@@ -194,7 +195,7 @@ page_schema_path = Path(__file__).parent / 'page_schemas.json'
 with page_schema_path.open() as f:
 	page_schemas = json.load(f)
 
-TEMPLATE_STORE_KEY = os.getenv('QM_TEMPLATE_KEY', 'first_client_template_v1')
+TEMPLATE_STORE_KEY = os.getenv('QM_TEMPLATE_KEY', 'kitchen_only_template_test')
 TEMPLATE_STORE_READ_ENABLED = is_truthy_env('QM_TEMPLATE_STORE_READ')
 
 try:
@@ -2185,23 +2186,7 @@ def index():
 	# Store the current page in the session
 	session['last_visited'] = 'index'
 	
-	edit_requested = request.args.get('edit', '').lower() in {'1', 'true', 'yes'}
-	edit_mode = session.get('role') == 'admin' and edit_requested
-
-	if edit_mode:
-		builder_state = get_builder_beta_state()
-		# Redirect to the first page in the builder
-		if builder_state.get('pages'):
-			# The pages are not ordered, so we need to find the first one.
-			# We can't rely on insertion order. Let's find 'index' or the first page.
-			first_page_id = 'index'
-			if first_page_id not in builder_state['pages']:
-				first_page_id = next(iter(builder_state['pages']))
-			return redirect(url_for('builder_beta_page_editor', page_id=first_page_id, edit='1'))
-		else:
-			# Handle case with no pages
-			flash("No pages found in builder.", "warning")
-			return render_template('form.html', edit_mode=True, current_page=None)
+	# The index page should never be in edit mode.
 
 	if request.method == 'POST':
 		data = session.setdefault('data', {})
@@ -2275,6 +2260,7 @@ def special_notes_page():
 	
 	edit_requested = request.args.get('edit', '').lower() in {'1', 'true', 'yes'}
 	edit_mode = session.get('role') == 'admin' and edit_requested
+	_li_cats = _get_li_categories_from_schema('special_notes_page') or []
 
 	if edit_mode:
 		builder_state = get_builder_beta_state()
@@ -2282,7 +2268,6 @@ def special_notes_page():
 		current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
 		selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
 		selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
-		_li_cats = _get_li_categories_from_schema('special_notes_page') or []
 
 		return render_template(
 			'form.html',
@@ -2306,7 +2291,8 @@ def special_notes_page():
 			schema_render_mode='full',
 			previous_page=page_schema.get('navigation', {}).get('previous_endpoint', 'index') if page_schema else 'index',
 			next_page=page_schema.get('navigation', {}).get('next_endpoint', 'summary_page') if page_schema else 'summary_page',
-			title=page_schema.get('title', 'Special Notes') if page_schema else 'Special Notes'
+			title=page_schema.get('title', 'Special Notes') if page_schema else 'Special Notes',
+			li_categories=_li_cats
 		)
 
 
@@ -2328,6 +2314,7 @@ def summary_page():
 	
 	edit_requested = request.args.get('edit', '').lower() in {'1', 'true', 'yes'}
 	edit_mode = session.get('role') == 'admin' and edit_requested
+	_li_cats = _get_li_categories_from_schema('summary_page') or []
 
 	if edit_mode:
 		builder_state = get_builder_beta_state()
@@ -2336,7 +2323,6 @@ def summary_page():
 		selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
 		selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
 
-		_li_cats = _get_li_categories_from_schema('summary_page') or []
 		return render_template(
 			'form.html',
 			summary_page=True,
@@ -2362,6 +2348,7 @@ def summary_page():
 			previous_page=previous_page,
 			next_page='materials_page',
 			title="Summary Page",
+			li_categories=_li_cats
 		)
 
 
@@ -2964,13 +2951,13 @@ def materials_page():
 	edit_mode_local = session.get('role') == 'admin' and edit_requested
 	page_schema = compile_builder_beta_page_to_runtime_schema(page_id)
 	sheet_data = get_catalog()
+	_li_cats = _get_li_categories_from_schema(page_id) or []
 	if edit_mode_local:
 		builder_state = get_builder_beta_state()
 		current_page_id = page_id
 		current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
 		selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
 		selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
-		_li_cats = _get_li_categories_from_schema(page_id) or []
 		return render_template(
 			'form.html',
 			page_schema=page_schema,
@@ -2986,7 +2973,6 @@ def materials_page():
 			selected_block=selected_block,
 		)
 	page_schema = build_page_schema_context(page_id, sheet_data, session.get('checkbox_data', {}))
-	page_schema = build_page_schema_context(page_id, sheet_data, session.get('checkbox_data', {}))
 	return render_template(
 		'form.html',
 		page_schema=page_schema,
@@ -2994,6 +2980,8 @@ def materials_page():
 		previous_page='summary_page',
 		next_page='further_requirements_page',
 		title=page_schema.get('title', 'Materials and Details') if page_schema else 'Materials and Details',
+		li_categories=_li_cats,
+		form_page_key=page_id
 	)
 
 @app.route('/further_requirements_page', methods=['POST', 'GET'])
@@ -3011,13 +2999,13 @@ def further_requirements_page():
 	edit_mode_local = session.get('role') == 'admin' and edit_requested
 	page_schema = compile_builder_beta_page_to_runtime_schema(page_id)
 	sheet_data = get_catalog()
+	_li_cats = _get_li_categories_from_schema(page_id) or []
 	if edit_mode_local:
 		builder_state = get_builder_beta_state()
 		current_page_id = page_id
 		current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
 		selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
 		selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
-		_li_cats = _get_li_categories_from_schema(page_id) or []
 		return render_template(
 			'form.html',
 			page_schema=page_schema,
@@ -3033,7 +3021,6 @@ def further_requirements_page():
 			selected_block=selected_block,
 		)
 	page_schema = build_page_schema_context(page_id, sheet_data, session.get('checkbox_data', {}))
-	page_schema = build_page_schema_context(page_id, sheet_data, session.get('checkbox_data', {}))
 	return render_template(
 		'form.html',
 		page_schema=page_schema,
@@ -3041,6 +3028,8 @@ def further_requirements_page():
 		previous_page='materials_page',
 		next_page='additional_building_work_page',
 		title=page_schema.get('title', 'Further Requirements') if page_schema else 'Further Requirements',
+		li_categories=_li_cats,
+		form_page_key=page_id
 	)
 
 @app.route('/additional_building_work_page', methods=['POST', 'GET'])
@@ -3088,13 +3077,13 @@ def additional_building_work_page():
 				
 	edit_requested = request.args.get('edit', '').lower() in {'1', 'true', 'yes'}
 	edit_mode = session.get('role') == 'admin' and edit_requested
+	_li_cats = _get_li_categories_from_schema('additional_building_work_page') or []
 	if edit_mode:
 		builder_state = get_builder_beta_state()
 		current_page_id = 'additional_building_work_page'
 		current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
 		selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
 		selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
-		_li_cats = _get_li_categories_from_schema('additional_building_work_page') or []
 		return render_template(
 			'form.html',
 			additional_building_work_page=True,
@@ -3118,7 +3107,8 @@ def additional_building_work_page():
 		previous_page=previous_page,
 		next_page='additional_costs_page',
 		title="Additional Building Works",
-		data=data
+		data=data,
+		li_categories=_li_cats
 	)
 	
 ################################################################################################################################
@@ -3248,15 +3238,28 @@ def additional_costs_page():
 
 	# GET logic — schema-driven
 	edit_requested = request.args.get('edit') == '1'
+	
+	# Force sync parameter to clear cached state
+	if edit_requested and request.args.get('force_sync') == '1':
+		session.pop('builder_state', None)
+		session.modified = True
+
 	edit_mode_local = session.get('role') == 'admin' and edit_requested
 	page_schema = compile_builder_beta_page_to_runtime_schema('additional_costs_page')
+	_li_cats = _get_li_categories_from_schema('additional_costs_page') or []
+	
 	if edit_mode_local:
 		builder_state = get_builder_beta_state()
 		current_page_id = 'additional_costs_page'
 		current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
+
+		# Fallback to DB schema if session blocks empty
+		if not current_page_blocks:
+			current_page_blocks = page_schema.get('blocks', [])
+
 		selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
 		selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
-		_li_cats = _get_li_categories_from_schema('additional_costs_page') or []
+		
 		return render_template(
 			'form.html',
 			page_schema=page_schema,
@@ -3270,7 +3273,10 @@ def additional_costs_page():
 			current_page_id=current_page_id,
 			selected_block_id=selected_block_id,
 			selected_block=selected_block,
+			db_pages=get_all_pages(template_key=TEMPLATE_STORE_KEY),
+			edit_mode=True
 		)
+
 	page_schema = build_page_schema_context('additional_costs_page', get_catalog(), session.get('checkbox_data', {}))
 	return render_template(
 		'form.html',
@@ -3279,6 +3285,8 @@ def additional_costs_page():
 		previous_page='additional_building_work_page',
 		next_page='optional_extras_page',
 		title='Additional Costs',
+		li_categories=_li_cats,
+		db_pages=get_all_pages(template_key=TEMPLATE_STORE_KEY)
 	)
 
 ################################################################################################################################
@@ -3313,6 +3321,7 @@ def optional_extras_page():
 	
 	# Schema-driven context building (replaces manual filtering)
 	page_schema = build_page_schema_context('optional_extras_page', get_catalog(), session.get('checkbox_data', {}))
+	_li_cats = _get_li_categories_from_schema('optional_extras_page') or []
 	
 	return render_template(
 		'form.html',
@@ -3321,7 +3330,8 @@ def optional_extras_page():
 		optional_extras_page=True,
 		previous_page=previous_page,
 		next_page='image_upload_page',
-		title="Optional Extras & Finishing Works"
+		title="Optional Extras & Finishing Works",
+		li_categories=_li_cats
 	)
 @app.route('/image_upload_page', methods=['GET', 'POST'])
 def image_upload_page():
