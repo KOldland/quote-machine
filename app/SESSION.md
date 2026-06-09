@@ -5,7 +5,7 @@
 * **Branch**: `master`
 
 ## Current Goal
-* **Session AI — COMPLETE: Formalize Pages and Categories in Schema ✅**
+* **Session AI/AJ — COMPLETE: Formalize Pages and Categories in Schema ✅**
 
 ## Active Files for Context (next session)
 * @app/template_store.py
@@ -13,11 +13,12 @@
 * @app/templates/_builder_macros.html
 * @app/static/js/builder.js
 
-## What Was Completed — Session AI
-* **Database Schema Update:** Added `category_templates` table in `template_store.py`.
-* **Data Integration:** Parsed and inserted categories natively into `category_templates` linked via `page_template_id`.
-* **JSON Schema Refactor:** Migrated the `categories` array out of `line_items_by_category` blocks directly into root page configurations across `page_schemas.json` and `page_schemas_published.json`.
+## What Was Completed — Session AJ (Part 2)
+* **Backend Endpoint:** Built the unified atomic SQL swap endpoint (`/builder_beta/swap_order`) in `QMapp.py` handling `page`, `category`, and `question` scopes using strict neighbor lookup queries.
+* **Schema IDs:** Updated `_get_li_categories_from_schema` and `builder_line_items_json` to supply the actual integer `id` from the database to track category scope instead of string names.
+* **UI Controls:** Added Up/Down (▲/▼) buttons next to categories and questions in `_builder_macros.html` and wired them to the `/builder_beta/swap_order` endpoint using AJAX.
 
-## Immediate Next Task
-### Session AJ — Integrate Schema Changes into Backend Logic and UI
-Update `QMapp.py` data retrieval to query `category_templates` rather than dynamically extracting unique strings from `line_items`. Plan UI components for managing Categories (add, rename, move, reorder). See `current_development.md` for details.
+## Immediate Next Blocker
+### Session AK — Page Ordering UI & Further Builder Refinements
+1. Build the UI to display and reorder the high-level Pages using the new swap endpoint logic.
+2. Create native creation and persistence mechanisms for adding new Pages and Categories via the UI.
