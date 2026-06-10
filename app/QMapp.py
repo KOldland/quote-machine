@@ -13,7 +13,7 @@ import traceback
 from typing import Optional
 
 # Third-party Modules
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, abort
 from flask_session import Session
 from flask_wtf.csrf import CSRFProtect
 from werkzeug.utils import secure_filename
@@ -4400,7 +4400,7 @@ def builder_beta_page_add():
 	data = request.json
 	if not data or 'page_key' not in data or 'title' not in data:
 		return jsonify({'success': False, 'error': 'Missing page_key or title'}), 400
-	res = _ts.add_page(data['page_key'], data['title'])
+	res = _ts.add_page(data['page_key'], data['title'], template_key=TEMPLATE_STORE_KEY)
 	if res.get('success'):
 		return jsonify({'success': True})
 	return jsonify(res), 500
@@ -4412,10 +4412,63 @@ def builder_beta_category_add():
 	data = request.json
 	if not data or 'page_key' not in data or 'category_name' not in data:
 		return jsonify({'success': False, 'error': 'Missing page_key or category_name'}), 400
-	res = _ts.add_category(data['page_key'], data['category_name'])
+	res = _ts.add_category(data['page_key'], data['category_name'], template_key=TEMPLATE_STORE_KEY)
 	if res.get('success'):
 		return jsonify({'success': True})
 	return jsonify(res), 500
+
+# ---------------------------------------------------------------------------
+# Dynamic catch-all for DB-registered pages that have no dedicated Flask route
+# (e.g. pages created via the "Add Page" UI). Flask's specific routes always
+# take precedence, so this only fires for page_keys not matched above.
+# ---------------------------------------------------------------------------
+@app.route('/<page_key>', methods=['GET', 'POST'])
+def dynamic_page(page_key):
+	"""Serve any page_template row from the DB that has no hardcoded route."""
+	from template_store import get_all_pages as _get_all_pages
+	db_pages = _get_all_pages(template_key=TEMPLATE_STORE_KEY)
+	page_record = next((p for p in db_pages if p['page_key'] == page_key), None)
+	if page_record is None:
+		abort(404)
+
+	title = page_record.get('title', page_key)
+	edit_requested = request.args.get('edit', '').lower() in {'1', 'true', 'yes'}
+	edit_mode = session.get('role') == 'admin' and edit_requested
+
+	if edit_mode:
+		builder_state = get_builder_beta_state()
+		current_page_blocks = builder_state.get('pages', {}).get(page_key, {}).get('blocks', [])
+		selected_block_id = request.args.get('selected_block_id',
+			current_page_blocks[0]['id'] if current_page_blocks else '')
+		selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
+		return render_template(
+			'form.html',
+			page_schema={'title': title, 'fields': [], 'navigation': {}},
+			schema_render_mode='full',
+			previous_page='index',
+			next_page='index',
+			title=title,
+			edit_mode=True,
+			builder_state=builder_state,
+			current_page={'id': page_key, 'title': title, 'blocks': current_page_blocks},
+			current_page_id=page_key,
+			selected_block_id=selected_block_id,
+			selected_block=selected_block,
+			pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
+			li_categories=[],
+			db_pages=db_pages,
+		)
+
+	return render_template(
+		'form.html',
+		page_schema={'title': title, 'fields': [], 'navigation': {}},
+		schema_render_mode='full',
+		previous_page='index',
+		next_page='index',
+		title=title,
+		li_categories=[],
+	)
+
 
 if __name__ == '__main__': 
 	debug_mode = os.getenv('FLASK_DEBUG', '').lower() in {'1', 'true', 'yes', 'on'}
