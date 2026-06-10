@@ -2886,8 +2886,10 @@ def _get_line_items_for_page(form_page_key, categories=None):
 	for _r in _cat_rows:
 		_result[_r['name']] = []
 		
-	# Fallback if no category_templates
-	_cat_fallback = len(_result) == 0
+	# If no formal category_templates exist for this page, return empty (blank slate)
+	if len(_result) == 0:
+		_conn.close()
+		return {}
 
 	_query = (
 		"SELECT id, line_code, form_page, category, internal_description, include_default, "
@@ -2912,9 +2914,6 @@ def _get_line_items_for_page(form_page_key, categories=None):
 			_result[_cat] = []
 		_result[_cat].append(dict(_r))
 		
-	# If we used fallback, we might want to sort alphabetically just to be safe
-	if _cat_fallback:
-		_result = dict(sorted(_result.items()))
 		
 	return _result
 

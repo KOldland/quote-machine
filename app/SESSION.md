@@ -4,6 +4,7 @@
 
 ## Completed Tasks This Session
 * Moved page-level control buttons to the bottom of the canvas in `app/templates/form.html`.
+* Removed hardcoded category fallback from `_get_line_items_for_page` in `app/QMapp.py`. Newly created pages now return an empty result (blank slate) when no `category_templates` rows exist.
 
 ## What Was Completed — Previous Sessions (per SESSION.md)
 * **Session AI**: Formalized Pages and Categories in Schema.
@@ -15,7 +16,7 @@ Address the following blockers:
 2. Still in legacy 'block-view' for Category > questions.
 3. Optional Extras page throws an undefined error.
 4. Page movement in the sidebar is not working and needs a different approach.
-5. No means of creating a category.
+5. No means of creating a category (UI — "Add Category" button is wired; blank slate confirmed).
 6. No UI options in category (potentially due to legacy view).
 
 ## Active Files for Context (next session)
