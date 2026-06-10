@@ -36,6 +36,11 @@
         background: #fff;
     }
     </style>
+    <div class="page-level-controls" style="margin-top: 1rem; display: flex; gap: 0.5rem; justify-content: flex-start;">
+        <button type="button" class="btn btn-primary" onclick="console.log('Save Page clicked')">Save Page</button>
+        <button type="button" class="btn btn-secondary" onclick="console.log('Save as Template clicked')">Save as Template</button>
+        <button type="button" class="btn btn-danger" onclick="console.log('Delete Page clicked')">Delete Page</button>
+    </div>
 
     {% else %}
     {# ── No li_categories: clean modern canvas for schema-field pages ─────────
