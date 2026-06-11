@@ -4454,7 +4454,8 @@ def dynamic_page(page_key):
 			selected_block_id=selected_block_id,
 			selected_block=selected_block,
 			pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
-			li_categories=[],
+			li_categories=_get_li_categories_from_schema(page_key) or [],
+			form_page_key=page_key,
 			db_pages=db_pages,
 		)
 

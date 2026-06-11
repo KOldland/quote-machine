@@ -253,6 +253,11 @@
         <span style="font-weight:700;font-size:.85rem;color:#1b3a6b;">Categories</span>
     </div>
     <div class="li-sections-list" id="li-sections-list">
+        <div class="li-section-item" style="border-bottom:2px solid #dee2e6; margin-bottom:4px; padding-bottom:4px;">
+            <button type="button" class="li-section-btn" id="btn-page-details" data-page="{{ form_page_key }}" style="font-weight:700; width:100%;">
+                ⚙ Page Details
+            </button>
+        </div>
         {% if li_categories %}
             {% for cat in li_categories %}
             {% set cat_name = cat.name if cat is mapping else cat %}
@@ -277,32 +282,81 @@
         {% endif %}
     </div>
     <div style="padding: .5rem; border-top: 1px solid #dee2e6; background: #f0f4ff;">
-        <button type="button" id="btn-add-category" class="li-save-btn" style="margin-top:0;" data-page="{{ form_page_key }}">Add Category</button>
+        <button type="button" id="btn-add-category" class="li-save-btn" style="margin-top:0;" data-page="{{ form_page_key }}">+ Add Category</button>
+        <div id="add-cat-inline" style="display:none; margin-top:.4rem;">
+            <input type="text" id="add-cat-name-input" placeholder="Category name…"
+                   style="width:100%; font-size:.82rem; padding:.25rem .4rem; border:1px solid #ccc; border-radius:3px; box-sizing:border-box;">
+            <div style="display:flex; gap:.4rem; margin-top:.35rem;">
+                <button type="button" id="btn-add-cat-confirm" class="li-save-btn" style="flex:1; margin-top:0;">Save</button>
+                <button type="button" id="btn-add-cat-cancel" style="flex:1; font-size:.78rem; padding:.2rem .4rem; border:1px solid #aaa; background:#fff; border-radius:3px; cursor:pointer;">Cancel</button>
+            </div>
+            <label style="display:flex; align-items:center; gap:.35rem; margin-top:.4rem; font-size:.78rem; color:#444; cursor:pointer;">
+                <input type="checkbox" id="add-cat-visible"
+                       data-action="toggle-page-visibility"
+                       data-page="{{ form_page_key }}"
+                       checked style="margin:0; cursor:pointer;">
+                Include in Form
+            </label>
+        </div>
     </div>
 </div>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const btnAddCat = document.getElementById('btn-add-category');
+    const btnAddCat    = document.getElementById('btn-add-category');
+    const addCatInline = document.getElementById('add-cat-inline');
+    const addCatInput  = document.getElementById('add-cat-name-input');
+    const btnConfirm   = document.getElementById('btn-add-cat-confirm');
+    const btnCancel    = document.getElementById('btn-add-cat-cancel');
+
     if (btnAddCat) {
+        // Toggle inline form open/closed
         btnAddCat.addEventListener('click', function() {
-            const pageKey = this.dataset.page;
-            if (!pageKey) {
-                alert("Cannot add category: unknown page context.");
-                return;
-            }
-            const catName = prompt("Enter new Category Name:");
-            if (!catName) return;
-            
+            const isHidden = addCatInline.style.display === 'none' || addCatInline.style.display === '';
+            addCatInline.style.display = isHidden ? 'block' : 'none';
+            if (isHidden) { addCatInput.focus(); }
+        });
+
+        // Cancel — collapse and clear input
+        btnCancel.addEventListener('click', function() {
+            addCatInput.value = '';
+            addCatInline.style.display = 'none';
+        });
+
+        // Confirm — POST category to backend
+        btnConfirm.addEventListener('click', function() {
+            const pageKey = btnAddCat.dataset.page;
+            if (!pageKey) { alert("Cannot add category: unknown page context."); return; }
+            const catName = addCatInput.value.trim();
+            if (!catName) { addCatInput.focus(); return; }
+            const csrf = (document.querySelector('[name=csrf_token]') || {}).value || '';
+            btnConfirm.disabled = true;
+            btnConfirm.textContent = 'Saving…';
             fetch('/builder_beta/category/add', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
                 body: JSON.stringify({ page_key: pageKey, category_name: catName })
             })
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) { window.location.reload(); }
-                else { alert("Failed to add category: " + data.error); }
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert('Failed to add category: ' + data.error);
+                    btnConfirm.disabled = false;
+                    btnConfirm.textContent = 'Save';
+                }
+            })
+            .catch(function() {
+                alert('Network error — category not saved.');
+                btnConfirm.disabled = false;
+                btnConfirm.textContent = 'Save';
             });
+        });
+
+        // Enter key in input triggers confirm
+        addCatInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') { btnConfirm.click(); }
         });
     }
 });
@@ -334,22 +388,52 @@ document.addEventListener('DOMContentLoaded', function() {
 {% macro render_li_question_panel(form_page_key) %}
 <div class="li-question-panel" id="li-question-panel" data-page="{{ form_page_key }}">
 
-    {# View One — question list for selected category #}
+    {# View Page — Page Details #}
+    <div id="li-view-page" style="display:none;flex-direction:column;height:100%;">
+        <div class="li-qp-header" style="display:flex;align-items:center;gap:.5rem;padding:.55rem .75rem;border-bottom:1px solid #dee2e6;background:#f0f4ff;">
+            <span style="font-weight:700;font-size:.85rem;color:#1b3a6b;flex:1;" class="page-title-label">Page Details</span>
+        </div>
+        <div id="li-page-editor-content" style="overflow-y:auto;flex:1;padding:.75rem;">
+            {# populated via JS #}
+        </div>
+    </div>
+
+    {# View One — Category Details #}
     <div id="li-view-one" style="display:none;flex-direction:column;height:100%;">
         <div class="li-qp-header" style="display:flex;align-items:center;gap:.5rem;padding:.55rem .75rem;border-bottom:1px solid #dee2e6;background:#f0f4ff;">
-            <span id="li-view-one-title" style="font-weight:700;font-size:.85rem;color:#1b3a6b;flex:1;">— Select a category —</span>
+            <span class="breadcrumb-trail" style="font-weight:600;font-size:.85rem;color:#6c757d;flex:1;">
+                <a href="#" class="bc-page" style="color:#1b3a6b;text-decoration:none;">Page Details</a> 
+                <span style="margin:0 4px;">›</span> 
+                <span id="li-view-one-title" style="color:#333;">Category</span>
+            </span>
             <span id="li-view-one-count" style="font-size:.75rem;color:#6c757d;"></span>
         </div>
-        <div id="li-question-list" style="overflow-y:auto;flex:1;padding:.25rem 0;max-height:calc(100vh - 170px);">
+        <div id="li-category-editor" style="padding:0.75rem; border-bottom:2px solid #eee;">
+            {# populated via JS #}
+        </div>
+        <div style="padding: 0.75rem 0.75rem 0 0.75rem; font-weight:700; color:#444; font-size:0.85rem;">Questions in Category</div>
+        <div id="li-question-list" style="overflow-y:auto;flex:1;padding:.25rem 0;">
             <p style="color:#999;font-size:.85rem;padding:.5rem .75rem;">Click a category on the left to load questions.</p>
+        </div>
+        <div style="padding:0.75rem; border-top:1px solid #dee2e6; background:#fafafa;">
+            <div style="display:flex; gap:10px;">
+                <button type="button" id="btn-cat-add-question" class="li-save-btn" style="flex:1; margin-top:0;">ADD QUESTION</button>
+                <button type="button" id="btn-cat-save" class="li-save-btn" style="flex:1; background:#6c757d; margin-top:0;">SAVE CATEGORY</button>
+                <button type="button" id="btn-cat-delete" class="li-delete-btn" style="flex:0 0 auto; background:#dc3545; color:#fff; border:none; border-radius:5px; font-weight:700; padding:0.45rem 1rem; cursor:pointer;">DELETE CATEGORY</button>
+            </div>
         </div>
     </div>
 
     {# View Two — question editor for selected question #}
     <div id="li-view-two" style="display:none;flex-direction:column;height:100%;">
         <div class="li-qp-header" style="display:flex;align-items:center;gap:.5rem;padding:.55rem .75rem;border-bottom:1px solid #dee2e6;background:#f0f4ff;">
-            <button type="button" id="li-back-btn" style="border:none;background:none;cursor:pointer;font-size:.85rem;color:#1b3a6b;padding:0 .4rem;">← Back</button>
-            <span id="li-view-two-title" style="font-weight:700;font-size:.85rem;color:#1b3a6b;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+            <span class="breadcrumb-trail" style="font-weight:600;font-size:.85rem;color:#6c757d;flex:1;">
+                <a href="#" class="bc-page" style="color:#1b3a6b;text-decoration:none;">Page Details</a> 
+                <span style="margin:0 4px;">›</span> 
+                <a href="#" class="bc-cat" style="color:#1b3a6b;text-decoration:none;">Category</a>
+                <span style="margin:0 4px;">›</span> 
+                <span id="li-view-two-title" style="color:#333;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Question</span>
+            </span>
             <span id="li-save-status-v2" style="font-size:.75rem;color:#28a745;min-width:60px;text-align:right;"></span>
         </div>
         <div id="li-editor-content" style="overflow-y:auto;flex:1;padding:.75rem;">
@@ -421,6 +505,14 @@ document.addEventListener('DOMContentLoaded', function() {
     var _pageKey        = document.getElementById('li-question-panel')
                               ? document.getElementById('li-question-panel').dataset.page || ''
                               : '';
+    var _pageTitle      = document.title || 'Page Details';
+
+    function __getCleanPageTitle() {
+        var t = _pageTitle;
+        if(t.includes('-')) t = t.split('-')[0].trim();
+        if(t.includes('|')) t = t.split('|')[0].trim();
+        return t;
+    }
 
     // ── DOM refs ───────────────────────────────────────────────────────────
     function $id(id) { return document.getElementById(id); }
@@ -428,25 +520,65 @@ document.addEventListener('DOMContentLoaded', function() {
     // ── View switching ─────────────────────────────────────────────────────
     function showEmpty() {
         $id('li-view-empty').style.display = 'flex';
+        $id('li-view-page').style.display  = 'none';
         $id('li-view-one').style.display   = 'none';
         $id('li-view-two').style.display   = 'none';
+    }
+    function showViewPage() {
+        $id('li-view-empty').style.display = 'none';
+        $id('li-view-page').style.display  = 'flex';
+        $id('li-view-one').style.display   = 'none';
+        $id('li-view-two').style.display   = 'none';
+        renderPageEditor();
     }
     function showViewOne(title) {
         $id('li-view-empty').style.display = 'none';
+        $id('li-view-page').style.display  = 'none';
         $id('li-view-one').style.display   = 'flex';
         $id('li-view-two').style.display   = 'none';
-        if (title) $id('li-view-one-title').textContent = title;
+        if (title) {
+            $id('li-view-one-title').textContent = title;
+            renderCategoryEditor(title);
+        }
+        document.querySelectorAll('.bc-page').forEach(function(el) { el.textContent = __getCleanPageTitle(); });
     }
     function showViewTwo(item) {
         $id('li-view-empty').style.display = 'none';
+        $id('li-view-page').style.display  = 'none';
         $id('li-view-one').style.display   = 'none';
         $id('li-view-two').style.display   = 'flex';
-        $id('li-view-two-title').textContent = (item.output_title || item.internal_description || '');
+        var name = (item.output_title || item.internal_description || 'Unnamed Question');
+        $id('li-view-two-title').textContent = name;
+        $id('li-view-two-title').title = name;
+        document.querySelectorAll('.bc-cat').forEach(function(el) { el.textContent = _activeCategory; });
         renderEditorForm(item);
     }
 
+    // ── Breadcrumbs & Global Hooks ─────────────────────────────────────────
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.bc-page')) {
+            e.preventDefault();
+            var btnPage = $id('btn-page-details');
+            if (btnPage) btnPage.click();
+        } else if (e.target.closest('.bc-cat')) {
+            e.preventDefault();
+            var activeBtn = document.querySelector('.li-section-btn[data-category="'+_activeCategory+'"]');
+            if (activeBtn) activeBtn.click();
+        }
+    });
+
+    var pageDetailsBtn = $id('btn-page-details');
+    if (pageDetailsBtn) {
+        pageDetailsBtn.addEventListener('click', function() {
+            document.querySelectorAll('.li-section-btn').forEach(function (b) { b.classList.remove('active'); });
+            pageDetailsBtn.classList.add('active');
+            _activeCategory = null;
+            showViewPage();
+        });
+    }
+
     // ── Category click ─────────────────────────────────────────────────────
-    document.querySelectorAll('.li-section-btn').forEach(function (btn) {
+    document.querySelectorAll('.li-section-btn:not(#btn-page-details)').forEach(function (btn) {
         btn.addEventListener('click', function () {
             document.querySelectorAll('.li-section-btn').forEach(function (b) { b.classList.remove('active'); });
             btn.classList.add('active');
@@ -551,15 +683,79 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // ── Back button (View Two → View One) ─────────────────────────────────
-    var backBtn = $id('li-back-btn');
-    if (backBtn) {
-        backBtn.addEventListener('click', function () {
-            _activeItem = null;
-            showViewOne(_activeCategory);
-            // re-render the list (highlight was cleared, items still cached)
-            renderQuestionList(_categoryItems);
+    // ── Render editors ────────────────────────────────────────────────────
+    
+    function renderPageEditor() {
+        var html = '<form id="li-page-edit-form" autocomplete="off">';
+        html += _section('Description', true, [
+            _field('page_title', 'Configuration Identifier', 'text', __getCleanPageTitle(), true)
+        ]);
+        html += _section('Meta', false, [
+            _field('page_key', 'Page Key', 'text', _pageKey, true)
+        ]);
+        html += '</form>';
+        $id('li-page-editor-content').innerHTML = html;
+        _attachAccordion($id('li-page-editor-content'));
+    }
+
+    function renderCategoryEditor(catName) {
+        var html = '<form id="li-category-edit-form" autocomplete="off">';
+        html += _section('Description', true, [
+            _field('cat_name', 'Category Name', 'text', catName)
+        ]);
+        html += _section('Meta', false, [
+            _field('cat_page_key', 'Belongs to Page', 'text', _pageKey, true)
+        ]);
+        html += '</form>';
+        $id('li-category-editor').innerHTML = html;
+        _attachAccordion($id('li-category-editor'));
+        
+        // Attach Category actions
+        var btnAddQ = $id('btn-cat-add-question');
+        var btnSaveC = $id('btn-cat-save');
+        var btnDelC = $id('btn-cat-delete');
+        
+        var newAddQ = btnAddQ.cloneNode(true); btnAddQ.parentNode.replaceChild(newAddQ, btnAddQ);
+        var newSaveC = btnSaveC.cloneNode(true); btnSaveC.parentNode.replaceChild(newSaveC, btnSaveC);
+        var newDelC = btnDelC.cloneNode(true); btnDelC.parentNode.replaceChild(newDelC, btnDelC);
+        
+        newAddQ.addEventListener('click', function() {
+            alert('Add Question flow pending implementation.');
         });
+        
+        newSaveC.addEventListener('click', function() {
+            alert('Save Category flow pending implementation.');
+        });
+        
+        newDelC.addEventListener('click', function() {
+            if (confirm('Deleting this category is permanent. Are you sure?')) {
+                fetch('/builder_beta/category/delete', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json', 'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''},
+                    body: JSON.stringify({ page_key: _pageKey, category_name: catName })
+                }).then(function(r) { return r.json(); }).then(function(d) {
+                    if(d.success) window.location.reload();
+                    else alert('Error: ' + d.error);
+                }).catch(e => alert('Network error.'));
+            }
+        });
+    }
+
+    function _attachAccordion(container) {
+        if (!container) return;
+        var existing = container._accHandler;
+        if (existing) container.removeEventListener('click', existing);
+        container._accHandler = function(e) {
+            var hdr = e.target.closest('.li-editor-section-header');
+            if (!hdr) return;
+            var body = hdr.nextElementSibling;
+            if (body) {
+                body.classList.toggle('collapsed');
+                var sp = hdr.querySelector('.li-sec-toggle');
+                if (sp) sp.textContent = body.classList.contains('collapsed') ? '▸' : '▾';
+            }
+        };
+        container.addEventListener('click', container._accHandler);
     }
 
     // ── Render question editor (View Two) ─────────────────────────────────
@@ -614,7 +810,10 @@ document.addEventListener('DOMContentLoaded', function() {
             '<div class="li-form-group"><label>Output Guidance</label><p style="font-size:.8rem;color:#555;padding:.2rem 0;margin:0;white-space:pre-wrap;">' + _esc(item.output_guidance || '—') + '</p></div>',
         ]);
 
-        html += '<button type="submit" class="li-save-btn">SAVE LINE ITEM</button>';
+        html += '<div style="display:flex; gap:10px; margin-top:1rem; padding-top:0.5rem; border-top:1px solid #eee;">';
+        html += '  <button type="button" id="btn-delete-question" class="li-delete-btn" style="flex:0 0 auto; padding:0.45rem 1rem; background:#dc3545; color:#fff; border:none; border-radius:5px; font-weight:700; cursor:pointer;">DELETE QUESTION</button>';
+        html += '  <button type="submit" class="li-save-btn" style="flex:1; margin-top:0;">SAVE QUESTION</button>';
+        html += '</div>';
         html += '</form>';
         $id('li-editor-content').innerHTML = html;
 
@@ -652,21 +851,27 @@ document.addEventListener('DOMContentLoaded', function() {
             _renderFollowUpConfig(item.follow_up_type || 'Dropdown (text)', cfg);
         }
 
-        // Collapsible section headers — remove then re-add to prevent listener accumulation
-        var _container = $id('li-editor-content');
-        if (_container) {
-            if (_accordionHandler) _container.removeEventListener('click', _accordionHandler);
-            _accordionHandler = function(e) {
-                var hdr = e.target.closest('.li-editor-section-header');
-                if (!hdr) return;
-                var body = hdr.nextElementSibling;
-                if (body) {
-                    body.classList.toggle('collapsed');
-                    var sp = hdr.querySelector('.li-sec-toggle');
-                    if (sp) sp.textContent = body.classList.contains('collapsed') ? '▸' : '▾';
+        // Collapsible section headers
+        _attachAccordion($id('li-editor-content'));
+
+        // Delete question
+        var delBtn = $id('btn-delete-question');
+        if (delBtn) {
+            delBtn.addEventListener('click', function() {
+                if (confirm('Deleting this question is permanent. Are you sure?')) {
+                    fetch('/builder_beta/line_item_delete/' + item.id, {
+                        method: 'POST',
+                        headers: {'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''}
+                    }).then(function(r) { return r.json(); }).then(function(d) {
+                        if (d.ok || d.success) {
+                            var activeBtn = document.querySelector('.li-section-btn[data-category="'+_activeCategory+'"]');
+                            if (activeBtn) activeBtn.click();
+                        } else {
+                            alert('Failed to delete question.');
+                        }
+                    }).catch(e => alert('Network Error.'));
                 }
-            };
-            _container.addEventListener('click', _accordionHandler);
+            });
         }
 
         // Save

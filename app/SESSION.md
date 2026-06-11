@@ -3,29 +3,25 @@
 * **Session AL — CURRENT: Builder QA & Further Polish**
 
 ## Completed Tasks This Session
-* Moved page-level control buttons to the bottom of the canvas in `app/templates/form.html`.
-* Removed hardcoded category fallback from `_get_line_items_for_page` in `app/QMapp.py`. Newly created pages now return an empty result (blank slate) when no `category_templates` rows exist.
+* Implemented the Nested "Fractal" UI for the editing builder mode canvas.
+* Mapped `Page Details` and `Category Details` into dynamic layout views alongside `Line Item` (Question) details.
+* Created top-level breadcrumb navigation hooks (`#bc-page` and `#bc-cat`) to traverse back up the schema hierarchy effortlessly.
+* Grouped standard layout items into collapsable DOM elements for the Category view and implemented a three-cluster Save/Delete structural format.
+* Wired Danger-Modal style frontend triggers for deletions (`confirm()` interception) on both category deletion and individual question deletion blocks.
 
 ## What Was Completed — Previous Sessions (per SESSION.md)
-* **Session AI**: Formalized Pages and Categories in Schema.
-* **Session AK**: Bug Fixes & Schema Sync.
+* Moved page-level control buttons to the bottom of the canvas in `app/templates/form.html`.
+* Removed hardcoded category fallback from `_get_line_items_for_page` in `app/QMapp.py`.
+* Formalized Pages and Categories in Schema.
+* Bug Fixes & Schema Sync.
 
 ## Immediate Next Task
-Address the following blockers:
-1. Project details (index) page should not be in edit view.
-2. Still in legacy 'block-view' for Category > questions.
-3. Optional Extras page throws an undefined error.
-4. Page movement in the sidebar is not working and needs a different approach.
-5. No means of creating a category (UI — "Add Category" button is wired; blank slate confirmed).
-6. No UI options in category (potentially due to legacy view).
+Review functionality and determine following blockers or implementation fixes. E.g., Adding the explicit backend wiring for "Add Question" while inside Category View now that the GUI supports it, and confirming the UI triggers look perfect.
 
 ## Active Files for Context (next session)
 * @app/templates/form.html
 * @app/SESSION.md
 * @app/current_development.md
-* @app/templates/builder_beta.html
-* @app/static/js/builder.js
-* @app/template_store.py
-* @app/templates/index.html
 * @app/templates/_builder_macros.html
+* @app/static/js/builder.js
 * @app/QMapp.py
