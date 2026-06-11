@@ -399,7 +399,7 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
 
     {# View One — Category Details #}
-    <div id="li-view-one" style="display:none;flex-direction:column;height:100%;">
+    <div id="li-view-one" style="display:none;flex-direction:column;height:100%; max-width:100%; overflow-x:hidden;">
         <div class="li-qp-header" style="display:flex;align-items:center;gap:.5rem;padding:.55rem .75rem;border-bottom:1px solid #dee2e6;background:#f0f4ff;">
             <span class="breadcrumb-trail" style="font-weight:600;font-size:.85rem;color:#6c757d;flex:1;">
                 <a href="#" class="bc-page" style="color:#1b3a6b;text-decoration:none;">Page Details</a> 
@@ -408,20 +408,18 @@ document.addEventListener('DOMContentLoaded', function() {
             </span>
             <span id="li-view-one-count" style="font-size:.75rem;color:#6c757d;"></span>
         </div>
-        <div id="li-category-editor" style="padding:0.75rem; border-bottom:2px solid #eee;">
-            {# populated via JS #}
-        </div>
-        <div style="padding: 0.75rem 0.75rem 0 0.75rem; font-weight:700; color:#444; font-size:0.85rem;">Questions in Category</div>
-        <div id="li-question-list" style="overflow-y:auto;flex:1;padding:.25rem 0;">
-            <p style="color:#999;font-size:.85rem;padding:.5rem .75rem;">Click a category on the left to load questions.</p>
-        </div>
-        <div style="padding:0.75rem; border-top:1px solid #dee2e6; background:#fafafa;">
-            <div style="display:flex; gap:10px;">
-                <button type="button" id="btn-cat-add-question" class="li-save-btn" style="flex:1; margin-top:0;">ADD QUESTION</button>
-                <button type="button" id="btn-cat-save" class="li-save-btn" style="flex:1; background:#6c757d; margin-top:0;">SAVE CATEGORY</button>
-                <button type="button" id="btn-cat-delete" class="li-delete-btn" style="flex:0 0 auto; background:#dc3545; color:#fff; border:none; border-radius:5px; font-weight:700; padding:0.45rem 1rem; cursor:pointer;">DELETE CATEGORY</button>
+        
+        <div id="li-category-content-wrap" style="flex:1; overflow-y:auto; overflow-x:hidden; padding:0 0 4rem 0;">
+            <div id="li-category-editor" style="padding:0.75rem;">
+                {# populated via JS #}
+            </div>
+            
+            <div style="padding: 0.75rem 0.75rem 0 0.75rem; font-weight:700; color:#444; font-size:0.85rem; border-top: 1px solid #eee;">Questions in Category</div>
+            <div id="li-question-list" style="padding:.25rem 0;">
+                <p style="color:#999;font-size:.85rem;padding:.5rem .75rem;">Loading questions...</p>
             </div>
         </div>
+        
     </div>
 
     {# View Two — question editor for selected question #}
@@ -451,6 +449,8 @@ document.addEventListener('DOMContentLoaded', function() {
 .li-question-panel {
     flex:1; display:flex; flex-direction:column; height:100%;
     min-width:0; min-height:0; background:#fff;
+    max-width: calc(100% - 220px); /* Constrain width based on left panel */
+    overflow-x: hidden;
 }
 .li-qlist-row {
     display:grid;
@@ -604,6 +604,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // ── Render question list (View One) ────────────────────────────────────
     function renderQuestionList(items) {
         var list = $id('li-question-list');
+        if (!list) return;
         $id('li-view-one-count').textContent = items.length + ' items';
         if (!items.length) {
             list.innerHTML = '<p style="color:#999;font-size:.8rem;padding:.5rem .75rem;">No items in this category.</p>';
@@ -686,48 +687,158 @@ document.addEventListener('DOMContentLoaded', function() {
     // ── Render editors ────────────────────────────────────────────────────
     
     function renderPageEditor() {
+        fetch('/builder_beta/page_details_json/' + _pageKey).then(r=>r.json()).then(data => {
+            _renderPageEditorHtml(data);
+        }).catch(e => {
+            _renderPageEditorHtml({});
+        });
+    }
+
+    function _renderPageEditorHtml(data) {
         var html = '<form id="li-page-edit-form" autocomplete="off">';
         html += _section('Description', true, [
-            _field('page_title', 'Configuration Identifier', 'text', __getCleanPageTitle(), true)
+            _field('page_title', 'Configuration Identifier', 'text', __getCleanPageTitle(), true),
+            _field('page_description', 'Page Description', 'textarea', '')
         ]);
         html += _section('Meta', false, [
             _field('page_key', 'Page Key', 'text', _pageKey, true)
         ]);
+        html += '<div style="position: sticky; bottom: -1.5rem; background: #fff; z-index: 10; margin: 1rem -1.5rem -1.5rem -1.5rem; padding: 1rem 1.5rem 3rem 1.5rem; border-top: 1px solid #ccc; box-shadow: 0 -4px 6px -6px rgba(0,0,0,0.1);">';
+        html += '<div style="display:flex; justify-content:flex-end; align-items:center; margin-bottom:0.8rem;">';
+        html += '  <label style="font-size:.85rem; font-weight:600; color:#1b3a6b; cursor:pointer;"><input type="checkbox" id="page-visibility-checkbox" ' + (data.form_visible !== false ? 'checked' : '') + ' style="margin-right:.4rem;">Page Visible in Form</label>';
+        html += '</div>';
+        html += '<div style="display:flex; justify-content:flex-start; align-items:flex-start; gap: 10px;">';
+        html += '  <button type="button" id="btn-save-template" class="li-save-btn" style="padding:0.45rem 1.5rem; width:auto; background:#6c757d; margin-top:0;">SAVE AS TEMPLATE</button>';
+        html += '  <div style="display:flex; flex-direction:column; align-items:center;">';
+        html += '    <button type="button" id="btn-save-page" class="li-save-btn" style="padding:0.45rem 1.5rem; width:auto; margin-top:0;">SAVE PAGE</button>';
+        html += '    <span id="page-save-status" style="font-size:.7rem; color:#28a745; margin-top: 4px;"></span>';
+        html += '  </div>';
+        html += '  <button type="button" id="btn-delete-page" class="li-delete-btn" style="margin-left: auto; padding:0.45rem 1.5rem; background:#dc3545; color:#fff; border:none; border-radius:5px; font-weight:700; cursor:pointer;">DELETE PAGE</button>';
+        html += '</div>';
+        html += '</div>';
         html += '</form>';
         $id('li-page-editor-content').innerHTML = html;
+        
+        $id('li-page-edit-form').querySelector('input[name="page_title"]').value = data.title || __getCleanPageTitle();
+        $id('li-page-edit-form').querySelector('textarea[name="page_description"]').value = data.description || '';
+        
         _attachAccordion($id('li-page-editor-content'));
+
+        $id('btn-save-page').addEventListener('click', function(e) {
+            e.preventDefault();
+            var frm = $id('li-page-edit-form');
+            var title = frm.querySelector('input[name="page_title"]').value;
+            var desc = frm.querySelector('textarea[name="page_description"]').value;
+            fetch('/builder_beta/page_details_save/' + _pageKey, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''},
+                body: JSON.stringify({title: title, description: desc})
+            }).then(r => r.json()).then(d => {
+                if (d.ok) { let s = $id('page-save-status'); s.textContent = '✓ Saved Successfully'; setTimeout(()=>s.textContent='',2500); }
+                else alert('Error: ' + d.error);
+            }).catch(e => alert('Network Error'));
+        });
+        
+        $id('btn-delete-page').addEventListener('click', function(e) {
+            if (confirm('Deleting this page is permanent. Are you sure?')) {
+                fetch('/builder_beta/page_details_delete/' + _pageKey, {
+                    method: 'POST',
+                    headers: {'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''}
+                }).then(r => r.json()).then(d => {
+                    if (d.ok || d.success) {
+                        window.location.href = '/builder_beta';
+                    } else {
+                        alert('Error: ' + d.error);
+                    }
+                }).catch(e => alert('Network error deleting page.'));
+            }
+        });
     }
 
     function renderCategoryEditor(catName) {
-        var html = '<form id="li-category-edit-form" autocomplete="off">';
+        fetch('/builder_beta/category_details_json?page_key=' + encodeURIComponent(_pageKey) + '&name=' + encodeURIComponent(catName)).then(r=>r.json()).then(data => {
+            _renderCategoryEditorHtml(catName, data);
+        }).catch(e => {
+            _renderCategoryEditorHtml(catName, {});
+        });
+    }
+
+    function _renderCategoryEditorHtml(catName, data) {
+        var html = '<form id="li-category-edit-form" autocomplete="off" style="display:flex;flex-direction:column;flex:1;max-width:100%;">';
         html += _section('Description', true, [
-            _field('cat_name', 'Category Name', 'text', catName)
+            _field('cat_name', 'Category Name', 'text', catName),
+            _field('cat_description', 'Category Description', 'textarea', '')
         ]);
         html += _section('Meta', false, [
             _field('cat_page_key', 'Belongs to Page', 'text', _pageKey, true)
         ]);
+
+        // Render sticky action buttons correctly mapping back onto Category View wrapper level
+        var footerHtml = '<div class="cat-sticky-footer" style="position: sticky; bottom: -0.5rem; background: #fff; z-index: 10; margin: 1rem -1.5rem -0.5rem -1.5rem; padding: 1rem 1.5rem 3rem 1.5rem; border-top: 1px solid #ccc; box-shadow: 0 -4px 6px -6px rgba(0,0,0,0.1);">';
+        footerHtml += '<div style="display:flex; justify-content:flex-end; align-items:center; margin-bottom:0.8rem;">';
+        footerHtml += '  <label style="font-size:.85rem; font-weight:600; color:#1b3a6b; cursor:pointer;"><input type="checkbox" id="cat-visibility-checkbox" checked style="margin-right:.4rem;">Category Visible in Form</label>';
+        footerHtml += '</div>';
+        footerHtml += '<div style="display:flex; justify-content:flex-start; align-items:flex-start; gap: 10px;">';
+        footerHtml += '  <div style="display:flex; flex-direction:column; align-items:center;">';
+        footerHtml += '    <button type="button" id="btn-cat-save" class="li-save-btn" style="width:auto; padding:0.45rem 1.5rem; margin-top:0;">SAVE CATEGORY</button>';
+        footerHtml += '    <span id="cat-save-status" style="font-size:.7rem; color:#28a745; margin-top: 4px;"></span>';
+        footerHtml += '  </div>';
+        footerHtml += '  <button type="button" id="btn-cat-delete" class="li-delete-btn" style="margin-left: auto; padding:0.45rem 1.5rem; background:#dc3545; color:#fff; border:none; border-radius:5px; font-weight:700; cursor:pointer;">DELETE CATEGORY</button>';
+        footerHtml += '</div>';
+        footerHtml += '</div>';
+        
+        html += footerHtml;
         html += '</form>';
+        
         $id('li-category-editor').innerHTML = html;
+        
+        // Relocate sticky footer bottom of View One container if needed, but since we are appending line item question list above it in form now...
+        var footerNode = $id('li-category-editor').querySelector('.cat-sticky-footer');
+        if (footerNode) {
+            var existingFooters = $id('li-view-one').querySelectorAll('.cat-sticky-footer');
+            existingFooters.forEach(f => f.remove());
+            $id('li-category-content-wrap').appendChild(footerNode); 
+        }
+
+        $id('li-category-edit-form').querySelector('textarea[name="cat_description"]').value = data.description || '';
+        if ($id('cat-visibility-checkbox')) {
+            $id('cat-visibility-checkbox').checked = (data.form_visible !== false);
+        }
+
         _attachAccordion($id('li-category-editor'));
         
-        // Attach Category actions
-        var btnAddQ = $id('btn-cat-add-question');
+        // Attach Category actions (targeting the DOM globally since footer moved)
         var btnSaveC = $id('btn-cat-save');
         var btnDelC = $id('btn-cat-delete');
         
-        var newAddQ = btnAddQ.cloneNode(true); btnAddQ.parentNode.replaceChild(newAddQ, btnAddQ);
-        var newSaveC = btnSaveC.cloneNode(true); btnSaveC.parentNode.replaceChild(newSaveC, btnSaveC);
-        var newDelC = btnDelC.cloneNode(true); btnDelC.parentNode.replaceChild(newDelC, btnDelC);
+        var newSaveC = btnSaveC ? btnSaveC.cloneNode(true) : null;
+        if (newSaveC) btnSaveC.parentNode.replaceChild(newSaveC, btnSaveC);
         
-        newAddQ.addEventListener('click', function() {
-            alert('Add Question flow pending implementation.');
+        var newDelC = btnDelC ? btnDelC.cloneNode(true) : null;
+        if (newDelC) btnDelC.parentNode.replaceChild(newDelC, btnDelC);
+        
+        if (newSaveC) newSaveC.addEventListener('click', function() {
+            var frm = $id('li-category-edit-form');
+            var desc = frm.querySelector('textarea[name="cat_description"]').value;
+            var newName = frm.querySelector('input[name="cat_name"]').value;
+            var visible = $id('cat-visibility-checkbox').checked;
+            fetch('/builder_beta/category_details_save', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''},
+                body: JSON.stringify({ page_key: _pageKey, old_name: catName, new_name: newName, description: desc, form_visible: visible })
+            }).then(r => r.json()).then(d => {
+                if (d.ok) {
+                    if (newName !== catName) window.location.reload();
+                    else {
+                        let stat = $id('cat-save-status');
+                        if(stat) { stat.textContent = '✓ Saved Successfully'; setTimeout(()=>stat.textContent='',2500); }
+                    }
+                }
+                else alert('Error: ' + d.error);
+            }).catch(e => alert('Network error.'));
         });
         
-        newSaveC.addEventListener('click', function() {
-            alert('Save Category flow pending implementation.');
-        });
-        
-        newDelC.addEventListener('click', function() {
+        if (newDelC) newDelC.addEventListener('click', function() {
             if (confirm('Deleting this category is permanent. Are you sure?')) {
                 fetch('/builder_beta/category/delete', {
                     method: 'POST',
@@ -800,8 +911,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         html += _section('Meta', false, [
             _field('line_code',       'Line Code',       'text',   item.line_code   || '', true),
-            _selectField('category',  'Category',        item.category || '', allCats),
-            _checkField('form_visible', 'Form Visible', item.form_visible === 1 || item.form_visible === '1' || item.form_visible === true),
+            _selectField('category',  'Category',        item.category || '', allCats)
         ]);
 
         html += _section('Output (Preview)', false, [
@@ -810,9 +920,17 @@ document.addEventListener('DOMContentLoaded', function() {
             '<div class="li-form-group"><label>Output Guidance</label><p style="font-size:.8rem;color:#555;padding:.2rem 0;margin:0;white-space:pre-wrap;">' + _esc(item.output_guidance || '—') + '</p></div>',
         ]);
 
-        html += '<div style="display:flex; gap:10px; margin-top:1rem; padding-top:0.5rem; border-top:1px solid #eee;">';
-        html += '  <button type="button" id="btn-delete-question" class="li-delete-btn" style="flex:0 0 auto; padding:0.45rem 1rem; background:#dc3545; color:#fff; border:none; border-radius:5px; font-weight:700; cursor:pointer;">DELETE QUESTION</button>';
-        html += '  <button type="submit" class="li-save-btn" style="flex:1; margin-top:0;">SAVE QUESTION</button>';
+        html += '<div style="position: sticky; bottom: -1.5rem; background: #fff; z-index: 10; margin: 1rem -1.5rem -1.5rem -1.5rem; padding: 1rem 1.5rem 3rem 1.5rem; border-top: 1px solid #ccc; box-shadow: 0 -4px 6px -6px rgba(0,0,0,0.1);">';
+        html += '<div style="display:flex; justify-content:flex-end; align-items:center; margin-bottom:0.8rem;">';
+        html += '  <label style="font-size:.85rem; font-weight:600; color:#1b3a6b; cursor:pointer;"><input type="checkbox" name="form_visible" ' + (item.form_visible === 1 || item.form_visible === '1' || item.form_visible === true ? 'checked' : '') + ' style="margin-right:.4rem;">Question Visible in Form</label>';
+        html += '</div>';
+        html += '<div style="display:flex; justify-content:flex-start; align-items:flex-start; gap: 10px;">';
+        html += '  <div style="display:flex; flex-direction:column; align-items:center;">';
+        html += '    <button type="submit" class="li-save-btn" style="padding:0.45rem 1.5rem; width:auto; margin-top:0;">SAVE QUESTION</button>';
+        html += '    <span id="question-save-status" style="font-size:.7rem; color:#28a745; margin-top: 4px;"></span>';
+        html += '  </div>';
+        html += '  <button type="button" id="btn-delete-question" class="li-delete-btn" style="margin-left: auto; padding:0.45rem 1.5rem; background:#dc3545; color:#fff; border:none; border-radius:5px; font-weight:700; cursor:pointer;">DELETE QUESTION</button>';
+        html += '</div>';
         html += '</div>';
         html += '</form>';
         $id('li-editor-content').innerHTML = html;
@@ -924,17 +1042,18 @@ document.addEventListener('DOMContentLoaded', function() {
                         // Update cache
                         Object.assign(item, payload);
                         if (status) { status.textContent = '✓ Saved'; setTimeout(function(){ status.textContent=''; }, 2500); }
-                        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'SAVE LINE ITEM'; }
+                        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'SAVE QUESTION'; }
                         // Refresh view-two title
-                        $id('li-view-two-title').textContent = (item.line_code || '') + ' — ' + (item.output_title || item.internal_description || '');
+                        $id('li-view-two-title').textContent = (item.output_title || item.internal_description || 'Unnamed Question');
+                        $id('li-view-two-title').title = $id('li-view-two-title').textContent;
                     } else {
                         if (status) { status.textContent = '✗ Error'; status.style.color='#dc3545'; }
-                        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'SAVE LINE ITEM'; }
+                        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'SAVE QUESTION'; }
                     }
                 })
                 .catch(function () {
                     if (status) { status.textContent = '✗ Network error'; status.style.color='#dc3545'; }
-                    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'SAVE LINE ITEM'; }
+                    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'SAVE QUESTION'; }
                 });
             });
         }

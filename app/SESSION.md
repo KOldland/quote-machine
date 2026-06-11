@@ -1,27 +1,23 @@
 # Active Sprint Handoff
 ## Current Goal
-* **Session AL — CURRENT: Builder QA & Further Polish**
+* **Session AL — COMPLETED: Builder Refinement & UI Polish**
 
 ## Completed Tasks This Session
-* Implemented the Nested "Fractal" UI for the editing builder mode canvas.
-* Mapped `Page Details` and `Category Details` into dynamic layout views alongside `Line Item` (Question) details.
-* Created top-level breadcrumb navigation hooks (`#bc-page` and `#bc-cat`) to traverse back up the schema hierarchy effortlessly.
-* Grouped standard layout items into collapsable DOM elements for the Category view and implemented a three-cluster Save/Delete structural format.
-* Wired Danger-Modal style frontend triggers for deletions (`confirm()` interception) on both category deletion and individual question deletion blocks.
-
-## What Was Completed — Previous Sessions (per SESSION.md)
-* Moved page-level control buttons to the bottom of the canvas in `app/templates/form.html`.
-* Removed hardcoded category fallback from `_get_line_items_for_page` in `app/QMapp.py`.
-* Formalized Pages and Categories in Schema.
-* Bug Fixes & Schema Sync.
+* Fixed critical `TemplateSyntaxError` in `app/templates/_builder_macros.html` caused by Jinja2 nesting mistakes in the logic dependency section.
+* Resolved "Double Vision" redundant UI: Decisively eliminated the overlapping blank question container in `Category View` after verification via "magenta background" diagnostic test.
+* Constrained column width and enabled vertical-only scrolling for the main builder canvas to prevent horizontal layout breaks (UI 1 fix).
+* Decoupled the dynamic `Category Properties` form from the static `Question List` container within the macro structure to ensure universal scalability.
+* Fixed the DOM syntax breaks where nested dynamic JS logic previously interfered with standard page rendering.
+* Cleaned up redundant "Add Question" buttons from category views to align with the "fractal" UI hierarchy.
 
 ## Immediate Next Task
-Review functionality and determine following blockers or implementation fixes. E.g., Adding the explicit backend wiring for "Add Question" while inside Category View now that the GUI supports it, and confirming the UI triggers look perfect.
+* **Perform end-to-end regression testing** of the build save cycle. 
+* Verify that "SAVE PAGE", "SAVE CATEGORY", and "SAVE QUESTION" all correctly persist to the SQLite backend and update the frontend cache without full page reloads where expected.
+* Test "Delete Category" cascades to ensure clean schema state.
 
 ## Active Files for Context (next session)
-* @app/templates/form.html
-* @app/SESSION.md
-* @app/current_development.md
 * @app/templates/_builder_macros.html
 * @app/static/js/builder.js
 * @app/QMapp.py
+* @app/SESSION.md
+* @app/current_development.md

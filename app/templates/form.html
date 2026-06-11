@@ -28,16 +28,8 @@
                li_categories if (li_categories is defined and li_categories) else [],
                form_page_key) }}
 
-        {# Right canvas: question/workspace panel OR empty-state placeholder.  #}
-        {% if li_categories is defined and li_categories %}
-            {{ builder_macros.render_li_question_panel(form_page_key) }}
-        {% else %}
-            <div class="li-canvas-placeholder"
-                 style="flex:1;display:flex;align-items:center;
-                        justify-content:center;color:#6c757d;font-size:1rem;">
-                create a category to begin
-            </div>
-        {% endif %}
+        {# Right canvas: question/workspace panel. Always render so Page Details can load regardless of categories #}
+        {{ builder_macros.render_li_question_panel(form_page_key) }}
 
     </div>
     <style>
@@ -52,15 +44,6 @@
         background: #fff;
     }
     </style>
-    <div class="page-level-controls" style="margin-top: 1rem; display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: flex-start; align-items: center;">
-        <button type="button" class="btn btn-primary" style="width: auto;" onclick="console.log('Save Page clicked')">Save Page</button>
-        <button type="button" class="btn btn-secondary" style="width: auto;" onclick="console.log('Save as Template clicked')">Save as Template</button>
-        <button type="button" class="btn btn-danger" style="width: auto;" onclick="console.log('Delete Page clicked')">Delete Page</button>
-        <label style="display: flex; align-items: center; gap: 0.35rem; margin: 0; margin-left: auto; font-size: .85rem; font-weight: 600; color: #1b3a6b; cursor: pointer;">
-            <input type="checkbox" id="page-visibility-checkbox" data-action="toggle-page-visibility" data-page="{{ form_page_key }}" style="margin: 0; cursor: pointer;">
-            Visible in Form
-        </label>
-    </div>
 
     {% else %}
         <h1>{{ title }}</h1>

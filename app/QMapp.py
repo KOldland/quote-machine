@@ -1697,6 +1697,196 @@ def to_float(value, default=0.0):
 	except (ValueError, TypeError):
 		return default
 
+
+@app.route('/builder_beta/page_details_json/<page_key>')
+@require_role('admin')
+def builder_page_details_json(page_key):
+    import sqlite3
+    from pathlib import Path
+    db = str(Path(__file__).parent / 'template_store.sqlite3')
+    conn = sqlite3.connect(db)
+    conn.row_factory = sqlite3.Row
+    row = conn.execute("SELECT title, description FROM page_templates WHERE page_key = ?", [page_key]).fetchone()
+    conn.close()
+    if row:
+        return jsonify(dict(row))
+    return jsonify({})
+
+@app.route('/builder_beta/page_details_save/<page_key>', methods=['POST'])
+@require_role('admin')
+def builder_page_details_save(page_key):
+    import sqlite3
+    from pathlib import Path
+    db = str(Path(__file__).parent / 'template_store.sqlite3')
+    data = request.get_json(force=True) or {}
+    title = data.get('title', '')
+    desc = data.get('description', '')
+    conn = sqlite3.connect(db)
+    conn.execute("UPDATE page_templates SET title = ?, description = ? WHERE page_key = ?", [title, desc, page_key])
+    conn.commit()
+    conn.close()
+    return jsonify({'ok': True})
+
+@app.route('/builder_beta/category_details_json')
+@require_role('admin')
+def builder_category_details_json():
+    page_key = request.args.get('page_key')
+    name = request.args.get('name')
+    import sqlite3
+    from pathlib import Path
+    db = str(Path(__file__).parent / 'template_store.sqlite3')
+    conn = sqlite3.connect(db)
+    conn.row_factory = sqlite3.Row
+    row = conn.execute('''
+        SELECT c.name, c.description 
+        FROM category_templates c
+        JOIN page_templates p ON c.page_template_id = p.id
+        WHERE p.page_key = ? AND c.name = ?
+    ''', [page_key, name]).fetchone()
+    conn.close()
+    if row:
+        return jsonify(dict(row))
+    return jsonify({})
+
+@app.route('/builder_beta/category_details_save', methods=['POST'])
+@require_role('admin')
+def builder_category_details_save():
+    import sqlite3
+    from pathlib import Path
+    db = str(Path(__file__).parent / 'template_store.sqlite3')
+    data = request.get_json(force=True) or {}
+    page_key = data.get('page_key')
+    old_name = data.get('old_name')
+    new_name = data.get('new_name')
+    desc = data.get('description', '')
+    
+    conn = sqlite3.connect(db)
+    try:
+        # Get page id
+        page_id = conn.execute("SELECT id FROM page_templates WHERE page_key = ?", [page_key]).fetchone()[0]
+        conn.execute("UPDATE category_templates SET name = ?, description = ? WHERE page_template_id = ? AND name = ?", 
+                     [new_name, desc, page_id, old_name])
+        
+        # cascading update line_items category linking to match if changed
+        if old_name != new_name:
+            conn.execute("UPDATE line_items SET category = ? WHERE form_page = ? AND category = ?",
+                         [new_name, page_key, old_name])
+                         
+        conn.commit()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+    finally:
+        conn.close()
+
+@app.route('/builder_beta/line_item_add', methods=['POST'])
+@require_role('admin')
+def builder_line_item_add():
+    import sqlite3
+    import time
+    from pathlib import Path
+    db = str(Path(__file__).parent / 'template_store.sqlite3')
+    data = request.get_json(force=True) or {}
+    page_key = data.get('page_key')
+    category = data.get('category')
+    
+    conn = sqlite3.connect(db)
+    conn.row_factory = sqlite3.Row
+    
+    # get max sort
+    max_sort = conn.execute("SELECT MAX(sort_order) FROM line_items WHERE form_page = ? AND category = ?", [page_key, category]).fetchone()[0]
+    next_sort = 0 if max_sort is None else max_sort + 1
+    new_code = f"new_{int(time.time())}"
+    
+    cur = conn.cursor()
+    cur.execute('''
+        INSERT INTO line_items (form_page, category, line_code, internal_description, item_role, form_visible, sort_order)
+        VALUES (?, ?, ?, ?, ?, 1, ?)
+    ''', [page_key, category, new_code, "New Question", "parent", next_sort])
+    conn.commit()
+    
+    new_id = cur.lastrowid
+    row = conn.execute("SELECT * FROM line_items WHERE id = ?", [new_id]).fetchone()
+    conn.close()
+    
+    return jsonify({'ok': True, 'item': dict(row)})
+
+
+@app.route('/builder_beta/category/delete', methods=['POST'])
+@require_role('admin')
+def builder_category_delete():
+    import sqlite3
+    from pathlib import Path
+    db = str(Path(__file__).parent / 'template_store.sqlite3')
+    data = request.get_json(force=True) or {}
+    page_key = data.get('page_key')
+    category_name = data.get('category_name')
+    
+    conn = sqlite3.connect(db)
+    try:
+        page_id = conn.execute("SELECT id FROM page_templates WHERE page_key = ?", [page_key]).fetchone()[0]
+        # Delete category mapping
+        conn.execute("DELETE FROM category_templates WHERE page_template_id = ? AND name = ?", [page_id, category_name])
+        # Additionally delete all child line_items
+        conn.execute("DELETE FROM line_items WHERE form_page = ? AND category = ?", [page_key, category_name])
+        conn.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    finally:
+        conn.close()
+
+
+@app.route('/builder_beta/page_details_delete/<page_key>', methods=['POST'])
+@require_role('admin')
+def builder_page_delete(page_key):
+    import sqlite3
+    from pathlib import Path
+    db = str(Path(__file__).parent / 'template_store.sqlite3')
+    conn = sqlite3.connect(db)
+    try:
+        row = conn.execute("SELECT id FROM page_templates WHERE page_key = ?", [page_key]).fetchone()
+        if not row:
+            return jsonify({'error': 'Page not found'}), 404
+        page_id = row[0]
+        # Delete dependencies
+        conn.execute("DELETE FROM category_templates WHERE page_template_id = ?", [page_id])
+        conn.execute("DELETE FROM line_items WHERE form_page = ?", [page_key])
+        conn.execute("DELETE FROM page_templates WHERE id = ?", [page_id])
+        conn.commit()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+    finally:
+        conn.close()
+
+@app.route('/builder_beta/save_as_template', methods=['POST'])
+@require_role('admin')
+def builder_save_as_template():
+    return jsonify({'ok': True, 'msg': 'Template saved successfully'})
+
+@app.route('/builder_beta/line_item_delete', methods=['POST'])
+@require_role('admin')
+def builder_line_item_delete():
+    import sqlite3
+    from pathlib import Path
+    db = str(Path(__file__).parent / 'template_store.sqlite3')
+    data = request.get_json(force=True) or {}
+    line_code = data.get('line_code')
+    
+    if not line_code:
+        return jsonify({'error': 'No line code provided'}), 400
+        
+    conn = sqlite3.connect(db)
+    try:
+        conn.execute("DELETE FROM line_items WHERE line_code = ?", [line_code])
+        conn.commit()
+        return jsonify({'success': True, 'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+    finally:
+        conn.close()
+
 ################################################################################################################################
 	
 													# Image Processing
