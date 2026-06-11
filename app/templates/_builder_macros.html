@@ -280,26 +280,26 @@
         {% else %}
             <p style="font-size:.8rem;color:#999;padding:.5rem .75rem;">No categories configured for this page.</p>
         {% endif %}
-    </div>
-    <div style="padding: .5rem; border-top: 1px solid #dee2e6; background: #f0f4ff;">
-        <button type="button" id="btn-add-category" class="li-save-btn" style="margin-top:0;" data-page="{{ form_page_key }}">+ Add Category</button>
-        <div id="add-cat-inline" style="display:none; margin-top:.4rem;">
-            <input type="text" id="add-cat-name-input" placeholder="Category name…"
-                   style="width:100%; font-size:.82rem; padding:.25rem .4rem; border:1px solid #ccc; border-radius:3px; box-sizing:border-box;">
-            <div style="display:flex; gap:.4rem; margin-top:.35rem;">
-                <button type="button" id="btn-add-cat-confirm" class="li-save-btn" style="flex:1; margin-top:0;">Save</button>
-                <button type="button" id="btn-add-cat-cancel" style="flex:1; font-size:.78rem; padding:.2rem .4rem; border:1px solid #aaa; background:#fff; border-radius:3px; cursor:pointer;">Cancel</button>
+        <div style="padding:.5rem .75rem; border-top:1px solid #dee2e6; background:#f0f4ff; margin-top:.5rem;">
+            <button type="button" id="btn-add-category" class="li-save-btn" style="margin-top:0;" data-page="{{ form_page_key }}">+ Add Category</button>
+            <div id="add-cat-inline" style="display:none; margin-top:.4rem;">
+                <input type="text" id="add-cat-name-input" placeholder="Category name…"
+                       style="width:100%; font-size:.82rem; padding:.25rem .4rem; border:1px solid #ccc; border-radius:3px; box-sizing:border-box;">
+                <div style="display:flex; gap:.4rem; margin-top:.35rem;">
+                    <button type="button" id="btn-add-cat-confirm" class="li-save-btn" style="flex:1; margin-top:0;">Save</button>
+                    <button type="button" id="btn-add-cat-cancel" style="flex:1; font-size:.78rem; padding:.2rem .4rem; border:1px solid #aaa; background:#fff; border-radius:3px; cursor:pointer;">Cancel</button>
+                </div>
+                <label style="display:flex; align-items:center; gap:.35rem; margin-top:.4rem; font-size:.78rem; color:#444; cursor:pointer;">
+                    <input type="checkbox" id="add-cat-visible"
+                           data-action="toggle-page-visibility"
+                           data-page="{{ form_page_key }}"
+                           checked style="margin:0; cursor:pointer;">
+                    Include in Form
+                </label>
             </div>
-            <label style="display:flex; align-items:center; gap:.35rem; margin-top:.4rem; font-size:.78rem; color:#444; cursor:pointer;">
-                <input type="checkbox" id="add-cat-visible"
-                       data-action="toggle-page-visibility"
-                       data-page="{{ form_page_key }}"
-                       checked style="margin:0; cursor:pointer;">
-                Include in Form
-            </label>
         </div>
-    </div>
-</div>
+    </div>{# end li-sections-list #}
+</div>{# end li-sections-panel #}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const btnAddCat    = document.getElementById('btn-add-category');
@@ -774,7 +774,7 @@ document.addEventListener('DOMContentLoaded', function() {
         ]);
 
         // Render sticky action buttons correctly mapping back onto Category View wrapper level
-        var footerHtml = '<div class="cat-sticky-footer" style="position: sticky; bottom: -0.5rem; background: #fff; z-index: 10; margin: 1rem -1.5rem -0.5rem -1.5rem; padding: 1rem 1.5rem 3rem 1.5rem; border-top: 1px solid #ccc; box-shadow: 0 -4px 6px -6px rgba(0,0,0,0.1);">';
+        var footerHtml = '<div class="cat-sticky-footer" style="background:#fff; margin-top:1rem; padding:.75rem; border-top:1px solid #dee2e6;">';
         footerHtml += '<div style="display:flex; justify-content:flex-end; align-items:center; margin-bottom:0.8rem;">';
         footerHtml += '  <label style="font-size:.85rem; font-weight:600; color:#1b3a6b; cursor:pointer;"><input type="checkbox" id="cat-visibility-checkbox" checked style="margin-right:.4rem;">Category Visible in Form</label>';
         footerHtml += '</div>';
