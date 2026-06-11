@@ -277,18 +277,18 @@
     box-shadow: none;
     border: 1px solid #e0e0e0;
     background: #fafafa;
-    height: 75vh;
-    overflow: hidden;
-    display: flex;
-    flex-direction: row;
 }
 
+/* Builder line items canvas — constrained to viewport height so content scrolls within */
 .builder-page-wrapper.builder-line-items-layout {
     display: flex;
     flex-direction: row;
     width: 100%;
-    height: 100%;
+    height: calc(87vh - 155px);
     overflow: hidden;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    background: #fff;
 }
 
 /* Canvas inner content padding */
