@@ -227,7 +227,7 @@
     border: 1px solid #d0d0d0;
     border-radius: 6px;
     padding: 1rem;
-    max-height: calc(100vh - 200px);
+    height: 100%;
     overflow-y: auto;
     box-shadow: 0 1px 4px rgba(0,0,0,.06);
 }
@@ -277,6 +277,18 @@
     box-shadow: none;
     border: 1px solid #e0e0e0;
     background: #fafafa;
+    height: 75vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: row;
+}
+
+.builder-page-wrapper.builder-line-items-layout {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
 }
 
 /* Canvas inner content padding */
