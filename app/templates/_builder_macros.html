@@ -708,7 +708,6 @@ document.addEventListener('DOMContentLoaded', function() {
         html += '  <label style="font-size:.85rem; font-weight:600; color:#1b3a6b; cursor:pointer;"><input type="checkbox" id="page-visibility-checkbox" ' + (data.form_visible !== false ? 'checked' : '') + ' style="margin-right:.4rem;">Page Visible in Form</label>';
         html += '</div>';
         html += '<div style="display:flex; justify-content:flex-start; align-items:flex-start; gap: 10px;">';
-        html += '  <button type="button" id="btn-save-template" class="li-save-btn" style="padding:0.45rem 1.5rem; width:auto; background:#6c757d; margin-top:0;">SAVE AS TEMPLATE</button>';
         html += '  <div style="display:flex; flex-direction:column; align-items:center;">';
         html += '    <button type="button" id="btn-save-page" class="li-save-btn" style="padding:0.45rem 1.5rem; width:auto; margin-top:0;">SAVE PAGE</button>';
         html += '    <span id="page-save-status" style="font-size:.7rem; color:#28a745; margin-top: 4px;"></span>';
@@ -746,7 +745,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     headers: {'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''}
                 }).then(r => r.json()).then(d => {
                     if (d.ok || d.success) {
-                        window.location.href = '/builder_beta';
+                        // After deleting this page, go back to the empty landing page in edit mode
+                        window.location.href = '/edit_home?edit=1';
                     } else {
                         alert('Error: ' + d.error);
                     }
@@ -977,17 +977,23 @@ document.addEventListener('DOMContentLoaded', function() {
         if (delBtn) {
             delBtn.addEventListener('click', function() {
                 if (confirm('Deleting this question is permanent. Are you sure?')) {
-                    fetch('/builder_beta/line_item_delete/' + item.id, {
+                    fetch('/builder_beta/line_item_delete', {
                         method: 'POST',
-                        headers: {'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''}
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''
+                        },
+                        body: JSON.stringify({ line_code: item.line_code })
                     }).then(function(r) { return r.json(); }).then(function(d) {
                         if (d.ok || d.success) {
+                            // Question deleted - refresh the list view programmatically
                             var activeBtn = document.querySelector('.li-section-btn[data-category="'+_activeCategory+'"]');
                             if (activeBtn) activeBtn.click();
+                            showViewOne(_activeCategory);
                         } else {
-                            alert('Failed to delete question.');
+                            alert('Failed to delete question: ' + (d.error || 'Unknown error'));
                         }
-                    }).catch(e => alert('Network Error.'));
+                    }).catch(e => alert('Network Error deleting question.'));
                 }
             });
         }

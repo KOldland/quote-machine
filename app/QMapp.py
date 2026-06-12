@@ -1712,6 +1712,21 @@ def builder_page_details_json(page_key):
         return jsonify(dict(row))
     return jsonify({})
 
+@app.route('/edit_home')
+@require_role('admin')
+def edit_home():
+    """Empty builder state landing page after a delete operation."""
+    edit_requested = request.args.get('edit', '').lower() in {'1', 'true', 'yes'}
+    edit_mode = session.get('role') == 'admin' and edit_requested
+    
+    return render_template('form.html',
+                         edit_mode=edit_mode,
+                         title='Builder Home',
+                         db_pages=get_all_pages(template_key=TEMPLATE_STORE_KEY),
+                         current_page=None,
+                         li_categories=[],
+                         pricing_modes=['fixed', 'entered', 'quantity_rate', 'percent_subtotal'])
+
 @app.route('/builder_beta/page_details_save/<page_key>', methods=['POST'])
 @require_role('admin')
 def builder_page_details_save(page_key):
@@ -4581,6 +4596,19 @@ def admin_promote():
 
 
 #####################################################################################################################################
+
+
+@app.route('/builder_beta/page/duplicate', methods=['POST'])
+@require_role('admin')
+def builder_beta_page_duplicate():
+    import template_store as _ts
+    data = request.json
+    if not data or 'source_page_key' not in data or 'new_page_key' not in data or 'new_title' not in data:
+        return jsonify({'success': False, 'error': 'Missing source_page_key, new_page_key, or new_title'}), 400
+    res = _ts.duplicate_page(data['source_page_key'], data['new_page_key'], data['new_title'], template_key=TEMPLATE_STORE_KEY)
+    if res.get('success'):
+        return jsonify({'success': True})
+    return jsonify(res), 500
 
 @app.route('/builder_beta/page/add', methods=['POST'])
 @require_role('admin')

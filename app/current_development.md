@@ -9,6 +9,7 @@
 - Fixed the Category Broken state caused by DOM repositioning of the Questions List. Evaluated standard UI workflows, finished deleting redundant 'Add Question' blocks. **[DONE]**
 - Fixed UI layout: adjusted `.li-save-btn` width, enabled proper inner scrolling using fixed `height` instead of `max-height` for `.li-3col-canvas`, and nested `+ Add Category` within `.li-sections-list` so it flows naturally. **[DONE]**
 - Removed sticky footer overlap from the `SAVE CATEGORY` button view. **[DONE]**
+- Created an empty `/edit_home` landing screen for builder mode safety state rendering after page deletion. **[DONE]**
 
 ## Current State
 The nested fractal UI is structurally sound, styled correctly to flow naturally without layout overlap breaks, and allows editing the schema properties at three distinct hierarchy levels: Pages, Categories, and Line Item questions.
