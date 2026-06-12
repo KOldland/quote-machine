@@ -7,7 +7,7 @@
 * Form Editor implementation plan has been written and saved to `current_development.md`.
 
 ## Immediate Next Task
-* **Execute Form Editor Step 1: Remove "Undo" button and implement "Form Editor" navigation.**
+* **Execute Form Editor Step 2: Implement page dragging and re-ordering for the form canvas.**
 
 ## Active Files for Context (next session)
 * @app/templates/index.html
