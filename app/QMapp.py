@@ -1737,7 +1737,8 @@ def form_editor():
     # Fetch pages ordered by display_order
     ordered_pages = ts.get_all_pages('builder_beta')
 
-    return render_template('form_editor.html',
+    return render_template('form.html',
+                           form_editor_mode=True,
                            edit_mode=True,
                            builder_state=state,
                            form_details=form_details,
