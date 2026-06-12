@@ -2992,6 +2992,32 @@ def builder_beta_swap_order():
 	finally:
 		conn.close()
 
+
+@app.route('/builder_beta/reorder_all_pages', methods=['POST'])
+@require_role('admin')
+def builder_beta_reorder_all_pages():
+	import sqlite3 as _sq
+	from pathlib import Path as _P
+	data = request.json or {}
+	page_ids = data.get('page_ids')
+	if not isinstance(page_ids, list):
+		return jsonify({'success': False, 'error': 'page_ids must be a list'}), 400
+
+	db_path = str(_P(os.environ.get('QM_TEMPLATE_DB_PATH', '') or _P(__file__).parent / 'template_store.sqlite3'))
+	conn = _sq.connect(db_path)
+	try:
+		cursor = conn.cursor()
+		for idx, page_id in enumerate(page_ids):
+			cursor.execute('UPDATE page_templates SET display_order = ? WHERE id = ?', [idx + 1, page_id])
+		conn.commit()
+		return jsonify({'success': True})
+	except Exception as e:
+		conn.rollback()
+		return jsonify({'success': False, 'error': str(e)}), 500
+	finally:
+		conn.close()
+
+
 @app.route('/builder_beta/line_items_json', methods=['GET'])
 @require_role('admin')
 def builder_line_items_json():

@@ -1416,3 +1416,45 @@ input[type="text"], input[type="date"], textarea, select {
     object-fit: contain;
     border: 1px solid #999;
 }
+
+/* ── Form Editor page sorting drag-and-drop visuals ── */
+.page-list .page-item {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #eee;
+    background: #fafafa;
+    cursor: move;
+    transition: background-color 0.2s, box-shadow 0.2s, border 0.2s;
+}
+
+.page-list .page-item:hover {
+    background: #f1f1f1;
+}
+
+.page-list .page-item .drag-handle {
+    display: inline-flex;
+    align-items: center;
+    cursor: grab;
+    margin-right: 0.75rem;
+    color: #999;
+    font-size: 1.1rem;
+    user-select: none;
+}
+
+.page-list .page-item .drag-handle:active {
+    cursor: grabbing;
+}
+
+.page-list .page-item.dragging {
+    opacity: 0.4;
+    border: 2px dashed #007bff;
+    background: #e3f2fd;
+    box-shadow: 0 4px 8px rgba(0, 123, 255, 0.15);
+}
+
+.page-list .page-item.drag-over {
+    border: 2px dashed #28a745;
+    background: #e8f5e9;
+    box-shadow: 0 4px 8px rgba(40, 167, 69, 0.15);
+}

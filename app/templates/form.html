@@ -47,8 +47,9 @@
                 <div class="page-list" id="sortable-pages" style="border: 1px solid #eee; border-radius: 4px; overflow: hidden;">
                     {% for page in db_pages %}
                         {% if page.page_key != 'index' %}
-                        <div class="page-item" draggable="true" data-id="{{ page.id }}" style="display: flex; align-items: center; padding: 0.75rem 1rem; border-bottom: 1px solid #eee; background: #fafafa; cursor: move;">
-                            <div style="flex: 1; font-weight: 500; color: #333;">{{ page.title }}</div>
+                        <div class="page-item" draggable="true" data-id="{{ page.id }}">
+                            <span class="drag-handle">⠿</span>
+                            <div class="page-title-text" style="flex: 1; font-weight: 500;">{{ page.title }}</div>
                             <div style="font-size: 0.8rem; color: #888; margin-right: 1rem;">(/{{ page.page_key }})</div>
                             <div class="order-controls" style="display: flex; flex-direction: column; gap: 2px;">
                                 <button type="button" class="btn-move-page" data-id="{{ page.id }}" data-dir="up" title="Move Up" style="background: none; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; padding: 0 4px; font-size: 10px; color: #555; {% if loop.index0 == 1 %}opacity: 0.3; pointer-events: none;{% endif %}">▲</button>
@@ -106,13 +107,14 @@
                 sortableList.addEventListener('dragstart', (e) => {
                     dragSrcEl = e.target.closest('.page-item');
                     e.dataTransfer.effectAllowed = 'move';
-                    dragSrcEl.style.opacity = '0.4';
+                    dragSrcEl.classList.add('dragging');
                 });
 
                 sortableList.addEventListener('dragover', (e) => {
                     e.preventDefault();
                     const target = e.target.closest('.page-item');
                     if (target && target !== dragSrcEl) {
+                        target.classList.add('drag-over');
                         const rect = target.getBoundingClientRect();
                         const midpoint = (rect.bottom - rect.top) / 2;
                         const relativeMouseY = e.clientY - rect.top;
@@ -125,8 +127,35 @@
                     }
                 });
 
+                sortableList.addEventListener('dragleave', (e) => {
+                    const target = e.target.closest('.page-item');
+                    if (target) {
+                        target.classList.remove('drag-over');
+                    }
+                });
+
                 sortableList.addEventListener('dragend', () => {
-                    dragSrcEl.style.opacity = '1';
+                    dragSrcEl.classList.remove('dragging');
+                    document.querySelectorAll('.page-item').forEach(item => item.classList.remove('drag-over'));
+                    
+                    const pageIds = Array.from(sortableList.querySelectorAll('.page-item')).map(item => item.dataset.id);
+                    fetch('/builder_beta/reorder_all_pages', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('#li-csrf-token').value },
+                        body: JSON.stringify({ page_ids: pageIds })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (!data.success) {
+                            alert('Reordering failed: ' + data.error);
+                        } else {
+                            // Optionally refresh/flash visual feedback or update arrow disabled states if any
+                            location.reload();
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Error reordering pages:', err);
+                    });
                 });
             }
 

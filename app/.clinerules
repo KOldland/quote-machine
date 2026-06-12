@@ -17,7 +17,12 @@
 ## 4. Automated Task Finish Routine
 - Once you have successfully completed a task and verified the code behaves correctly, you must run this workspace save routine:
   1. Update 'SESSION.md' by logging what you completed in 'What Works', setting the new 'Immediate Next Blocker', and updating the 'Active Files for Context' list for the next phase.
-    b. update 'current_development.md' do not overwrite anything in this file but if an action is completed you mark it as done.
-  2. Use your terminal tool to run: git add .
-  3. Automatically execute a standard commit using conventional prefixes based on the work done (e.g., git commit -m "feat: [summary]" or git commit -m "fix: [summary]").
-  4. Explicitly print out a message notifying the user that the workspace is safely committed, and instruct them to run 'git push' and press 'Cmd+K' to clear the chat session history.
+  2. update 'current_development.md' do not overwrite anything in this file but if an action is completed you mark it as done.
+  3. Use your terminal tool to run: git add .
+  4. Automatically execute a standard commit using conventional prefixes based on the work done (e.g., git commit -m "feat: [summary]" or git commit -m "fix: [summary]").
+  5. Explicitly print out a message notifying the user that the workspace is safely committed, and instruct them to run 'git push' and press 'Cmd+K' to clear the chat session history.
+
+## 5. Be conscise
+- Never duplicate plan descriptions, steps, or text blocks between the thinking/planning phase and the final response. 
+- Once an implementation plan is stated in a tool block or a "Plan Created" section, do not repeat it in the chat response. Instead, reference it briefly (e.g., "Please review the plan above and toggle to Act Mode").
+- Keep responses highly concise, on-point, and completely free of redundant prose.
