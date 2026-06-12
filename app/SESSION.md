@@ -11,9 +11,9 @@
 * Fixed server-critical indentation error and button text alignment.
 
 ## Immediate Next Task
-* **Execute Form Editor Step 4/5: API Integration & Drag-and-Drop Scripting.**
-* Connect "Save Form Details" button in `form_editor.html` to backend `UPDATE` logic.
-* Implement native Drag-and-Drop for pages in `form_editor.html`/`builder.js`.
+* **Implement Batch Reordering for Pages.**
+* Although Drag-and-Drop visuals are implemented, the backend currently only supports single-swap ordering. Create a `reorder_all_pages` endpoint to persist the final state after a drag operation.
+* Polish Form Editor CSS to include drag-handle icons and specific "drop zone" feedback.
 
 ## Active Files for Context
 * @app/templates/form_editor.html

@@ -1747,6 +1747,25 @@ def form_editor():
                            form_details=form_details,
                            db_pages=ordered_pages)
 
+
+@app.route('/builder_beta/update_form_details', methods=['POST'])
+@require_role('admin')
+def update_form_details():
+    import template_store as ts
+    data = request.json
+    title = data.get('title')
+    description = data.get('description')
+    
+    if not title:
+        return jsonify({'success': False, 'error': 'Title is required'}), 400
+        
+    conn = ts.get_db()
+    c = conn.cursor()
+    c.execute("UPDATE form_templates SET name = ?, description = ? WHERE key = ?", (title, description, 'builder_beta'))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
 @app.route('/builder_beta/page_details_save/<page_key>', methods=['POST'])
 @require_role('admin')
 def builder_page_details_save(page_key):
