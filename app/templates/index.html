@@ -205,8 +205,8 @@
                             });
                             </script>
                             <div class="edit-mode-actions" style="margin-top:.5rem;display:flex;flex-direction:column;gap:.35rem;">
+                                <a href="/form_editor?edit=1" class="btn btn-sidebar" style="width:100%;text-align:right;">Form Editor</a>
                                 <button type="button" id="btn-publish-draft" class="btn btn-sidebar" style="width:100%;">Publish</button>
-                                <button type="button" id="btn-rollback" class="btn btn-sidebar" style="width:100%;">Undo</button>
                                 <form method="GET" action="{{ url_for('index') }}" style="width:100%;">
                                     <button type="submit" class="btn btn-sidebar" style="width:100%;">Exit Edit Mode</button>
                                 </form>
