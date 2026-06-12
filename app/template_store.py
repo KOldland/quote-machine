@@ -688,47 +688,59 @@ def duplicate_form(old_key: str, new_title: str, new_description: str, db_path: 
                 json.dump(schemas, f, indent=2)
                 
     # 3. Duplicate pages in DB
-    pages = conn.execute("SELECT id, page_key, title, sort_order, is_hidden, description FROM page_templates WHERE form_key = ?", (old_key,)).fetchall()
+    # Fetch old version ID
+    old_version_row = conn.execute(
+        "SELECT ftv.id FROM form_template_versions ftv JOIN form_templates ft ON ft.id = ftv.form_template_id WHERE ft.key = ? ORDER BY ftv.version DESC LIMIT 1",
+        (old_key,)
+    ).fetchone()
+    old_version_id = old_version_row["id"] if old_version_row else None
+
+    # Get new form_template_id
+    new_template_id = conn.execute("SELECT id FROM form_templates WHERE key = ?", (new_key,)).fetchone()["id"]
     
-    # Mapping old page_key to new page_key (though currently page_key is scoped by form in DB ideally, but it should be unique or tied by form_key)
-    # Actually, we might keep page_keys the same within the new form context, but need to be careful if page_keys are globally unique.
+    # Create an initial version for the new form
+    conn.execute("INSERT INTO form_template_versions (form_template_id, version, payload_json) VALUES (?, ?, ?)", (new_template_id, 1, "{}"))
+    new_version_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
     
-    for p in pages:
-        # Assuming we just insert with new form_key
-        conn.execute(
-            "INSERT INTO page_templates (form_key, page_key, title, sort_order, is_hidden, description) VALUES (?, ?, ?, ?, ?, ?)",
-            (new_key, p['page_key'], p['title'], p['sort_order'], p['is_hidden'], p['description'])
-        )
+    if old_version_id:
+        pages = conn.execute("SELECT id, page_key, title, display_order, description, metadata_json FROM page_templates WHERE form_template_version_id = ?", (old_version_id,)).fetchall()
         
-        # 4. Duplicate categories
-        categories = conn.execute("SELECT id, name, sort_order, is_hidden FROM category_templates WHERE page_id = ?", (p['id'],)).fetchall()
-        
-        # We need the new page_id
-        new_page_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-        
-        for c in categories:
+        for p in pages:
             conn.execute(
-                "INSERT INTO category_templates (page_id, name, sort_order, is_hidden) VALUES (?, ?, ?, ?)",
-                (new_page_id, c['name'], c['sort_order'], c['is_hidden'])
+                "INSERT INTO page_templates (form_template_version_id, page_key, title, display_order, description, metadata_json) VALUES (?, ?, ?, ?, ?, ?)",
+                (new_version_id, p['page_key'], p['title'], p['display_order'], p.get('description', ''), p.get('metadata_json', '{}'))
             )
-            new_cat_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+            
+            new_page_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+            
+            # 4. Duplicate categories
+            categories = conn.execute("SELECT id, name, display_order, description FROM category_templates WHERE page_template_id = ?", (p['id'],)).fetchall()
+            
+            for c in categories:
+                conn.execute(
+                    "INSERT INTO category_templates (form_template_version_id, page_template_id, name, display_order, description) VALUES (?, ?, ?, ?, ?)",
+                    (new_version_id, new_page_id, c['name'], c['display_order'], c.get('description', ''))
+                )
             
             # 5. Duplicate line items (questions)
             # Find old line items by checking their page_key and category
-            # WAIT: line_items table links to category (string) and page_key (string).
-            # This mapping might need form_key eventually, but line_items DB has:
-            # page_key, block_id, category, sort_order, etc.
-            
-            # If line_items relies on page_key string which is globally shared, we have a schema duplication problem.
-            # In the immediate term, we only assign line_items to a combination of page_key and category.
-            # If we duplicate, we need to prefix page_keys if they must be globally unique per line_item.
-            
-            items = conn.execute("SELECT * FROM line_items WHERE page_key = ? AND category = ?", (p['page_key'], c['name'])).fetchall()
+            # line_items table currently links via form_page (string)
+            items = conn.execute("SELECT * FROM line_items WHERE form_page = ?", (p['page_key'],)).fetchall()
             for item in items:
-                cols = [k for k in item.keys() if k != 'id']
-                qs = ', '.join(['?'] * len(cols))
+                # To prevent unique line_code conflicts on duplicate, we'll generate new line_codes for duplicate items
+                import string
+                import random
+                def get_rand():
+                    return "Q_" + ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+                
+                new_code = get_rand()
+                cols = [k for k in item.keys() if k not in ["id", "line_code", "created_at", "updated_at"]]
+                placeholders = ', '.join(['?'] * len(cols))
                 vals = [item[k] for k in cols]
-                conn.execute(f"INSERT INTO line_items ({', '.join(cols)}) VALUES ({qs})", vals)
+                
+                # Insert with new code
+                q = f"INSERT INTO line_items (line_code, {', '.join(cols)}) VALUES (?, {placeholders})"
+                conn.execute(q, [new_code] + vals)
                 
     conn.commit()
     conn.close()
