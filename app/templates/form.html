@@ -1824,23 +1824,11 @@
         });
     });
 
-    const btnPublish = document.getElementById('btn-publish-draft');
-    if (btnPublish) {
-        btnPublish.addEventListener('click', async function () {
-            if (!confirm('Publish current draft as the live version?')) { return; }
-            setEditStatus('Publishing...', '#856404');
-            const res = await fetch('/admin/publish_draft', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
-                body: JSON.stringify({}),
-            });
-            const data = await res.json().catch(function () { return {}; });
-            if (res.ok) {
-                setEditStatus('Published ' + (data.published_at || ''), '#2e7d32');
-            } else {
-                alert('Publish failed: ' + (data.error || res.status));
-                setEditStatus('Publish failed', '#c62828');
-            }
+    const btnLoadForm = document.getElementById('btn-load-form');
+    if (btnLoadForm) {
+        btnLoadForm.addEventListener('click', async function () {
+            // Note: In real app, this should open a modal that fetches /builder_beta/list_forms and sets session state.
+            alert("Load form dialog - to be implemented with form switching endpoints.");
         });
     }
 

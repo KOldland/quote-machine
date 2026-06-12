@@ -669,10 +669,10 @@ def duplicate_form(old_key: str, new_title: str, new_description: str, db_path: 
     
     new_key = f"form_{uuid.uuid4().hex[:8]}"
     
-    # 1. Create new form entry
+    # 1. Create new form entry (tenant_id uses default 1 for now)
     conn.execute(
-        "INSERT INTO form_templates (key, name, description) VALUES (?, ?, ?)",
-        (new_key, new_title, new_description)
+        "INSERT INTO form_templates (tenant_id, key, name, description) VALUES (?, ?, ?, ?)",
+        (1, new_key, new_title, new_description)
     )
     
     # 2. Duplicate pages via page_schemas.json handling

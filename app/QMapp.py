@@ -1759,6 +1759,28 @@ def update_form_details():
     ts.update_form_template('builder_beta', title, description)
     return jsonify({'success': True})
 
+
+@app.route('/builder_beta/list_forms')
+@require_role('admin')
+def list_forms():
+    import template_store as ts
+    overview = ts.get_template_store_overview()
+    forms = overview.get('templates', [])
+    return jsonify({'success': True, 'forms': [{'key': f['template_key'], 'name': f['name']} for f in forms]})
+
+@app.route('/builder_beta/switch_form', methods=['POST'])
+@require_role('admin')
+def switch_form():
+    data = request.json
+    form_key = data.get('form_key')
+    if not form_key:
+        return jsonify({'success': False, 'error': 'Form key required'}), 400
+    
+    # In a fully fleshed out system, we would store the active working form_key in session
+    # Currently builder_beta assumes a single global form or pulls from a specific route
+    # For now, we update session['active_form_key'] = form_key
+    session['active_form_key'] = form_key
+    return jsonify({'success': True})
 @app.route('/builder_beta/save_form_as', methods=['POST'])
 @require_role('admin')
 def save_form_as():

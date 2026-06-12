@@ -206,13 +206,106 @@
                             </script>
                             <div class="edit-mode-actions" style="margin-top:.5rem;display:flex;flex-direction:column;gap:.35rem;">
                                 <a href="/form_editor?edit=1" class="btn btn-sidebar" style="width:100%;text-align:left;">Form Editor</a>
-                                <button type="button" id="btn-publish-draft" class="btn btn-sidebar" style="width:100%;">Publish</button>
+                                <button type="button" id="btn-load-form" class="btn btn-sidebar" style="width:100%;">Load Form</button>
                                 <form method="GET" action="{{ url_for('index') }}" style="width:100%;">
                                     <button type="submit" class="btn btn-sidebar" style="width:100%;">Exit Edit Mode</button>
                                 </form>
                             </div>
                         </div>
                     </div>
+
+                    <!-- Load Form Overlay -->
+                    <div id="load-form-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+                        <div style="background:#fff; padding:2rem; border-radius:8px; width:450px; max-width:90%; color:#333; font-family:sans-serif;">
+                            <h3 style="margin-top:0; margin-bottom:1rem; font-size:1.2rem; color:#1b3a6b;">Load Form</h3>
+                            <p style="margin-bottom:1rem; font-size:0.95rem; color:#666;">Select a form to load into the builder.</p>
+                            
+                            <select id="load-form-select" style="width:100%; padding:0.6rem; margin-bottom:1.5rem; border:1px solid #ccc; border-radius:4px; font-size:0.9rem;">
+                                <option value="">Loading forms...</option>
+                            </select>
+                            
+                            <div style="display:flex; justify-content:flex-end; gap:10px;">
+                                <button type="button" id="btn-load-form-cancel" class="btn" style="background:#f0f0f0; color:#333; border:1px solid #ccc; padding:0.5rem 1rem; border-radius:4px; cursor:pointer;">Cancel</button>
+                                <button type="button" id="btn-load-form-confirm" class="btn" style="background:#1b3a6b; color:#fff; border:none; padding:0.5rem 1rem; border-radius:4px; cursor:pointer;">Load Form</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <script>
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const btnLoadForm = document.getElementById('btn-load-form');
+                        const overlay = document.getElementById('load-form-overlay');
+                        const btnCancel = document.getElementById('btn-load-form-cancel');
+                        const btnConfirm = document.getElementById('btn-load-form-confirm');
+                        const select = document.getElementById('load-form-select');
+
+                        if (btnLoadForm) {
+                            btnLoadForm.addEventListener('click', function() {
+                                overlay.style.display = 'flex';
+                                select.innerHTML = '<option value="">Loading forms...</option>';
+                                btnConfirm.disabled = true;
+                                
+                                fetch('/builder_beta/list_forms')
+                                    .then(r => r.json())
+                                    .then(data => {
+                                        if (data.success && data.forms) {
+                                            select.innerHTML = '<option value="">-- Choose a Form --</option>';
+                                            data.forms.forEach(f => {
+                                                const opt = document.createElement('option');
+                                                opt.value = f.key;
+                                                opt.textContent = f.name + (f.description ? ` - ${f.description}` : '');
+                                                select.appendChild(opt);
+                                            });
+                                            btnConfirm.disabled = false;
+                                        } else {
+                                            select.innerHTML = '<option value="">Failed to load forms</option>';
+                                        }
+                                    })
+                                    .catch(err => {
+                                        select.innerHTML = '<option value="">Error loading forms</option>';
+                                    });
+                            });
+                            
+                            btnCancel.addEventListener('click', () => overlay.style.display = 'none');
+                            
+                            btnConfirm.addEventListener('click', function() {
+                                const formKey = select.value;
+                                if (!formKey) return;
+                                
+                                btnConfirm.disabled = true;
+                                btnConfirm.textContent = 'Loading...';
+                                
+                                const csrfInput = document.querySelector('input[name="csrf_token"]');
+                                const csrfToken = csrfInput ? csrfInput.value : '';
+
+                                fetch('/builder_beta/switch_form', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'X-CSRFToken': csrfToken
+                                    },
+                                    body: JSON.stringify({ form_key: formKey })
+                                })
+                                .then(r => r.json())
+                                .then(data => {
+                                    if (data.success) {
+                                        window.location.href = '/form_editor?edit=1';
+                                    } else {
+                                        alert("Failed to switch form: " + data.error);
+                                        btnConfirm.disabled = false;
+                                        btnConfirm.textContent = 'Load Form';
+                                    }
+                                })
+                                .catch(err => {
+                                    alert("Network error.");
+                                    btnConfirm.disabled = false;
+                                    btnConfirm.textContent = 'Load Form';
+                                });
+                            });
+                        }
+                    });
+                    </script>
+
                     <div class="nav-user">
                         <div class="nav-user-identity">user: {{ session['username'] }} ({{ session.get('role','user') }})</div>
                         <form method="POST" action="{{ url_for('logout') }}">
