@@ -170,12 +170,37 @@
                     .then(data => {
                         if(data.success) {
                             saveAsModal.style.display = 'none';
-                            alert("Form duplicated successfully. Currently, to view the new form you will need to switch out of this one.");
+                            
+                            // Auto-switch to the new form using the switch_form endpoint we created
+                            fetch('/builder_beta/switch_form', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('#li-csrf-token').value },
+                                body: JSON.stringify({ form_key: data.new_key })
+                            })
+                            .then(swRes => swRes.json())
+                            .then(swData => {
+                                if(swData.success) {
+                                    window.location.href = '/form_editor?edit=1';
+                                } else {
+                                    alert("Form saved, but failed to auto-switch: " + swData.error);
+                                    saveAsConfirm.disabled = false;
+                                    saveAsConfirm.textContent = 'Save Copy';
+                                }
+                            })
+                            .catch(err => {
+                                alert("Form saved, but network error on switch.");
+                                saveAsConfirm.disabled = false;
+                                saveAsConfirm.textContent = 'Save Copy';
+                            });
+
                         } else {
                             alert("Error: " + data.error);
+                            saveAsConfirm.disabled = false;
+                            saveAsConfirm.textContent = 'Save Copy';
                         }
                     })
-                    .finally(() => {
+                    .catch(err => {
+                        alert("Network error occurred.");
                         saveAsConfirm.disabled = false;
                         saveAsConfirm.textContent = 'Save Copy';
                     });
