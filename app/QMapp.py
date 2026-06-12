@@ -793,6 +793,7 @@ def _build_block_from_schema_field(page_id, field, position):
 			'rate': 0.0,
 			'quantity_key': '',
 			'percent_of_subtotal': 0.0,
+			'allow_user_override': False,
 		},
 		'output_options': {
 			'include_in_output': True,
@@ -1819,6 +1820,48 @@ def delete_form_route():
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
+# ── Quote Calculator: session override endpoint ──────────────────────────
+@app.route('/quote/session-override', methods=['POST'])
+def session_override():
+    """Accept user price overrides and payment-schedule parameter overrides."""
+    data = request.get_json(force=True) or {}
+    session.setdefault('overrides', {})
+
+    # Question-level price override
+    if 'question_id' in data and 'value' in data:
+        session['overrides'][f"q_{data['question_id']}"] = float(data['value'])
+
+    # Payment schedule percentage overrides
+    if 'deposit_pct' in data:
+        session['overrides']['deposit_pct'] = float(data['deposit_pct'])
+    if 'completion_pct' in data:
+        session['overrides']['completion_pct'] = float(data['completion_pct'])
+
+    session.modified = True
+    return jsonify({'success': True})
+
+
+# ── Quote Calculator: admin payment-schedule defaults ────────────────────
+@app.route('/admin/payment-schedule', methods=['POST'])
+@require_role('admin')
+def admin_payment_schedule():
+    """Save default deposit/completion percentages and the allow-override flag."""
+    import template_store as ts
+    data = request.get_json(force=True) or {}
+    deposit_pct = float(data.get('deposit_pct', 0.10))
+    completion_pct = float(data.get('completion_pct', 0.10))
+    allow_override = bool(data.get('allow_user_override', False))
+
+    # Persist into a dedicated block inside the builder_beta form template
+    ts.upsert_payment_schedule_block(
+        template_key='builder_beta',
+        deposit_pct=deposit_pct,
+        completion_pct=completion_pct,
+        allow_user_override=allow_override,
+    )
+    return jsonify({'success': True})
+
+
 @app.route('/builder_beta/page_details_save/<page_key>', methods=['POST'])
 @require_role('admin')
 def builder_page_details_save(page_key):
@@ -2097,159 +2140,9 @@ def compose_template(image_plan, upload_folder, output_basename='final_output'):
 ################################################################################################################################
 		
 def update_description_column(**submit_to_description_function):
-	if TEST_MODE:
-		return []
-	
-	if not submit_to_description_function:
-		print("No manual inputs provided, skipping description update.")
-		return []  # Return an empty list to prevent errors in submit()
-	
-	try:
-		# Fetch the sheet data
-		sheet_data = get_catalog()
-		if not sheet_data:
-			print("⚠ ERROR: No data fetched from Google Sheets.")
-			return
-		description_column_index = 11  # Description column
-		dimensions_column_index = 10  # Dimensions column
-		cost_column_index = 6  # Cost column
-		units_column_index = 7  # Units column
-		
-		updates = []
-		description_column_includes = []
-		
-		# Map line codes to their corresponding input variables
-		# Map line codes to their corresponding input variables
-		description_mappings = {
-			# Project Details
-			'pd1': 'client_address',  
-			'pd2': 'Date',  
-			'pd4^': 'fire_doors_number',  
-			'pd5^': 'non_fire_doors_number',  
-			
-			# Sliding Doors
-			'pd10': 'sliding_door_area',   # Doors / Sliding Door Area  
-			
-			# Additional Notes
-			'an1': 'an1_manual_input',  
-			'an2': 'an2_manual_input',  
-			'an3': 'an3_manual_input',  
-			'an4': 'an4_manual_input',  
-			'an5': 'an5_manual_input',  
-			'an6': 'an6_manual_input',  
-			'an7': 'an7_manual_input',  
-			
-			# New Build
-			'nb1#': 'nb1_manual_input',  
-			'nb2#': 'nb2_manual_input',  
-			
-			# Other Manual Inputs
-			'cs0': 'other_council',  
-			'er7^': 'other_roofing_description',  
-			'dra': 'drainage_other_input',  
-			'dw6#': 'other_demolition_option'  
-		}
-		
-		# Dimensions column mappings
-		dimensions_mappings = {
-			# General Dimensions
-			'dm1@': 'dimension_1',  
-			'dm2@': 'dimension_2',  
-			'dm3@': 'dimension_3',  
-			'dm4@': 'dimension_4',  
-			'dm5@': 'sliding_door_dimensions',  # Sliding Door Dimensions  
-			
-			# Lightwell
-			'lwx': 'lightwell_dimensions',  
-			
-			# Wall Heights
-			'ew4': 'wall_height_metres',  
-			'ew5': 'wall_height_centimetres'  
-		}
-		
-		# Cost column mappings
-		cost_mappings = {}
-		
-		# Explicitly handle predefined cost fields (drainage & demolition)
-		direct_cost_values = {'dw6#': 'other_demolition_cost', 'dr4^': 'drainage_other_cost'}
-		cost_mappings.update(direct_cost_values)
-		
-		# Ensure 'iw_fixed_values' exists before looping
-		if 'iw_fixed_values' in submit_to_description_function and submit_to_description_function['iw_fixed_values']:
-			for key in submit_to_description_function['iw_fixed_values']:
-				cost_mappings[key] = 'iw_fixed_values'
-						
-		# Units column mapping
-		units_mappings = {
-			# Electrics
-			'elkl0': 'kitchen_lights_amount',
-			'elkp0': 'kitchen_points_amount',
-			'elll0': 'loft_lights_amount',
-			'ellp0': 'loft_points_amount'
-		}
-		
-		# Ensure 'iw_sqm_values' exists before looping
-		if 'iw_sqm_values' in submit_to_description_function and submit_to_description_function['iw_sqm_values']:
-			for key in submit_to_description_function['iw_sqm_values']:
-				units_mappings[key] = 'iw_sqm_values'
-		
-		for row_index, row in enumerate(sheet_data, start=2): 
-			line_code = row.get('Line Code', '').strip()
-			alphanumeric_code = to_alphanumeric_code(line_code)  			
-			
-			# Update description column
-			if line_code in description_mappings:
-				input_value = submit_to_description_function.get(description_mappings[line_code], '').strip()
-				if input_value: 
-					updates.append({'range': f'K{row_index}', 'values': [[input_value]]})
-					description_column_includes.append(line_code)
-					
-			# Update dimensions column
-			if line_code in dimensions_mappings:
-				input_value = submit_to_description_function.get(dimensions_mappings[line_code], '').strip()
-				if input_value:
-					updates.append({'range': f'J{row_index}', 'values': [[input_value]]})
-					description_column_includes.append(line_code)
-		
-			# Update Cost column
-			if line_code in cost_mappings:
-				cost_dict_name = cost_mappings[line_code]  # Get the mapped dictionary name
-				
-				retrieved_value = submit_to_description_function.get(cost_dict_name, 'MISSING!')
-				
-				# If the retrieved value is a dictionary, use it normally
-				if isinstance(retrieved_value, dict):
-					cost_dict = retrieved_value
-					cost_value = to_float(cost_dict.get(line_code, 0))  # Extract correct value
-				else:
-					cost_value = to_float(retrieved_value)  # If it's a string/float, convert directly
-					
-				updates.append({'range': f'F{row_index}', 'values': [[cost_value]]})
-				
-			# Update units column
-			if line_code in units_mappings:
-				# Ensure units_mappings[line_code] is used correctly
-				unit_dict_name = units_mappings[line_code]  # This returns 'iw_sqm_values'
-				
-				unit_dict = submit_to_description_function.get(unit_dict_name, {})  # Fetch actual dictionary
-				unit_value = to_float(unit_dict.get(line_code, 0))  # Extract correct value
-				updates.append({'range': f'G{row_index}', 'values': [[unit_value]]})
-												
-		if updates:
-			sheet.batch_update(updates) 
-			
-		if description_column_includes and len(description_column_includes) > 0:
-			update_include_column(description_column_includes)
-			
-		else:
-			print("No updates to send.")
-				
-		return description_column_includes
-	
-	except Exception as e:
-		print(f" Error updating description columns: {e}")
-		
-		return [], [] 
+	"""DEPRECATED: Description updates are now handled dynamically by the builder beta architecture."""
+	print("DEPRECATED: update_description_column called. This function is a no-op.")
+	return []
 		
 ################################################################################################################################
 		
@@ -2926,6 +2819,7 @@ def builder_beta_page_editor(page_id):
 				pricing_options['rate'] = _parse_builder_float(request.form.get('pricing_rate'), pricing_options.get('rate', 0.0), 0, 1000000)
 				pricing_options['quantity_key'] = (request.form.get('pricing_quantity_key') or pricing_options.get('quantity_key', '')).strip()
 				pricing_options['percent_of_subtotal'] = _parse_builder_float(request.form.get('pricing_percent_of_subtotal'), pricing_options.get('percent_of_subtotal', 0.0), 0, 100)
+				pricing_options['allow_user_override'] = request.form.get('pricing_allow_user_override') == 'on'
 				
 				save_page_schemas()
 				flash('Block saved.', 'success')

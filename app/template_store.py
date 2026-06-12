@@ -130,6 +130,7 @@ def _create_schema(conn: sqlite3.Connection) -> None:
             label TEXT,
             storage_key TEXT,
             display_order INTEGER NOT NULL,
+            allow_user_override INTEGER NOT NULL DEFAULT 0,
             metadata_json TEXT NOT NULL,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             UNIQUE (page_template_id, question_key),
@@ -1269,3 +1270,70 @@ def add_category(page_key: str, category_name: str, template_key: str = "first_c
         return {"success": False, "error": str(e)}
     finally:
         conn.close()
+
+
+# ── Quote Calculator ─────────────────────────────────────────────────────
+def upsert_payment_schedule_block(
+    template_key: str,
+    deposit_pct: float = 0.10,
+    completion_pct: float = 0.10,
+    allow_user_override: bool = False,
+    db_path: Optional[Path] = None,
+) -> None:
+    """Persist payment-schedule defaults into form_templates.settings_json."""
+    import json
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+
+    row = conn.execute(
+        "SELECT id, settings_json FROM form_templates WHERE key = ?",
+        (template_key,),
+    ).fetchone()
+
+    if not row:
+        conn.close()
+        return
+
+    settings = json.loads(row["settings_json"] or "{}")
+    settings["payment_schedule"] = {
+        "deposit_pct": deposit_pct,
+        "completion_pct": completion_pct,
+        "allow_user_override": allow_user_override,
+    }
+
+    conn.execute(
+        "UPDATE form_templates SET settings_json = ? WHERE key = ?",
+        (json.dumps(settings), template_key),
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_payment_schedule_block(
+    template_key: str,
+    db_path: Optional[Path] = None,
+) -> dict:
+    """Return payment-schedule settings dict with defaults if not set."""
+    import json
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+
+    row = conn.execute(
+        "SELECT settings_json FROM form_templates WHERE key = ?",
+        (template_key,),
+    ).fetchone()
+    conn.close()
+
+    if row:
+        settings = json.loads(row["settings_json"] or "{}")
+        return settings.get("payment_schedule", {
+            "deposit_pct": 0.10,
+            "completion_pct": 0.10,
+            "allow_user_override": False,
+        })
+
+    return {
+        "deposit_pct": 0.10,
+        "completion_pct": 0.10,
+        "allow_user_override": False,
+    }
