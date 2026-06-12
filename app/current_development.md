@@ -26,14 +26,19 @@
 ## Current State
   The nested fractal UI is structurally sound, styled correctly to flow naturally without layout overlap breaks, and allows editing the schema properties at three distinct hierarchy levels: Pages, Categories, and Line Item questions. The Form Editor has been successfully integrated into the main builder view. Batch page reordering and full 3-column layout are operational with correct column header parity and no CSS collision between form_editor_mode and the macro-driven category/question views.
 
+ - Wired up SAVE FORM DETAILS persistence in Form Editor view. **[DONE]**
+ - Added Save Form As UI modal, duplicate form generation, auto-routing logic, and Toast feedback upon success. **[DONE]**
+ - Added Delete Form capability with complete schematic teardown natively handled in database transactions with correctly stylized delete UI. **[DONE]**
+ - Replaced legacy 'Publish' button in left admin navigation panel with a 'Load Form' button linked to an active session switcher `/builder_beta/switch_form` to load external `.sqlite` form schemas seamlessly. **[DONE]**
+
 ## Immediate Next Task
-  - **Wire up SAVE FORM DETAILS persistence** — confirm or create `/builder_beta/update_form_details` endpoint in `QMapp.py`. Confirm page visibility toggles persist correctly.
-  - Longer term: add "Add Page" button from Form Editor sidebar.
+  - **Add "Add Page" button** from Form Editor sidebar to allow generating raw pages natively instead of purely duplicating.
+  - Test "Save Form As" and "Delete Form" end-to-end to ensure the redirect behavior functions perfectly.
 
 ## Active Files for Context
-  - @app/templates/form.html (CSS scoping fix, Jinja block fix, Form Editor panel)
-  - @app/templates/_builder_macros.html (header parity, breadcrumb CSS, li-3col-canvas CSS)
-  - @app/QMapp.py (check/add `/builder_beta/update_form_details` route)
-  - @app/static/css/main.css (updated)
-  - @app/SESSION.md (updated)
-  - @app/current_development.md (updated)
+  - @app/templates/form.html
+  - @app/templates/index.html
+  - @app/QMapp.py
+  - @app/template_store.py
+  - @app/SESSION.md
+  - @app/current_development.md
