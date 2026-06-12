@@ -31,6 +31,7 @@ Implement a dedicated database table for Categories, update the JSON schema to d
 - [x] Page Ordering: Up/down arrow system to reorder pages.
 - [x] Category Ordering: Up/down ordering for categories within a page.
 - [x] Question Ordering: Up/down ordering for questions within a category.
+- [x] Implement page batch reordering (drag-and-drop persist).
 - [ ] Category Controls: UI controls for categories including a 'make visible' checkbox, 'add question' button, 'save' button, and 'move to page' (similar approach to the Meta tab in the question editor).
 
 ## Architectural Vision (Pages > Categories > Questions)

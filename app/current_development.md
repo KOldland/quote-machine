@@ -15,20 +15,18 @@
  - **Updated `/form_editor` route in `QMapp.py` to render `form.html` with `form_editor_mode=True`.** **[DONE]**
  - **Removed redundant `app/templates/form_editor.html`.** **[DONE]**
  - **Added CSRF tokens to AJAX requests in `app/templates/form.html`.** **[DONE]**
+ - **Implemented batch reordering for pages via `/builder_beta/reorder_all_pages` endpoint & frontend drag handles / drop-zone feedback.** **[DONE]**
  
  ## Current State
- The nested fractal UI is structurally sound, styled correctly to flow naturally without layout overlap breaks, and allows editing the schema properties at three distinct hierarchy levels: Pages, Categories, and Line Item questions. The Form Editor has been successfully integrated into the main builder view.
+ The nested fractal UI is structurally sound, styled correctly to flow naturally without layout overlap breaks, and allows editing the schema properties at three distinct hierarchy levels: Pages, Categories, and Line Item questions. The Form Editor has been successfully integrated into the main builder view, and batch page reordering is now fully operational with visual drag-and-drop feedback.
  
  ## Immediate Next Task
- - **Implement Batch Reordering for Pages.**
- - Although Drag-and-Drop visuals are implemented, the backend currently only supports single-swap ordering. Create a `reorder_all_pages` endpoint to persist the final state after a drag operation.
- - Polish Form Editor CSS to include drag-handle icons and specific "drop zone" feedback.
+ - **Implement Category Controls & Page Assignment.**
+ - Develop the sidebar/canvas category mapping controls following the Pages > Categories > Questions hierarchy.
  
  ## Active Files for Context
  - @app/templates/form.html (updated)
  - @app/QMapp.py (updated)
- - @app/static/js/builder.js (updated with CSRF token)
- - @app/template_store.py
- - @app/templates/index.html
- - @app/SESSION.md
- - @app/current_development.md
+ - @app/static/css/main.css (updated)
+ - @app/SESSION.md (updated)
+ - @app/current_development.md (updated)
