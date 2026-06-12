@@ -15,14 +15,18 @@
 * Added `.breadcrumb-trail` CSS class to prevent breadcrumb text wrapping (truncates with ellipsis).
 * Description accordion in Form Editor: uses `li-editor-section-header` / `li-sec-toggle` class, starts collapsed, driven by `DOMContentLoaded` script.
 
+## Completed Tasks This Session
+* Wired up SAVE FORM DETAILS persistence in Form Editor view.
+* Added Save Form As UI modal and duplication logic.
+* Added Delete Form capability with clean DB and schema JSON teardown.
+
 ## Immediate Next Task
-* **Wire up SAVE FORM DETAILS persistence** — the "SAVE FORM DETAILS" button in Form Editor panel POSTs to `/builder_beta/update_form_details`. Confirm endpoint exists in `QMapp.py` or create it. Confirm page visibility toggles persist.
-* Longer term: add "Add Page" button from Form Editor sidebar.
+* **Add "Add Page" button** from Form Editor sidebar to allow generating raw pages natively instead of purely duplicating.
+* Test "Save Form As" and "Delete Form" end-to-end to ensure the redirect behavior functions perfectly.
 
 ## Active Files for Context
-* @app/templates/form.html (CSS scoping fix, Jinja block fix, Form Editor panel)
-* @app/templates/_builder_macros.html (header parity, breadcrumb CSS, li-3col-canvas CSS, sidebar arrows removed)
-* @app/QMapp.py (check/add `/builder_beta/update_form_details` route)
-* @app/static/css/main.css
+* @app/templates/form.html
+* @app/QMapp.py
+* @app/template_store.py
 * @app/SESSION.md
 * @app/current_development.md

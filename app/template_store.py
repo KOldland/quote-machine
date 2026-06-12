@@ -660,6 +660,118 @@ def update_form_template(template_key: str, name: str, description: str, db_path
 
 
 # ---------------------------------------------------------------------------
+def duplicate_form(old_key: str, new_title: str, new_description: str, db_path: Optional[Path] = None) -> str:
+    '''Duplicates a form, its pages, categories, and questions.'''
+    import json
+    import uuid
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    
+    new_key = f"form_{uuid.uuid4().hex[:8]}"
+    
+    # 1. Create new form entry
+    conn.execute(
+        "INSERT INTO form_templates (key, name, description) VALUES (?, ?, ?)",
+        (new_key, new_title, new_description)
+    )
+    
+    # 2. Duplicate pages via page_schemas.json handling
+    schemas_path = path.parent / 'page_schemas.json'
+    if schemas_path.exists():
+        with open(schemas_path, 'r') as f:
+            schemas = json.load(f)
+            
+        if old_key in schemas:
+            schemas[new_key] = json.loads(json.dumps(schemas[old_key])) # Deep copy
+            # Update form_key references if needed inside pages? Usually pages belong to the key top-level
+            with open(schemas_path, 'w') as f:
+                json.dump(schemas, f, indent=2)
+                
+    # 3. Duplicate pages in DB
+    pages = conn.execute("SELECT id, page_key, title, sort_order, is_hidden, description FROM page_templates WHERE form_key = ?", (old_key,)).fetchall()
+    
+    # Mapping old page_key to new page_key (though currently page_key is scoped by form in DB ideally, but it should be unique or tied by form_key)
+    # Actually, we might keep page_keys the same within the new form context, but need to be careful if page_keys are globally unique.
+    
+    for p in pages:
+        # Assuming we just insert with new form_key
+        conn.execute(
+            "INSERT INTO page_templates (form_key, page_key, title, sort_order, is_hidden, description) VALUES (?, ?, ?, ?, ?, ?)",
+            (new_key, p['page_key'], p['title'], p['sort_order'], p['is_hidden'], p['description'])
+        )
+        
+        # 4. Duplicate categories
+        categories = conn.execute("SELECT id, name, sort_order, is_hidden FROM category_templates WHERE page_id = ?", (p['id'],)).fetchall()
+        
+        # We need the new page_id
+        new_page_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+        
+        for c in categories:
+            conn.execute(
+                "INSERT INTO category_templates (page_id, name, sort_order, is_hidden) VALUES (?, ?, ?, ?)",
+                (new_page_id, c['name'], c['sort_order'], c['is_hidden'])
+            )
+            new_cat_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+            
+            # 5. Duplicate line items (questions)
+            # Find old line items by checking their page_key and category
+            # WAIT: line_items table links to category (string) and page_key (string).
+            # This mapping might need form_key eventually, but line_items DB has:
+            # page_key, block_id, category, sort_order, etc.
+            
+            # If line_items relies on page_key string which is globally shared, we have a schema duplication problem.
+            # In the immediate term, we only assign line_items to a combination of page_key and category.
+            # If we duplicate, we need to prefix page_keys if they must be globally unique per line_item.
+            
+            items = conn.execute("SELECT * FROM line_items WHERE page_key = ? AND category = ?", (p['page_key'], c['name'])).fetchall()
+            for item in items:
+                cols = [k for k in item.keys() if k != 'id']
+                qs = ', '.join(['?'] * len(cols))
+                vals = [item[k] for k in cols]
+                conn.execute(f"INSERT INTO line_items ({', '.join(cols)}) VALUES ({qs})", vals)
+                
+    conn.commit()
+    conn.close()
+    return new_key
+
+def delete_form(form_key: str, db_path: Optional[Path] = None):
+    '''Deletes a form and all associated data.'''
+    import json
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    
+    # 1. Get all pages
+    pages = conn.execute("SELECT id, page_key FROM page_templates WHERE form_key = ?", (form_key,)).fetchall()
+    
+    for p in pages:
+        # Get categories
+        categories = conn.execute("SELECT name FROM category_templates WHERE page_id = ?", (p['id'],)).fetchall()
+        for c in categories:
+            # Delete line items
+            conn.execute("DELETE FROM line_items WHERE page_key = ? AND category = ?", (p['page_key'], c['name']))
+            
+        # Delete categories
+        conn.execute("DELETE FROM category_templates WHERE page_id = ?", (p['id'],))
+        
+    # Delete pages
+    conn.execute("DELETE FROM page_templates WHERE form_key = ?", (form_key,))
+    
+    # Delete form template
+    conn.execute("DELETE FROM form_templates WHERE key = ?", (form_key,))
+    
+    conn.commit()
+    conn.close()
+    
+    # Remove from JSON
+    schemas_path = path.parent / 'page_schemas.json'
+    if schemas_path.exists():
+        with open(schemas_path, 'r') as f:
+            schemas = json.load(f)
+        if form_key in schemas:
+            del schemas[form_key]
+            with open(schemas_path, 'w') as f:
+                json.dump(schemas, f, indent=2)
+
 # Catalog / option-set layer
 # ---------------------------------------------------------------------------
 

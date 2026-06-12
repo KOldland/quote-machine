@@ -1726,7 +1726,7 @@ def form_editor():
         return redirect(url_for('index'))
 
     # Load form level schema configuration
-    form_data = ts.get_form_template('builder_beta')
+    form_data = ts.get_form_template(TEMPLATE_STORE_KEY)
 
     form_details = {
         'title': form_data['name'] if form_data else 'Unnamed Form',
@@ -1735,7 +1735,7 @@ def form_editor():
     }
 
     # Fetch pages ordered by display_order
-    ordered_pages = ts.get_all_pages('builder_beta')
+    ordered_pages = ts.get_all_pages(TEMPLATE_STORE_KEY)
 
     return render_template('form.html',
                            form_editor_mode=True,
@@ -1758,6 +1758,44 @@ def update_form_details():
 
     ts.update_form_template('builder_beta', title, description)
     return jsonify({'success': True})
+
+@app.route('/builder_beta/save_form_as', methods=['POST'])
+@require_role('admin')
+def save_form_as():
+    import template_store as ts
+    data = request.json
+    old_key = data.get('old_key')
+    new_title = data.get('new_title')
+    new_description = data.get('new_description', '')
+    
+    if not old_key or not new_title:
+        return jsonify({'success': False, 'error': 'Old key and new title are required'}), 400
+        
+    try:
+        new_key = ts.duplicate_form(old_key, new_title, new_description)
+        return jsonify({'success': True, 'new_key': new_key})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/builder_beta/delete_form', methods=['POST'])
+@require_role('admin')
+def delete_form_route():
+    import template_store as ts
+    data = request.json
+    form_key = data.get('form_key')
+    
+    if not form_key:
+        return jsonify({'success': False, 'error': 'Form key is required'}), 400
+        
+    try:
+        ts.delete_form(form_key)
+        return jsonify({'success': True})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/builder_beta/page_details_save/<page_key>', methods=['POST'])
 @require_role('admin')
