@@ -170,28 +170,31 @@
                     .then(data => {
                         if(data.success) {
                             saveAsModal.style.display = 'none';
+                            if(typeof window.showQmToast === 'function') window.showQmToast('✓ Form duplicated successfully!');
                             
                             // Auto-switch to the new form using the switch_form endpoint we created
-                            fetch('/builder_beta/switch_form', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('#li-csrf-token').value },
-                                body: JSON.stringify({ form_key: data.new_key })
-                            })
-                            .then(swRes => swRes.json())
-                            .then(swData => {
-                                if(swData.success) {
-                                    window.location.href = '/form_editor?edit=1';
-                                } else {
-                                    alert("Form saved, but failed to auto-switch: " + swData.error);
+                            setTimeout(() => {
+                                fetch('/builder_beta/switch_form', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('#li-csrf-token').value },
+                                    body: JSON.stringify({ form_key: data.new_key })
+                                })
+                                .then(swRes => swRes.json())
+                                .then(swData => {
+                                    if(swData.success) {
+                                        window.location.href = '/form_editor?edit=1';
+                                    } else {
+                                        alert("Form saved, but failed to auto-switch: " + swData.error);
+                                        saveAsConfirm.disabled = false;
+                                        saveAsConfirm.textContent = 'Save Copy';
+                                    }
+                                })
+                                .catch(err => {
+                                    alert("Form saved, but network error on switch.");
                                     saveAsConfirm.disabled = false;
                                     saveAsConfirm.textContent = 'Save Copy';
-                                }
-                            })
-                            .catch(err => {
-                                alert("Form saved, but network error on switch.");
-                                saveAsConfirm.disabled = false;
-                                saveAsConfirm.textContent = 'Save Copy';
-                            });
+                                });
+                            }, 1000);
 
                         } else {
                             alert("Error: " + data.error);
@@ -314,6 +317,12 @@
             font-size:.82rem; font-weight:700; cursor:pointer; letter-spacing:.04em;
         }
         .li-save-btn:hover { background:#264d8e; }
+        .li-delete-btn {
+            width:100%; padding:.45rem; margin-top:.5rem;
+            background:#fff; color:#dc3545; border:1px solid #dc3545; border-radius:5px;
+            font-size:.82rem; font-weight:700; cursor:pointer; letter-spacing:.04em; transition:all .1s;
+        }
+        .li-delete-btn:hover { background:#dc3545; color:#fff; }
         .li-qlist-row {
             display:grid; grid-template-columns:24px 1fr auto;
             gap:.4rem; align-items:center;
