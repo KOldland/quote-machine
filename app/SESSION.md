@@ -1,18 +1,19 @@
 # Active Sprint Handoff
 
 ## Current Goal
-* **Session AM — STARTING: Save As Template Workflow**
+* **Session AN — STARTING: Creating the Form Editor View**
 
 ## Completed Tasks This Session
-* Built empty `/edit_home` landing page for safety rendering after page/category deletion.
+* Form Editor implementation plan has been written and saved to `current_development.md`.
 
 ## Immediate Next Task
-* **Create the "Save As Template" workflow.**
+* **Execute Form Editor Step 1: Remove "Undo" button and implement "Form Editor" navigation.**
 
 ## Active Files for Context (next session)
-* @app/templates/_builder_macros.html
-* @app/templates/form.html
+* @app/templates/index.html
+* @app/templates/form_editor.html
 * @app/static/js/builder.js
 * @app/QMapp.py
+* @app/template_store.py
 * @app/SESSION.md
 * @app/current_development.md

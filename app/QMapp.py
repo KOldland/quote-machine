@@ -632,12 +632,12 @@ def update_builder_draft_from_form(form_data):
 				'fields': [],
 			}
 
-			if previous_endpoint in pages and previous_endpoint != new_page_id:
-				pages[previous_endpoint].setdefault('navigation', {})['next_endpoint'] = new_page_id
-			if next_endpoint in pages and next_endpoint != new_page_id:
-				pages[next_endpoint].setdefault('navigation', {})['previous_endpoint'] = new_page_id
+            if previous_endpoint in pages and previous_endpoint != new_page_id:
+                pages[previous_endpoint].setdefault('navigation', {})['next_endpoint'] = new_page_id
+            if next_endpoint in pages and next_endpoint != new_page_id:
+                pages[next_endpoint].setdefault('navigation', {})['previous_endpoint'] = new_page_id
 
-			warnings.append(f"New page '{new_page_id}' created in builder draft. Route binding is part of the next page-builder slice.")
+            warnings.append(f"New page '{new_page_id}' created in builder draft. Route binding is part of the next page-builder slice.")
 
 	for page_id, page in pages.items():
 		# Page title
@@ -1739,7 +1739,7 @@ def form_editor():
     }
 
     # Fetch pages ordered by display_order
-    ordered_pages = ts.get_form_pages('builder_beta')
+    ordered_pages = ts.get_all_pages('builder_beta')
 
     return render_template('form_editor.html',
                            edit_mode=True,
