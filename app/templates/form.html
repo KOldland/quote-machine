@@ -20,47 +20,59 @@
     {# CSRF token for JS save calls #}
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" id="li-csrf-token">
     {% if form_editor_mode %}
-        <div class="form-editor-container" style="padding: 2rem; max-width: 1000px; margin: 0 auto; display: flex; gap: 2rem;">
-            <!-- Left Column: Form Details -->
-            <div class="form-details-section" style="flex: 1; background: #fff; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                <h2 style="margin-top: 0; color: #1b3a6b; font-size: 1.25rem; border-bottom: 2px solid #f0f0f0; padding-bottom: 0.5rem; margin-bottom: 1.5rem;">Form Details</h2>
-                
-                <div class="form-group" style="margin-bottom: 1rem;">
-                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #333;">Form Title</label>
-                    <input type="text" id="form-title" value="{{ form_details.title }}" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem;">
-                </div>
-                
-                <div class="form-group" style="margin-bottom: 1.5rem;">
-                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #333;">Description</label>
-                    <textarea id="form-description" rows="4" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; font-size: 0.95rem; resize: vertical;">{{ form_details.description }}</textarea>
-                </div>
-                
-                <button id="btn-save-form-details" class="btn btn-sidebar" style="width: 100%; padding: 0.75rem; font-size: 1rem;">Save Form Details</button>
-                <div id="form-save-status" style="margin-top: 0.5rem; text-align: center; color: #28a745; font-size: 0.9rem; opacity: 0; transition: opacity 0.3s;">Saved Successfully</div>
-            </div>
+        <div class="li-3col-canvas">
+            {{ builder_macros.render_li_sections_panel(
+                   li_categories if (li_categories is defined and li_categories) else [],
+                   form_page_key) }}
 
-            <!-- Right Column: Page Order -->
-            <div class="page-order-section" style="flex: 1; background: #fff; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                <h2 style="margin-top: 0; color: #1b3a6b; font-size: 1.25rem; border-bottom: 2px solid #f0f0f0; padding-bottom: 0.5rem; margin-bottom: 1rem;">Page Order</h2>
-                <p style="font-size: 0.9rem; color: #666; margin-bottom: 1rem;">Drag to reorder pages in your form navigation.</p>
-                
-                <div class="page-list" id="sortable-pages" style="border: 1px solid #eee; border-radius: 4px; overflow: hidden;">
-                    {% for page in db_pages %}
-                        {% if page.page_key != 'index' %}
-                        <div class="page-item" draggable="true" data-id="{{ page.id }}">
-                            <span class="drag-handle">⠿</span>
-                            <div class="page-title-text" style="flex: 1; font-weight: 500;">{{ page.title }}</div>
-                            <div style="font-size: 0.8rem; color: #888; margin-right: 1rem;">(/{{ page.page_key }})</div>
-                            <div class="order-controls" style="display: flex; flex-direction: column; gap: 2px;">
-                                <button type="button" class="btn-move-page" data-id="{{ page.id }}" data-dir="up" title="Move Up" style="background: none; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; padding: 0 4px; font-size: 10px; color: #555; {% if loop.index0 == 1 %}opacity: 0.3; pointer-events: none;{% endif %}">▲</button>
-                                <button type="button" class="btn-move-page" data-id="{{ page.id }}" data-dir="down" title="Move Down" style="background: none; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; padding: 0 4px; font-size: 10px; color: #555; {% if loop.last %}opacity: 0.3; pointer-events: none;{% endif %}">▼</button>
+            {# ── Form Editor — single panel matching category view pattern ── #}
+            <div class="li-question-panel">
+                {# Breadcrumb header — padding matches li-sections-header (.6rem) #}
+                <div class="li-qp-header">
+                    <span style="font-weight:600;font-size:.85rem;color:#1b3a6b;flex:1;">Form Editor</span>
+                    <span id="form-save-status" style="font-size:.75rem;color:#28a745;min-width:60px;text-align:right;"></span>
+                </div>
+
+                <div style="overflow-y:auto;flex:1;padding:.75rem;">
+                    {# Description accordion — starts COLLAPSED, uses named li-sec-toggle, no inline onclick #}
+                    <div class="li-editor-section">
+                        <div class="li-editor-section-header">
+                            <span>Description</span>
+                            <span class="li-sec-toggle">▸</span>
+                        </div>
+                        <div class="li-editor-section-body collapsed">
+                            <div class="li-form-group">
+                                <label>Form Title</label>
+                                <input type="text" id="form-title" value="{{ form_details.title }}">
+                            </div>
+                            <div class="li-form-group">
+                                <label>Description</label>
+                                <textarea id="form-description" rows="4">{{ form_details.description }}</textarea>
                             </div>
                         </div>
+                    </div>
+
+                    {# Pages in Form — matches "Questions in Category" pattern with li-qlist-row grid #}
+                    <div style="padding:.45rem 0 .3rem 0;font-weight:700;color:#444;font-size:.85rem;border-top:1px solid #eee;margin-top:.5rem;">Pages in Form</div>
+                    <div id="sortable-pages" style="padding:.1rem 0;">
+                        {% for page in db_pages %}
+                            {% if page.page_key != 'index' %}
+                            <div class="li-qlist-row page-item" draggable="true" data-id="{{ page.id }}">
+                                <span style="color:#bbb;font-size:1rem;user-select:none;cursor:grab;">⠿</span>
+                                <span class="li-qlist-desc" title="{{ page.title }}">{{ page.title }}</span>
+                                <span style="font-size:.7rem;color:#aaa;">/{{ page.page_key }}</span>
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                        {% if not db_pages or db_pages|length <= 1 %}
+                            <p style="color:#999;font-size:.8rem;padding:.5rem 0;">No pages yet. Add pages via the sidebar.</p>
                         {% endif %}
-                    {% endfor %}
-                    {% if not db_pages or db_pages|length <= 1 %}
-                        <div style="padding: 1rem; text-align: center; color: #888; font-size: 0.9rem;">No configurable pages found. Add pages via the sidebar.</div>
-                    {% endif %}
+                    </div>
+                </div>
+
+                {# Sticky footer — li-save-btn + li-delete-btn pattern matching category view #}
+                <div style="background:#fff;padding:.75rem;border-top:1px solid #dee2e6;box-shadow:0 -2px 6px rgba(0,0,0,.06);">
+                    <button type="button" id="btn-save-form-details" class="li-save-btn" style="margin-top:0;">SAVE FORM DETAILS</button>
                 </div>
             </div>
         </div>
@@ -73,10 +85,8 @@
                 saveBtn.addEventListener('click', () => {
                     const title = document.getElementById('form-title').value;
                     const description = document.getElementById('form-description').value;
-                    
                     saveBtn.disabled = true;
                     saveBtn.textContent = 'Saving...';
-
                     fetch('/builder_beta/update_form_details', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('#li-csrf-token').value },
@@ -85,104 +95,117 @@
                     .then(res => res.json())
                     .then(data => {
                         if(data.success) {
-                            statusEl.textContent = 'Saved Successfully';
-                            statusEl.style.color = '#28a745';
-                            statusEl.style.opacity = 1;
-                            setTimeout(() => statusEl.style.opacity = 0, 2000);
+                            statusEl.textContent = '✓ Saved';
+                            setTimeout(() => statusEl.textContent = '', 2500);
                         } else {
                             alert("Error: " + data.error);
                         }
                     })
                     .finally(() => {
                         saveBtn.disabled = false;
-                        saveBtn.textContent = 'Save Form Details';
+                        saveBtn.textContent = 'SAVE FORM DETAILS';
                     });
                 });
             }
 
+            // Drag-to-reorder pages
             const sortableList = document.getElementById('sortable-pages');
             let dragSrcEl = null;
-
             if (sortableList) {
                 sortableList.addEventListener('dragstart', (e) => {
                     dragSrcEl = e.target.closest('.page-item');
                     e.dataTransfer.effectAllowed = 'move';
-                    dragSrcEl.classList.add('dragging');
+                    if (dragSrcEl) dragSrcEl.style.opacity = '0.5';
                 });
-
                 sortableList.addEventListener('dragover', (e) => {
                     e.preventDefault();
                     const target = e.target.closest('.page-item');
-                    if (target && target !== dragSrcEl) {
-                        target.classList.add('drag-over');
+                    if (target && dragSrcEl && target !== dragSrcEl) {
                         const rect = target.getBoundingClientRect();
-                        const midpoint = (rect.bottom - rect.top) / 2;
-                        const relativeMouseY = e.clientY - rect.top;
-                        
-                        if (relativeMouseY < midpoint) {
-                            sortableList.insertBefore(dragSrcEl, target);
-                        } else {
-                            sortableList.insertBefore(dragSrcEl, target.nextSibling);
-                        }
+                        const after = (e.clientY - rect.top) > rect.height / 2;
+                        sortableList.insertBefore(dragSrcEl, after ? target.nextSibling : target);
                     }
                 });
-
-                sortableList.addEventListener('dragleave', (e) => {
-                    const target = e.target.closest('.page-item');
-                    if (target) {
-                        target.classList.remove('drag-over');
-                    }
-                });
-
                 sortableList.addEventListener('dragend', () => {
-                    dragSrcEl.classList.remove('dragging');
-                    document.querySelectorAll('.page-item').forEach(item => item.classList.remove('drag-over'));
-                    
-                    const pageIds = Array.from(sortableList.querySelectorAll('.page-item')).map(item => item.dataset.id);
+                    if (dragSrcEl) dragSrcEl.style.opacity = '';
+                    dragSrcEl = null;
+                    const pageIds = Array.from(sortableList.querySelectorAll('.page-item')).map(el => el.dataset.id);
                     fetch('/builder_beta/reorder_all_pages', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('#li-csrf-token').value },
                         body: JSON.stringify({ page_ids: pageIds })
-                    })
-                    .then(res => res.json())
-                    .then(data => {
-                        if (!data.success) {
-                            alert('Reordering failed: ' + data.error);
-                        } else {
-                            // Optionally refresh/flash visual feedback or update arrow disabled states if any
-                            location.reload();
-                        }
-                    })
-                    .catch(err => {
-                        console.error('Error reordering pages:', err);
+                    }).then(res => res.json()).then(data => {
+                        if (!data.success) alert('Reorder failed: ' + data.error);
                     });
                 });
             }
-
-            document.querySelectorAll('.btn-move-page').forEach(btn => {
-                btn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const pageId = this.dataset.id;
-                    const direction = this.dataset.dir;
-                    
-                    fetch('/builder_beta/swap_order', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('#li-csrf-token').value },
-                        body: JSON.stringify({ scope: 'page', identifier: pageId, direction: direction })
-                    })
-                    .then(res => res.json())
-                    .then(data => {
-                        if(data.success) {
-                            window.location.reload();
-                        } else {
-                            alert("Error moving page: " + (data.error || "Unknown error"));
-                        }
-                    });
+        });
+        </script>
+        {# CSS scoped to form_editor_mode — MUST be here, not below, to avoid overriding macro CSS #}
+        <style>
+        .li-3col-canvas {
+            display: flex; flex-direction: row;
+            height: calc(100vh - 260px); min-height: 400px;
+            border: 1px solid #dee2e6; border-radius: 6px;
+            overflow: hidden; background: #fff;
+        }
+        .li-question-panel {
+            flex:1; display:flex; flex-direction:column; height:100%;
+            min-width:0; min-height:0; background:#fff; overflow:hidden;
+        }
+        .li-qp-header {
+            display:flex; align-items:center; gap:.5rem;
+            padding:.6rem .75rem; min-height:44px;
+            border-bottom:1px solid #dee2e6; background:#f0f4ff;
+        }
+        .li-editor-section { border:1px solid #dee2e6; border-radius:5px; margin-bottom:.6rem; overflow:hidden; }
+        .li-editor-section-header {
+            padding:.45rem .7rem; background:#f0f4ff;
+            font-size:.82rem; font-weight:700; color:#1b3a6b;
+            cursor:pointer; display:flex; justify-content:space-between; align-items:center;
+        }
+        .li-editor-section-body { padding:.5rem .7rem; display:block; }
+        .li-editor-section-body.collapsed { display:none; }
+        .li-form-group { margin-bottom:.55rem; }
+        .li-form-group label { display:block; font-size:.75rem; font-weight:600; color:#555; margin-bottom:.2rem; }
+        .li-form-group input[type="text"],
+        .li-form-group input[type="number"],
+        .li-form-group textarea,
+        .li-form-group select {
+            width:100%; padding:.3rem .45rem; border:1px solid #ced4da;
+            border-radius:4px; font-size:.8rem; color:#333;
+        }
+        .li-form-group textarea { resize:vertical; min-height:52px; }
+        .li-save-btn {
+            width:auto; padding:.45rem 1.25rem; margin-top:.5rem;
+            background:#1b3a6b; color:#fff; border:none; border-radius:5px;
+            font-size:.82rem; font-weight:700; cursor:pointer; letter-spacing:.04em;
+        }
+        .li-save-btn:hover { background:#264d8e; }
+        .li-qlist-row {
+            display:grid; grid-template-columns:24px 1fr auto;
+            gap:.4rem; align-items:center;
+            padding:.35rem .75rem; font-size:.8rem; cursor:pointer;
+            border-bottom:1px solid #f3f3f3; transition:background .1s;
+        }
+        .li-qlist-row:hover { background:#eef2ff; }
+        .li-qlist-desc { color:#333; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        </style>
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.li-editor-section-header').forEach(function(hdr) {
+                hdr.addEventListener('click', function() {
+                    var body = hdr.nextElementSibling;
+                    if (!body) return;
+                    body.classList.toggle('collapsed');
+                    var toggle = hdr.querySelector('.li-sec-toggle');
+                    if (toggle) toggle.textContent = body.classList.contains('collapsed') ? '▸' : '▾';
                 });
             });
         });
         </script>
     {% else %}
+        {# ── Non-form-editor: full 3-col line item canvas ── #}
         <div class="li-3col-canvas">
             {{ builder_macros.render_li_sections_panel(
                    li_categories if (li_categories is defined and li_categories) else [],
@@ -190,19 +213,6 @@
             {{ builder_macros.render_li_question_panel(form_page_key) }}
         </div>
     {% endif %}
-    <style>
-    .li-3col-canvas {
-        display: flex;
-        flex-direction: row;
-        height: calc(100vh - 260px);
-        min-height: 400px;
-        border: 1px solid #dee2e6;
-        border-radius: 6px;
-        overflow: hidden;
-        background: #fff;
-    }
-    </style>
-
     {% else %}
         <h1>{{ title }}</h1>
         <form action="{{ url_for(request.endpoint) }}" method="POST" {% if twenty_ninth_page %}enctype="multipart/form-data"{% endif %}>

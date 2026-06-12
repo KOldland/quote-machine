@@ -272,8 +272,6 @@
                     {{ cat_name }}
                 </button>
                 <div class="li-reorder-controls" style="display:flex;flex-direction:column;margin-right:4px;">
-                    <button type="button" class="li-move-btn" data-scope="category" data-id="{{ cat_id }}" data-dir="up" data-page="{{ form_page_key }}" style="border:none;background:none;font-size:10px;cursor:pointer;padding:0 4px;color:#888;">▲</button>
-                    <button type="button" class="li-move-btn" data-scope="category" data-id="{{ cat_id }}" data-dir="down" data-page="{{ form_page_key }}" style="border:none;background:none;font-size:10px;cursor:pointer;padding:0 4px;color:#888;">▼</button>
                 </div>
             </div>
             {% endfor %}
@@ -367,9 +365,15 @@ document.addEventListener('DOMContentLoaded', function() {
     background:#f8f9fa; display:flex; flex-direction:column; height:100%; min-height:0;
 }
 .li-sections-header {
-    padding:.6rem .75rem; border-bottom:1px solid #dee2e6; background:#f0f4ff;
+    padding:.6rem .75rem; min-height:44px;
+    border-bottom:1px solid #dee2e6; background:#f0f4ff;
+    display:flex; align-items:center;
 }
 .li-sections-list { padding:.4rem 0; overflow-y:auto; flex:1; }
+/* Prevent breadcrumb trail from wrapping — truncate at panel width */
+.breadcrumb-trail {
+    overflow:hidden; white-space:nowrap; text-overflow:ellipsis; min-width:0;
+}
 .li-section-btn {
     display:block; text-align:left;
     padding:.45rem .85rem; border:none; background:none;
