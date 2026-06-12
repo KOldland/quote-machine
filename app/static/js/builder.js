@@ -9,10 +9,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let pageId = typeof window.pageId !== 'undefined' ? window.pageId : '';
     let builderStateQuestionTypes = typeof window.builderStateQuestionTypes !== 'undefined' ? window.builderStateQuestionTypes : {};
 
-    // History for Undo/Redo
-    let history = [JSON.stringify(blocks)];
-    let historyIndex = 0;
-
     // DOM Elements
     const canvasContent = document.getElementById('canvas-content');
     const propertiesContent = document.getElementById('properties-content');
@@ -20,23 +16,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const pageSelect = document.getElementById('page-select');
     const btnAddBlock = document.getElementById('btn-add-block');
     const btnSave = document.getElementById('btn-save');
-    const btnUndo = document.getElementById('btn-undo');
-    const btnRedo = document.getElementById('btn-redo');
     const btnPreviewFloat = document.getElementById('preview-btn-float');
-    const editActionStatus = document.getElementById('edit-action-status');
+        const editActionStatus = document.getElementById('edit-action-status');
 
-    // Init Callbacks
-    setupDragAndDrop();
-    setupEventListeners();
-    renderCanvas();
-    if (selectedBlockId) {
-        selectBlock(selectedBlockId);
-    } else {
-        renderProperties();
-    }
-    updateUndoRedoButtons();
+        // Note: undo tracking removed. Server state updates directly via POST APIs.
 
-    // Utility to update edit mode status messages
+        // Init Callbacks
+        setupDragAndDrop();
+        setupEventListeners();
+        renderCanvas();
+        if (selectedBlockId) {
+            selectBlock(selectedBlockId);
+        } else {
+            renderProperties();
+        }
+
+        // Utility to update edit mode status messages
     function setEditStatus(message, color) {
         if (editActionStatus) {
             editActionStatus.textContent = message;
@@ -136,7 +131,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         blocks.splice(toIndex + 1, 0, removed);
                     }
                     updateBlockOrder(); // Update sort_order for all blocks
-                    saveHistory();
                     renderCanvas();
                     showSaveStatus();
                     
@@ -707,14 +701,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 e.preventDefault();
                 deleteBlock(selectedBlockId);
             }
-            if ((e.ctrlKey || e.metaKey) && e.key === "z") {
-                e.preventDefault();
-                undo();
-            }
-            if ((e.ctrlKey || e.metaKey) && e.key === "y") {
-                e.preventDefault();
-                redo();
-            }
         });
 
         // Toggle collapsible sections in properties panel
@@ -758,41 +744,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-
-    // History Management
-    function saveHistory() {
-        history = history.slice(0, historyIndex + 1);
-        history.push(JSON.stringify(blocks));
-        historyIndex = history.length - 1;
-        updateUndoRedoButtons();
-    }
-
-    function undo() {
-        if (historyIndex > 0) {
-            historyIndex--;
-            blocks = JSON.parse(history[historyIndex]);
-            renderCanvas();
-            renderProperties();
-            showSaveStatus("Undo", "#17a2b8");
-        }
-        updateUndoRedoButtons();
-    }
-
-    function redo() {
-        if (historyIndex < history.length - 1) {
-            historyIndex++;
-            blocks = JSON.parse(history[historyIndex]);
-            renderCanvas();
-            renderProperties();
-            showSaveStatus("Redo", "#17a2b8");
-        }
-        updateUndoRedoButtons();
-    }
-
-    function updateUndoRedoButtons() {
-        if (btnUndo) btnUndo.disabled = historyIndex <= 0;
-        if (btnRedo) btnRedo.disabled = historyIndex >= history.length - 1;
-    }
 
     // UI Helpers
     function selectBlock(blockId) {

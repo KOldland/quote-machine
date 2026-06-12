@@ -1,0 +1,99 @@
+{% extends "form.html" %}
+
+{% block content %}
+<div class="form-editor-container" style="padding: 2rem; max-width: 1000px; margin: 0 auto; display: flex; gap: 2rem;">
+    <!-- Left Column: Form Details -->
+    <div class="form-details-section" style="flex: 1; background: #fff; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+        <h2 style="margin-top: 0; color: #1b3a6b; font-size: 1.25rem; border-bottom: 2px solid #f0f0f0; padding-bottom: 0.5rem; margin-bottom: 1.5rem;">Form Details</h2>
+        
+        <div class="form-group" style="margin-bottom: 1rem;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #333;">Form Title</label>
+            <input type="text" id="form-title" value="{{ form_details.title }}" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem;">
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 1.5rem;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #333;">Description</label>
+            <textarea id="form-description" rows="4" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; font-size: 0.95rem; resize: vertical;">{{ form_details.description }}</textarea>
+        </div>
+        
+        <button id="btn-save-form-details" class="btn btn-sidebar" style="width: 100%; padding: 0.75rem; font-size: 1rem;">Save Form Details</button>
+        <div id="form-save-status" style="margin-top: 0.5rem; text-align: center; color: #28a745; font-size: 0.9rem; opacity: 0; transition: opacity 0.3s;">Saved Successfully</div>
+    </div>
+
+    <!-- Right Column: Page Order -->
+    <div class="page-order-section" style="flex: 1; background: #fff; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+        <h2 style="margin-top: 0; color: #1b3a6b; font-size: 1.25rem; border-bottom: 2px solid #f0f0f0; padding-bottom: 0.5rem; margin-bottom: 1rem;">Page Order</h2>
+        <p style="font-size: 0.9rem; color: #666; margin-bottom: 1rem;">Reorder pages in your form navigation.</p>
+        
+        <div class="page-list" style="border: 1px solid #eee; border-radius: 4px; overflow: hidden;">
+            {% for page in db_pages %}
+                {% if page.page_key != 'index' %}
+                <div class="page-item" style="display: flex; align-items: center; padding: 0.75rem 1rem; border-bottom: 1px solid #eee; background: #fafafa;">
+                    <div style="flex: 1; font-weight: 500; color: #333;">{{ page.title }}</div>
+                    <div style="font-size: 0.8rem; color: #888; margin-right: 1rem;">(/{{ page.page_key }})</div>
+                    <div class="order-controls" style="display: flex; flex-direction: column; gap: 2px;">
+                        <button type="button" class="btn-move-page" data-id="{{ page.id }}" data-dir="up" title="Move Up" style="background: none; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; padding: 0 4px; font-size: 10px; color: #555; {% if loop.index0 == 1 %}opacity: 0.3; pointer-events: none;{% endif %}">▲</button>
+                        <button type="button" class="btn-move-page" data-id="{{ page.id }}" data-dir="down" title="Move Down" style="background: none; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; padding: 0 4px; font-size: 10px; color: #555; {% if loop.last %}opacity: 0.3; pointer-events: none;{% endif %}">▼</button>
+                    </div>
+                </div>
+                {% endif %}
+            {% endfor %}
+            {% if not db_pages or db_pages|length <= 1 %}
+                <div style="padding: 1rem; text-align: center; color: #888; font-size: 0.9rem;">No configurable pages found. Add pages via the sidebar.</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    /* Form Details Saving Placeholder */
+    const saveBtn = document.getElementById('btn-save-form-details');
+    const statusEl = document.getElementById('form-save-status');
+    
+    if(saveBtn) {
+        saveBtn.addEventListener('click', () => {
+            // Note: Schema updating logic will be needed here to actually persist.
+            // For now, this is UI scaffolding.
+            console.log("Saving title:", document.getElementById('form-title').value);
+            statusEl.style.opacity = 1;
+            setTimeout(() => statusEl.style.opacity = 0, 2000);
+        });
+    }
+
+    /* Page Reordering Logic */
+    document.querySelectorAll('.btn-move-page').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const pageId = this.dataset.id;
+            const direction = this.dataset.dir;
+            
+            fetch('/builder_beta/swap_order', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('input[name="csrf_token"]') ? document.querySelector('input[name="csrf_token"]').value : ''
+                },
+                body: JSON.stringify({
+                    scope: 'page',
+                    identifier: pageId,
+                    direction: direction
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    window.location.reload(); // Quickest way to reflect reordered items robustly
+                } else {
+                    alert("Error moving page: " + (data.error || "Unknown error"));
+                }
+            })
+            .catch(err => {
+                console.error("Network error:", err);
+                alert("Network error while moving page.");
+            });
+        });
+    });
+});
+</script>
+{% endblock %}

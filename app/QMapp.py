@@ -1712,20 +1712,40 @@ def builder_page_details_json(page_key):
         return jsonify(dict(row))
     return jsonify({})
 
+@app.route('/form_editor')
 @app.route('/edit_home')
 @require_role('admin')
-def edit_home():
-    """Empty builder state landing page after a delete operation."""
-    edit_requested = request.args.get('edit', '').lower() in {'1', 'true', 'yes'}
-    edit_mode = session.get('role') == 'admin' and edit_requested
+def form_editor():
+    """Form Editor view combining Form Details and Page Order management."""
+    import template_store as ts
+    state = get_builder_beta_state()
     
-    return render_template('form.html',
-                         edit_mode=edit_mode,
-                         title='Builder Home',
-                         db_pages=get_all_pages(template_key=TEMPLATE_STORE_KEY),
-                         current_page=None,
-                         li_categories=[],
-                         pricing_modes=['fixed', 'entered', 'quantity_rate', 'percent_subtotal'])
+    # Needs Edit Mode flag enforced since this is an admin-only path
+    edit_mode = request.args.get('edit', '0') == '1'
+    if not edit_mode:
+        return redirect(url_for('index'))
+
+    # Load form level schema configuration
+    conn = ts.get_db()
+    c = conn.cursor()
+    c.execute("SELECT name, description, key FROM form_templates WHERE key = ?", ('builder_beta',))
+    form_data = c.fetchone()
+    conn.close()
+
+    form_details = {
+        'title': form_data['name'] if form_data else 'Unnamed Form',
+        'description': form_data['description'] if form_data else '',
+        'key': form_data['key'] if form_data else 'builder_beta'
+    }
+
+    # Fetch pages ordered by display_order
+    ordered_pages = ts.get_form_pages('builder_beta')
+
+    return render_template('form_editor.html',
+                           edit_mode=True,
+                           builder_state=state,
+                           form_details=form_details,
+                           db_pages=ordered_pages)
 
 @app.route('/builder_beta/page_details_save/<page_key>', methods=['POST'])
 @require_role('admin')
