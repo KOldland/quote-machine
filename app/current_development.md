@@ -28,7 +28,7 @@ Create a dedicated "Form Editor" view (Phase 1 of Form > Pages > Categories > Qu
 * @app/SESSION.md
 * @app/current_development.md
 
-## Form Editor Implementation Plan
+## Form Editor Implementation Plan [PARTIALLY DONE - Step 1]
 
 ### 1. Overview
 We need to create the uppermost level in the hierarchy: the Form. This involves creating a dedicated "Form Editor" page in Edit-Mode. This page will reuse the existing UI pattern (two-column canvas) to control Form Details (Title, Description, auto-generated Key) and Page Order (listing available pages with drag-and-drop reordering and a toggle for form visibility). We will also remove the redundant "Undo" button from the sidebar and replace it with a button that navigates directly to the Form Editor. 
@@ -55,20 +55,20 @@ Form level data is already stored correctly in the Database via `template_store.
   - Add an API call to save form variables and save page ordering / visibility changes.
 
 ### 3. Implementation Steps
-1. **Remove Undo / Add Form Editor Navigation**:
-   - In `app/templates/index.html`, under `.edit-mode-actions`, delete Undo button.
-   - Add `<a href="/form_editor?edit=1" class="btn btn-sidebar" style="width:100%;text-align:center;">Form Editor</a>`.
-   - In `builder.js`, remove code referencing `btn-undo`, `btn-redo`, and the history arrays.
-2. **Setup Routing (`QMapp.py`)**:
-   - Replace or modify the `@app.route('/edit_home')` route to instead be `@app.route('/form_editor')`.
-   - Fetch the current `form_templates` name and description using `template_store` functions.
-   - Fetch all `page_templates` ordered by `display_order`.
-   - Render a new template: `render_template('form_editor.html', ...)`
-3. **Draft the Template (`form_editor.html`)**:
-   - Build a layout derived from `form.html` Edit Mode components.
-   - Left side: Tab 1 "Form Details" and Tab 2 "Page Order".
-   - Right side: Render the Form Details block (Input for Form Title, Textbox for Description, read-only field for the Form Key) OR the Page Order Block.
-   - Page Order block will render simple draggable rows containing a drag handle, Page Title, and a checkbox for `.is_form_visible` (or "Include in Output").
+1. [x] **Remove Undo / Add Form Editor Navigation**:
+   - [x] In `app/templates/index.html`, under `.edit-mode-actions`, delete Undo button.
+   - [x] Add `<a href="/form_editor?edit=1" class="btn btn-sidebar" style="width:100%;text-align:left;">Form Editor</a>`.
+   - [x] In `builder.js`, remove code referencing `btn-undo`, `btn-redo`, and the history arrays.
+2. [x] **Setup Routing (`QMapp.py`)**:
+   - [x] Replace or modify the `@app.route('/edit_home')` route to instead be `@app.route('/form_editor')`.
+   - [x] Fetch the current `form_templates` name and description using `template_store` functions.
+   - [x] Fetch all `page_templates` ordered by `display_order`.
+   - [x] Render a new template: `render_template('form_editor.html', ...)`
+3. [x] **Draft the Template (`form_editor.html`)**:
+   - [x] Build a layout derived from `form.html` Edit Mode components.
+   - [x] Left side: Tab 1 "Form Details" and Tab 2 "Page Order".
+   - [x] Right side: Render the Form Details block (Input for Form Title, Textbox for Description, read-only field for the Form Key) OR the Page Order Block.
+   - [x] Page Order block will render simple draggable rows containing a drag handle, Page Title, and a checkbox for `.is_form_visible` (or "Include in Output").
 4. **API Integration (`QMapp.py` / `template_store.py`)**:
    - Add `update_form_details(...)` to `template_store.py` executing `UPDATE form_templates SET name = ?, description = ? WHERE key = ?`. 
    - Add backend route `POST /builder_beta/form/update` to trigger this.
