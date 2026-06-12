@@ -615,13 +615,13 @@ def get_template_store_overview() -> Dict[str, Any]:
 
     with _connect(db_path) as conn:
         rows = conn.execute(
-            """
+            '''
             SELECT ft.key, ft.name, COALESCE(MAX(ftv.version), 0) AS latest_version
             FROM form_templates ft
             LEFT JOIN form_template_versions ftv ON ftv.form_template_id = ft.id
             GROUP BY ft.id, ft.key, ft.name
             ORDER BY ft.key ASC
-            """
+            '''
         ).fetchall()
 
     overview["templates"] = [
@@ -633,6 +633,30 @@ def get_template_store_overview() -> Dict[str, Any]:
         for row in rows
     ]
     return overview
+
+
+def get_form_template(template_key: str, db_path: Optional[Path] = None) -> Optional[dict]:
+    '''Return the form_template row for a given template_key.'''
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    row = conn.execute(
+        "SELECT * FROM form_templates WHERE key = ?",
+        (template_key,),
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def update_form_template(template_key: str, name: str, description: str, db_path: Optional[Path] = None):
+    '''Update the name and description for a given template_key.'''
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    conn.execute(
+        "UPDATE form_templates SET name = ?, description = ? WHERE key = ?",
+        (name, description, template_key),
+    )
+    conn.commit()
+    conn.close()
 
 
 # ---------------------------------------------------------------------------

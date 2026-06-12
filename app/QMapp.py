@@ -1726,11 +1726,7 @@ def form_editor():
         return redirect(url_for('index'))
 
     # Load form level schema configuration
-    conn = ts.get_db()
-    c = conn.cursor()
-    c.execute("SELECT name, description, key FROM form_templates WHERE key = ?", ('builder_beta',))
-    form_data = c.fetchone()
-    conn.close()
+    form_data = ts.get_form_template('builder_beta')
 
     form_details = {
         'title': form_data['name'] if form_data else 'Unnamed Form',
@@ -1755,15 +1751,11 @@ def update_form_details():
     data = request.json
     title = data.get('title')
     description = data.get('description')
-    
+
     if not title:
         return jsonify({'success': False, 'error': 'Title is required'}), 400
-        
-    conn = ts.get_db()
-    c = conn.cursor()
-    c.execute("UPDATE form_templates SET name = ?, description = ? WHERE key = ?", (title, description, 'builder_beta'))
-    conn.commit()
-    conn.close()
+
+    ts.update_form_template('builder_beta', title, description)
     return jsonify({'success': True})
 
 @app.route('/builder_beta/page_details_save/<page_key>', methods=['POST'])
