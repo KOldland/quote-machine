@@ -199,8 +199,59 @@ def _create_schema(conn: sqlite3.Connection) -> None:
             is_follow_up         INTEGER NOT NULL DEFAULT 0,
             follow_up_type       TEXT,
             follow_up_config     TEXT,
+            allow_user_override  INTEGER DEFAULT 0,
+            output_group         TEXT DEFAULT 'General',
             created_at           DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at           DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS quotes (
+            id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+            template_key         TEXT NOT NULL,
+            client_name          TEXT,
+            client_address       TEXT,
+            project_date         TEXT,
+            status               TEXT NOT NULL DEFAULT 'draft',
+            deposit_pct          REAL NOT NULL DEFAULT 0.10,
+            completion_pct       REAL NOT NULL DEFAULT 0.10,
+            subtotal             REAL DEFAULT 0.0,
+            adjustment_total     REAL DEFAULT 0.0,
+            grand_total          REAL DEFAULT 0.0,
+            deposit_amount       REAL DEFAULT 0.0,
+            completion_amount    REAL DEFAULT 0.0,
+            notes                TEXT,
+            created_at           DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at           DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS quote_line_items (
+            id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+            quote_id             INTEGER NOT NULL,
+            line_code            TEXT NOT NULL,
+            output_group         TEXT NOT NULL DEFAULT 'General',
+            category             TEXT,
+            output_title         TEXT,
+            internal_description TEXT,
+            unit_cost            REAL DEFAULT 0.0,
+            units                REAL DEFAULT 0.0,
+            line_total           REAL DEFAULT 0.0,
+            pricing_visibility   TEXT NOT NULL DEFAULT 'admin_only',
+            sort_order           INTEGER NOT NULL DEFAULT 0,
+            is_custom            INTEGER NOT NULL DEFAULT 0,
+            metadata_json        TEXT,
+            FOREIGN KEY (quote_id) REFERENCES quotes(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS quote_adjustments (
+            id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+            quote_id             INTEGER NOT NULL,
+            adjustment_type      TEXT NOT NULL DEFAULT 'discount',
+            label                TEXT NOT NULL,
+            amount               REAL NOT NULL DEFAULT 0.0,
+            is_percentage        INTEGER NOT NULL DEFAULT 0,
+            target_group         TEXT,
+            sort_order           INTEGER NOT NULL DEFAULT 0,
+            FOREIGN KEY (quote_id) REFERENCES quotes(id) ON DELETE CASCADE
         );
         """
     )
@@ -1337,3 +1388,208 @@ def get_payment_schedule_block(
         "completion_pct": 0.10,
         "allow_user_override": False,
     }
+
+# ── Quote CRUD ───────────────────────────────────────────────────────────
+
+def create_quote(
+    template_key: str,
+    client_name: str = None,
+    client_address: str = None,
+    project_date: str = None,
+    deposit_pct: float = 0.10,
+    completion_pct: float = 0.10,
+    notes: str = None,
+    db_path = None,
+) -> dict:
+    """Create a new quote record and return it as a dict."""
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    cur = conn.cursor()
+    cur.execute(
+        """INSERT INTO quotes
+           (template_key, client_name, client_address, project_date,
+            deposit_pct, completion_pct, notes)
+           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+        (template_key, client_name, client_address, project_date,
+         deposit_pct, completion_pct, notes),
+    )
+    quote_id = cur.lastrowid
+    conn.commit()
+    row = conn.execute("SELECT * FROM quotes WHERE id = ?", (quote_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else {}
+
+
+def save_quote_line_items(quote_id: int, items: list, db_path=None) -> int:
+    """Replace all line items for a quote with the given list of dicts.
+    
+    Each dict should have: line_code, output_group, category, output_title,
+    internal_description, unit_cost, units, line_total, pricing_visibility,
+    sort_order, is_custom, metadata_json.
+    Returns count of items inserted.
+    """
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    conn.execute("DELETE FROM quote_line_items WHERE quote_id = ?", (quote_id,))
+    count = 0
+    for item in items:
+        conn.execute(
+            """INSERT INTO quote_line_items
+               (quote_id, line_code, output_group, category, output_title,
+                internal_description, unit_cost, units, line_total,
+                pricing_visibility, sort_order, is_custom, metadata_json)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                quote_id,
+                item.get("line_code", ""),
+                item.get("output_group", "General"),
+                item.get("category", ""),
+                item.get("output_title", ""),
+                item.get("internal_description", ""),
+                float(item.get("unit_cost", 0)),
+                float(item.get("units", 0)),
+                float(item.get("line_total", 0)),
+                item.get("pricing_visibility", "admin_only"),
+                int(item.get("sort_order", 0)),
+                int(item.get("is_custom", 0)),
+                item.get("metadata_json", None),
+            ),
+        )
+        count += 1
+    conn.commit()
+    conn.close()
+    return count
+
+
+def save_quote_adjustments(quote_id: int, adjustments: list, db_path=None) -> int:
+    """Replace all adjustments for a quote. Returns count inserted."""
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    conn.execute("DELETE FROM quote_adjustments WHERE quote_id = ?", (quote_id,))
+    count = 0
+    for adj in adjustments:
+        conn.execute(
+            """INSERT INTO quote_adjustments
+               (quote_id, adjustment_type, label, amount, is_percentage,
+                target_group, sort_order)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (
+                quote_id,
+                adj.get("adjustment_type", "discount"),
+                adj.get("label", ""),
+                float(adj.get("amount", 0)),
+                int(adj.get("is_percentage", 0)),
+                adj.get("target_group", None),
+                int(adj.get("sort_order", 0)),
+            ),
+        )
+        count += 1
+    conn.commit()
+    conn.close()
+    return count
+
+
+def update_quote_totals(quote_id: int, db_path=None) -> dict:
+    """Recalculate and persist quote totals from line items + adjustments."""
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+
+    # Sum all line_item totals
+    row = conn.execute(
+        "SELECT COALESCE(SUM(line_total), 0) AS subtotal FROM quote_line_items WHERE quote_id = ?",
+        (quote_id,),
+    ).fetchone()
+    subtotal = float(row["subtotal"]) if row else 0.0
+
+    # Sum adjustments (flat amounts + calculated percentages)
+    adj_rows = conn.execute(
+        "SELECT * FROM quote_adjustments WHERE quote_id = ? ORDER BY sort_order",
+        (quote_id,),
+    ).fetchall()
+
+    adjustment_total = 0.0
+    for adj in adj_rows:
+        amt = float(adj["amount"])
+        if adj["is_percentage"]:
+            if adj["target_group"]:
+                grp = conn.execute(
+                    "SELECT COALESCE(SUM(line_total), 0) AS grp_total FROM quote_line_items WHERE quote_id = ? AND output_group = ?",
+                    (quote_id, adj["target_group"]),
+                ).fetchone()
+                base = float(grp["grp_total"]) if grp else subtotal
+            else:
+                base = subtotal
+            amt = base * (amt / 100.0)
+        adjustment_total += amt
+
+    grand_total = subtotal + adjustment_total
+    
+    q = conn.execute("SELECT deposit_pct, completion_pct FROM quotes WHERE id = ?", (quote_id,)).fetchone()
+    deposit_pct = float(q["deposit_pct"]) if q else 0.10
+    completion_pct = float(q["completion_pct"]) if q else 0.10
+    
+    deposit_amount = grand_total * deposit_pct
+    completion_amount = grand_total * completion_pct
+
+    conn.execute(
+        """UPDATE quotes SET
+           subtotal = ?, adjustment_total = ?, grand_total = ?,
+           deposit_amount = ?, completion_amount = ?,
+           updated_at = CURRENT_TIMESTAMP
+           WHERE id = ?""",
+        (subtotal, adjustment_total, grand_total, deposit_amount, completion_amount, quote_id),
+    )
+    conn.commit()
+    row = conn.execute("SELECT * FROM quotes WHERE id = ?", (quote_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else {}
+
+
+def get_quote(quote_id: int, db_path=None) -> dict:
+    """Return a quote with its line items and adjustments nested."""
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    q = conn.execute("SELECT * FROM quotes WHERE id = ?", (quote_id,)).fetchone()
+    if not q:
+        conn.close()
+        return {}
+    quote = dict(q)
+    li_rows = conn.execute(
+        "SELECT * FROM quote_line_items WHERE quote_id = ? ORDER BY sort_order",
+        (quote_id,),
+    ).fetchall()
+    adj_rows = conn.execute(
+        "SELECT * FROM quote_adjustments WHERE quote_id = ? ORDER BY sort_order",
+        (quote_id,),
+    ).fetchall()
+    conn.close()
+    quote["line_items"] = [dict(r) for r in li_rows]
+    quote["adjustments"] = [dict(r) for r in adj_rows]
+    return quote
+
+
+def list_quotes(template_key: str = None, db_path=None) -> list:
+    """List all quotes, optionally filtered by template_key."""
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    if template_key:
+        rows = conn.execute(
+            "SELECT * FROM quotes WHERE template_key = ? ORDER BY updated_at DESC",
+            (template_key,),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM quotes ORDER BY updated_at DESC"
+        ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def delete_quote(quote_id: int, db_path=None) -> bool:
+    """Delete a quote and its line items (CASCADE handles children)."""
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    conn.execute("DELETE FROM quotes WHERE id = ?", (quote_id,))
+    conn.commit()
+    conn.close()
+    return True
