@@ -283,6 +283,8 @@
             <div id="add-cat-inline" style="display:none; margin-top:.4rem;">
                 <input type="text" id="add-cat-name-input" placeholder="Category name…"
                        style="width:100%; font-size:.82rem; padding:.25rem .4rem; border:1px solid #ccc; border-radius:3px; box-sizing:border-box;">
+                <input type="text" id="add-cat-output-group-input" placeholder="Output group (default: General)"
+                       style="width:100%; font-size:.82rem; padding:.25rem .4rem; border:1px solid #ccc; border-radius:3px; box-sizing:border-box; margin-top:.3rem;">
                 <div style="display:flex; gap:.4rem; margin-top:.35rem;">
                     <button type="button" id="btn-add-cat-confirm" class="li-save-btn" style="flex:1; margin-top:0;">Save</button>
                     <button type="button" id="btn-add-cat-cancel" style="flex:1; font-size:.78rem; padding:.2rem .4rem; border:1px solid #aaa; background:#fff; border-radius:3px; cursor:pointer;">Cancel</button>
@@ -326,6 +328,8 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!pageKey) { alert("Cannot add category: unknown page context."); return; }
             const catName = addCatInput.value.trim();
             if (!catName) { addCatInput.focus(); return; }
+            const addCatOutputInput = document.getElementById('add-cat-output-group-input');
+            const catOutputGroup = addCatOutputInput ? addCatOutputInput.value.trim() || 'General' : 'General';
             const csrf = (document.querySelector('[name=csrf_token]') || {}).value || '';
             btnConfirm.disabled = true;
             btnConfirm.textContent = 'Saving…';
@@ -333,7 +337,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 method: 'POST',
                 credentials: 'same-origin',
                 headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
-                body: JSON.stringify({ page_key: pageKey, category_name: catName })
+                body: JSON.stringify({ page_key: pageKey, category_name: catName, output_group: catOutputGroup })
             })
             .then(function(r) { return r.json(); })
             .then(function(data) {
@@ -780,6 +784,9 @@ document.addEventListener('DOMContentLoaded', function() {
             _field('cat_name', 'Category Name', 'text', catName),
             _field('cat_description', 'Category Description', 'textarea', '')
         ]);
+        html += _section('Output Group', true, [
+            _field('cat_output_group', 'Output Group', 'text', data.output_group || 'General')
+        ]);
         html += _section('Meta', false, [
             _field('cat_page_key', 'Belongs to Page', 'text', _pageKey, true)
         ]);
@@ -832,11 +839,12 @@ document.addEventListener('DOMContentLoaded', function() {
             var frm = $id('li-category-edit-form');
             var desc = frm.querySelector('textarea[name="cat_description"]').value;
             var newName = frm.querySelector('input[name="cat_name"]').value;
+            var outputGroup = frm.querySelector('input[name="cat_output_group"]').value || 'General';
             var visible = $id('cat-visibility-checkbox').checked;
             fetch('/builder_beta/category_details_save', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json', 'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''},
-                body: JSON.stringify({ page_key: _pageKey, old_name: catName, new_name: newName, description: desc, form_visible: visible })
+                body: JSON.stringify({ page_key: _pageKey, old_name: catName, new_name: newName, description: desc, output_group: outputGroup, form_visible: visible })
             }).then(r => r.json()).then(d => {
                 if (d.ok) {
                     if (newName !== catName) window.location.reload();

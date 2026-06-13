@@ -1888,7 +1888,8 @@ def builder_category_details_json():
     conn = sqlite3.connect(db)
     conn.row_factory = sqlite3.Row
     row = conn.execute('''
-        SELECT c.name, c.description 
+
+        SELECT c.name, c.description, c.output_group
         FROM category_templates c
         JOIN page_templates p ON c.page_template_id = p.id
         WHERE p.page_key = ? AND c.name = ?
@@ -1908,26 +1909,63 @@ def builder_category_details_save():
     page_key = data.get('page_key')
     old_name = data.get('old_name')
     new_name = data.get('new_name')
-    desc = data.get('description', '')
-    
+    output_group = data.get('output_group', 'General')
+
     conn = sqlite3.connect(db)
     try:
         # Get page id
         page_id = conn.execute("SELECT id FROM page_templates WHERE page_key = ?", [page_key]).fetchone()[0]
-        conn.execute("UPDATE category_templates SET name = ?, description = ? WHERE page_template_id = ? AND name = ?", 
-                     [new_name, desc, page_id, old_name])
-        
+        conn.execute("UPDATE category_templates SET name = ?, description = ?, output_group = ? WHERE page_template_id = ? AND name = ?",
+                     [new_name, desc, output_group, page_id, old_name])
+
         # cascading update line_items category linking to match if changed
         if old_name != new_name:
             conn.execute("UPDATE line_items SET category = ? WHERE form_page = ? AND category = ?",
                          [new_name, page_key, old_name])
-                         
+
+        # Also persist output_group to page_schemas.json
+        import json as _json
+        import os as _os
+        schema_path = _os.path.join(_os.path.dirname(__file__), 'page_schemas.json')
+        if _os.path.exists(schema_path):
+            with open(schema_path) as f:
+                schema = _json.load(f)
+            pages = schema.get('builder_beta', {}).get('pages', {})
+            page_data = pages.get(page_key)
+            if page_data and 'categories' in page_data:
+                for cat_entry in page_data['categories']:
+                    if isinstance(cat_entry, dict) and cat_entry.get('name') == old_name:
+                        cat_entry['output_group'] = output_group
+                        if new_name != old_name:
+                            cat_entry['name'] = new_name
+                        break
+                    elif isinstance(cat_entry, str) and cat_entry == old_name:
+                        idx = page_data['categories'].index(cat_entry)
+                        page_data['categories'][idx] = {'name': new_name, 'output_group': output_group, 'sort_order': 0}
+                        break
+                with open(schema_path, 'w') as f:
+                    _json.dump(schema, f, indent=2)
+
         conn.commit()
         return jsonify({'ok': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 400
     finally:
         conn.close()
+
+@app.route('/builder_beta/category/add', methods=['POST'])
+@require_role('admin')
+def builder_beta_category_add():
+    import template_store as _ts
+    data = request.json
+    if not data or 'page_key' not in data or 'category_name' not in data:
+        return jsonify({'success': False, 'error': 'Missing page_key or category_name'}), 400
+    output_group = data.get('output_group', 'General')
+    res = _ts.add_category(data['page_key'], data['category_name'], template_key=TEMPLATE_STORE_KEY, output_group=output_group)
+    if res.get('success'):
+        return jsonify({'success': True})
+    return jsonify(res), 500
+
 
 @app.route('/builder_beta/line_item_add', methods=['POST'])
 @require_role('admin')
@@ -1949,10 +1987,17 @@ def builder_line_item_add():
     new_code = f"new_{int(time.time())}"
     
     cur = conn.cursor()
+    # Get default output_group from category_templates
+    default_group = conn.execute(
+        "SELECT output_group FROM category_templates ct JOIN page_templates p ON ct.page_template_id = p.id WHERE p.page_key = ? AND ct.name = ?",
+        [page_key, category]
+    ).fetchone()
+    output_group_val = default_group[0] if default_group else 'General'
+
     cur.execute('''
-        INSERT INTO line_items (form_page, category, line_code, internal_description, item_role, form_visible, sort_order)
-        VALUES (?, ?, ?, ?, ?, 1, ?)
-    ''', [page_key, category, new_code, "New Question", "parent", next_sort])
+        INSERT INTO line_items (form_page, category, line_code, internal_description, item_role, form_visible, sort_order, output_group)
+        VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+    ''', [page_key, category, new_code, "New Question", "parent", next_sort, output_group_val])
     conn.commit()
     
     new_id = cur.lastrowid
@@ -2769,1941 +2814,1943 @@ def builder_beta_page_editor(page_id):
 			if delete_index is not None:
 				del page['blocks'][delete_index]
 				selected_block_id = page['blocks'][delete_index - 1]['id'] if delete_index > 0 else ''
-				save_page_schemas()
-				flash('Block deleted.', 'success')
-		
-		elif action == 'save_block':
-			# Save block properties from visual builder
-			edit_id = (request.form.get('block_id') or '').strip()
-			_edit_index, edit_block = _find_block(page, edit_id)
-			if edit_block is not None:
-				standard = edit_block.setdefault('standard', {})
-				logic_options = edit_block.setdefault('logic_options', {})
-				pricing_options = edit_block.setdefault('pricing_options', {})
-				output_options = edit_block.setdefault('output_options', {})
-				
-				# Standard fields
-				standard['label'] = (request.form.get('standard_label') or standard.get('label', '')).strip()
-				standard['name'] = (request.form.get('standard_name') or standard.get('name', '')).strip() or standard.get('name', '')
-				standard['help_text'] = (request.form.get('standard_help_text') or standard.get('help_text', '')).strip()
-				standard['source_prefix'] = (request.form.get('standard_source_prefix') or standard.get('source_prefix', '')).strip()
-				standard['placeholder'] = (request.form.get('standard_placeholder') or standard.get('placeholder', '')).strip()
-				standard['required'] = request.form.get('standard_required') == 'on'
-				
-				static_variant = (request.form.get('standard_static_variant') or standard.get('static_variant', 'body')).strip() or 'body'
-				if static_variant not in {'heading', 'subheading', 'body', 'note'}:
-					static_variant = 'body'
-				standard['static_variant'] = static_variant
-				standard['static_content'] = (request.form.get('standard_static_content') or standard.get('static_content', '')).strip()
-				
-				# Dropdown choices
-				raw_choices = request.form.get('standard_dropdown_choices') or ''
-				if isinstance(raw_choices, str):
-					standard['dropdown_choices'] = [choice.strip() for choice in raw_choices.splitlines() if choice.strip()]
-				
-				# Logic options
-				logic_options['visibility'] = (request.form.get('logic_visibility') or logic_options.get('visibility', 'always')).strip() or 'always'
-				logic_options['depends_on_field'] = (request.form.get('logic_depends_on_field') or logic_options.get('depends_on_field', '')).strip()
-				logic_options['depends_on_value'] = (request.form.get('logic_depends_on_value') or logic_options.get('depends_on_value', '')).strip()
-				
-				# Pricing options
-				pricing_enabled = request.form.get('pricing_enabled') == 'on'
-				pricing_mode = (request.form.get('pricing_mode') or pricing_options.get('mode', 'none')).strip()
-				if pricing_mode not in ALLOWED_BLOCK_PRICING_MODES:
-					pricing_mode = 'none'
-				
-				pricing_options['enabled'] = pricing_enabled
-				pricing_options['mode'] = pricing_mode
-				pricing_options['fixed_amount'] = _parse_builder_float(request.form.get('pricing_fixed_amount'), pricing_options.get('fixed_amount', 0.0), 0, 1000000)
-				pricing_options['entered_key'] = (request.form.get('pricing_entered_key') or pricing_options.get('entered_key', '')).strip()
-				pricing_options['rate'] = _parse_builder_float(request.form.get('pricing_rate'), pricing_options.get('rate', 0.0), 0, 1000000)
-				pricing_options['quantity_key'] = (request.form.get('pricing_quantity_key') or pricing_options.get('quantity_key', '')).strip()
-				pricing_options['percent_of_subtotal'] = _parse_builder_float(request.form.get('pricing_percent_of_subtotal'), pricing_options.get('percent_of_subtotal', 0.0), 0, 100)
-				pricing_options['allow_user_override'] = request.form.get('pricing_allow_user_override') == 'on'
-				
-				save_page_schemas()
-				flash('Block saved.', 'success')
-		
-		elif action == 'move_block_up':
-			move_id = (request.form.get('block_id') or '').strip()
-			move_index, _ = _find_block(page, move_id)
-			if move_index is not None and move_index > 0:
-				page['blocks'][move_index], page['blocks'][move_index - 1] = page['blocks'][move_index - 1], page['blocks'][move_index]
-				save_page_schemas()
-				flash('Block moved up.', 'success')
-		
-		elif action == 'move_block_down':
-			move_id = (request.form.get('block_id') or '').strip()
-			move_index, _ = _find_block(page, move_id)
-			if move_index is not None and move_index < len(page['blocks']) - 1:
-				page['blocks'][move_index], page['blocks'][move_index + 1] = page['blocks'][move_index + 1], page['blocks'][move_index]
-				save_page_schemas()
-				flash('Block moved down.', 'success')
-		
-		elif action == 'reorder_blocks':
-			# Handle bulk reordering from drag-and-drop
-			block_order_str = request.form.get('block_order') or ''
-			block_ids = [bid.strip() for bid in block_order_str.split(',') if bid.strip()]
-			if len(block_ids) == len(page.get('blocks', [])):
-				ordered_blocks = []
-				for bid in block_ids:
-					for block in page['blocks']:
-						if block['id'] == bid:
-							ordered_blocks.append(block)
-							break
-				page['blocks'] = ordered_blocks
-				save_page_schemas()
-				flash('Blocks reordered.', 'success')
-		
-		return jsonify({'status': 'success', 'selected_block_id': selected_block_id})
-
-
-
-
-
-@app.route('/builder_beta/swap_order', methods=['POST'])
-@require_role('admin')
-def builder_beta_swap_order():
-	import sqlite3 as _sq
-	from pathlib import Path as _P
-	data = request.json
-	if not data:
-		return jsonify({'success': False, 'error': 'No data provided'}), 400
-
-	scope = data.get('scope')
-	direction = data.get('direction')
-	identifier = data.get('identifier')
-	page_key = data.get('page_key')
-
-	if scope not in ['page', 'category', 'question'] or direction not in ['up', 'down'] or identifier is None:
-		return jsonify({'success': False, 'error': 'Invalid parameters'}), 400
-
-	db_path = str(_P(os.environ.get('QM_TEMPLATE_DB_PATH', '') or _P(__file__).parent / 'template_store.sqlite3'))
-	conn = _sq.connect(db_path)
-	conn.row_factory = _sq.Row
-	cursor = conn.cursor()
-
-	try:
-		if scope == 'page':
-			curr_row = cursor.execute("SELECT id, display_order FROM page_templates WHERE id = ?", [identifier]).fetchone()
-			if not curr_row:
-				return jsonify({'success': False, 'error': 'Page not found'}), 404
-			
-			curr_id = curr_row['id']
-			curr_order = curr_row['display_order']
-
-			if direction == 'up':
-				adj_row = cursor.execute("SELECT id, display_order FROM page_templates WHERE display_order < ? ORDER BY display_order DESC LIMIT 1", [curr_order]).fetchone()
-			else:
-				adj_row = cursor.execute("SELECT id, display_order FROM page_templates WHERE display_order > ? ORDER BY display_order ASC LIMIT 1", [curr_order]).fetchone()
-
-			if adj_row:
-				cursor.execute("UPDATE page_templates SET display_order = ? WHERE id = ?", [adj_row['display_order'], curr_id])
-				cursor.execute("UPDATE page_templates SET display_order = ? WHERE id = ?", [curr_order, adj_row['id']])
-
-		elif scope == 'category':
-			curr_row = cursor.execute("SELECT id, display_order, page_template_id FROM category_templates WHERE id = ?", [identifier]).fetchone()
-			if not curr_row:
-				return jsonify({'success': False, 'error': 'Category not found'}), 404
-			
-			curr_id = curr_row['id']
-			curr_order = curr_row['display_order']
-			page_template_id = curr_row['page_template_id']
-
-			if direction == 'up':
-				adj_row = cursor.execute("SELECT id, display_order FROM category_templates WHERE page_template_id = ? AND display_order < ? ORDER BY display_order DESC LIMIT 1", [page_template_id, curr_order]).fetchone()
-			else:
-				adj_row = cursor.execute("SELECT id, display_order FROM category_templates WHERE page_template_id = ? AND display_order > ? ORDER BY display_order ASC LIMIT 1", [page_template_id, curr_order]).fetchone()
-
-			if adj_row:
-				cursor.execute("UPDATE category_templates SET display_order = ? WHERE id = ?", [adj_row['display_order'], curr_id])
-				cursor.execute("UPDATE category_templates SET display_order = ? WHERE id = ?", [curr_order, adj_row['id']])
-
-		elif scope == 'question':
-			curr_row = cursor.execute("SELECT id, sort_order, form_page, category FROM line_items WHERE id = ?", [identifier]).fetchone()
-			if not curr_row:
-				return jsonify({'success': False, 'error': 'Question not found'}), 404
-			
-			curr_id = curr_row['id']
-			curr_order = curr_row['sort_order']
-			q_page = curr_row['form_page']
-			q_cat = curr_row['category']
-
-			if direction == 'up':
-				adj_row = cursor.execute("SELECT id, sort_order FROM line_items WHERE form_page = ? AND category = ? AND sort_order < ? ORDER BY sort_order DESC LIMIT 1", [q_page, q_cat, curr_order]).fetchone()
-			else:
-				adj_row = cursor.execute("SELECT id, sort_order FROM line_items WHERE form_page = ? AND category = ? AND sort_order > ? ORDER BY sort_order ASC LIMIT 1", [q_page, q_cat, curr_order]).fetchone()
-
-			if adj_row:
-				cursor.execute("UPDATE line_items SET sort_order = ? WHERE id = ?", [adj_row['sort_order'], curr_id])
-				cursor.execute("UPDATE line_items SET sort_order = ? WHERE id = ?", [curr_order, adj_row['id']])
-
-		conn.commit()
-		return jsonify({'success': True})
-	except Exception as e:
-		conn.rollback()
-		return jsonify({'success': False, 'error': str(e)}), 500
-	finally:
-		conn.close()
-
-
-@app.route('/builder_beta/reorder_all_pages', methods=['POST'])
-@require_role('admin')
-def builder_beta_reorder_all_pages():
-	import sqlite3 as _sq
-	from pathlib import Path as _P
-	data = request.json or {}
-	page_ids = data.get('page_ids')
-	if not isinstance(page_ids, list):
-		return jsonify({'success': False, 'error': 'page_ids must be a list'}), 400
-
-	db_path = str(_P(os.environ.get('QM_TEMPLATE_DB_PATH', '') or _P(__file__).parent / 'template_store.sqlite3'))
-	conn = _sq.connect(db_path)
-	try:
-		cursor = conn.cursor()
-		for idx, page_id in enumerate(page_ids):
-			cursor.execute('UPDATE page_templates SET display_order = ? WHERE id = ?', [idx + 1, page_id])
-		conn.commit()
-		return jsonify({'success': True})
-	except Exception as e:
-		conn.rollback()
-		return jsonify({'success': False, 'error': str(e)}), 500
-	finally:
-		conn.close()
-
-
-@app.route('/builder_beta/line_items_json', methods=['GET'])
-@require_role('admin')
-def builder_line_items_json():
-    """Return line_items as JSON for the builder canvas.
-    Optional query params:
-      ?page=3        filter by form_page (e.g. '3', '3B')
-      ?category=Xyz  filter further to a single category
-    Returns: { categories: [{name, items: [row, ...]}, ...] }
-    """
-    import sqlite3 as _sq
-    from pathlib import Path as _P
-    db = _P(__file__).resolve().parent / 'template_store.sqlite3'
-    if not db.exists():
-        return jsonify({'categories': []})
-    page_filter = request.args.get('page', '').strip()
-    cat_filter = request.args.get('category', '').strip()
-    conn = _sq.connect(str(db))
-    conn.row_factory = _sq.Row
-    sql = (
-        'SELECT id, line_code, form_page, category, internal_description, '
-        'include_default, unit_cost, units, pricing_visibility, '
-        'output_title, output_notes, output_guidance, '
-        'parent_code, item_role, form_visible, sort_order, '
-        'is_follow_up, follow_up_type '
-        'FROM line_items'
-    )
-    params = []
-    conditions = []
-    if page_filter:
-        conditions.append('form_page = ?')
-        params.append(page_filter)
-    if cat_filter:
-        conditions.append('category = ?')
-        params.append(cat_filter)
-    if conditions:
-        sql += ' WHERE ' + ' AND '.join(conditions)
-    sql += ' ORDER BY category ASC, sort_order ASC, line_code ASC'
-    rows = conn.execute(sql, params).fetchall()
-    conn.close()
-    cats = {}
-    for r in rows:
-        cats.setdefault(r['category'], []).append(dict(r))
-    return jsonify({'categories': [{'name': c, 'items': v} for c, v in cats.items()]})
-
-
-@app.route('/builder_beta/line_item_save/<int:item_id>', methods=['POST'])
-@require_role('admin')
-def builder_line_item_save(item_id):
-    """Update editable fields of a single line_item."""
-    import sqlite3 as _sq
-    from pathlib import Path as _P
-    db = _P(__file__).resolve().parent / 'template_store.sqlite3'
-    if not db.exists():
-        return jsonify({'ok': False, 'error': 'DB not found'}), 404
-    data = request.get_json(force=True) or {}
-    allowed = {'internal_description', 'include_default', 'unit_cost', 'units',
-               'pricing_visibility', 'output_title', 'output_notes', 'output_guidance',
-               'form_visible', 'item_role', 'category', 'form_page',
-               'is_follow_up', 'follow_up_type', 'follow_up_config'}
-    updates = {k: v for k, v in data.items() if k in allowed}
-    if not updates:
-        return jsonify({'ok': False, 'error': 'No valid fields'}), 400
-    set_sql = ', '.join(f'{k} = ?' for k in updates)
-    conn = _sq.connect(str(db))
-    conn.execute(
-        f'UPDATE line_items SET {set_sql}, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-        list(updates.values()) + [item_id]
-    )
-    conn.commit()
-    conn.close()
-    return jsonify({'ok': True, 'id': item_id})
-
-
-@app.route('/builder_beta/block_config_save/<page_id>/<block_id>', methods=['POST'])
-@require_role('admin')
-def builder_block_config_save(page_id, block_id):
-    """Update config dict for a specific block in page_schemas.json."""
-    import json as _json
-    data = request.get_json(force=True) or {}
-    schema_path = os.path.join(os.path.dirname(__file__), 'page_schemas.json')
-    try:
-        with open(schema_path) as f:
-            schema = _json.load(f)
-        page = schema.get('builder_beta', {}).get('pages', {}).get(page_id)
-        if not page:
-            return jsonify({'ok': False, 'error': f'page {page_id!r} not found'}), 404
-        for block in page.get('blocks', []):
-            if block.get('id') == block_id:
-                if 'config' not in block:
-                    block['config'] = {}
-                block['config'].update(data.get('config', {}))
-                with open(schema_path, 'w') as f:
-                    _json.dump(schema, f, indent=2)
-                return jsonify({'ok': True, 'page_id': page_id, 'block_id': block_id})
-        return jsonify({'ok': False, 'error': f'block {block_id!r} not found'}), 404
-    except Exception as e:
-        return jsonify({'ok': False, 'error': str(e)}), 500
-
-
-
-################################################################################################################################
-			
-												# PAGE - MATERIALS & DETAILS 
-
-################################################################################################################################
-
-def _get_line_items_for_page(form_page_key, categories=None):
-	"""Query line_items table for a form page key, grouped by category.
-	Returns {category: [row_dict, ...]} ordered by category_templates.display_order.
-	Only rows with form_visible=1 are included.
-	"""
-	import sqlite3 as _sq
-	from pathlib import Path as _P
-	_db = str(_P(os.environ.get('QM_TEMPLATE_DB_PATH', '') or
-				 _P(__file__).parent / 'template_store.sqlite3'))
-	_conn = _sq.connect(_db)
-	_conn.row_factory = _sq.Row
-	
-	# Get ordered categories from category_templates
-	_cat_query = """
-		SELECT c.name
-		FROM category_templates c
-		JOIN page_templates p ON c.page_template_id = p.id
-		WHERE p.page_key = ?
-		ORDER BY c.display_order ASC
-	"""
-	_cat_rows = _conn.execute(_cat_query, [form_page_key]).fetchall()
-	_result = {}
-	for _r in _cat_rows:
-		_result[_r['name']] = []
-		
-	# If no formal category_templates exist for this page, return empty (blank slate)
-	if len(_result) == 0:
-		_conn.close()
-		return {}
-
-	_query = (
-		"SELECT id, line_code, form_page, category, internal_description, include_default, "
-		"unit_cost, units, pricing_visibility, output_title, output_notes, output_guidance, "
-		"parent_code, item_role, input_type, trigger_parent_code, form_visible, sort_order, "
-		"is_follow_up, follow_up_type, follow_up_config "
-		"FROM line_items WHERE form_page=? AND form_visible=1 AND item_role != 'auto_child' "
-	)
-	_params = [form_page_key]
-	if categories:
-		_placeholders = ','.join('?' * len(categories))
-		_query += f"AND category IN ({_placeholders}) "
-		_params.extend(categories)
-	_query += "ORDER BY sort_order ASC, line_code ASC"
-	
-	_rows = _conn.execute(_query, _params).fetchall()
-	_conn.close()
-	
-	for _r in _rows:
-		_cat = _r['category']
-		if _cat not in _result:
-			_result[_cat] = []
-		_result[_cat].append(dict(_r))
-		
-		
-	return _result
-
-
-def _get_li_categories_from_schema(page_id):
-	"""Query category_templates to get the ordered list of categories for the given page.
-	Returns a list of dicts: [{'id': 1, 'name': '...'}], or None if none.
-	"""
-	import sqlite3 as _sq
-	from pathlib import Path as _P
-	_db = str(_P(os.environ.get('QM_TEMPLATE_DB_PATH', '') or _P(__file__).parent / 'template_store.sqlite3'))
-	_conn = _sq.connect(_db)
-	_conn.row_factory = _sq.Row
-	_cat_query = "SELECT c.id, c.name FROM category_templates c JOIN page_templates p ON c.page_template_id = p.id WHERE p.page_key = ? ORDER BY c.display_order ASC"
-	_cat_rows = _conn.execute(_cat_query, [page_id]).fetchall()
-	_conn.close()
-	if not _cat_rows:
-		return None
-	return [{'id': r['id'], 'name': r['name']} for r in _cat_rows]
-
-
-@app.route('/materials_page', methods=['POST', 'GET'])
-def materials_page():
-	page_id = 'materials_page'
-	if request.method == 'POST':
-		checkbox_data = session.setdefault('checkbox_data', {})
-		page_schema = build_page_schema_context(page_id, get_catalog(), checkbox_data)
-		persist_schema_page_submission(page_schema or {}, request.form, checkbox_data)
-		session['checkbox_data'] = checkbox_data
-		session.modified = True
-		return redirect(url_for('further_requirements_page'))
-
-	# GET logic
-	edit_requested = request.args.get('edit') == '1'
-	edit_mode_local = session.get('role') == 'admin' and edit_requested
-	page_schema = compile_builder_beta_page_to_runtime_schema(page_id)
-	sheet_data = get_catalog()
-	_li_cats = _get_li_categories_from_schema(page_id) or []
-	if edit_mode_local:
-		builder_state = get_builder_beta_state()
-		current_page_id = page_id
-		current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
-		selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
-		selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
-		return render_template(
-			'form.html',
-			page_schema=page_schema,
-			schema_render_mode='full',
-			previous_page='summary_page',
-			next_page='further_requirements_page',
-			title=page_schema.get('title', 'Materials and Details') if page_schema else 'Materials and Details',
-			li_categories=_li_cats,
-			form_page_key=page_id,
-			current_page={'id': current_page_id, 'title': page_schema.get('title', 'Materials and Details') if page_schema else 'Materials and Details', 'blocks': current_page_blocks},
-			current_page_id=current_page_id,
-			selected_block_id=selected_block_id,
-			selected_block=selected_block,
-			db_pages=get_all_pages(template_key=TEMPLATE_STORE_KEY),
-			pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
-			edit_mode=True
-		)
-	page_schema = build_page_schema_context(page_id, sheet_data, session.get('checkbox_data', {}))
-	return render_template(
-		'form.html',
-		page_schema=page_schema,
-		schema_render_mode='full',
-		previous_page='summary_page',
-		next_page='further_requirements_page',
-		title=page_schema.get('title', 'Materials and Details') if page_schema else 'Materials and Details',
-		li_categories=_li_cats,
-		form_page_key=page_id,
-		db_pages=get_all_pages(template_key=TEMPLATE_STORE_KEY)
-	)
-
-@app.route('/further_requirements_page', methods=['POST', 'GET'])
-def further_requirements_page():
-	page_id = 'further_requirements_page'
-	if request.method == 'POST':
-		checkbox_data = session.setdefault('checkbox_data', {})
-		page_schema = build_page_schema_context(page_id, get_catalog(), checkbox_data)
-		persist_schema_page_submission(page_schema or {}, request.form, checkbox_data)
-		session['checkbox_data'] = checkbox_data
-		session.modified = True
-		return redirect(url_for('additional_building_work_page'))
-
-	# GET logic
-	edit_requested = request.args.get('edit') == '1'
-	edit_mode_local = session.get('role') == 'admin' and edit_requested
-	page_schema = compile_builder_beta_page_to_runtime_schema(page_id)
-	sheet_data = get_catalog()
-	_li_cats = _get_li_categories_from_schema(page_id) or []
-	if edit_mode_local:
-		builder_state = get_builder_beta_state()
-		current_page_id = page_id
-		current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
-		selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
-		selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
-		return render_template(
-			'form.html',
-			page_schema=page_schema,
-			schema_render_mode='full',
-			previous_page='materials_page',
-			next_page='additional_building_work_page',
-			title=page_schema.get('title', 'Further Requirements') if page_schema else 'Further Requirements',
-			li_categories=_li_cats,
-			form_page_key=page_id,
-			current_page={'id': current_page_id, 'title': page_schema.get('title', 'Further Requirements') if page_schema else 'Further Requirements', 'blocks': current_page_blocks},
-			current_page_id=current_page_id,
-			selected_block_id=selected_block_id,
-			selected_block=selected_block,
-			db_pages=get_all_pages(template_key=TEMPLATE_STORE_KEY),
-			pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
-			edit_mode=True
-		)
-	page_schema = build_page_schema_context(page_id, sheet_data, session.get('checkbox_data', {}))
-	return render_template(
-		'form.html',
-		page_schema=page_schema,
-		schema_render_mode='full',
-		previous_page='materials_page',
-		next_page='additional_building_work_page',
-		title=page_schema.get('title', 'Further Requirements') if page_schema else 'Further Requirements',
-		li_categories=_li_cats,
-		form_page_key=page_id,
-		db_pages=get_all_pages(template_key=TEMPLATE_STORE_KEY)
-	)
-
-@app.route('/additional_building_work_page', methods=['POST', 'GET'])
-def additional_building_work_page():
-	# Store the current page in the session
-	previous_page = session.get('last_visited', 'further_requirements_page')  # Update this placeholder when renaming other pages
-	session['last_visited'] = 'additional_building_work_page'
-	
-	if request.method == 'POST':
-		
-		checkbox_data = session.setdefault('checkbox_data', {})
-		
-		# Store selected checkboxes into session
-		selected_ab = [note.strip() for note in request.form.getlist('selected_ab') if note.strip()]
-		checkbox_data['selected_ab'] = {'preselected': selected_ab}
-
-		session.modified = True  
-			
-		return redirect(url_for('additional_costs_page'))  # Update this placeholder when renaming other pages
-	
-	# Load data from Google Sheets
-	sheet_data = get_catalog()
-	preselected_ab = session.get('checkbox_data', {}).get('selected_ab', {}).get('preselected', [])
-	
-	data = {
-		"selected_ab": {"data": {}, "preselected": preselected_ab.copy()},
-		}
-	
-	# Filter the relevant rows based on 'ab' prefix
-	for row in sheet_data:
-		line_code = row.get('Line Code', '').strip()
-		internal_description = row.get('Internal Description', '').strip()
-		include = row.get('Include', '').strip()
-		
-		alphanumeric_code = to_alphanumeric_code(line_code)
-		
-		if is_primary_numeric_code(line_code, 'ab'):
-			data["selected_ab"]["data"][line_code] = {
-				"description": internal_description,
-				"is_included": include == 'Y'
-			}
-			if line_code in preselected_ab and line_code not in data["selected_ab"]["preselected"]:
-					data["selected_ab"]["preselected"].append(line_code)
-				
-				
-	edit_requested = request.args.get('edit', '').lower() in {'1', 'true', 'yes'}
-	edit_mode = session.get('role') == 'admin' and edit_requested
-	_li_cats = _get_li_categories_from_schema('additional_building_work_page') or []
-	if edit_mode:
-		builder_state = get_builder_beta_state()
-		current_page_id = 'additional_building_work_page'
-		current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
-		selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
-		selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
-		return render_template(
-			'form.html',
-			additional_building_work_page=True,
-			previous_page=previous_page,
-			next_page='additional_costs_page',
-			title="Additional Building Works",
-			data=data,
-			builder_state=builder_state,
-			current_page={'id': current_page_id, 'title': "Additional Building Works", 'blocks': current_page_blocks},
-			current_page_id=current_page_id,
-			selected_block_id=selected_block_id,
-			selected_block=selected_block,
-			pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
-			li_categories=_li_cats,
-		)
-	page_schema = build_page_schema_context('additional_building_work_page', sheet_data, session.get('checkbox_data', {}))
-	return render_template(
-		'form.html',
-		page_schema=page_schema,
-		additional_building_work_page=True,
-		previous_page=previous_page,
-		next_page='additional_costs_page',
-		title="Additional Building Works",
-		data=data,
-		li_categories=_li_cats
-	)
-	
-################################################################################################################################
-
-												# PAGE - Additional Costs
-												
-################################################################################################################################
-												
-												
-@app.route('/additional_costs_page', methods=['POST', 'GET'])
-def additional_costs_page():
-	# Store the current page in the session
-	previous_page = session.get('last_visited', 'further_requirements_page')
-	session['last_visited'] = 'additional_costs_page'
-	
-	if request.method == 'POST':
-		
-		checkbox_data = session.setdefault('checkbox_data', {})
-		
-		# Electrics: Kitchen toggle
-		selected_kitchen_el = [note.strip() for note in request.form.getlist('selected_kitchen_el') if note.strip()]
-		checkbox_data['selected_kitchen_el'] = {'preselected': selected_kitchen_el}
-		
-		# Electrics: Loft toggle
-		selected_loft_el = [note.strip() for note in request.form.getlist('selected_loft_el') if note.strip()]
-		checkbox_data['selected_loft_el'] = {'preselected': selected_loft_el}
-		
-		# Dropdown selections
-		selected_kitchen_option = request.form.get('selected_kitchen_option', '').strip()
-		selected_loft_option = request.form.get('selected_loft_option', '').strip()
-		session.setdefault('data', {})['selected_kitchen_option'] = selected_kitchen_option
-		session['data']['selected_loft_option'] = selected_loft_option
-		
-		# Manual inputs
-		kitchen_lights_amount = request.form.get('elkl0_amount', '').strip()
-		kitchen_points_amount = request.form.get('elkp0_amount', '').strip()
-		loft_lights_amount = request.form.get('elll0_amount', '').strip()
-		loft_points_amount = request.form.get('ellp0_amount', '').strip()
-		
-		try:
-			kitchen_lights = int(kitchen_lights_amount or 0)
-			kitchen_points = int(kitchen_points_amount or 0)
-			loft_lights = int(loft_lights_amount or 0)
-			loft_points = int(loft_points_amount or 0)
-		except ValueError:
-			kitchen_lights = kitchen_points = loft_lights = loft_points = 0
-			
-		pricing_rules = get_pricing_rules()
-		kitchen_other_cost = round(
-			(kitchen_lights * pricing_rules['kitchen_light_rate']) + (kitchen_points * pricing_rules['kitchen_point_rate']),
-			pricing_rules['rounding_precision']
-		)
-		loft_other_cost = round(
-			(loft_lights * pricing_rules['loft_light_rate']) + (loft_points * pricing_rules['loft_point_rate']),
-			pricing_rules['rounding_precision']
-		)
-		
-		# Conditional session storage
-		if selected_kitchen_option == 'elk0':
-			session['data']['elkl0_amount'] = kitchen_lights
-			session['data']['elkp0_amount'] = kitchen_points
-			session['data']['elk0_cost'] = kitchen_other_cost
-		else:
-			session['data'].pop('elkl0_amount', None)
-			session['data'].pop('elkp0_amount', None)
-			session['data'].pop('elk0_cost', None)
-			
-		if selected_loft_option == 'ell0':
-			session['data']['elll0_amount'] = loft_lights
-			session['data']['ellp0_amount'] = loft_points
-			session['data']['ell0_cost'] = loft_other_cost
-		else:
-			session['data'].pop('elll0_amount', None)
-			session['data'].pop('ellp0_amount', None)
-			session['data'].pop('ell0_cost', None)
-			
-		# Skylights
-		selected_sk = [note.strip() for note in request.form.getlist('selected_sk') if note.strip()]
-		checkbox_data['selected_sk'] = {'preselected': selected_sk}
-		
-		# Velux Windows
-		selected_vl = [note.strip() for note in request.form.getlist('selected_vl') if note.strip()]
-		checkbox_data['selected_vl'] = {'preselected': selected_vl}
-		
-		# Aluminium Capping 
-		selected_ac = [note.strip() for note in request.form.getlist('selected_ac') if note.strip()]
-		checkbox_data['selected_ac'] = {'preselected': selected_ac}
-
-		# Store selected checkboxes into session
-		selected_pl = request.form.getlist('selected_pl') # plumbing
-		
-		# Sliding doors:
-		selected_sd = request.form.get('selected_sd', '').strip()
-		session.setdefault('data', {})['selected_sd'] = selected_sd if selected_sd else ''
-		
-		session['data']['pd10_manual_input'] = request.form.get('pd10_manual_input', '').strip()
-		
-		# Ensure session structure exists
-		checkbox_data['selected_pl'] = {'preselected': selected_pl}
-			
-		#  Store manual inputs & computed costs (if "Other" selected)
-		if selected_kitchen_option == 'elk0':
-			session['data']['elkl0_amount'] = kitchen_lights_amount
-			session['data']['elkp0_amount'] = kitchen_points_amount
-			session['data']['elk0_cost'] = kitchen_other_cost
-		else:
-			session.get('data', {}).pop('elkl0_amount', None)
-			session.get('data', {}).pop('elkp0_amount', None)
-			session.get('data', {}).pop('elk0_cost', None)
-			
-		if selected_loft_option == 'ell0':
-			session['data']['elll0_amount'] = loft_lights_amount
-			session['data']['ellp0_amount'] = loft_points_amount
-			session['data']['ell0_cost'] = loft_other_cost
-		else:
-			session.get('data', {}).pop('elll0_amount', None)
-			session.get('data', {}).pop('ellp0_amount', None)
-			session.get('data', {}).pop('ell0_cost', None)
-
-		additional_costs_subtotal = round(kitchen_other_cost + loft_other_cost, pricing_rules['rounding_precision'])
-		session['data']['additional_costs_subtotal'] = additional_costs_subtotal
-		session['data']['pricing_rules_used'] = pricing_rules
-		session['data']['payment_plan_preview'] = calculate_payment_plan(additional_costs_subtotal, get_payment_plan_rules())
-			
-		session.modified = True  
-		return redirect(url_for('optional_extras_page'))
-
-	# GET logic — schema-driven
-	edit_requested = request.args.get('edit') == '1'
-	
-	# Force sync parameter to clear cached state
-	if edit_requested and request.args.get('force_sync') == '1':
-		session.pop('builder_state', None)
-		session.modified = True
-
-	edit_mode_local = session.get('role') == 'admin' and edit_requested
-	page_schema = compile_builder_beta_page_to_runtime_schema('additional_costs_page')
-	_li_cats = _get_li_categories_from_schema('additional_costs_page') or []
-	
-	if edit_mode_local:
-		builder_state = get_builder_beta_state()
-		current_page_id = 'additional_costs_page'
-		current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
-
-		# Fallback to DB schema if session blocks empty
-		if not current_page_blocks:
-			current_page_blocks = page_schema.get('blocks', []) if page_schema else []
-
-		selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
-		selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
-		
-		return render_template(
-			'form.html',
-			page_schema=page_schema,
-			schema_render_mode='full',
-			previous_page='additional_building_work_page',
-			next_page='optional_extras_page',
-			title='Additional Costs',
-			li_categories=_li_cats,
-			form_page_key='additional_costs_page',
-			current_page={'id': current_page_id, 'title': 'Additional Costs', 'blocks': current_page_blocks},
-			current_page_id=current_page_id,
-			selected_block_id=selected_block_id,
-			selected_block=selected_block,
-			db_pages=get_all_pages(template_key=TEMPLATE_STORE_KEY),
-			edit_mode=True
-		)
-
-	page_schema = build_page_schema_context('additional_costs_page', get_catalog(), session.get('checkbox_data', {}))
-	return render_template(
-		'form.html',
-		page_schema=page_schema,
-		schema_render_mode='full',
-		previous_page='additional_building_work_page',
-		next_page='optional_extras_page',
-		title='Additional Costs',
-		li_categories=_li_cats,
-		db_pages=get_all_pages(template_key=TEMPLATE_STORE_KEY)
-	)
-
-################################################################################################################################
-
-												# Optional Extras & Finishing Works.
-														
-################################################################################################################################
-														
-# Combined page route - Optional Extras & Finishing Works
-@app.route('/optional_extras_page', methods=['GET', 'POST'])
-def optional_extras_page():
-	
-	# Store the current page in the session
-	previous_page = session.get('last_visited', 'additional_costs_page')
-	session['last_visited'] = 'optional_extras_page'
-	
-	if request.method == 'POST':
-		checkbox_data = session.setdefault('checkbox_data', {})
-		
-		# Process all selected checkboxes from the schema-driven form
-		# These are submitted as individual checkbox values in their respective name groups
-		# but for this page we preserve legacy mapping if needed, 
-		# though build_page_schema_context handles typical 'selected_oe' etc if defined in schema.
-		
-		# Simple blanket capture of relevant prefixes for session persistence
-		for key in request.form:
-			if key.startswith('selected_'):
-				checkbox_data[key] = {'preselected': request.form.getlist(key)}
-		
-		session.modified = True
-		return redirect(url_for('image_upload_page'))
-	
-	# GET logic — schema-driven
-	edit_requested = request.args.get('edit') == '1'
-	
-	# Force sync parameter to clear cached state
-	if edit_requested and request.args.get('force_sync') == '1':
-		session.pop('builder_state', None)
-		session.modified = True
-
-	edit_mode_local = session.get('role') == 'admin' and edit_requested
-	page_schema = compile_builder_beta_page_to_runtime_schema('optional_extras_page')
-	_li_cats = _get_li_categories_from_schema('optional_extras_page') or []
-	
-	if edit_mode_local:
-		builder_state = get_builder_beta_state()
-		current_page_id = 'optional_extras_page'
-		current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
-
-		# Fallback to DB schema if session blocks empty
-		if not current_page_blocks:
-			current_page_blocks = page_schema.get('blocks', []) if page_schema else []
-
-		selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
-		selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
-		
-		return render_template(
-			'form.html',
-			page_schema=page_schema,
-			schema_render_mode='full',
-			previous_page='additional_costs_page',
-			next_page='image_upload_page',
-			title="Optional Extras & Finishing Works",
-			li_categories=_li_cats,
-			form_page_key='optional_extras_page',
-			current_page={'id': current_page_id, 'title': 'Optional Extras & Finishing Works', 'blocks': current_page_blocks},
-			current_page_id=current_page_id,
-			selected_block_id=selected_block_id,
-			selected_block=selected_block,
-			db_pages=get_all_pages(template_key=TEMPLATE_STORE_KEY),
-			pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
-			edit_mode=True
-		)
-
-	page_schema = build_page_schema_context('optional_extras_page', get_catalog(), session.get('checkbox_data', {}))
-	return render_template(
-		'form.html',
-		page_schema=page_schema,
-		schema_render_mode='full',
-		optional_extras_page=True,
-		previous_page=previous_page,
-		next_page='image_upload_page',
-		title="Optional Extras & Finishing Works",
-		li_categories=_li_cats,
-		db_pages=get_all_pages(template_key=TEMPLATE_STORE_KEY)
-	)
-@app.route('/image_upload_page', methods=['GET', 'POST'])
-def image_upload_page():
-	# Track navigation
-	session['last_visited'] = 'image_upload_page'
-	
-	# Setup project folder
-	project_title = session.get('data', {}).get('client_address', 'Unnamed_Project')
-	safe_title = secure_filename(project_title)
-	project_folder = os.path.join(app.config['UPLOAD_FOLDER'], safe_title)
-	os.makedirs(project_folder, exist_ok=True)
-	
-	# Initialize state
-	uploaded_images = session.get('uploaded_images', {})
-	
-	# Handle single image uploads (cover, CGI, floorplan)
-	single_image_fields = {
-		'cover_image': 'cover_image.jpg',
-		'cgi_image': 'cgi_image.jpg',
-		'floorplan_image': 'floorplan_image.jpg',
-	}
-	
-	saved_special_images = []
-	for field_name, target_filename in single_image_fields.items():
-		file = request.files.get(field_name)
-		if file and file.filename:
-			if allowed_file(file.filename):
-				save_path = os.path.join(project_folder, target_filename)
-				file.save(save_path)
-				with Image.open(save_path) as img:
-					img.convert("RGB").save(save_path, format="JPEG", optimize=True, quality=85)
-				uploaded_images[target_filename] = url_for(
-					'static', filename=f'uploads/{safe_title}/{target_filename}'
-				)
-				saved_special_images.append(target_filename)
-			else:
-				flash(f"{field_name.replace('_', ' ').title()} must be a valid image file.", "danger")
-	
-	if saved_special_images:
-		session['uploaded_images'] = uploaded_images
-		session.modified = True
-		flash(
-			f"{len(saved_special_images)} image{'s' if len(saved_special_images) != 1 else ''} uploaded successfully.",
-			"success"
-		)
-	
-	# Get form inputs
-	files = request.files.getlist('site_images')
-	action = request.form.get('action')
-	selected_images = request.form.getlist('selected_images')
-	selected_template_key = request.form.get('selected_template')
-	open_accordion = request.form.get('open_accordion')
-	
-	index_offset = len([f for f in os.listdir(project_folder) if f.startswith('img_site_')])
-	
-	# Reset session and file state if requested
-	if request.method == 'POST' and request.form.get('reset_session'):
-		for f in os.listdir(project_folder):
-			path = os.path.join(project_folder, f)
-			if os.path.isfile(path):
-				os.remove(path)
-		session.pop('uploaded_images', None)
-		session.pop('chosen_template', None)
-		session.pop('site_image_plan', None)
-		session.modified = True
-		flash("Session and project folder fully reset.", "info")
-		return redirect(url_for('image_upload_page'))
-	
-	# Delete selected images
-	if action == 'delete' and selected_images:
-		for filename in selected_images:
-			path = os.path.join(project_folder, filename)
-			if os.path.exists(path):
-				os.remove(path)
-				uploaded_images.pop(filename, None)
-		session['uploaded_images'] = uploaded_images
-		session.modified = True
-	
-	# Handle alternate layout selection preview
-	if selected_template_key:
-		session['chosen_template'] = selected_template_key
-		if session.get('site_image_plan'):
-			image_plan = [{
-				'template': selected_template_key,
-				'images': session['site_image_plan'][0]['images']
-			}]
-			compose_template(image_plan, project_folder)
-			from time import time
-			preview_url = url_for('static', filename=f'uploads/{safe_title}/final_output_1.jpg') + f'?v={int(time())}'
-			uploaded_images['final_output_1.jpg'] = preview_url
-			session['uploaded_images'] = uploaded_images
-			session.modified = True
-	
-	# Re-analyze and recompose after deletion
-	image_meta = analyze_site_images(project_folder)
-	if image_meta:
-		template_plan = select_templates(image_meta)
-		session['site_image_plan'] = template_plan
-		
-		# Ensure chosen template is valid
-		if session.get('chosen_template') not in template_plan[0]['templates']:
-			session['chosen_template'] = template_plan[0]['templates'][0]
-		
-		# Remove old preview pages from memory
-		for key in list(uploaded_images.keys()):
-			if key.startswith('final_output_') and key.endswith('.jpg'):
-				uploaded_images.pop(key, None)
-		
-		# Compose new preview
-		if session.get('chosen_template'):
-			image_plan = [{
-				'template': session['chosen_template'],
-				'images': template_plan[0]['images']
-			}]
-			compose_template(image_plan, project_folder)
-			from time import time
-			preview_url = url_for('static', filename=f'uploads/{safe_title}/final_output_1.jpg') + f'?v={int(time())}'
-			uploaded_images['final_output_1.jpg'] = preview_url
-			session['uploaded_images'] = uploaded_images
-			session.modified = True
-	
-	# Upload new site images
-	if files and any(file.filename for file in files):
-		for i, file in enumerate(files, start=1):
-			if file and allowed_file(file.filename):
-				filename = f"img_site_{index_offset + i}.jpg"
-				save_path = os.path.join(project_folder, filename)
-				file.save(save_path)
-				with Image.open(save_path) as img:
-					img.convert("RGB").save(save_path, format='JPEG', optimize=True, quality=85)
-				uploaded_images[filename] = url_for('static', filename=f'uploads/{safe_title}/{filename}')
-		
-		uploaded_count = len(files)
-		if uploaded_count > 0:
-			flash(f"{uploaded_count} image{'s' if uploaded_count != 1 else ''} uploaded successfully.", "success")
-		
-		# Flash message for "Include in Layout"
-		if action == 'include' and selected_images:
-			flash(f"{len(selected_images)} image{'s' if len(selected_images) != 1 else ''} selected for layout.", "success")
-		
-		# Clear layout preview
-		if request.form.get('clear_layout'):
-			for f in os.listdir(project_folder):
-				if f.startswith('final_output_') and f.endswith('.jpg'):
-					os.remove(os.path.join(project_folder, f))
-					uploaded_images.pop(f, None)
-			session['uploaded_images'] = uploaded_images
-			session.modified = True
-			return redirect(url_for('image_upload_page'))
-		
-		# Store selected template
-		if selected_template_key:
-			session['chosen_template'] = selected_template_key
-		
-		session['uploaded_images'] = uploaded_images
-		session.modified = True
-	
-	# Recompose layout when alternate template is selected
-	if session.get('site_image_plan'):
-		image_plan = [{
-			'template': selected_template_key,
-			'images': session['site_image_plan'][0]['images']
-		}]
-		compose_template(image_plan, project_folder)
-		from time import time
-		preview_url = url_for('static', filename=f'uploads/{safe_title}/final_output_1.jpg') + f'?v={int(time())}'
-		uploaded_images['final_output_1.jpg'] = preview_url
-		session['uploaded_images'] = uploaded_images
-		session.modified = True
-	
-	# Analyze current images
-	image_meta = analyze_site_images(project_folder)
-	if not image_meta:
-		flash("No valid images found for layout.", "danger")
-		return render_template('image_upload.html', uploaded_images=uploaded_images)
-	
-	# Generate layout plan and store
-	template_plan = select_templates(image_meta)
-	session['site_image_plan'] = template_plan
-	
-	# Default selection
-	if not session.get('chosen_template') and template_plan and template_plan[0]['templates']:
-		session['chosen_template'] = template_plan[0]['templates'][0]
-	
-	# Ensure chosen template is still valid
-	if session.get('chosen_template') not in template_plan[0]['templates']:
-		session['chosen_template'] = template_plan[0]['templates'][0]
-	
-	# Remove old preview pages from memory
-	for key in list(uploaded_images.keys()):
-		if key.startswith('final_output_') and key.endswith('.jpg'):
-			uploaded_images.pop(key, None)
-	
-	# Compose updated preview(s)
-	if session.get('chosen_template'):
-		image_plan = [{
-			'template': session['chosen_template'],
-			'images': template_plan[0]['images']
-		}]
-		compose_template(image_plan, project_folder)
-		from time import time
-		preview_url = url_for('static', filename=f'uploads/{safe_title}/final_output_1.jpg') + f'?v={int(time())}'
-		uploaded_images['final_output_1.jpg'] = preview_url
-		session['uploaded_images'] = uploaded_images
-		session.modified = True
-	
-	edit_requested = request.args.get('edit', '').lower() in {'1', 'true', 'yes'}
-	edit_mode = session.get('role') == 'admin' and edit_requested
-	if edit_mode:
-		builder_state = get_builder_beta_state()
-		current_page_id = 'image_upload_page'
-		current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
-		selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
-		selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
-		return render_template(
-			'image_upload.html',
-			image_upload_page=True,
-			previous_page='optional_extras_page',
-			next_page='review',
-			open_accordion=open_accordion,
-			title="Upload Quote-Specific Images",
-			uploaded_images=uploaded_images,
-			template_plan=session.get('site_image_plan', []),
-			builder_state=builder_state,
-			current_page={'id': current_page_id, 'title': "Upload Quote-Specific Images", 'blocks': current_page_blocks},
-			current_page_id=current_page_id,
-			selected_block_id=selected_block_id,
-			selected_block=selected_block,
-			pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
-		)
-	return render_template(
-		'image_upload.html',
-		image_upload_page=True,
-		previous_page='optional_extras_page',
-		next_page='review',
-		open_accordion=open_accordion,
-		title="Upload Quote-Specific Images",
-		uploaded_images=uploaded_images,
-		template_plan=session.get('site_image_plan', [])
-	)
-################################################################################################################################
-
-														# Review Page
-
-################################################################################################################################
-
-@app.route('/review', methods=['GET', 'POST'])
-def review():
-	if request.method == 'POST':
-		return redirect(url_for('review'))
-	
-	data = session.get('checkbox_data', {}) 
-	
-	# Initialize checkbox data 
-
-	preselected_special_notes = data.get('selected_special_notes', {}).get('preselected', []) or []  # Special Notes
-	preselected_bw = data.get('selected_building_works', {}).get('preselected', []) or [] # Building Works
-	preselected_pp = data.get('selected_pp', {}).get('preselected', []) or []  # Planning Permission
-	preselected_ew = data.get('selected_ew', {}).get('preselected', []) or [] # External Wall
-	preselected_fs = data.get('selected_fs', {}).get('preselected', []) or [] # Floor structure
-	preselected_id = data.get('selected_id', {}).get('preselected', []) or [] # Internal doors
-	preselected_dr = data.get('selected_dr', {}).get('preselected', []) or [] # Drainage
-	preselected_wp = data.get('selected_wp', {}).get('preselected', []) or [] # Waste & Parking
-	preselected_gv = data.get('selected_gv', {}).get('preselected', []) or [] # Glass Valley 
-	preselected_bll = data.get('selected_bll', {}).get('preselected', []) or [] # Boundary Lines Left
-	preselected_blr = data.get('selected_blr', {}).get('preselected', []) or [] # Boundary Lines Right
-	preselected_rro = data.get('selected_rro', {}).get('preselected', []) or [] # Rear Reception Opening
-	preselected_iw = data.get('selected_iw', {}).get('preselected', []) or []  # Internal Walls
-	preselected_ab = data.get('selected_ab', {}).get('preselected', []) or []  # Additional Building Works
-	preselected_el = data.get('selected_el', {}).get('preselected', []) or []  # Electrics
-	preselected_pl = data.get('selected_pl', {}).get('preselected', []) or []  # Plumbing
-	preselected_sk = data.get('selected_sk', {}).get('preselected', []) or []  # Skylights
-	preselected_vl = data.get('selected_vl', {}).get('preselected', []) or []  # Velux Windows
-	preselected_ac = data.get('selected_ac', {}).get('preselected', []) or []  # Aluminium Capping
-	preselected_sld = data.get('selected_sld', {}).get('preselected', []) or []  # Sliding Doors
-	preselected_oe = data.get('selected_oe', {}).get('preselected', []) or []  # Optional Extras
-	preselected_fw = data.get('selected_fw', {}).get('preselected', []) or []  # Finishing Works
-	
-	# Initialize session data manual input
-
-	client_address = session.get('data', {}).get('client_address', 'No address provided').strip()  # Project Address
-	Date = session.get('data', {}).get('Date', 'No date provided').strip()  # Project Date
-	lightwell_dimensions_input = session.get('data', {}).get('lightwell_dimensions_input', '').strip()  # Dimensions for courtyard lightwell (if applicable)
-	other_council = session.get('data', {}).get('other_council', '').strip()  # Custom input if council is "Other"
-	wall_height_metres = session.get('data', {}).get('wall_height_metres', '').strip()  # External wall height (Metres)
-	wall_height_centimetres = session.get('data', {}).get('wall_height_centimetres', '').strip()  # External wall height (Centimetres)
-	preselected_er = session.get('data', {}).get('selected_er', [])  # Selected roofing options
-	pitched_roof_option = session.get('data', {}).get('pitched_roof_option', '')  # Specific pitched roof selection (if applicable)
-	preselected_council = session.get('data', {}).get('selected_council', [])  # Selected council (from dropdown)
-	other_roofing_description = session.get('data', {}).get('other_roofing_description', '').strip()  # Custom roofing description (if "Other" selected)
-	fire_doors_number = session.get('data', {}).get('fire_doors_number', '').strip()  # Number of fire doors selected
-	non_fire_doors_number = session.get('data', {}).get('non_fire_doors_number', '').strip()  # Number of non-fire doors selected
-	drainage_other_input = session.get('data', {}).get('drainage_other_input', '').strip()  # Custom drainage input (if "Other" selected)
-	other_demolition_option = session.get('data', {}).get('other_demolition_option', '').strip()  # Custom demolition input (if "Other" selected)
-	sliding_door_area = session.get('data', {}).get('sliding_door_area', '').strip()  # Sliding door area input
-	selected_kitchen_option = session.get('data', {}).get('selected_kitchen_option', '') # Selected Kitchen Option
-	selected_loft_option = session.get('data', {}).get('selected_loft_option', '') # Selected Loft Option
-	chimney_breast_option = session.get('data', {}).get('chimney_breast_option', '').strip() #CHimney Breast Option
-	
-	# Initalize float inputs
-
-	other_demolition_cost = f"{float(session.get('data', {}).get('other_demolition_cost', 0)):.2f}"
-	drainage_other_cost = f"{float(session.get('data', {}).get('drainage_other_cost', 0)):.2f}"
-	iw_sqm_values = session.get('data', {}).get('iw_sqm_values', {})  # Default to empty dict
-	iw_fixed_values = session.get('data', {}).get('iw_fixed_values', {})  # Default to empty dict
-	kitchen_lights_amount = float(session.get('data', {}).get('elkl0_amount', 0))
-	kitchen_points_amount = float(session.get('data', {}).get('elkp0_amount', 0))
-	loft_lights_amount = float(session.get('data', {}).get('elll0_amount', 0))
-	loft_points_amount = float(session.get('data', {}).get('ellp0_amount', 0))	
-	
-	# Initialize session data lists
-
-	preselected_conservation_status = session.get('data', {}).get('conservation_status', [])
-	preselected_basement = session.get('data', {}).get('selected_basement', [])
-	preselected_dw = session.get('data', {}).get('selected_dw', []) or []
-	
-	# Fetch data from Google Sheets for descriptions
-
-	fetched_data = get_catalog() or []
-	line_code_descriptions = {row['Line Code']: row['Internal Description'] for row in fetched_data}
-	
-	if session.get('checkbox_data') and 'other_council' in session['checkbox_data'] and not other_council:
-		session['checkbox_data'].pop('other_council')
-		session.modified = True
-		
-	# Construct review_data dictionary
-
-	review_data = {
-			#Page 1			
-			'Project Details': {
-				'Client Address': client_address,
-				'Date of Proposal': Date,
-			},
-			
-			#Page 2
-			'Special Notes': {
-				'selected_special_notes': [
-					line_code_descriptions.get(code, code)
-					for code in data.get('selected_special_notes', {}).get('preselected', [])
-				],
-			},
-			
-			# Page 3
-			'Summary': {
-				#  Building & Demolition Works 
-				'selected_building_works': [
-					line_code_descriptions.get(code, code) for code in preselected_bw if code!= 'bw4^'
-				] + (
-					# Append lightwell details only if bw4^ is selected
-					[f"{line_code_descriptions.get('bw4^', 'Courtyard Lightwell')} (dimensions = {lightwell_dimensions_input} meters squared)"]
-					if 'bw4^' in preselected_bw and lightwell_dimensions_input else []
-				),
-				
-				# Boundary Lines
-				'selected_bll': [line_code_descriptions.get(code, code) for code in preselected_bll],
-				'selected_blr': [line_code_descriptions.get(code, code) for code in preselected_blr],
-				
-				# Basement Section
-				'selected_basement': [line_code_descriptions.get(code, code) for code in preselected_basement],
-				
-				# Planning Permission (Exclude ppx)
-				'selected_pp': [line_code_descriptions.get(code, code) for code in preselected_pp if code != 'ppx'],
-				
-				# Conservation Area
-				'conservation_status': [line_code_descriptions.get(code, code) for code in preselected_conservation_status],
-								
-				# Local Council
-				'selected_council': [
-					line_code_descriptions.get(code, code) for code in preselected_council if code != 'cs0'
-				] + (
-					[f"Other: {other_council}"] if 'cs0' in preselected_council and other_council else []
-				),
-			},
-		
-			# Page - Materials and Details 
-			'Materials & Details': {
-				# External Walls
-				'selected_ew': [
-					line_code_descriptions.get(code, code) for code in preselected_ew
-				] + (
-					[f"Wall Height (Metres): {wall_height_metres}"] if wall_height_metres else []
-				) + (
-					[f"Wall Height (Centimetres): {wall_height_centimetres}"] if wall_height_centimetres else []
-				),
-				
-				# Roofing Option
-				'selected_er': [
-					line_code_descriptions.get(code, code) for code in preselected_er if code not in ['er1#']
-				] + (
-					[line_code_descriptions.get(code, code) for code in pitched_roof_option if code != 'er7^']
-					if pitched_roof_option else []
-				) + (
-					[f"{line_code_descriptions.get('er7', 'Other Roofing')}: {other_roofing_description}"]
-					if 'er7^' in pitched_roof_option and other_roofing_description else []
-				),
-			
-				# Internal Doors
-					'selected_id': [
-						line_code_descriptions.get(code, code) for code in preselected_id  #  Converts line codes to descriptions
-					] + (
-						[f"Number of Fire Doors: {fire_doors_number}"] if fire_doors_number else []
-					) + (
-						[f"Number of Non-Fire Doors: {non_fire_doors_number}"] if non_fire_doors_number else []
-					),
-				
-				# Drainage
-					'selected_dr': [
-						line_code_descriptions.get(code, code) for code in preselected_dr if code != 'dr4^'
-					] + (
-						[f"{line_code_descriptions.get('dr4^', 'Other Drainage Work')} {drainage_other_input}"]
-						if 'dr4^' in preselected_dr and drainage_other_input else []
-					) + (
-						[f"Additional Drainage Cost: £{drainage_other_cost}"]
-						if 'dr4^' in preselected_dr and drainage_other_cost else []
-					),
-				
-				#  Waste & Parking
-					'selected_wp': [
-						line_code_descriptions.get(code, code) for code in preselected_wp
-					],
-				
-				
-			},
-		
-			# Page Further Requirements
-			'Further Requirements': {
-				
-				# Demolition Works 
-				'selected_dw': [
-					line_code_descriptions.get(code, code) for code in preselected_dw if code not in ['dw0', 'dw4', 'dw6#']
-				] + (
-					[f"{line_code_descriptions.get('dw4#', 'Demolish Garden Wall')}"]
-					if 'dw4' in preselected_dw else []
-				) + (
-					[f"Other Demolition Requirements: {other_demolition_option}"]
-					if 'dw6#' in preselected_dw and other_demolition_option else []
-				) + (
-					[f"Additional Demolition Cost: £{other_demolition_cost}"]
-					if 'dw6#' in preselected_dw and other_demolition_cost else []
-				),
-				
-				# Floor Structure
-				'selected_fs': [
-					line_code_descriptions.get(code, code) for code in preselected_fs
-				],
-				
-				# Galss Valley
-				'selected_gv': [
-					line_code_descriptions.get(code, code) for code in preselected_gv
-				],
-				
-				# Roof Retention Options (🔹 NEW ADDITION)
-				'selected_rro': [
-						line_code_descriptions.get(code, code) for code in preselected_rro if code != 'rro0'
-					],
-				
-				# Internal Walls (Only display SQM OR Fixed Cost, never both)
-				'selected_iw': [
-					f"{line_code_descriptions.get(code, code)}\n    * {session['data']['iw_sqm_values'].get(code, '')} sqm"
-					if code in session['data'].get('iw_sqm_values', {})
-					else f"{line_code_descriptions.get(code, code)}\n    * £{float(session['data']['iw_fixed_values'].get(code, 0)):.2f}"
-					for code in data.get('selected_iw', {}).get('preselected', [])
-				]
-			},
-			
-			#Page Additional Buuilding Works
-			'Additional Building Works': {
-				'selected_ab': [
-					line_code_descriptions.get(code, code)
-					for code in data.get('selected_ab', {}).get('preselected', [])
-				],
-			},
-			
-			# Page - Additional Costs
-			'Additional Costs': {
-				
-				# Electrics
-					**(
-						{"Kitchen Electrics": [
-							line_code_descriptions.get(selected_kitchen_option, "Custom Option")
-							if selected_kitchen_option != "elk0"
-							else "Custom Configuration",
-							{
-								"  • Kitchen Lights": f"{kitchen_lights_amount} points"
-								if kitchen_lights_amount else None,
-								"  • Kitchen Power Points": f"{kitchen_points_amount} points"
-								if kitchen_points_amount else None
-							} if selected_kitchen_option == "elk0" else {}
-						]} if 'elk1' in preselected_el else {}
-					),
-				
-					**(
-						{"Loft Electrics": [
-							line_code_descriptions.get(selected_loft_option, "Custom Option")
-							if selected_loft_option != "ell0"
-							else "Custom Configuration",
-							{
-								"  • Loft Lights": f"{loft_lights_amount} points"
-								if loft_lights_amount else None,
-								"  • Loft Power Points": f"{loft_points_amount} points"
-								if loft_points_amount else None
-							} if selected_loft_option == "ell0" else {}
-						]} if 'ell1' in preselected_el else {}
-					),
-				
-					"Other Electrics": [
-						line_code_descriptions.get(code, code)
-						for code in preselected_el if code not in ("elk1", "ell1")
-					],
-				
-				
-					# **Plumbing**
-					'selected_pl': [
-						line_code_descriptions.get(code, code) for code in preselected_pl
-					],
-					
-					# **Skylights**
-					'selected_sk': [
-						line_code_descriptions.get(code, code) for code in preselected_sk
-					],
-					
-					# **Velux Windows**
-					'selected_vl': [
-						line_code_descriptions.get(code, code) for code in preselected_vl
-					],
-					
-					# **Aluminium Capping**
-					'selected_ac': [
-						line_code_descriptions.get(code, code) for code in preselected_ac
-					],
-					
-					# **Sliding Doors**
-					'selected_sld': [
-						line_code_descriptions.get(code, code) for code in preselected_sld
-					] + (
-						[f"Sliding Door Total Area: {sliding_door_area} sqm"]
-						if sliding_door_area else []
-					)
-			},
-		
-			# Page - Optional Extras & Optional Finishing Works
-			'Optional Extras & Finishing Works': {
-				
-				# Optional Extras
-				'selected_oe': [
-					line_code_descriptions.get(code, code)
-					for code in preselected_oe
-					if code not in ['oe1', 'oe111', 'oe112']
-				] + (
-					[f"Chimney Breast Type: {line_code_descriptions.get(chimney_breast_option, 'Not specified')}"]
-					if 'oe1' in preselected_oe and chimney_breast_option in ['oe111', 'oe112']
-					else []
-				),
-				
-				# Finishing Works
-				'selected_fw': [
-					line_code_descriptions.get(code, code)
-					for code in preselected_fw
-				]
-			},
-	}
-		
-	# Map individual line codes to readable descriptions
-	for key, value in review_data.items():
-		if isinstance(value, list):  # For iterables like selected checkboxes
-			review_data[key] = [TITLE_MAPPING.get(item, item) for item in value]
-		elif isinstance(value, str):  # For single manual input values
-			review_data[key] = TITLE_MAPPING.get(value, value)
-	
-	# Build line_items output from session selections (Session D)
-	li_codes = session.get('li_sel_3', []) + session.get('li_sel_3b', [])
-	li_output_rows = get_line_items_by_codes(li_codes) if li_codes else []
-	li_by_category = {}
-	for _row in li_output_rows:
-		li_by_category.setdefault(_row['category'], []).append(_row)
-
-	# Pass TITLE_MAPPING and uploaded images to the template
-	return render_template(
-		'review.html',
-		review_page=True,
-		review_data=review_data,
-		TITLE_MAPPING=TITLE_MAPPING,
-		uploaded_images=session.get('uploaded_images', {}),
-		current_page='review',
-		title="Review Page",
-		li_by_category=li_by_category,
-	)
-
-@app.route('/submit', methods=['POST'])
-def submit():
-	if request.method == 'POST':
-		
-		data = session.get('checkbox_data', {})
-		sheet_data = get_catalog()
-		combined_data = []
-		
-		if sheet_data:
-			line_code_descriptions = {
-				row['Line Code']: row['Internal Description'] for row in sheet_data
-			}
-		
-		# Initialize checkbox data 
-		preselected_special_notes = data.get('selected_special_notes', {}).get('preselected', []) or []
-		preselected_bw = data.get('selected_building_works', {}).get('preselected', []) or []
-		preselected_pp = data.get('selected_pp', {}).get('preselected', []) or []
-		preselected_ew = data.get('selected_ew', {}).get('preselected', []) or []
-		preselected_fs = data.get('selected_fs', {}).get('preselected', []) or []
-		preselected_id = data.get('selected_id', {}).get('preselected', []) or []
-		preselected_dr = data.get('selected_dr', {}).get('preselected', []) or []
-		preselected_wp = data.get('selected_wp', {}).get('preselected', []) or []
-		preselected_gv = data.get('selected_gv', {}).get('preselected', []) or []
-		preselected_bll = data.get('selected_bll', {}).get('preselected', []) or []
-		preselected_blr = data.get('selected_blr', {}).get('preselected', []) or []
-		preselected_rro = data.get('selected_rro', {}).get('preselected', []) or []
-		preselected_iw = data.get('selected_iw', {}).get('preselected', []) or []  
-		preselected_ab = data.get('selected_ab', {}).get('preselected', []) or [] 
-		preselected_el = data.get('selected_el', {}).get('preselected', []) or []  # Electrics
-		preselected_pl = data.get('selected_pl', {}).get('preselected', []) or []  # Plumbing
-		preselected_sk = data.get('selected_sk', {}).get('preselected', []) or []  # Skylights
-		preselected_vl = data.get('selected_vl', {}).get('preselected', []) or []  # Velux Windows
-		preselected_ac = data.get('selected_ac', {}).get('preselected', []) or []  # Aluminium Capping
-		preselected_sld = data.get('selected_sld', {}).get('preselected', []) or []  # Sliding Doors
-		preselected_oe = data.get('selected_oe', {}).get('preselected', []) or []  # Optional Extras
-		preselected_fw = data.get('selected_fw', {}).get('preselected', []) or []  # Finishing Works
-		
-		# Initialize session data manual input
-		client_address = session.get('data', {}).get('client_address', 'No address provided').strip()
-		Date = session.get('data', {}).get('Date', 'No date provided').strip()
-		lightwell_dimensions_input = session.get('data', {}).get('lightwell_dimensions_input', '').strip()
-		other_council = session.get('data', {}).get('other_council', '').strip()
-		wall_height_metres = session.get('data', {}).get('wall_height_metres', '').strip()
-		wall_height_centimetres = session.get('data', {}).get('wall_height_centimetres', '').strip()
-		pitched_roof_option = session.get('data', {}).get('pitched_roof_option', '')
-		preselected_er = session.get('data', {}).get('selected_er', [])
-		other_roofing_description= session.get('data', {}).get('other_roofing_description', '').strip()
-		preselected_council = session.get('data', {}).get('selected_council', [])
-		fire_doors_number = session.get('data', {}).get('fire_doors_number', '').strip()
-		non_fire_doors_number = session.get('data', {}).get('non_fire_doors_number', '').strip()
-		drainage_other_input = session.get('data', {}).get('drainage_other_input', '').strip()
-		other_demolition_option = session.get('data', {}).get('other_demolition_option', '').strip()
-		kitchen_power_points = session.get('data', {}).get('kitchen_power_points', '').strip()  # Kitchen power points
-		kitchen_lighting_points = session.get('data', {}).get('kitchen_lighting_points', '').strip()  # Kitchen lighting points
-		loft_power_points = session.get('data', {}).get('loft_power_points', '').strip()  # Loft power points
-		loft_lighting_points = session.get('data', {}).get('loft_lighting_points', '').strip()  # Loft lighting points
-		sliding_door_area = session.get('data', {}).get('sliding_door_area', '').strip()  # Sliding door area input
-		selected_kitchen_option = session.get('data', {}).get('selected_kitchen_option', '') # Selected Kitchen Option
-		selected_loft_option = session.get('data', {}).get('selected_loft_option', '') # Selected Loft Option
-		
-		# Initalize float inputs
-		other_demolition_cost = f"{float(session.get('data', {}).get('other_demolition_cost', 0)):.2f}"
-		drainage_other_cost = f"{float(session.get('data', {}).get('drainage_other_cost', 0)):.2f}"
-		kitchen_lights_amount = float(session.get('data', {}).get('elkl0_amount', 0))
-		kitchen_points_amount = float(session.get('data', {}).get('elkp0_amount', 0))
-		loft_lights_amount = float(session.get('data', {}).get('elll0_amount', 0))
-		loft_points_amount = float(session.get('data', {}).get('ellp0_amount', 0))	
-		
-		#Initialise multiple dictionary floats (e.g. iw) to 
-		iw_sqm_values = {
-			key: f"{to_float(value):.2f}" for key, value in session.get('data', {}).get('iw_sqm_values', {}).items() if value
-		}
-		
-		iw_fixed_values = {
-			key: f"{to_float(value):.2f}" for key, value in session.get('data', {}).get('iw_fixed_values', {}).items() if value
-		}
-	
-		# Initialize session data lists
-		preselected_conservation_status = session.get('data', {}).get('conservation_status', [])
-		preselected_basement = session.get('data', {}).get('selected_basement', [])
-		preselected_dw = session.get('data', {}).get('selected_dw', []) or []
-			
-		# Append session and checkbox_data  to combined data
-		combined_data += (
-			(preselected_special_notes or []) + 
-			(preselected_bw or []) + 
-			(preselected_dw or []) + 
-			(preselected_pp or []) + 
-			(preselected_council or []) + 
-			(preselected_conservation_status or []) + 
-			(preselected_bll or []) + 
-			(preselected_blr or []) + 
-			(preselected_basement or []) +
-			(preselected_er or []) +
-			(pitched_roof_option or [])+
-			(preselected_ew or []) +
-			(preselected_fs or []) +
-			(preselected_id or []) +
-			(preselected_dr or []) +
-			(preselected_wp or []) +
-			(preselected_gv or []) +
-			(preselected_rro or []) +
-			(preselected_iw or []) +
-			(preselected_ab or []) +
-			(preselected_el or []) +
-			(preselected_pl or []) +
-			(preselected_sk or []) +
-			(preselected_vl or []) +
-			(preselected_ac or []) +
-			(preselected_sld or []) +
-			(preselected_oe or []) +
-			(preselected_fw or [])
-		)
-				
-		# initalize descriptions to update
-		submit_to_description_function = {}
-		
-		# Project details
-		if client_address:
-			submit_to_description_function['client_address'] = client_address
-		
-		if Date:
-			submit_to_description_function['Date'] = Date
-			
-		# Lightwell Additional Input 
-		if lightwell_dimensions_input:
-			submit_to_description_function['lightwell_dimensions_input'] = lightwell_dimensions_input 
-			
-		# Council Section 'Other' input
-		if 'cs0' in preselected_council and other_council:
-			submit_to_description_function['other_council'] = other_council
-		
-		# Roofing Options 'Other' input
-		if other_roofing_description:
-			submit_to_description_function['other_roofing_description'] = other_roofing_description
-			
-		# Wall Height
-		if wall_height_metres:
-			submit_to_description_function['wall_height_metres'] = wall_height_metres
-			
-		if wall_height_centimetres:
-			submit_to_description_function['wall_height_centimetres'] = wall_height_centimetres
-			
-		# Internal Doors
-		if non_fire_doors_number:
-			submit_to_description_function['non_fire_doors_number'] = non_fire_doors_number
-			
-		if fire_doors_number:
-			submit_to_description_function['fire_doors_number'] = fire_doors_number
-
-		# Drainage_other
-		if drainage_other_input:
-			submit_to_description_function['drainage_other_input'] = drainage_other_input 
-		
-		if drainage_other_cost:
-			submit_to_description_function['drainage_other_cost'] = drainage_other_cost
-				
-		# Demolition Other Amount and cost
-		if 	other_demolition_option:
-			submit_to_description_function['other_demolition_option'] = other_demolition_option
-		
-		if 	other_demolition_cost:
-			submit_to_description_function['other_demolition_cost'] = other_demolition_cost
-		
-		if iw_sqm_values:
-			submit_to_description_function['iw_sqm_values'] = iw_sqm_values
-		
-		if iw_fixed_values:
-			submit_to_description_function['iw_fixed_values'] = iw_fixed_values
-
-		if kitchen_power_points:
-			submit_to_description_function['kitchen_power_points'] = kitchen_power_points
-			
-		if kitchen_lighting_points:
-			submit_to_description_function['kitchen_lighting_points'] = kitchen_lighting_points
-			
-		if loft_power_points:
-			submit_to_description_function['loft_power_points'] = loft_power_points
-			
-		if loft_lighting_points:
-			submit_to_description_function['loft_lighting_points'] = loft_lighting_points
-			
-		if sliding_door_area:
-			submit_to_description_function['sliding_door_area'] = sliding_door_area
-		
-		print("Debug - Submitting to update_description_column:", submit_to_description_function)
-		
-		description_column_includes = []
-		if submit_to_description_function:  
-			description_column_includes = update_description_column(**submit_to_description_function) or []
-		
-		# Debug log before updating "Include" column
-		print(f"DEBUG: Combined Data for Include Column: {combined_data}")
-		
-		# Pass BOTH checkbox selections & updated descriptions to update_include_column()
-		update_include_column(combined_data, description_column_includes)
-	
-		success_payload = {'status': 'success', 'message': 'Data successfully updated!'}
-		if request.is_json:
-			return jsonify(success_payload)
-	
-		flash('Data successfully updated. Generating document...', 'success')
-		return redirect(url_for('trigger_production'))
-	
-
-#####################################################################################################################################
-
-							# Route for the production page (trigger production script)
-	
-#####################################################################################################################################
-	
-@app.route('/production-page')
-def trigger_production_page():
-	return render_template('production.html')
-
-
-#####################################################################################################################################
-
-								# Trigger production script when button clicked
-
-#####################################################################################################################################
-
-@app.route('/trigger_production')
-def trigger_production():
-	try:
-		if TEST_MODE:
-			return """
-			<h2>Your document is ready!</h2>
-			<p>
-				<a href="https://example.com/test-document" target="_blank" class="btn">Click here to open it in a new tab</a>
-			</p>
-			"""
-
-		script_path = os.path.join(os.path.dirname(__file__), 'scripts', 'QM_Production.py')
-		result = subprocess.run(['python3', script_path], capture_output=True, text=True)
-		
-		if result.returncode == 0:
-			output = result.stdout.strip()
-			if "Document link:" in output:
-				document_url = output.split("Document link: ")[-1].strip()
-			else:
-				document_url = "No valid document link found."
-				
-			# Return the button with document URL
-			if document_url:
-				return f"""
-				<h2>Your document is ready!</h2>
-				<p>
-					<a href="{document_url}" target="_blank" class="btn">Click here to open it in a new tab</a>
-				</p>
-				"""
-			else:
-				return "No valid document link found.", 500
-			
-		else:
-			return f"Error in production script: {result.stderr}", 500
-		
-	except Exception as e:
-		return f"Error: {e}", 500
-
-#####################################################################################################################################
-# Auth routes
-#####################################################################################################################################
-
-# ============================================================================
-# USER MANAGEMENT & AUTHENTICATION
-# ============================================================================
-
-# In-memory user store (replace with database in production)
-USERS = {
-	'admin': {
-		'password': ADMIN_PASSWORD or 'admin123',
-		'role': 'admin',
-		'name': 'Administrator'
-	}
-}
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-	if request.method == 'POST':
-		username = request.form.get('username', '').strip()
-		password = request.form.get('password', '').strip()
-
-		# Check if user exists
-		if username in USERS and USERS[username]['password'] == password:
-			session['role'] = USERS[username]['role']
-			session['username'] = username
-			next_url = session.pop('_login_next', None) or url_for('index')
-			flash(f'Logged in as {username}.', 'success')
-			return redirect(next_url)
-
-		flash('Invalid credentials.', 'error')
-
-	return render_template('login.html')
-
-@app.route('/logout', methods=['POST'])
-def logout():
-	session.pop('role', None)
-	session.pop('username', None)
-	flash('Logged out.', 'success')
-	return redirect(url_for('login'))
-
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-	"""User registration - only admins can register new users."""
-	if not session.get('role') or session.get('role') != 'admin':
-		flash('You must be logged in as admin to register users.', 'warning')
-		return redirect(url_for('login'))
-
-	if request.method == 'POST':
-		username = request.form.get('username', '').strip()
-		password = request.form.get('password', '').strip()
-		confirm_password = request.form.get('confirm_password', '').strip()
-		user_role = request.form.get('role', 'user')
-		full_name = request.form.get('full_name', '').strip()
-
-		if not username or not password:
-			flash('Username and password are required.', 'error')
-			return render_template('register.html')
-
-		if password != confirm_password:
-			flash('Passwords do not match.', 'error')
-			return render_template('register.html')
-
-		if len(password) < 6:
-			flash('Password must be at least 6 characters.', 'error')
-			return render_template('register.html')
-
-		if username in USERS:
-			flash('Username already exists.', 'error')
-			return render_template('register.html')
-
-		# Create new user
-		USERS[username] = {
-			'password': password,
-			'role': user_role,
-			'name': full_name or username
-		}
-		flash(f'User {username} registered successfully.', 'success')
-		return redirect(url_for('list_users'))
-
-	return render_template('register.html')
-
-@app.route('/admin/users', methods=['GET'])
-@require_role('admin')
-def list_users():
-	"""List all registered users (admin only)."""
-	return render_template('list_users.html', users=USERS)
-
-@app.route('/admin/users/<username>/delete', methods=['POST'])
-@require_role('admin')
-def delete_user(username):
-	"""Delete a user (admin only)."""
-	if username == 'admin':
-		flash('Cannot delete the admin user.', 'error')
-	else:
-		if username in USERS:
-			del USERS[username]
-			flash(f'User {username} deleted.', 'success')
-		else:
-			flash('User not found.', 'error')
-	return redirect(url_for('list_users'))
-
-@app.route('/admin/users/<username>/promote', methods=['POST'])
-@require_role('admin')
-def promote_user(username):
-	"""Promote a user to admin (admin only)."""
-	if username in USERS:
-		USERS[username]['role'] = 'admin'
-		flash(f'User {username} promoted to admin.', 'success')
-	else:
-		flash('User not found.', 'error')
-	return redirect(url_for('list_users'))
-
-@app.route('/admin/users/<username>/demote', methods=['POST'])
-@require_role('admin')
-def demote_user(username):
-	"""Demote a user to regular user (admin only)."""
-	if username in USERS and username != 'admin':
-		USERS[username]['role'] = 'user'
-		flash(f'User {username} demoted to user.', 'success')
-	else:
-		flash('Cannot demote the admin user.', 'error')
-	return redirect(url_for('list_users'))
-
-@app.route('/admin/users/<username>/password', methods=['POST'])
-@require_role('admin')
-def change_password(username):
-	"""Change a user's password (admin only)."""
-	if username in USERS:
-		new_password = request.form.get('new_password', '').strip()
-		confirm_password = request.form.get('confirm_password', '').strip()
-		if new_password and new_password == confirm_password:
-			USERS[username]['password'] = new_password
-			flash(f'Password for {username} changed.', 'success')
-		else:
-			flash('Passwords do not match or are empty.', 'error')
-	return redirect(url_for('list_users'))
-
-
-@app.route('/admin/promote', methods=['POST'])
-@csrf.exempt
-def admin_promote():
-	"""Manually promote the current session to admin role.
-
-	POST /admin/promote
-	JSON body: {"secret": "<QM_ADMIN_PASSWORD>"}
-
-	Use this endpoint once to bootstrap the first admin session from a browser
-	or curl, then revoke access by removing or rotating QM_ADMIN_PASSWORD.
-	"""
-	if not ADMIN_PASSWORD:
-		return jsonify({'error': 'Admin password not configured on server.'}), 403
-	body = request.get_json(silent=True) or {}
-	if body.get('secret') != ADMIN_PASSWORD:
-		return jsonify({'error': 'Forbidden.'}), 403
-	session['role'] = 'admin'
-	session['username'] = session.get('username', 'promoted')
-	return jsonify({'role': 'admin', 'username': session['username']})
-
-
-#####################################################################################################################################
-
-
-@app.route('/builder_beta/page/duplicate', methods=['POST'])
-@require_role('admin')
-def builder_beta_page_duplicate():
-    import template_store as _ts
-    data = request.json
-    if not data or 'source_page_key' not in data or 'new_page_key' not in data or 'new_title' not in data:
-        return jsonify({'success': False, 'error': 'Missing source_page_key, new_page_key, or new_title'}), 400
-    res = _ts.duplicate_page(data['source_page_key'], data['new_page_key'], data['new_title'], template_key=TEMPLATE_STORE_KEY)
-    if res.get('success'):
-        return jsonify({'success': True})
-    return jsonify(res), 500
-
-@app.route('/builder_beta/page/add', methods=['POST'])
-@require_role('admin')
-def builder_beta_page_add():
-	import template_store as _ts
-	data = request.json
-	if not data or 'page_key' not in data or 'title' not in data:
-		return jsonify({'success': False, 'error': 'Missing page_key or title'}), 400
-	res = _ts.add_page(data['page_key'], data['title'], template_key=TEMPLATE_STORE_KEY)
-	if res.get('success'):
-		return jsonify({'success': True})
-	return jsonify(res), 500
-
-@app.route('/builder_beta/category/add', methods=['POST'])
-@require_role('admin')
-def builder_beta_category_add():
-	import template_store as _ts
-	data = request.json
-	if not data or 'page_key' not in data or 'category_name' not in data:
-		return jsonify({'success': False, 'error': 'Missing page_key or category_name'}), 400
-	res = _ts.add_category(data['page_key'], data['category_name'], template_key=TEMPLATE_STORE_KEY)
-	if res.get('success'):
-		return jsonify({'success': True})
-	return jsonify(res), 500
-
-# ---------------------------------------------------------------------------
-# Dynamic catch-all for DB-registered pages that have no dedicated Flask route
-# (e.g. pages created via the "Add Page" UI). Flask's specific routes always
-# take precedence, so this only fires for page_keys not matched above.
-# ---------------------------------------------------------------------------
-@app.route('/<page_key>', methods=['GET', 'POST'])
-def dynamic_page(page_key):
-	"""Serve any page_template row from the DB that has no hardcoded route."""
-	from template_store import get_all_pages as _get_all_pages
-	db_pages = _get_all_pages(template_key=TEMPLATE_STORE_KEY)
-	page_record = next((p for p in db_pages if p['page_key'] == page_key), None)
-	if page_record is None:
-		abort(404)
-
-	title = page_record.get('title', page_key)
-	edit_requested = request.args.get('edit', '').lower() in {'1', 'true', 'yes'}
-	edit_mode = session.get('role') == 'admin' and edit_requested
-
-	if edit_mode:
-		builder_state = get_builder_beta_state()
-		current_page_blocks = builder_state.get('pages', {}).get(page_key, {}).get('blocks', [])
-		selected_block_id = request.args.get('selected_block_id',
-			current_page_blocks[0]['id'] if current_page_blocks else '')
-		selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
-		return render_template(
-			'form.html',
-			page_schema={'title': title, 'fields': [], 'navigation': {}},
-			schema_render_mode='full',
-			previous_page='index',
-			next_page='index',
-			title=title,
-			edit_mode=True,
-			builder_state=builder_state,
-			current_page={'id': page_key, 'title': title, 'blocks': current_page_blocks},
-			current_page_id=page_key,
-			selected_block_id=selected_block_id,
-			selected_block=selected_block,
-			pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
-			li_categories=_get_li_categories_from_schema(page_key) or [],
-			form_page_key=page_key,
-			db_pages=db_pages,
-		)
-
-	return render_template(
-		'form.html',
-		page_schema={'title': title, 'fields': [], 'navigation': {}},
-		schema_render_mode='full',
-		previous_page='index',
-		next_page='index',
-		title=title,
-		li_categories=[],
-	)
-
-
-if __name__ == '__main__': 
-	debug_mode = os.getenv('FLASK_DEBUG', '').lower() in {'1', 'true', 'yes', 'on'}
-	port = int(os.getenv('PORT', '5000'))
-	app.run(debug=debug_mode, port=port)
-	
-#####################################################################################################################################
-	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+				save_page_s

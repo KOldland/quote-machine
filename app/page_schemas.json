@@ -100,7 +100,8 @@
         "categories": [
           {
             "name": "Special Notes",
-            "sort_order": 0
+            "sort_order": 0,
+            "output_group": "General"
           }
         ]
       },
@@ -121,31 +122,38 @@
         "categories": [
           {
             "name": "Building Works",
-            "sort_order": 0
+            "sort_order": 0,
+            "output_group": "General"
           },
           {
             "name": "Boundary Lines",
-            "sort_order": 1
+            "sort_order": 1,
+            "output_group": "General"
           },
           {
             "name": "Planning Permission",
-            "sort_order": 2
+            "sort_order": 2,
+            "output_group": "General"
           },
           {
             "name": "Basement",
-            "sort_order": 3
+            "sort_order": 3,
+            "output_group": "General"
           },
           {
             "name": "Council",
-            "sort_order": 4
+            "sort_order": 4,
+            "output_group": "General"
           },
           {
             "name": "Dimensions",
-            "sort_order": 5
+            "sort_order": 5,
+            "output_group": "General"
           },
           {
             "name": "Additional Notes",
-            "sort_order": 6
+            "sort_order": 6,
+            "output_group": "General"
           }
         ]
       },
@@ -550,35 +558,43 @@
         "categories": [
           {
             "name": "Drainage",
-            "sort_order": 0
+            "sort_order": 0,
+            "output_group": "General"
           },
           {
             "name": "Internal doors",
-            "sort_order": 1
+            "sort_order": 1,
+            "output_group": "General"
           },
           {
             "name": "Waste & Parking",
-            "sort_order": 2
+            "sort_order": 2,
+            "output_group": "General"
           },
           {
             "name": "dimension",
-            "sort_order": 3
+            "sort_order": 3,
+            "output_group": "General"
           },
           {
             "name": "external roofing finish",
-            "sort_order": 4
+            "sort_order": 4,
+            "output_group": "General"
           },
           {
             "name": "external wall finish & height",
-            "sort_order": 5
+            "sort_order": 5,
+            "output_group": "General"
           },
           {
             "name": "floor structure",
-            "sort_order": 6
+            "sort_order": 6,
+            "output_group": "General"
           },
           {
             "name": "plastering",
-            "sort_order": 7
+            "sort_order": 7,
+            "output_group": "General"
           }
         ]
       },
@@ -783,11 +799,13 @@
         "categories": [
           {
             "name": "Demolition Works",
-            "sort_order": 0
+            "sort_order": 0,
+            "output_group": "General"
           },
           {
             "name": "Further Requirements & Considerations",
-            "sort_order": 1
+            "sort_order": 1,
+            "output_group": "General"
           }
         ]
       },
@@ -808,7 +826,8 @@
         "categories": [
           {
             "name": "Additional Building Works",
-            "sort_order": 0
+            "sort_order": 0,
+            "output_group": "General"
           }
         ]
       },
@@ -901,27 +920,33 @@
         "categories": [
           {
             "name": "Electrics",
-            "sort_order": 0
+            "sort_order": 0,
+            "output_group": "General"
           },
           {
             "name": "Plumbing",
-            "sort_order": 1
+            "sort_order": 1,
+            "output_group": "General"
           },
           {
             "name": "Skylights",
-            "sort_order": 2
+            "sort_order": 2,
+            "output_group": "General"
           },
           {
             "name": "Velux",
-            "sort_order": 3
+            "sort_order": 3,
+            "output_group": "General"
           },
           {
             "name": "Aluminium Capping",
-            "sort_order": 4
+            "sort_order": 4,
+            "output_group": "General"
           },
           {
             "name": "Sliding Doors",
-            "sort_order": 5
+            "sort_order": 5,
+            "output_group": "General"
           }
         ]
       },
@@ -942,15 +967,18 @@
         "categories": [
           {
             "name": "Optional Extras",
-            "sort_order": 0
+            "sort_order": 0,
+            "output_group": "General"
           },
           {
             "name": "Finishing Works",
-            "sort_order": 1
+            "sort_order": 1,
+            "output_group": "General"
           },
           {
             "name": "Finishing Works Optional Extras",
-            "sort_order": 2
+            "sort_order": 2,
+            "output_group": "General"
           }
         ]
       },

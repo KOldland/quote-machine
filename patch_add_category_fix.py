@@ -49,4 +49,3 @@ if OLD_EMOJI not in content2:
     sys.exit(1)
 content2 = content2.replace(OLD_EMOJI, NEW_LABEL, 1)
 open(MACROS, 'w').write(content2)
-print("Fix 2 OK — eye emoji removed from Include in Form label.")
