@@ -1041,7 +1041,8 @@ def get_line_items_for_page(form_page: str, db_path: Optional[Path] = None) -> D
     rows = conn.execute(
         "SELECT id, line_code, form_page, category, internal_description, include_default, "
         "unit_cost, units, pricing_visibility, output_title, output_notes, output_guidance, "
-        "parent_code, item_role, input_type, trigger_parent_code, form_visible, sort_order "
+        "parent_code, item_role, input_type, trigger_parent_code, form_visible, sort_order, "
+        "is_follow_up, follow_up_type, follow_up_config, allow_user_override, output_group "
         "FROM line_items WHERE form_page=? AND form_visible=1 AND item_role != 'auto_child' "
         "ORDER BY sort_order ASC, line_code ASC",
         (form_page,),

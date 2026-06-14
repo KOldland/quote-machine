@@ -2099,6 +2099,7 @@ def builder_line_item_save(item_id):
             'unit_cost', 'units', 'pricing_visibility',
             'form_visible', 'category',
             'is_follow_up', 'follow_up_type', 'follow_up_config',
+            'output_group', 'allow_user_override',
         ]
         sets = []
         params = []

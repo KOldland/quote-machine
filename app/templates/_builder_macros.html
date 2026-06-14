@@ -919,6 +919,7 @@ document.addEventListener('DOMContentLoaded', function() {
             _field('unit_cost', 'Unit Cost (£)', 'number', item.unit_cost != null ? item.unit_cost : ''),
             _field('units',     'Units',         'number', item.units     != null ? item.units     : ''),
             _checkField('price_override_enabled', 'Price Override Enabled', item.pricing_visibility === 'user_edit', 'lich_price_override'),
+            _checkField('allow_user_override', 'Allow Cost Override by User', item.allow_user_override === 1 || item.allow_user_override === '1'),
         ]);
 
         // Generate category options
@@ -930,6 +931,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         html += _section('Meta', false, [
             _field('line_code',       'Line Code',       'text',   item.line_code   || '', true),
+            _field('output_group',    'Output Group',    'text',   item.output_group || 'General'),
             _selectField('category',  'Category',        item.category || '', allCats)
         ]);
 
