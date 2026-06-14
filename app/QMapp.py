@@ -2082,6 +2082,149 @@ def builder_line_item_delete():
     finally:
         conn.close()
 
+
+@app.route('/builder_beta/line_item_save/<int:item_id>', methods=['POST'])
+@require_role('admin')
+def builder_line_item_save(item_id):
+    """Save/update a line item's editable fields."""
+    import sqlite3
+    from pathlib import Path
+    db = str(Path(__file__).parent / 'template_store.sqlite3')
+    data = request.get_json(force=True) or {}
+    conn = sqlite3.connect(db)
+    try:
+        # Build SET clause from allowed fields
+        allowed = [
+            'internal_description', 'output_title', 'output_notes', 'output_guidance',
+            'unit_cost', 'units', 'pricing_visibility',
+            'form_visible', 'category',
+            'is_follow_up', 'follow_up_type', 'follow_up_config',
+        ]
+        sets = []
+        params = []
+        for key in allowed:
+            if key in data:
+                sets.append(f'{key} = ?')
+                params.append(data[key])
+        if not sets:
+            return jsonify({'ok': False, 'error': 'No fields to update'}), 400
+        params.append(item_id)
+        conn.execute(
+            f"UPDATE line_items SET {', '.join(sets)}, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            params
+        )
+        conn.commit()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 400
+    finally:
+        conn.close()
+
+
+@app.route('/builder_beta/line_items_json')
+@require_role('admin')
+def builder_line_items_json():
+    """Return line items grouped by category for a given page."""
+    import sqlite3
+    from pathlib import Path
+    db = str(Path(__file__).parent / 'template_store.sqlite3')
+    page = request.args.get('page', '')
+    category = request.args.get('category', '')
+    conn = sqlite3.connect(db)
+    conn.row_factory = sqlite3.Row
+    try:
+        if category:
+            rows = conn.execute(
+                "SELECT * FROM line_items WHERE form_page = ? AND category = ? ORDER BY sort_order",
+                [page, category]
+            ).fetchall()
+            categories = [{'name': category, 'items': [dict(r) for r in rows]}]
+        else:
+            cat_rows = conn.execute(
+                "SELECT DISTINCT category FROM line_items WHERE form_page = ? ORDER BY category",
+                [page]
+            ).fetchall()
+            categories = []
+            for cr in cat_rows:
+                rows = conn.execute(
+                    "SELECT * FROM line_items WHERE form_page = ? AND category = ? ORDER BY sort_order",
+                    [page, cr['category']]
+                ).fetchall()
+                categories.append({'name': cr['category'], 'items': [dict(r) for r in rows]})
+        return jsonify({'categories': categories})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+    finally:
+        conn.close()
+
+
+@app.route('/builder_beta/swap_order', methods=['POST'])
+@require_role('admin')
+def builder_swap_order():
+    """Swap sort_order of two adjacent line items or categories."""
+    import sqlite3
+    from pathlib import Path
+    db = str(Path(__file__).parent / 'template_store.sqlite3')
+    data = request.get_json(force=True) or {}
+    scope = data.get('scope', 'question')
+    identifier = data.get('identifier')
+    direction = data.get('direction', 'up')
+    page_key = data.get('page_key', '')
+    conn = sqlite3.connect(db)
+    conn.row_factory = sqlite3.Row
+    try:
+        if scope == 'question':
+            # Get current item's sort_order and category
+            cur = conn.execute(
+                "SELECT sort_order, category FROM line_items WHERE id = ?",
+                [identifier]
+            ).fetchone()
+            if not cur:
+                return jsonify({'error': 'Item not found'}), 404
+            cur_sort, category = cur
+            # Find adjacent item
+            op = '<' if direction == 'up' else '>'
+            order = 'DESC' if direction == 'up' else 'ASC'
+            adj = conn.execute(
+                f"SELECT id, sort_order FROM line_items WHERE form_page = ? AND category = ? AND sort_order {op} ? ORDER BY sort_order {order} LIMIT 1",
+                [page_key, category, cur_sort]
+            ).fetchone()
+            if not adj:
+                return jsonify({'error': 'No adjacent item'}), 400
+            # Swap sort orders
+            conn.execute("UPDATE line_items SET sort_order = ? WHERE id = ?", [adj['sort_order'], identifier])
+            conn.execute("UPDATE line_items SET sort_order = ? WHERE id = ?", [cur_sort, adj['id']])
+            conn.commit()
+            return jsonify({'success': True})
+        elif scope == 'category':
+            # Swap display_order in category_templates
+            cur = conn.execute(
+                "SELECT display_order FROM category_templates WHERE id = ?",
+                [identifier]
+            ).fetchone()
+            if not cur:
+                return jsonify({'error': 'Category not found'}), 404
+            cur_order = cur['display_order']
+            op = '<' if direction == 'up' else '>'
+            order = 'DESC' if direction == 'up' else 'ASC'
+            adj = conn.execute(
+                f"SELECT id, display_order FROM category_templates WHERE page_template_id = (SELECT page_template_id FROM category_templates WHERE id = ?) AND display_order {op} ? ORDER BY display_order {order} LIMIT 1",
+                [identifier, cur_order]
+            ).fetchone()
+            if not adj:
+                return jsonify({'error': 'No adjacent category'}), 400
+            conn.execute("UPDATE category_templates SET display_order = ? WHERE id = ?", [adj['display_order'], identifier])
+            conn.execute("UPDATE category_templates SET display_order = ? WHERE id = ?", [cur_order, adj['id']])
+            conn.commit()
+            return jsonify({'success': True})
+        else:
+            return jsonify({'error': f'Unknown scope: {scope}'}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+    finally:
+        conn.close()
+
+
 ################################################################################################################################
 	
 													# Image Processing
