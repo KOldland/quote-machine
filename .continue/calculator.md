@@ -2,7 +2,7 @@
 
 > **Status:** Part 1 ✅ | Part 2 ✅ | Part 3 ⏳ | Part 4 ⏳
 > **Phase 0+1 (Backend Prerequisites + Output Group Mapping):** ✅ Complete
-> **Phase 2 (Calculator Engine):** ✅ Complete — `app/calculator.py` created and verified
+> **Phase 2 (Calculator Engine):** ✅ Complete — `app/calculator.py` created and verified ✅ COMPLETE
 > **Phase 3 (Frontend Integration):** ⏳ NEXT — form.html overrides + review.html cost matrix
 
 ## 0. Overview
@@ -18,149 +18,17 @@ All vanilla JS, existing Flask session endpoints, building on `builder_beta` / l
 
 ## 1. Backend Prerequisites ✅ COMPLETE
 
-### 1.1 DB columns
-`line_items`: `allow_user_override INTEGER DEFAULT 0`, `output_group TEXT DEFAULT 'General'`
-`form_templates`: `settings_json TEXT DEFAULT '{}'`
+## 2. Phase 3 — Frontend Integration Plan ✅ COMPLETE
 
-### 1.2 POST /quote/session-override ✅
-File: `app/QMapp.py` line 1824. Accepts `{question_id, value}` and `{deposit_pct, completion_pct}` into `session['overrides']`.
+#### Step 5 — Update QMapp.py runtime render_template calls + create missing routes ✅ COMPLETE
 
-### 1.3 POST /admin/payment-schedule ✅
-File: `app/QMapp.py` line 1844. Admin-only. Saves default percentages + `allow_user_override`.
+#### Step 6 — Add price override inputs to form.html for checkbox_group options ✅ COMPLETE
 
-### 1.4 template_store helpers ✅
-File: `app/template_store.py` lines 1276 & 1312.
-- `upsert_payment_schedule_block()` — persists to `form_templates.settings_json`
-- `get_payment_schedule_block()` — reads with fallback defaults.
+#### Step 7 — Add payment schedule override inputs to form.html ✅ COMPLETE
 
-### 1.5 Builder beta extended ✅
-`_build_block_from_schema_field` now includes `allow_user_override: False` in pricing options.
-Page editor saves `pricing_allow_user_override` checkbox.
+#### Step 8 — Rewrite review.html as interactive cost matrix ✅ COMPLETE
 
-### 1.6 Output Group Mapping ✅ (Verified)
-- Backfilled `output_group` into `page_schemas.json` and `category_templates`.
-- Wired into `/builder_beta/line_item_save` (allowed field, line 2102).
-- UI field added in Form Editor (line item + category editors).
-
----
-
-## 2. Phase 3 — Frontend Integration Plan ⏳ NEXT
-
-### Current State Summary
-
-**Already exists:**
-- ✅ `calculator.py` — fully ready with `calculate_quote()` and `save_calculated_quote()`
-- ✅ `/quote/session-override` endpoint — accepts `question_id`, `value`, `deposit_pct`, `completion_pct`
-- ✅ `/admin/payment-schedule` endpoint — saves defaults with `allow_user_override`
-- ✅ `get_payment_schedule_block()` in template_store.py
-- ✅ `pricing_options` with `allow_user_override` in builder_beta block schemas (line_items table)
-- ✅ `review.html` template (Jinja) showing legacy `review_data` based output
-- ✅ `form.html` with `entered` pricing mode for fields (line 593)
-- ✅ `Index`, `special_notes_page`, `summary_page` routes exist
-
-**Missing / needs creation:**
-- ❌ Routes: `/materials_page`, `/further_requirements_page`, `/additional_building_work_page`, `/additional_costs_page`, `/optional_extras_page`, `/image_upload_page`, `/review`, `/submit`, `/trigger_production`, `/production-page`
-- ❌ `review.html` cost matrix (interactive version)
-- ❌ `form.html` price override inputs for checkbox_options with `allow_user_override=True`
-- ❌ `form.html` payment schedule overrides at runtime
-- ❌ Context passing (`session_overrides`, `payment_schedule`) to form/review templates
-- ❌ JS handlers for price override submission and payment schedule live recalculation
-
-### Implementation Steps
-
----
-
-#### Step 5 — Update QMapp.py runtime render_template calls + create missing routes
-
-**Files to modify:**
-- `app/QMapp.py`
-
-**Changes:**
-
-1. **Add helper function** that gathers common context needed at runtime:
-```python
-def _get_runtime_quote_context():
-    """Return session_overrides and payment_schedule for templates."""
-    import template_store as ts
-    session_overrides = session.get('overrides', {})
-    payment_schedule = ts.get_payment_schedule_block(TEMPLATE_STORE_KEY)
-    return {
-        'session_overrides': session_overrides,
-        'payment_schedule': payment_schedule,
-    }
-```
-
-2. **Update all 3 existing runtime render_template calls** (index, special_notes_page, summary_page) to include `**_get_runtime_quote_context()` in the non-edit_mode branch, plus `li_detail_level` and `li_line_items`.
-
-3. **Create the missing routes** (each following the same pattern as `special_notes_page`/`summary_page`):
-
-   - `materials_page` — GET/POST, runtime schema-driven, redirects to `further_requirements_page`
-   - `further_requirements_page` — same pattern
-   - `additional_building_work_page` — same
-   - `additional_costs_page` — same
-   - `optional_extras_page` — same
-   - `image_upload_page` — GET/POST for image uploads (cover, cgi, floorplan, site_images)
-   - `review` — GET, calculates quote via `calculator.py`, renders `review.html`
-   - `submit` — POST (JSON + fallback form), commits data to production, redirects to `/trigger_production`
-   - `trigger_production` — GET, generates output images, redirects to `/production-page`
-   - `production-page` — GET, shows final production results
-
----
-
-#### Step 6 — Add price override inputs to form.html for checkbox_group options
-
-**File:** `app/templates/form.html`
-
-**Change:** In the checkbox_group rendering section, for each `field` in the runtime schema:
-- Check if `field.builder_beta_meta.pricing_options.get('allow_user_override')` is `True`
-- If so, render a small inline currency input next to each checkbox option showing the option's base price (from catalog/line_items)
-- Add a `data-question-id` attribute to track the override target
-
-**Example rendering logic:**
-```html
-{% if field.builder_beta_meta and field.builder_beta_meta.pricing_options.get('allow_user_override') %}
-    <input type="number" step="0.01" class="override-price-input"
-           data-question-id="{{ option.value }}"
-           value="{{ session_overrides.get('q_' + option.value, '') }}"
-           placeholder="£ price">
-{% endif %}
-```
-
----
-
-#### Step 7 — Add payment schedule override inputs to form.html
-
-**File:** `app/templates/form.html`
-
-**Change:** Add a section (visible only when `payment_schedule.allow_user_override` is True) with inputs for:
-- Deposit percentage
-- Completion percentage
-
-These post to `/quote/session-override` on change via JS.
-
----
-
-#### Step 8 — Rewrite review.html as interactive cost matrix
-
-**File:** `app/templates/review.html`
-
-**Change:** Replace the static review output with an interactive cost matrix that receives from the `/review` route:
-- `review_data` (legacy output mapping)
-- `quote_result` (from `calculator.py`) — containing `groups`, `subtotals`, `grand_total`, `payment_schedule` data
-- `session_overrides` (for pre-fill)
-- `li_by_category` (line items grouped by category)
-
-**Matrix sections:**
-1. **Accordion per output_group** — each shows items with editable price fields
-2. **Live subtotal** per group — recalculated via JS on price change
-3. **Grand total** at the bottom
-4. **Payment schedule** section with deposit/completion amounts (editable percentages)
-5. **Discount/adjustment** input row
-6. **"Recalculate" button** or live JS update
-
----
-
-#### Step 9 — Add JS for interactive cost matrix
+#### Step 9 — Add JS for interactive cost matrix 
 
 **File:** `app/templates/review.html` (inline `<script>`)
 
@@ -225,10 +93,10 @@ User edits price on review page
 | 2 | `/quote/session-override` endpoint | ✅ |
 | 3 | `/admin/payment-schedule` endpoint | ✅ |
 | 4 | upsert/get payment schedule helpers | ✅ |
-| 5 | Update form view to pass blocks + overrides | ⏳ |
-| 6 | Add price input section + JS to form.html | ⏳ |
-| 7 | Add payment percent override + JS to form.html | ⏳ |
-| 8 | Update review view to pass line_items, schedule, overrides | ⏳ |
+| 5 | Update form view to pass blocks + overrides | ✅ |
+| 6 | Add price input section + JS to form.html | ✅  |
+| 7 | Add payment percent override + JS to form.html |  ✅ |
+| 8 | Update review view to pass line_items, schedule, overrides |  ✅ |
 | 9 | Rebuild review page with cost matrix + schedule JS | ⏳ |
 | 10 | Add admin config panel for payment schedule | ⏳ |
 

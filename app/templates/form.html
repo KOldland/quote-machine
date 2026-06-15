@@ -419,6 +419,14 @@
                                 {% if opt_hidden and not edit_mode %} disabled {% endif %}>
                             {% if edit_mode and opt_hidden %}<s>{{ opt_label }}</s>{% else %}{{ opt_label }}{% endif %}
                         </label>
+                        {# Phase 3 Step 6: Price override input for runtime checkbox options with allow_user_override=True #}
+                        {% if not edit_mode and field.pricing_options and field.pricing_options.get("allow_user_override") %}
+                        <input type="number" step="0.01" min="0" class="override-price-input"
+                               data-question-id="{{ option.value }}"
+                               value="{{ session_overrides.get("q_" + option.value, "") }}"
+                               placeholder="£ price"
+                               style="width:90px;padding:.2rem .35rem;border:1px solid #ccc;border-radius:3px;font-size:.82rem;">
+                        {% endif %}
                         {% if edit_mode %}
                         <button type="button" class="btn-option-edit"
                                 data-field-id="{{ field.id or field.name }}"
@@ -1522,6 +1530,35 @@
         
 
 <!-------------------------------------------------------------------------------------------------------------------------->
+<!----------------                     Payment Schedule Override (Phase 3 Step 7)                   ------------------------->
+<!-------------------------------------------------------------------------------------------------------------------------->
+{% if payment_schedule is defined and payment_schedule and payment_schedule.get('allow_user_override') %}
+<div class="payment-schedule-override" style="margin: 1.5rem 0; padding: 1rem; border: 1px solid #d0d0d0; border-radius: 6px; background: #f8faff;">
+    <h3 style="margin: 0 0 0.75rem 0; font-size: 1rem; font-weight: 700; color: #1b3a6b;">Payment Schedule</h3>
+    <p style="font-size: 0.85rem; color: #555; margin: 0 0 0.75rem 0;">
+        Override the default deposit and completion payment percentages for this quote.
+    </p>
+    <div style="display: flex; gap: 1.5rem; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 180px;">
+            <label for="deposit_pct" style="display: block; font-size: 0.85rem; font-weight: 600; color: #444; margin-bottom: 0.25rem;">Deposit (%)</label>
+            <input type="number" step="0.5" min="0" max="100" id="deposit_pct" name="deposit_pct"
+                   value="{{ session_overrides.get('deposit_pct', (payment_schedule.get('deposit_pct', 0.10) * 100) | int) }}"
+                   style="width: 100%; padding: 0.4rem 0.5rem; border: 1px solid #ced4da; border-radius: 4px; font-size: 0.9rem;">
+        </div>
+        <div style="flex: 1; min-width: 180px;">
+            <label for="completion_pct" style="display: block; font-size: 0.85rem; font-weight: 600; color: #444; margin-bottom: 0.25rem;">On Completion (%)</label>
+            <input type="number" step="0.5" min="0" max="100" id="completion_pct" name="completion_pct"
+                   value="{{ session_overrides.get('completion_pct', (payment_schedule.get('completion_pct', 0.10) * 100) | int) }}"
+                   style="width: 100%; padding: 0.4rem 0.5rem; border: 1px solid #ced4da; border-radius: 4px; font-size: 0.9rem;">
+        </div>
+    </div>
+    <p style="font-size: 0.75rem; color: #888; margin: 0.5rem 0 0 0;">
+        Values represent percentage of total quote. Remaining balance is due on practical completion.
+    </p>
+</div>
+{% endif %}
+
+<!-------------------------------------------------------------------------------------------------------------------------->
 <!----------------                              Nav buttons                                        ------------------------->
 <!-------------------------------------------------------------------------------------------------------------------------->
         <div class="button-container">
@@ -1781,126 +1818,4 @@
                             fixed_amount: parseFloat(fixedEl && fixedEl.value) || 0,
                             entered_key: enteredEl ? enteredEl.value : '',
                             rate: parseFloat(rateEl && rateEl.value) || 0,
-                            quantity_key: quantityEl ? quantityEl.value : '',
-                            percent_of_subtotal: parseFloat(percentEl && percentEl.value) || 0,
-                        },
-                    },
-                },
-            });
-
-            if (ok) {
-                btn.textContent = 'Saved';
-                setTimeout(function () { btn.textContent = 'Save Pricing'; }, 1300);
-            }
-        });
-    });
-
-    document.querySelectorAll('.btn-option-delete').forEach(function (btn) {
-        btn.addEventListener('click', async function () {
-            if (!confirm('Delete this line item?')) { return; }
-            const pageId = btn.dataset.pageId;
-            const fieldId = btn.dataset.fieldId;
-            const optVal = btn.dataset.optionValue;
-            const ok = await saveFieldOverride({
-                page_id: pageId,
-                field_id: fieldId,
-                option_overrides: { [optVal]: { deleted: true, hidden: true } },
-            });
-            if (ok) {
-                const row = btn.closest('.schema-option-row');
-                if (row) {
-                    row.style.display = 'none';
-                }
-            }
-        });
-    });
-
-    document.querySelectorAll('.btn-inspector-pricing-save').forEach(function (btn) {
-        btn.addEventListener('click', async function () {
-            const body = btn.closest('.inspector-body');
-            const pageId = body.dataset.pageId;
-            const fieldId = body.dataset.fieldId;
-            const ok = await saveInspector({
-                page_id: pageId,
-                field_id: fieldId,
-                pricing_options: {
-                    mode: body.querySelector('.inspector-pricing-mode').value,
-                    fixed_amount: parseFloat(body.querySelector('.inspector-fixed-amount').value) || 0,
-                    rate: parseFloat(body.querySelector('.inspector-rate').value) || 0,
-                    entered_key: body.querySelector('.inspector-entered-key').value,
-                },
-            });
-            if (ok) {
-                btn.textContent = '✓ Saved';
-                setTimeout(function () { btn.textContent = 'Save pricing'; }, 2000);
-            }
-        });
-    });
-
-    document.querySelectorAll('.btn-inspector-output-save').forEach(function (btn) {
-        btn.addEventListener('click', async function () {
-            const body = btn.closest('.inspector-body');
-            const pageId = body.dataset.pageId;
-            const fieldId = body.dataset.fieldId;
-            const ok = await saveInspector({
-                page_id: pageId,
-                field_id: fieldId,
-                output_options: {
-                    include_in_output: body.querySelector('.inspector-include-output').checked,
-                    output_label: body.querySelector('.inspector-output-label').value,
-                    group: body.querySelector('.inspector-group').value,
-                },
-            });
-            if (ok) {
-                btn.textContent = '✓ Saved';
-                setTimeout(function () { btn.textContent = 'Save output'; }, 2000);
-            }
-        });
-    });
-
-    const btnLoadForm = document.getElementById('btn-load-form');
-    if (btnLoadForm) {
-        btnLoadForm.addEventListener('click', async function () {
-            // Note: In real app, this should open a modal that fetches /builder_beta/list_forms and sets session state.
-            alert("Load form dialog - to be implemented with form switching endpoints.");
-        });
-    }
-
-    const btnRollback = document.getElementById('btn-rollback');
-    if (btnRollback) {
-        btnRollback.addEventListener('click', async function () {
-            if (!confirm('Roll back to the last published snapshot? Unsaved draft changes will be lost.')) { return; }
-            setEditStatus('Rolling back...', '#856404');
-            const res = await fetch('/admin/rollback', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
-                body: JSON.stringify({}),
-            });
-            const data = await res.json().catch(function () { return {}; });
-            if (res.ok) {
-                setEditStatus('Rolled back to published snapshot', '#2e7d32');
-                location.reload();
-            } else {
-                alert('Rollback failed: ' + (data.error || res.status));
-                setEditStatus('Rollback failed', '#c62828');
-            }
-        });
-    }
-}());
-</script>
-{% endif %}
-
-    {% endif %}
-{% if edit_mode %}
-<script>
-    // Inject builder state as JS globals
-    window.blocks = {{ current_page.blocks | tojson | safe if current_page else '[]' }};
-    window.pageId = {{ current_page_id | tojson | safe if current_page_id else "''" }};
-    window.selectedBlockId = {{ selected_block_id | tojson | safe if selected_block_id else 'null' }};
-    window.builderStateQuestionTypes = {{ builder_state.question_types | tojson | safe if builder_state else '{}' }};
-</script>
-<script src="{{ url_for('static', filename='js/builder.js') }}" defer></script>
-{% endif %}
-{% endblock %}
-
         
