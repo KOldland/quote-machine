@@ -2608,7 +2608,8 @@ def index():
 		proposal_date=form_date,
 		current_page=None,
 		selected_block_id=None,
-		edit_mode=False
+		edit_mode=False,
+		**_get_runtime_quote_context()
 	)
 
 
@@ -2662,6 +2663,7 @@ def special_notes_page():
 			selected_block=selected_block,
 			pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
 			li_categories=_li_cats,
+			**_get_runtime_quote_context(),
 		)
 	else:
 		return render_template(
@@ -2671,7 +2673,8 @@ def special_notes_page():
 			previous_page=page_schema.get('navigation', {}).get('previous_endpoint', 'index') if page_schema else 'index',
 			next_page=page_schema.get('navigation', {}).get('next_endpoint', 'summary_page') if page_schema else 'summary_page',
 			title=page_schema.get('title', 'Special Notes') if page_schema else 'Special Notes',
-			li_categories=_li_cats
+			li_categories=_li_cats,
+			**_get_runtime_quote_context(),
 		)
 
 
@@ -2717,6 +2720,7 @@ def summary_page():
 			selected_block=selected_block,
 			pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
 			li_categories=_li_cats,
+			**_get_runtime_quote_context(),
 		)
 	else:
 		return render_template(
@@ -2727,7 +2731,8 @@ def summary_page():
 			previous_page=previous_page,
 			next_page='materials_page',
 			title="Summary Page",
-			li_categories=_li_cats
+			li_categories=_li_cats,
+			**_get_runtime_quote_context(),
 		)
 
 
@@ -2958,1943 +2963,477 @@ def builder_beta_page_editor(page_id):
 			if delete_index is not None:
 				del page['blocks'][delete_index]
 				selected_block_id = page['blocks'][delete_index - 1]['id'] if delete_index > 0 else ''
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-				save_page_s
+				save_page_schemas()
+
+	return render_template(
+		'builder_beta/page_editor.html',
+		page=page,
+		page_id=page_id,
+		selected_block_id=selected_block_id,
+		state=state
+	)
+
+# ── Quote Calculator: runtime context helper ──────────────────────
+def _get_runtime_quote_context():
+    """Return session_overrides and payment_schedule for templates."""
+    import template_store as ts
+    session_overrides = session.get('overrides', {})
+    payment_schedule = ts.get_payment_schedule_block(TEMPLATE_STORE_KEY)
+    return {
+        'session_overrides': session_overrides,
+        'payment_schedule': payment_schedule,
+    }
+
+
+################################################################################
+# PAGE - MATERIALS
+################################################################################
+
+@app.route('/materials_page', methods=['GET', 'POST'])
+def materials_page():
+    session['last_visited'] = 'materials_page'
+    checkbox_data = session.setdefault('checkbox_data', {})
+    page_schema = compile_builder_beta_page_to_runtime_schema('materials_page')
+
+    if request.method == 'POST':
+        checkbox_data = persist_schema_page_submission(page_schema, request.form, checkbox_data)
+        session['checkbox_data'] = checkbox_data
+        session.modified = True
+        return redirect(url_for('further_requirements_page'))
+
+    sheet_data = get_catalog()
+    page_schema = build_page_schema_context('materials_page', sheet_data, session.get('checkbox_data', {}))
+
+    edit_requested = request.args.get('edit', '').lower() in {'1', 'true', 'yes'}
+    edit_mode = session.get('role') == 'admin' and edit_requested
+    _li_cats = _get_li_categories_from_schema('materials_page') or []
+
+    if edit_mode:
+        builder_state = get_builder_beta_state()
+        current_page_id = 'materials_page'
+        current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
+        selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
+        selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
+
+        return render_template(
+            'form.html',
+            page_schema=page_schema,
+            schema_render_mode='full',
+            previous_page=page_schema.get('navigation', {}).get('previous_endpoint', 'summary_page') if page_schema else 'summary_page',
+            next_page=page_schema.get('navigation', {}).get('next_endpoint', 'further_requirements_page') if page_schema else 'further_requirements_page',
+            title=page_schema.get('title', 'Materials') if page_schema else 'Materials',
+            builder_state=builder_state,
+                                    current_page={'id': current_page_id, 'title': page_schema.get('title', 'Materials') if page_schema else 'Materials', 'blocks': current_page_blocks},
+            current_page_id=current_page_id,
+            selected_block_id=selected_block_id,
+            selected_block=selected_block,
+            pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
+            li_categories=_li_cats,
+            **_get_runtime_quote_context()
+        )
+    else:
+        return render_template(
+            'form.html',
+            page_schema=page_schema,
+            schema_render_mode='full',
+            previous_page=page_schema.get('navigation', {}).get('previous_endpoint', 'summary_page') if page_schema else 'summary_page',
+            next_page=page_schema.get('navigation', {}).get('next_endpoint', 'further_requirements_page') if page_schema else 'further_requirements_page',
+            title=page_schema.get('title', 'Materials') if page_schema else 'Materials',
+            li_categories=_li_cats,
+            **_get_runtime_quote_context()
+        )
+
+################################################################################
+# PAGE - FURTHER REQUIREMENTS
+################################################################################
+
+@app.route('/further_requirements_page', methods=['GET', 'POST'])
+def further_requirements_page():
+    session['last_visited'] = 'further_requirements_page'
+    checkbox_data = session.setdefault('checkbox_data', {})
+    page_schema = compile_builder_beta_page_to_runtime_schema('further_requirements_page')
+
+    if request.method == 'POST':
+        checkbox_data = persist_schema_page_submission(page_schema, request.form, checkbox_data)
+        session['checkbox_data'] = checkbox_data
+        session.modified = True
+        return redirect(url_for('additional_building_work_page'))
+
+    sheet_data = get_catalog()
+    page_schema = build_page_schema_context('further_requirements_page', sheet_data, session.get('checkbox_data', {}))
+
+    edit_requested = request.args.get('edit', '').lower() in {'1', 'true', 'yes'}
+    edit_mode = session.get('role') == 'admin' and edit_requested
+    _li_cats = _get_li_categories_from_schema('further_requirements_page') or []
+
+    if edit_mode:
+        builder_state = get_builder_beta_state()
+        current_page_id = 'further_requirements_page'
+        current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
+        selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
+        selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
+
+        return render_template(
+            'form.html',
+            page_schema=page_schema,
+            schema_render_mode='full',
+            previous_page=page_schema.get('navigation', {}).get('previous_endpoint', 'materials_page') if page_schema else 'materials_page',
+            next_page=page_schema.get('navigation', {}).get('next_endpoint', 'additional_building_work_page') if page_schema else 'additional_building_work_page',
+            title=page_schema.get('title', 'Further Requirements') if page_schema else 'Further Requirements',
+            builder_state=builder_state,
+			current_page={'id': current_page_id, 'title': page_schema.get('title', 'Further Requirements') if page_schema else 'Further Requirements', 'blocks': current_page_blocks},
+            current_page_id=current_page_id,
+            selected_block_id=selected_block_id,
+            selected_block=selected_block,
+            pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
+            li_categories=_li_cats,
+            **_get_runtime_quote_context()
+        )
+    else:
+        return render_template(
+            'form.html',
+            page_schema=page_schema,
+            schema_render_mode='full',
+            previous_page=page_schema.get('navigation', {}).get('previous_endpoint', 'materials_page') if page_schema else 'materials_page',
+            next_page=page_schema.get('navigation', {}).get('next_endpoint', 'additional_building_work_page') if page_schema else 'additional_building_work_page',
+            title=page_schema.get('title', 'Further Requirements') if page_schema else 'Further Requirements',
+            li_categories=_li_cats,
+            **_get_runtime_quote_context()
+        )
+
+################################################################################
+# PAGE - ADDITIONAL BUILDING WORK
+################################################################################
+
+@app.route('/additional_building_work_page', methods=['GET', 'POST'])
+def additional_building_work_page():
+    session['last_visited'] = 'additional_building_work_page'
+    checkbox_data = session.setdefault('checkbox_data', {})
+    page_schema = compile_builder_beta_page_to_runtime_schema('additional_building_work_page')
+
+    if request.method == 'POST':
+        checkbox_data = persist_schema_page_submission(page_schema, request.form, checkbox_data)
+        session['checkbox_data'] = checkbox_data
+        session.modified = True
+        return redirect(url_for('additional_costs_page'))
+
+    sheet_data = get_catalog()
+    page_schema = build_page_schema_context('additional_building_work_page', sheet_data, session.get('checkbox_data', {}))
+
+    edit_requested = request.args.get('edit', '').lower() in {'1', 'true', 'yes'}
+    edit_mode = session.get('role') == 'admin' and edit_requested
+    _li_cats = _get_li_categories_from_schema('additional_building_work_page') or []
+
+    if edit_mode:
+        builder_state = get_builder_beta_state()
+        current_page_id = 'additional_building_work_page'
+        current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
+        selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
+        selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
+
+        return render_template(
+            'form.html',
+            page_schema=page_schema,
+            schema_render_mode='full',
+            previous_page=page_schema.get('navigation', {}).get('previous_endpoint', 'further_requirements_page') if page_schema else 'further_requirements_page',
+            next_page=page_schema.get('navigation', {}).get('next_endpoint', 'additional_costs_page') if page_schema else 'additional_costs_page',
+            title=page_schema.get('title', 'Additional Building Work') if page_schema else 'Additional Building Work',
+            builder_state=builder_state,
+			current_page={'id': current_page_id, 'title': page_schema.get('title', 'Additional Building Work') if page_schema else 'Additional Building Work', 'blocks': current_page_blocks},
+            current_page_id=current_page_id,
+            selected_block_id=selected_block_id,
+            selected_block=selected_block,
+            pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
+            li_categories=_li_cats,
+            **_get_runtime_quote_context()
+        )
+    else:
+        return render_template(
+            'form.html',
+            page_schema=page_schema,
+            schema_render_mode='full',
+            previous_page=page_schema.get('navigation', {}).get('previous_endpoint', 'further_requirements_page') if page_schema else 'further_requirements_page',
+            next_page=page_schema.get('navigation', {}).get('next_endpoint', 'additional_costs_page') if page_schema else 'additional_costs_page',
+            title=page_schema.get('title', 'Additional Building Work') if page_schema else 'Additional Building Work',
+            li_categories=_li_cats,
+            **_get_runtime_quote_context()
+        )
+
+################################################################################
+# PAGE - ADDITIONAL COSTS
+################################################################################
+
+@app.route('/additional_costs_page', methods=['GET', 'POST'])
+def additional_costs_page():
+    session['last_visited'] = 'additional_costs_page'
+    checkbox_data = session.setdefault('checkbox_data', {})
+    page_schema = compile_builder_beta_page_to_runtime_schema('additional_costs_page')
+
+    if request.method == 'POST':
+        checkbox_data = persist_schema_page_submission(page_schema, request.form, checkbox_data)
+        session['checkbox_data'] = checkbox_data
+        session.modified = True
+        return redirect(url_for('optional_extras_page'))
+
+    sheet_data = get_catalog()
+    page_schema = build_page_schema_context('additional_costs_page', sheet_data, session.get('checkbox_data', {}))
+
+    edit_requested = request.args.get('edit', '').lower() in {'1', 'true', 'yes'}
+    edit_mode = session.get('role') == 'admin' and edit_requested
+    _li_cats = _get_li_categories_from_schema('additional_costs_page') or []
+
+    if edit_mode:
+        builder_state = get_builder_beta_state()
+        current_page_id = 'additional_costs_page'
+        current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
+        selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
+        selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
+
+        return render_template(
+            'form.html',
+            page_schema=page_schema,
+            schema_render_mode='full',
+            previous_page=page_schema.get('navigation', {}).get('previous_endpoint', 'additional_building_work_page') if page_schema else 'additional_building_work_page',
+            next_page=page_schema.get('navigation', {}).get('next_endpoint', 'optional_extras_page') if page_schema else 'optional_extras_page',
+            title=page_schema.get('title', 'Additional Costs') if page_schema else 'Additional Costs',
+            builder_state=builder_state,
+			current_page={'id': current_page_id, 'title': page_schema.get('title', 'Additional Costs') if page_schema else 'Additional Costs', 'blocks': current_page_blocks},
+            current_page_id=current_page_id,
+            selected_block_id=selected_block_id,
+            selected_block=selected_block,
+            pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
+            li_categories=_li_cats,
+            **_get_runtime_quote_context()
+        )
+    else:
+        return render_template(
+            'form.html',
+            page_schema=page_schema,
+            schema_render_mode='full',
+            previous_page=page_schema.get('navigation', {}).get('previous_endpoint', 'additional_building_work_page') if page_schema else 'additional_building_work_page',
+            next_page=page_schema.get('navigation', {}).get('next_endpoint', 'optional_extras_page') if page_schema else 'optional_extras_page',
+            title=page_schema.get('title', 'Additional Costs') if page_schema else 'Additional Costs',
+            li_categories=_li_cats,
+            **_get_runtime_quote_context()
+        )
+
+################################################################################
+# PAGE - OPTIONAL EXTRAS
+################################################################################
+
+@app.route('/optional_extras_page', methods=['GET', 'POST'])
+def optional_extras_page():
+    session['last_visited'] = 'optional_extras_page'
+    checkbox_data = session.setdefault('checkbox_data', {})
+    page_schema = compile_builder_beta_page_to_runtime_schema('optional_extras_page')
+
+    if request.method == 'POST':
+        checkbox_data = persist_schema_page_submission(page_schema, request.form, checkbox_data)
+        session['checkbox_data'] = checkbox_data
+        session.modified = True
+        return redirect(url_for('image_upload_page'))
+
+    sheet_data = get_catalog()
+    page_schema = build_page_schema_context('optional_extras_page', sheet_data, session.get('checkbox_data', {}))
+
+    edit_requested = request.args.get('edit', '').lower() in {'1', 'true', 'yes'}
+    edit_mode = session.get('role') == 'admin' and edit_requested
+    _li_cats = _get_li_categories_from_schema('optional_extras_page') or []
+
+    if edit_mode:
+        builder_state = get_builder_beta_state()
+        current_page_id = 'optional_extras_page'
+        current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
+        selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
+        selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
+
+        return render_template(
+            'form.html',
+            page_schema=page_schema,
+            schema_render_mode='full',
+            previous_page=page_schema.get('navigation', {}).get('previous_endpoint', 'additional_costs_page') if page_schema else 'additional_costs_page',
+            next_page=page_schema.get('navigation', {}).get('next_endpoint', 'image_upload_page') if page_schema else 'image_upload_page',
+            title=page_schema.get('title', 'Optional Extras') if page_schema else 'Optional Extras',
+            builder_state=builder_state,
+			current_page={'id': current_page_id, 'title': page_schema.get('title', 'Optional Extras') if page_schema else 'Optional Extras', 'blocks': current_page_blocks},
+            current_page_id=current_page_id,
+            selected_block_id=selected_block_id,
+            selected_block=selected_block,
+            pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
+            li_categories=_li_cats,
+            **_get_runtime_quote_context()
+        )
+    else:
+        return render_template(
+            'form.html',
+            page_schema=page_schema,
+            schema_render_mode='full',
+            previous_page=page_schema.get('navigation', {}).get('previous_endpoint', 'additional_costs_page') if page_schema else 'additional_costs_page',
+            next_page=page_schema.get('navigation', {}).get('next_endpoint', 'image_upload_page') if page_schema else 'image_upload_page',
+            title=page_schema.get('title', 'Optional Extras') if page_schema else 'Optional Extras',
+            li_categories=_li_cats,
+            **_get_runtime_quote_context()
+        )
+
+################################################################################
+# PAGE - IMAGE UPLOAD
+################################################################################
+
+@app.route('/image_upload_page', methods=['GET', 'POST'])
+def image_upload_page():
+    session['last_visited'] = 'image_upload_page'
+    checkbox_data = session.setdefault('checkbox_data', {})
+    page_schema = compile_builder_beta_page_to_runtime_schema('image_upload_page')
+
+    if request.method == 'POST':
+        checkbox_data = persist_schema_page_submission(page_schema, request.form, checkbox_data)
+        session['checkbox_data'] = checkbox_data
+        session.modified = True
+        return redirect(url_for('review'))
+
+    sheet_data = get_catalog()
+    page_schema = build_page_schema_context('image_upload_page', sheet_data, session.get('checkbox_data', {}))
+
+    edit_requested = request.args.get('edit', '').lower() in {'1', 'true', 'yes'}
+    edit_mode = session.get('role') == 'admin' and edit_requested
+    _li_cats = _get_li_categories_from_schema('image_upload_page') or []
+
+    if edit_mode:
+        builder_state = get_builder_beta_state()
+        current_page_id = 'image_upload_page'
+        current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
+        selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
+        selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
+
+        return render_template(
+            'form.html',
+            page_schema=page_schema,
+            schema_render_mode='full',
+            previous_page=page_schema.get('navigation', {}).get('previous_endpoint', 'optional_extras_page') if page_schema else 'optional_extras_page',
+            next_page=page_schema.get('navigation', {}).get('next_endpoint', 'review') if page_schema else 'review',
+            title=page_schema.get('title', 'Image Upload') if page_schema else 'Image Upload',
+            builder_state=builder_state,
+			current_page={'id': current_page_id, 'title': page_schema.get('title', 'Image Upload') if page_schema else 'Image Upload', 'blocks': current_page_blocks},
+            current_page_id=current_page_id,
+            selected_block_id=selected_block_id,
+            selected_block=selected_block,
+            pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
+            li_categories=_li_cats,
+            **_get_runtime_quote_context()
+        )
+    else:
+        return render_template(
+            'form.html',
+            page_schema=page_schema,
+            schema_render_mode='full',
+            previous_page=page_schema.get('navigation', {}).get('previous_endpoint', 'optional_extras_page') if page_schema else 'optional_extras_page',
+            next_page=page_schema.get('navigation', {}).get('next_endpoint', 'review') if page_schema else 'review',
+            title=page_schema.get('title', 'Image Upload') if page_schema else 'Image Upload',
+            li_categories=_li_cats,
+            **_get_runtime_quote_context()
+        )
+
+################################################################################
+# PAGE - REVIEW (Cost Matrix)
+################################################################################
+
+@app.route('/review', methods=['GET', 'POST'])
+def review():
+    session['last_visited'] = 'review'
+    checkbox_data = session.get('checkbox_data', {})
+
+    if request.method == 'POST':
+        checkbox_data = session.setdefault('checkbox_data', {})
+        # Persist any final checkbox changes from the review page
+        for key, value in request.form.items():
+            checkbox_data[key] = value
+        session['checkbox_data'] = checkbox_data
+        session.modified = True
+        return redirect(url_for('submit'))
+
+    # Build the cost matrix from all page schemas
+    sheet_data = get_catalog()
+    pages = {}
+    page_ids = ['materials_page', 'further_requirements_page', 'additional_building_work_page', 'additional_costs_page', 'optional_extras_page']
+    for pid in page_ids:
+        schema = build_page_schema_context(pid, sheet_data, checkbox_data)
+        if schema:
+            pages[pid] = schema
+
+    # Compute totals by output_group
+    totals_by_group = {}
+    grand_total = 0.0
+    for pid, schema in pages.items():
+        for block in schema.get('blocks', []):
+            output_group = block.get('output_group', 'general')
+            if output_group not in totals_by_group:
+                totals_by_group[output_group] = 0.0
+            for item in block.get('line_items', []):
+                price = float(item.get('unit_price', item.get('price', 0)) or 0)
+                qty = float(item.get('quantity', 1) or 1)
+                total = price * qty
+                totals_by_group[output_group] += total
+                grand_total += total
+
+    # Get session overrides and payment schedule
+    ctx = _get_runtime_quote_context()
+
+    return render_template(
+        'review.html',
+        pages=pages,
+        totals_by_group=totals_by_group,
+        grand_total=grand_total,
+        **ctx
+    )
+
+################################################################################
+# ROUTE - SUBMIT (Finalize Quote)
+################################################################################
+
+@app.route('/submit', methods=['POST'])
+def submit():
+    '''Finalize the quote and generate the proposal.'''
+    # Collect all data from session
+    proposal_data = {
+        'data': session.get('data', {}),
+        'checkbox_data': session.get('checkbox_data', {}),
+        'overrides': session.get('overrides', {}),
+    }
+
+    # Store the finalized quote
+    session['proposal_data'] = proposal_data
+    session.modified = True
+
+    return redirect(url_for('trigger_production'))
+
+################################################################################
+# ROUTE - TRIGGER PRODUCTION
+################################################################################
+
+@app.route('/trigger_production', methods=['POST'])
+def trigger_production():
+    '''Trigger the production workflow.'''
+    proposal_data = session.get('proposal_data', {})
+
+    # Future: Integrate with production workflow
+    # For now, store the trigger event
+    session['production_triggered'] = True
+    session.modified = True
+
+    return redirect(url_for('production_page'))
+
+################################################################################
+# PAGE - PRODUCTION
+################################################################################
+
+@app.route('/production-page', methods=['GET'])
+def production_page():
+    '''Show the production status page.'''
+    proposal_data = session.get('proposal_data', {})
+    production_triggered = session.get('production_triggered', False)
+
+    return render_template(
+        'production_page.html',
+        proposal_data=proposal_data,
+        production_triggered=production_triggered
+    )
