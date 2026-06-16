@@ -22,6 +22,7 @@ from google.oauth2.service_account import Credentials
 from templates import get_layout_definition
 from pathlib import Path
 from copy import deepcopy
+import calculator
 from template_store import (
 	initialize_template_store,
 	load_template_payload,
@@ -1831,6 +1832,10 @@ def session_override():
     if 'question_id' in data and 'value' in data:
         session['overrides'][f"q_{data['question_id']}"] = float(data['value'])
 
+    # Output-group (revenue pool) level override
+    if 'output_group' in data and 'override_total' in data:
+        session['overrides'][f"og_{data['output_group']}"] = float(data['override_total'])
+
     # Payment schedule percentage overrides
     if 'deposit_pct' in data:
         session['overrides']['deposit_pct'] = float(data['deposit_pct'])
@@ -3351,38 +3356,38 @@ def review():
         session.modified = True
         return redirect(url_for('submit'))
 
-    # Build the cost matrix from all page schemas
-    sheet_data = get_catalog()
-    pages = {}
-    page_ids = ['materials_page', 'further_requirements_page', 'additional_building_work_page', 'additional_costs_page', 'optional_extras_page']
-    for pid in page_ids:
-        schema = build_page_schema_context(pid, sheet_data, checkbox_data)
-        if schema:
-            pages[pid] = schema
+    # Build the cost matrix using the calculator engine
+    # Pass current session overrides so output-group overrides are reflected
+    overrides = session.get('overrides', {})
+    calc_result = calculator.calculate_quote(
+        TEMPLATE_STORE_KEY,
+        form_data=checkbox_data,
+        session_overrides=overrides,
+    )
 
-    # Compute totals by output_group
-    totals_by_group = {}
-    grand_total = 0.0
-    for pid, schema in pages.items():
-        for block in schema.get('blocks', []):
-            output_group = block.get('output_group', 'general')
-            if output_group not in totals_by_group:
-                totals_by_group[output_group] = 0.0
-            for item in block.get('line_items', []):
-                price = float(item.get('unit_price', item.get('price', 0)) or 0)
-                qty = float(item.get('quantity', 1) or 1)
-                total = price * qty
-                totals_by_group[output_group] += total
-                grand_total += total
+    # Apply output-group level overrides from session on top of calculated subtotals
+    subtotals = dict(calc_result['subtotals'])
+    grand_total = calc_result['subtotal']
+    for gname in list(subtotals.keys()):
+        override_key = f"og_{gname}"
+        if override_key in overrides:
+            try:
+                subtotals[gname] = round(float(overrides[override_key]), 2)
+            except (TypeError, ValueError):
+                pass
+    # Recompute grand total after overrides
+    grand_total = round(sum(subtotals.values()), 2)
 
     # Get session overrides and payment schedule
     ctx = _get_runtime_quote_context()
 
     return render_template(
         'review.html',
-        pages=pages,
-        totals_by_group=totals_by_group,
+        pages=calc_result.get('groups', []),
+        totals_by_group=subtotals,
         grand_total=grand_total,
+        groups=calc_result.get('groups', []),
+        calc_result=calc_result,
         **ctx
     )
 
@@ -3393,11 +3398,41 @@ def review():
 @app.route('/submit', methods=['POST'])
 def submit():
     '''Finalize the quote and generate the proposal.'''
+    overrides = session.get('overrides', {})
+    checkbox_data = session.get('checkbox_data', {})
+
+    # Run the calculator with current overrides to get final figures
+    try:
+        calc_result = calculator.calculate_quote(
+            TEMPLATE_STORE_KEY,
+            form_data=checkbox_data,
+            session_overrides=overrides,
+        )
+    except Exception as exc:
+        current_app.logger.warning('Calculator error at submit: %s', exc)
+        calc_result = {}
+
+    # Apply output-group level overrides on top of calculated subtotals
+    subtotals = dict(calc_result.get('subtotals', {}))
+    for gname in list(subtotals.keys()):
+        override_key = f'og_{gname}'
+        if override_key in overrides:
+            try:
+                subtotals[gname] = round(float(overrides[override_key]), 2)
+            except (TypeError, ValueError):
+                pass
+    grand_total = round(sum(subtotals.values()), 2)
+
     # Collect all data from session
     proposal_data = {
         'data': session.get('data', {}),
-        'checkbox_data': session.get('checkbox_data', {}),
-        'overrides': session.get('overrides', {}),
+        'checkbox_data': checkbox_data,
+        'overrides': overrides,
+        'calculator_result': {
+            'subtotals': subtotals,
+            'subtotal': grand_total,
+            'groups': calc_result.get('groups', []),
+        },
     }
 
     # Store the finalized quote
