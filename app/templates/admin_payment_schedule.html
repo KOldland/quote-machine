@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <title>Payment Schedule Config – Quote Machine</title>
+    <style>
+        .config-wrapper {
+            max-width: 640px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+        .config-card {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,.1);
+            padding: 1.75rem 2rem;
+        }
+        .config-card h1 {
+            font-size: 1.35rem;
+            margin: 0 0 .35rem 0;
+            color: #1b3a6b;
+        }
+        .config-card .subtitle {
+            font-size: .85rem;
+            color: #666;
+            margin: 0 0 1.5rem 0;
+        }
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+        .form-group label {
+            display: block;
+            font-size: .85rem;
+            font-weight: 600;
+            color: #444;
+            margin-bottom: .3rem;
+        }
+        .form-group .help-text {
+            font-size: .75rem;
+            color: #888;
+            margin-top: .2rem;
+        }
+        .form-group input[type="number"] {
+            width: 120px;
+            padding: .45rem .6rem;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: .9rem;
+        }
+        .form-group input[type="checkbox"] {
+            margin-right: .4rem;
+            transform: scale(1.1);
+        }
+        .form-group .checkbox-label {
+            font-weight: 500;
+            font-size: .9rem;
+            color: #333;
+            cursor: pointer;
+        }
+        .btn-save {
+            background: #1b3a6b;
+            color: #fff;
+            border: none;
+            padding: .6rem 1.5rem;
+            border-radius: 4px;
+            font-size: .9rem;
+            font-weight: 600;
+            cursor: pointer;
+            letter-spacing: .03em;
+        }
+        .btn-save:hover { background: #14305a; }
+        .btn-save:disabled { opacity: .6; cursor: not-allowed; }
+        .save-status {
+            font-size: .85rem;
+            margin-left: .75rem;
+            display: inline-block;
+        }
+        .save-status.success { color: #28a745; }
+        .save-status.error { color: #dc3545; }
+        .back-link {
+            display: inline-block;
+            margin-top: 1rem;
+            color: #1b3a6b;
+            text-decoration: none;
+            font-size: .85rem;
+        }
+        .back-link:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+<div class="config-wrapper">
+    <div class="config-card">
+        <h1>Payment Schedule Configuration</h1>
+        <p class="subtitle">Set the default deposit and completion percentages, and control whether users can override them on individual quotes.</p>
+
+        <form id="ps-config-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="form-group">
+                <label for="deposit_pct">Deposit Percentage (%)</label>
+                <input type="number" step="0.5" min="0" max="100" id="deposit_pct" name="deposit_pct"
+                       value="{{ (deposit_pct * 100) | int }}" required>
+                <div class="help-text">Percentage of grand total due as deposit before work begins.</div>
+            </div>
+
+            <div class="form-group">
+                <label for="completion_pct">On-Completion Percentage (%)</label>
+                <input type="number" step="0.5" min="0" max="100" id="completion_pct" name="completion_pct"
+                       value="{{ (completion_pct * 100) | int }}" required>
+                <div class="help-text">Percentage of grand total due upon practical completion of the works.</div>
+            </div>
+
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="allow_user_override" name="allow_user_override"
+                           {% if allow_user_override %}checked{% endif %}>
+                    Allow user override
+                </label>
+                <div class="help-text" style="margin-left: 1.5rem;">
+                    When enabled, users can adjust deposit and completion percentages on individual quotes from the form and review pages.
+                </div>
+            </div>
+
+            <div style="display: flex; align-items: center; margin-top: 1.5rem;">
+                <button type="submit" class="btn-save" id="save-btn">Save Settings</button>
+                <span id="save-status" class="save-status"></span>
+            </div>
+        </form>
+
+        <a href="{{ url_for('index') }}" class="back-link">← Back to Home</a>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('ps-config-form');
+    const saveBtn = document.getElementById('save-btn');
+    const statusEl = document.getElementById('save-status');
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const depositPct = parseFloat(document.getElementById('deposit_pct').value) || 0;
+        const completionPct = parseFloat(document.getElementById('completion_pct').value) || 0;
+        const allowOverride = document.getElementById('allow_user_override').checked;
+
+        if (depositPct + completionPct > 100) {
+            statusEl.textContent = 'Deposit + Completion cannot exceed 100%';
+            statusEl.className = 'save-status error';
+            return;
+        }
+
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+        statusEl.textContent = '';
+        statusEl.className = 'save-status';
+
+        fetch('/admin/payment-schedule', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name="csrf_token"]').value,
+            },
+            body: JSON.stringify({
+                deposit_pct: depositPct / 100,
+                completion_pct: completionPct / 100,
+                allow_user_override: allowOverride,
+            }),
+        })
+        .then(function(res) {
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            return res.json();
+        })
+        .then(function(data) {
+            if (data.success) {
+                statusEl.textContent = 'Saved successfully';
+                statusEl.className = 'save-status success';
+            } else {
+                throw new Error(data.error || 'Unknown error');
+            }
+        })
+        .catch(function(err) {
+            statusEl.textContent = 'Save failed: ' + err.message;
+            statusEl.className = 'save-status error';
+        })
+        .finally(function() {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save Settings';
+        });
+    });
+});
+</script>
+</body>
+</html>

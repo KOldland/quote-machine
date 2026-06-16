@@ -328,6 +328,7 @@
                         <a href="{{ url_for('trigger_production_page') }}" class="nav-link {% if request.endpoint == 'trigger_production_page' %}active{% endif %}">Production</a>
                         {% if session.get('role') == 'admin' %}
                         <a href="{{ url_for('list_users') }}" class="nav-link {% if request.endpoint == 'list_users' %}active{% endif %}">User Management</a>
+                        <a href="{{ url_for('admin_payment_schedule_config') }}" class="nav-link {% if request.endpoint == 'admin_payment_schedule_config' %}active{% endif %}">Payment Schedule Config</a>
                         {% endif %}
                     </nav>
                     <div class="nav-user">

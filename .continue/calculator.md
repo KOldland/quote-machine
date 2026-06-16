@@ -28,33 +28,10 @@ All vanilla JS, existing Flask session endpoints, building on `builder_beta` / l
 
 #### Step 8 — Rewrite review.html as interactive cost matrix ✅ COMPLETE
 
-#### Step 9 — Add JS for interactive cost matrix 
+#### Step 9 — Add JS for interactive cost matrix ✅ COMPLETE
 
-**File:** `app/templates/review.html` (inline `<script>`)
+#### Step 10 — Wire submit endpoint to persist + redirect ✅ COMPLETE
 
-**JS functions:**
-- `updateLineItemPrice(questionId, newPrice)` — POST to `/quote/session-override`, then re-fetch calculation or recalculate client-side
-- `updatePaymentSchedule(depositPct, completionPct)` — POST to `/quote/session-override`
-- `calculateTotals()` — reads all price inputs and recomputes subtotals/grand total
-- `submitQuote()` — POST to `/submit` endpoint
-
----
-
-#### Step 10 — Wire submit endpoint to persist + redirect
-
-**File:** `app/QMapp.py`
-
-**Route `/submit`:**
-1. Accept JSON or form POST
-2. Validate CSRF token
-3. Call `calculate_quote()` + `save_calculated_quote()` to persist
-4. Build `review_data` output for production
-5. Return `{status: 'success'}` or redirect to `/trigger_production`
-
-**Route `/trigger_production`:**
-1. Read session data + saved quote
-2. Generate final output images (call existing `compose_template()`)
-3. Redirect to `/production-page`
 
 ---
 
@@ -97,8 +74,8 @@ User edits price on review page
 | 6 | Add price input section + JS to form.html | ✅  |
 | 7 | Add payment percent override + JS to form.html |  ✅ |
 | 8 | Update review view to pass line_items, schedule, overrides |  ✅ |
-| 9 | Rebuild review page with cost matrix + schedule JS | ⏳ |
-| 10 | Add admin config panel for payment schedule | ⏳ |
+| 9 | Rebuild review page with cost matrix + schedule JS | ✅ |
+| 10 | Add admin config panel for payment schedule |✅ |
 
 ---
 
