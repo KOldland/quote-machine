@@ -325,7 +325,7 @@
                         <a href="{{ url_for('optional_extras_page') }}" class="nav-link {% if request.endpoint == 'optional_extras_page' %}active{% endif %}">Optional Extras & Finishing Works</a>
                         <a href="{{ url_for('image_upload_page') }}" class="nav-link {% if request.endpoint == 'image_upload' %}active{% endif %}">Upload Images</a>
                         <a href="{{ url_for('review') }}" class="nav-link {% if request.endpoint == 'review' %}active{% endif %}">Review</a>
-                        <a href="{{ url_for('trigger_production_page') }}" class="nav-link {% if request.endpoint == 'trigger_production_page' %}active{% endif %}">Production</a>
+                        <a href="{{ url_for('production_page') }}" class="nav-link {% if request.endpoint == 'production_page' %}active{% endif %}">Production</a>
                         {% if session.get('role') == 'admin' %}
                         <a href="{{ url_for('list_users') }}" class="nav-link {% if request.endpoint == 'list_users' %}active{% endif %}">User Management</a>
                         <a href="{{ url_for('admin_payment_schedule_config') }}" class="nav-link {% if request.endpoint == 'admin_payment_schedule_config' %}active{% endif %}">Payment Schedule Config</a>
