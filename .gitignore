@@ -1,4 +1,7 @@
-QM_credentials.json
+# Credentials and sensitive data
+**/QM_credentials.json
+
+# Python
 venv/
 __pycache__/
 *.pyc
@@ -7,7 +10,18 @@ __pycache__/
 .Python
 env/
 build/
+
+# Application data
 flask_session/
+*.sqlite3
+*.log
+
+# IDE and editor
 .continue
 .DS_Store
-*.log
+
+# Backup files
+*.bak
+
+# Temporary files
+tmp/
