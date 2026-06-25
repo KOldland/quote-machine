@@ -68,6 +68,36 @@
                             <p style="color:#999;font-size:.8rem;padding:.5rem 0;">No pages yet. Add pages via the sidebar.</p>
                         {% endif %}
                     </div>
+
+                    {# ── Add Page button ── #}
+                    <div style="padding:.5rem .75rem .25rem .75rem;border-top:1px solid #eee;">
+                        <button type="button" id="btn-add-page" class="li-save-btn" style="margin-top:0;width:100%;">+ Add Page</button>
+                    </div>
+
+                    {# ── Add Page overlay ── #}
+                    <div id="add-page-overlay" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+                        <div style="background:#fff; padding:2rem; border-radius:6px; box-shadow:0 4px 12px rgba(0,0,0,0.15); width:420px; max-width:90%;">
+                            <h3 style="margin-top:0; margin-bottom:1.5rem; font-family:'CynthoNextBold',sans-serif;">Add New Page</h3>
+                            <div style="margin-bottom:1rem;">
+                                <button type="button" id="btn-add-blank" class="li-save-btn" style="margin-top:0;width:100%;padding:.6rem 1rem;font-size:.9rem;">Blank Page</button>
+                            </div>
+                            <div style="margin-bottom:1rem;">
+                                <label style="display:block;font-size:.85rem;font-weight:700;color:#555;margin-bottom:.25rem;">Use Existing Page as Template</label>
+                                <select id="template-page-select" style="width:100%;padding:.375rem .75rem;border:1px solid #ced4da;border-radius:.25rem;font-size:.85rem;">
+                                    <option value="">— Select a page —</option>
+                                    {% for page in db_pages %}
+                                        {% if page.page_key != 'index' %}
+                                        <option value="{{ page.page_key }}">{{ page.title }} ({{ page.page_key }})</option>
+                                        {% endif %}
+                                    {% endfor %}
+                                </select>
+                                <button type="button" id="btn-duplicate-template" class="li-save-btn" style="margin-top:.5rem;width:100%;background-color:#4a90e2;border-color:#4a90e2;">Duplicate from Template</button>
+                            </div>
+                            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:1rem; border-top:1px solid #eee; padding-top:1rem;">
+                                <button type="button" id="btn-add-page-cancel" style="padding:.5rem 1rem; border:1px solid #ccc; background:#fff; border-radius:4px; cursor:pointer;">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 {# Sticky footer — li-save-btn + li-delete-btn pattern matching category view #}
@@ -98,184 +128,340 @@
             </div>
         </div>
 
-        <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const saveBtn = document.getElementById('btn-save-form-details');
-            const saveAsBtn = document.getElementById('btn-save-form-as');
-            const deleteBtn = document.getElementById('btn-delete-form');
-            const statusEl = document.getElementById('form-save-status');
-            
-            if(saveBtn) {
-                saveBtn.addEventListener('click', () => {
-                    const title = document.getElementById('form-title').value;
-                    const description = document.getElementById('form-description').value;
-                    saveBtn.disabled = true;
-                    saveBtn.textContent = 'Saving...';
-                    fetch('/builder_beta/update_form_details', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('#li-csrf-token').value },
-                        body: JSON.stringify({ title, description })
-                    })
-                    .then(res => res.json())
-                    .then(data => {
-                        if(data.success) {
-                            statusEl.textContent = '✓ Saved';
-                            setTimeout(() => statusEl.textContent = '', 2500);
-                        } else {
-                            alert("Error: " + data.error);
-                        }
-                    })
-                    .finally(() => {
-                        saveBtn.disabled = false;
-                        saveBtn.textContent = 'SAVE FORM';
-                    });
-                });
-            }
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // -----------------------------------------------------------------
+        // Helper – centralized CSRF token source
+        // -----------------------------------------------------------------
+        function getCsrfToken() {
+            const el = document.querySelector('#li-csrf-token');
+            return el ? el.value : '';
+        }
 
-            // Save As Logic
-            const saveAsModal = document.getElementById('save-as-modal');
-            const saveAsCancel = document.getElementById('btn-save-as-cancel');
-            const saveAsConfirm = document.getElementById('btn-save-as-confirm');
+        // -----------------------------------------------------------------
+        // UI button references
+        // -----------------------------------------------------------------
+        const saveBtn   = document.getElementById('btn-save-form-details');
+        const saveAsBtn = document.getElementById('btn-save-form-as');
+        const deleteBtn = document.getElementById('btn-delete-form');
+        const statusEl  = document.getElementById('form-save-status');
 
-            if(saveAsBtn && saveAsModal) {
-                saveAsBtn.addEventListener('click', () => {
-                    document.getElementById('save-as-title').value = document.getElementById('form-title').value + " (Copy)";
-                    document.getElementById('save-as-description').value = document.getElementById('form-description').value;
-                    saveAsModal.style.display = 'flex';
-                });
+        // -----------------------------------------------------------------
+        // SAVE FORM DETAILS
+        // -----------------------------------------------------------------
+        if (saveBtn) {
+            saveBtn.addEventListener('click', () => {
+                const title       = document.getElementById('form-title').value;
+                const description = document.getElementById('form-description').value;
+                saveBtn.disabled   = true;
+                saveBtn.textContent = 'Saving...';
 
-                saveAsCancel.addEventListener('click', () => {
-                    saveAsModal.style.display = 'none';
-                });
-
-                saveAsConfirm.addEventListener('click', () => {
-                    const newTitle = document.getElementById('save-as-title').value;
-                    const newDescription = document.getElementById('save-as-description').value;
-                    const oldKey = "builder_beta"; // Currently hardcoded to builder_beta in backend
-                    
-                    if(!newTitle.trim()) {
-                        alert("Title is required");
-                        return;
+                fetch('/builder_beta/update_form_details', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken' : getCsrfToken()
+                    },
+                    body: JSON.stringify({ title, description })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        statusEl.textContent = '✓ Saved';
+                        setTimeout(() => statusEl.textContent = '', 2500);
+                    } else {
+                        alert("Error: " + data.error);
                     }
+                })
+                .finally(() => {
+                    saveBtn.disabled   = false;
+                    saveBtn.textContent = 'SAVE FORM';
+                });
+            });
+        }
 
-                    saveAsConfirm.disabled = true;
-                    saveAsConfirm.textContent = 'Saving...';
+        // -----------------------------------------------------------------
+        // SAVE AS LOGIC
+        // -----------------------------------------------------------------
+        const saveAsModal   = document.getElementById('save-as-modal');
+        const saveAsCancel  = document.getElementById('btn-save-as-cancel');
+        const saveAsConfirm = document.getElementById('btn-save-as-confirm');
 
-                    fetch('/builder_beta/save_form_as', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('#li-csrf-token').value },
-                        body: JSON.stringify({ old_key: oldKey, new_title: newTitle, new_description: newDescription })
-                    })
-                    .then(res => res.json())
-                    .then(data => {
-                        if(data.success) {
-                            saveAsModal.style.display = 'none';
-                            if(typeof window.showQmToast === 'function') window.showQmToast('✓ Form duplicated successfully!');
-                            
-                            // Auto-switch to the new form using the switch_form endpoint we created
-                            setTimeout(() => {
-                                fetch('/builder_beta/switch_form', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('#li-csrf-token').value },
-                                    body: JSON.stringify({ form_key: data.new_key })
-                                })
-                                .then(swRes => swRes.json())
-                                .then(swData => {
-                                    if(swData.success) {
-                                        window.location.href = '/form_editor?edit=1';
-                                    } else {
-                                        alert("Form saved, but failed to auto-switch: " + swData.error);
-                                        saveAsConfirm.disabled = false;
-                                        saveAsConfirm.textContent = 'Save Copy';
-                                    }
-                                })
-                                .catch(err => {
-                                    alert("Form saved, but network error on switch.");
+        if (saveAsBtn && saveAsModal) {
+            saveAsBtn.addEventListener('click', () => {
+                document.getElementById('save-as-title').value       = document.getElementById('form-title').value + " (Copy)";
+                document.getElementById('save-as-description').value = document.getElementById('form-description').value;
+                saveAsModal.style.display = 'flex';
+            });
+
+            saveAsCancel.addEventListener('click', () => {
+                saveAsModal.style.display = 'none';
+            });
+
+            saveAsConfirm.addEventListener('click', () => {
+                const newTitle       = document.getElementById('save-as-title').value;
+                const newDescription = document.getElementById('save-as-description').value;
+                const oldKey         = "builder_beta";   // hard‑coded for now
+
+                if (!newTitle.trim()) {
+                    alert("Title is required");
+                    return;
+                }
+
+                saveAsConfirm.disabled = true;
+                saveAsConfirm.textContent = 'Saving...';
+
+                fetch('/builder_beta/save_form_as', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken' : getCsrfToken()
+                    },
+                    body: JSON.stringify({ old_key: oldKey, new_title: newTitle, new_description: newDescription })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        saveAsModal.style.display = 'none';
+                        if (typeof window.showQmToast === 'function')
+                            window.showQmToast('✓ Form duplicated successfully!');
+
+                        // Auto‑switch to the new form
+                        setTimeout(() => {
+                            fetch('/builder_beta/switch_form', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRFToken' : getCsrfToken()
+                                },
+                                body: JSON.stringify({ form_key: data.new_key })
+                            })
+                            .then(swRes => swRes.json())
+                            .then(swData => {
+                                if (swData.success) {
+                                    window.location.href = '/form_editor?edit=1';
+                                } else {
+                                    alert("Form saved, but failed to auto‑switch: " + swData.error);
                                     saveAsConfirm.disabled = false;
                                     saveAsConfirm.textContent = 'Save Copy';
-                                });
-                            }, 1000);
-
-                        } else {
-                            alert("Error: " + data.error);
-                            saveAsConfirm.disabled = false;
-                            saveAsConfirm.textContent = 'Save Copy';
-                        }
-                    })
-                    .catch(err => {
-                        alert("Network error occurred.");
+                                }
+                            })
+                            .catch(() => {
+                                alert("Form saved, but network error on switch.");
+                                saveAsConfirm.disabled = false;
+                                saveAsConfirm.textContent = 'Save Copy';
+                            });
+                        }, 1000);
+                    } else {
+                        alert("Error: " + data.error);
                         saveAsConfirm.disabled = false;
                         saveAsConfirm.textContent = 'Save Copy';
-                    });
-                });
-            }
-
-            // Delete Logic
-            if(deleteBtn) {
-                deleteBtn.addEventListener('click', () => {
-                    if(confirm("Are you sure you want to permanently delete this form? This will remove all pages, categories, and questions. This action cannot be undone.")) {
-                        deleteBtn.disabled = true;
-                        deleteBtn.textContent = 'Deleting...';
-                        
-                        fetch('/builder_beta/delete_form', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('#li-csrf-token').value },
-                            body: JSON.stringify({ form_key: 'builder_beta' })
-                        })
-                        .then(res => res.json())
-                        .then(data => {
-                            if(data.success) {
-                                alert("Form deleted successfully.");
-                                window.location.href = '/dashboard'; // Redirect to a safe place
-                            } else {
-                                alert("Error: " + data.error);
-                                deleteBtn.disabled = false;
-                                deleteBtn.textContent = 'DELETE FORM';
-                            }
-                        })
-                        .catch(err => {
-                            console.error(err);
-                            alert("An error occurred while deleting the form.");
-                            deleteBtn.disabled = false;
-                            deleteBtn.textContent = 'DELETE FORM';
-                        });
                     }
+                })
+                .catch(() => {
+                    alert("Network error occurred.");
+                    saveAsConfirm.disabled = false;
+                    saveAsConfirm.textContent = 'Save Copy';
                 });
-            }
+            });
+        }
 
-            // Drag-to-reorder pages
-            const sortableList = document.getElementById('sortable-pages');
-            let dragSrcEl = null;
-            if (sortableList) {
-                sortableList.addEventListener('dragstart', (e) => {
-                    dragSrcEl = e.target.closest('.page-item');
-                    e.dataTransfer.effectAllowed = 'move';
-                    if (dragSrcEl) dragSrcEl.style.opacity = '0.5';
-                });
-                sortableList.addEventListener('dragover', (e) => {
-                    e.preventDefault();
-                    const target = e.target.closest('.page-item');
-                    if (target && dragSrcEl && target !== dragSrcEl) {
-                        const rect = target.getBoundingClientRect();
-                        const after = (e.clientY - rect.top) > rect.height / 2;
-                        sortableList.insertBefore(dragSrcEl, after ? target.nextSibling : target);
-                    }
-                });
-                sortableList.addEventListener('dragend', () => {
-                    if (dragSrcEl) dragSrcEl.style.opacity = '';
-                    dragSrcEl = null;
-                    const pageIds = Array.from(sortableList.querySelectorAll('.page-item')).map(el => el.dataset.id);
-                    fetch('/builder_beta/reorder_all_pages', {
+        // -----------------------------------------------------------------
+        // DELETE FORM LOGIC
+        // -----------------------------------------------------------------
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', () => {
+                if (confirm("Are you sure you want to permanently delete this form? This will remove all pages, categories, and questions. This action cannot be undone.")) {
+                    deleteBtn.disabled   = true;
+                    deleteBtn.textContent = 'Deleting...';
+
+                    fetch('/builder_beta/delete_form', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('#li-csrf-token').value },
-                        body: JSON.stringify({ page_ids: pageIds })
-                    }).then(res => res.json()).then(data => {
-                        if (!data.success) alert('Reorder failed: ' + data.error);
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken' : getCsrfToken()
+                        },
+                        body: JSON.stringify({ form_key: 'builder_beta' })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert("Form deleted successfully.");
+                            window.location.href = '/dashboard';
+                        } else {
+                            alert("Error: " + data.error);
+                            deleteBtn.disabled   = false;
+                            deleteBtn.textContent = 'DELETE FORM';
+                        }
+                    })
+                    .catch(() => {
+                        console.error(err);
+                        alert("An error occurred while deleting the form.");
+                        deleteBtn.disabled   = false;
+                        deleteBtn.textContent = 'DELETE FORM';
                     });
+                }
+            });
+        }
+
+        // -----------------------------------------------------------------
+        // ADD PAGE – UI & OVERLAY
+        // -----------------------------------------------------------------
+        const btnAddPage          = document.getElementById('btn-add-page');
+        const addPageOverlay      = document.getElementById('add-page-overlay');
+        const btnAddBlank         = document.getElementById('btn-add-blank');
+        const btnDuplicateTemplate= document.getElementById('btn-duplicate-template');
+        const btnAddPageCancel    = document.getElementById('btn-add-page-cancel');
+
+        if (btnAddPage && addPageOverlay) {
+            btnAddPage.addEventListener('click', () => {
+                addPageOverlay.style.display = 'flex';
+            });
+
+            btnAddPageCancel.addEventListener('click', () => {
+                addPageOverlay.style.display = 'none';
+            });
+
+            // -------------------------------------------------------------
+            // Blank page creation
+            // -------------------------------------------------------------
+            btnAddBlank.addEventListener('click', () => {
+                const csrfToken = getCsrfToken();
+                btnAddBlank.disabled   = true;
+                btnAddBlank.textContent = 'Creating...';
+
+                fetch('/builder_beta/add_page', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken' : csrfToken
+                    },
+                    body: JSON.stringify({ template: '' })
+                })
+                .then(res => {
+                    const ct = res.headers.get('content-type') || '';
+                    if (ct.indexOf('application/json') !== -1) return res.json();
+                    return res.text().then(txt => {
+                        try { return JSON.parse(txt); }
+                        catch { return { success:false, error:'Server returned non‑JSON: '+txt.substring(0,200) }; }
+                    });
+                })
+                .then(data => {
+                    if (data && data.success) {
+                        window.location.reload();
+                    } else {
+                        alert('Failed to add blank page: ' + (data ? data.error : 'Unknown error'));
+                        btnAddBlank.disabled   = false;
+                        btnAddBlank.textContent = 'Blank Page';
+                    }
+                })
+                .catch(err => {
+                    alert('Network error: ' + err.message);
+                    btnAddBlank.disabled   = false;
+                    btnAddBlank.textContent = 'Blank Page';
                 });
-            }
+            });
+
+            // -------------------------------------------------------------
+            // Duplicate from template
+            // -------------------------------------------------------------
+            btnDuplicateTemplate.addEventListener('click', () => {
+                const templateKey = document.getElementById('template-page-select').value;
+                if (!templateKey) {
+                    alert('Please select a page to duplicate from.');
+                    return;
+                }
+                const csrfToken = getCsrfToken();
+                btnDuplicateTemplate.disabled   = true;
+                btnDuplicateTemplate.textContent = 'Duplicating...';
+
+                fetch('/builder_beta/add_page', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken' : csrfToken
+                    },
+                    body: JSON.stringify({ template: templateKey })
+                })
+                .then(res => {
+                    const ct = res.headers.get('content-type') || '';
+                    if (ct.indexOf('application/json') !== -1) return res.json();
+                    return res.text().then(txt => {
+                        try { return JSON.parse(txt); }
+                        catch { return { success:false, error:'Server returned non‑JSON: '+txt.substring(0,200) }; }
+                    });
+                })
+                .then(data => {
+                    if (data && data.success) {
+                        window.location.reload();
+                    } else {
+                        alert('Failed to duplicate page: ' + (data ? data.error : 'Unknown error'));
+                        btnDuplicateTemplate.disabled   = false;
+                        btnDuplicateTemplate.textContent = 'Duplicate from Template';
+                    }
+                })
+                .catch(err => {
+                    alert('Network error: ' + err.message);
+                    btnDuplicateTemplate.disabled   = false;
+                    btnDuplicateTemplate.textContent = 'Duplicate from Template';
+                });
+            });
+        }
+
+        // -----------------------------------------------------------------
+        // REORDER PAGES (drag‑and‑drop)
+        // -----------------------------------------------------------------
+        const sortableList = document.getElementById('sortable-pages');
+        let dragSrcEl = null;
+        if (sortableList) {
+            sortableList.addEventListener('dragstart', (e) => {
+                dragSrcEl = e.target.closest('.page-item');
+                e.dataTransfer.effectAllowed = 'move';
+                if (dragSrcEl) dragSrcEl.style.opacity = '0.5';
+            });
+
+            sortableList.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                const target = e.target.closest('.page-item');
+                if (target && dragSrcEl && target !== dragSrcEl) {
+                    const rect = target.getBoundingClientRect();
+                    const after = (e.clientY - rect.top) > rect.height / 2;
+                    sortableList.insertBefore(dragSrcEl, after ? target.nextSibling : target);
+                }
+            });
+
+            sortableList.addEventListener('dragend', () => {
+                if (dragSrcEl) dragSrcEl.style.opacity = '';
+                dragSrcEl = null;
+                const pageIds = Array.from(sortableList.querySelectorAll('.page-item')).map(el => el.dataset.id);
+                fetch('/builder_beta/reorder_all_pages', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken' : getCsrfToken()
+                    },
+                    body: JSON.stringify({ page_ids: pageIds })
+                })
+                .then(r => r.json())
+                .then(d => { if (!d.success) alert('Reorder failed: ' + d.error); });
+            });
+        }
+
+        // -----------------------------------------------------------------
+        // Misc UI helpers (accordions, toggle sections, etc.) – unchanged
+        // -----------------------------------------------------------------
+        document.querySelectorAll('.li-editor-section-header').forEach(hdr => {
+            hdr.addEventListener('click', () => {
+                const body = hdr.nextElementSibling;
+                if (!body) return;
+                body.classList.toggle('collapsed');
+                const toggle = hdr.querySelector('.li-sec-toggle');
+                if (toggle) toggle.textContent = body.classList.contains('collapsed') ? '▸' : '▾';
+            });
         });
-        </script>
+    });
+    </script>
+
         {# CSS scoped to form_editor_mode — MUST be here, not below, to avoid overriding macro CSS #}
         <style>
         .li-3col-canvas {
@@ -669,7 +855,7 @@
 
         
         
-{% if materials_page %}
+{% if materials_page and not page_schema %}
 
 {# ── Phase 2: resolve materials schema blocks by name for sub_block rendering ── #}
 {% set ms = namespace(ew=None, er=None, id_block=None, dr=None) %}
@@ -1489,7 +1675,7 @@
 <!----------------                          PAGE - Optional Extras & Finishing Works               ------------------------->
 <!-------------------------------------------------------------------------------------------------------------------------->
     
-{% if optional_extras_page %}
+{% if optional_extras_page and not page_schema %}
     
     
     
@@ -1818,4 +2004,22 @@
                             fixed_amount: parseFloat(fixedEl && fixedEl.value) || 0,
                             entered_key: enteredEl ? enteredEl.value : '',
                             rate: parseFloat(rateEl && rateEl.value) || 0,
-        
+                            quantity_key: quantityEl ? quantityEl.value : '',
+                            percent: parseFloat(percentEl && percentEl.value) || 0,
+                        },
+                    },
+                },
+            });
+
+            if (ok) {
+                btn.textContent = 'Saved';
+                setTimeout(function () { btn.textContent = 'Save Pricing'; }, 1300);
+            }
+        });
+    });
+})();
+</script>
+{% endif %}
+
+{% endif %}
+{% endblock %}

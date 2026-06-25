@@ -39,7 +39,6 @@ from template_store import (
 app = Flask(__name__)
 csrf = CSRFProtect(app)
 
-
 def is_truthy_env(name: str) -> bool:
 	return os.getenv(name, '').strip().lower() in {'1', 'true', 'yes', 'on'}
 
@@ -116,6 +115,23 @@ def inject_ui_context():
 
 # Set up Google Sheets API credentials
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
+
+def _get_line_items_for_page(page_id: str):
+    """Return line items for a page, grouped by category.
+    Wraps template_store.get_line_items_for_page()."""
+    try:
+        return template_store.get_line_items_for_page(page_id)
+    except Exception:
+        return {}
+
+def _get_li_categories_from_schema(page_id: str):
+    """Return list of category names for a page from the schema.
+    Falls back to keys from get_line_items_for_page()."""
+    try:
+        items = template_store.get_line_items_for_page(page_id)
+        return list(items.keys()) if items else []
+    except Exception:
+        return []
 
 def build_mock_sheet_data():
 	# Representative dataset for test mode.
@@ -2565,6 +2581,17 @@ TITLE_MAPPING = {
 
 ################################################################################################################################
 
+def _get_runtime_quote_context():
+    """Return the runtime quote context variables needed by the template."""
+    data = session.get("data", {})
+    return {
+        "client_address": data.get("client_address", ""),
+        "proposal_date": data.get("Date", ""),
+        "quote_ref": data.get("quote_ref", ""),
+        "client_name": data.get("client_name", ""),
+    }
+
+
 @app.route('/', methods=['POST', 'GET'])
 def index():
 	# Store the current page in the session
@@ -2609,8 +2636,6 @@ def index():
 		first_page=True,
 		next_page='special_notes_page',
 		title="Project Details",
-		client_address=client_address,
-		proposal_date=form_date,
 		current_page=None,
 		selected_block_id=None,
 		edit_mode=False,
@@ -2977,17 +3002,6 @@ def builder_beta_page_editor(page_id):
 		selected_block_id=selected_block_id,
 		state=state
 	)
-
-# ── Quote Calculator: runtime context helper ──────────────────────
-def _get_runtime_quote_context():
-    """Return session_overrides and payment_schedule for templates."""
-    import template_store as ts
-    session_overrides = session.get('overrides', {})
-    payment_schedule = ts.get_payment_schedule_block(TEMPLATE_STORE_KEY)
-    return {
-        'session_overrides': session_overrides,
-        'payment_schedule': payment_schedule,
-    }
 
 
 ################################################################################
@@ -3381,6 +3395,19 @@ def review():
     # Get session overrides and payment schedule
     ctx = _get_runtime_quote_context()
 
+    # Store rendered HTML for PDF export
+    export_html = render_template(
+        'export.html',
+        client_name=ctx['client_name'],
+        client_address=ctx['client_address'],
+        proposal_date=ctx['proposal_date'],
+        quote_ref=ctx['quote_ref'],
+        groups=calc_result.get('groups', []),
+        grand_total=grand_total,
+    )
+    session['quote_html'] = export_html
+    session.modified = True
+
     return render_template(
         'review.html',
         pages=calc_result.get('groups', []),
@@ -3445,7 +3472,7 @@ def submit():
 # ROUTE - TRIGGER PRODUCTION
 ################################################################################
 
-@app.route('/trigger_production', methods=['POST'])
+@app.route('/trigger_production', methods=['GET', 'POST'])
 def trigger_production():
     '''Trigger the production workflow.'''
     proposal_data = session.get('proposal_data', {})
@@ -3582,7 +3609,7 @@ def register():
     return render_template('register.html')
 
 
-@app.route('/admin/list-users', methods=['GET'])
+@app.route('/admin/users', methods=['GET'])
 @require_role('admin')
 def list_users():
     """List all registered users."""
@@ -3605,7 +3632,6 @@ def list_users():
         'list_users.html',
         users=users
     )
-
 
 @app.route('/admin/promote-user/<username>', methods=['POST'])
 @require_role('admin')
@@ -3701,3 +3727,106 @@ def admin_payment_schedule_config():
         completion_pct=completion_pct,
         allow_user_override=allow_user_override
     )
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 — Output Template Editor API Routes
+# ---------------------------------------------------------------------------
+
+@app.route('/output_editor')
+@require_role('admin')
+def output_editor():
+    """Render the output template editor page."""
+    from template_store import get_template_store_overview
+    overview = get_template_store_overview()
+    return render_template('output_editor.html', templates=overview.get('templates', []))
+
+@app.route('/user_output_editor')
+@require_role('admin')
+def user_output_editor():
+    """Render the user output template editor page (Phase 4 WYSIWYG editor)."""
+    form_key = request.args.get('form_key', 'default')
+    return render_template('user_output_editor.html', form_key=form_key)
+
+@app.route('/api/output_template/<form_key>', methods=['GET'])
+@require_role('admin')
+def api_get_output_template(form_key):
+    """Return the default output template JSON for the given form_key."""
+    from template_store import get_output_template, list_output_templates, create_default_output_template
+    template = get_output_template(form_key)
+    if not template:
+        result = create_default_output_template(form_key)
+        if 'error' in result:
+            return jsonify({'error': result['error']}), 404
+        template = get_output_template(form_key)
+    all_templates = list_output_templates(form_key)
+    return jsonify({'template': template, 'all_templates': all_templates})
+
+
+@app.route('/api/output_template/<form_key>', methods=['POST'])
+@require_role('admin')
+def api_update_output_template(form_key):
+    """Update sections_json and/or css_json for the default output template."""
+    from template_store import get_output_template, update_output_template
+    data = request.get_json(force=True) or {}
+    template = get_output_template(form_key)
+    if not template:
+        return jsonify({'error': 'No output template found for this form'}), 404
+
+    updated = False
+    if 'sections' in data:
+        update_output_template(template['id'], sections=data['sections'])
+        updated = True
+    if 'css' in data:
+        update_output_template(template['id'], css=data['css'])
+        updated = True
+
+    if not updated:
+        return jsonify({'error': 'No valid fields to update'}), 400
+    return jsonify({'success': True})
+
+
+@app.route('/api/output_template/<form_key>/preview', methods=['GET'])
+@require_role('admin')
+def api_preview_output_template(form_key):
+    """Generate a live preview HTML from the output template + current quote data."""
+    from template_store import get_output_template
+    template = get_output_template(form_key)
+    if not template:
+        return jsonify({'error': 'No output template found'}), 404
+
+    overrides = session.get('overrides', {})
+    checkbox_data = session.get('checkbox_data', {})
+    try:
+        calc_result = calculator.calculate_quote(
+            form_key,
+            form_data=checkbox_data,
+            session_overrides=overrides,
+        )
+    except Exception as e:
+        current_app.logger.exception("Preview calculator failed")
+        return jsonify({'error': f'Calculator error: {str(e)}'}), 500
+
+    return render_template(
+        'output_editor_preview.html',
+        calc_result=calc_result,
+        sections=template['sections'],
+        css=template['css'],
+    )
+
+
+@app.route('/api/output_template/<form_key>/reset', methods=['POST'])
+@require_role('admin')
+def api_reset_output_template(form_key):
+    """Reset the output template to default sections and CSS."""
+    from template_store import get_output_template, update_output_template, DEFAULT_OUTPUT_SECTIONS
+    template = get_output_template(form_key)
+    if not template:
+        return jsonify({'error': 'No output template found'}), 404
+
+    update_output_template(template['id'], sections=DEFAULT_OUTPUT_SECTIONS, css={})
+    return jsonify({'success': True})
+
+# Register export routes blueprint
+from export_routes import export_bp
+app.register_blueprint(export_bp)

@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    @page { margin: 20mm 15mm; }
+    
+    /* Base styles from template CSS */
+    body { 
+      font-family: {{ css.get('fontFamily', "'Helvetica', 'Arial', sans-serif") }}; 
+      font-size: {{ css.get('fontSize', '11pt') }}; 
+      color: {{ css.get('textColor', '#222') }}; 
+      line-height: {{ css.get('lineHeight', '1.5') }};
+    }
+    
+    /* Dynamic heading styles */
+    h1 { 
+      font-size: {{ css.get('h1Size', '20pt') }}; 
+      color: {{ css.get('headingColor', '#333') }};
+      border-bottom: {{ '2px solid #333' if css.get('headingUnderline', True) else 'none' }}; 
+      padding-bottom: 6px;
+      margin-bottom: 10px;
+    }
+    h2 { 
+      font-size: {{ css.get('h2Size', '14pt') }}; 
+      color: {{ css.get('headingColor', '#333') }};
+      margin-top: 18px; 
+      margin-bottom: 8px;
+    }
+    
+    /* Table styles */
+    table { 
+      width: 100%; 
+      border-collapse: collapse; 
+      margin: 10px 0; 
+    }
+    th, td { 
+      text-align: left; 
+      padding: 6px 8px; 
+      border-bottom: 1px solid {{ css.get('tableBorderColor', '#ddd') }}; 
+    }
+    th { 
+      background: {{ css.get('tableHeaderBg', '#f5f5f5') }}; 
+      font-weight: bold; 
+    }
+    .text-right { text-align: right; }
+    .grand-total { 
+      font-size: {{ css.get('grandTotalSize', '14pt') }}; 
+      font-weight: bold; 
+      border-top: 2px solid #333; 
+      padding-top: 6px; 
+    }
+    
+    /* Client info and footer */
+    .client-info { 
+      margin: 10px 0 20px;
+      padding: {{ css.get('clientInfoPadding', '10px') }};
+      background: {{ css.get('clientInfoBg', 'transparent') }};
+    }
+    .footer { 
+      margin-top: 30px; 
+      font-size: {{ css.get('footerFontSize', '9pt') }}; 
+      color: {{ css.get('footerColor', '#666') }}; 
+      border-top: 1px solid {{ css.get('footerBorderColor', '#ccc') }}; 
+      padding-top: 8px; 
+    }
+    
+    /* Header section styling */
+    .header-section {
+      text-align: {{ css.get('headerAlignment', 'left') }};
+      margin-bottom: 20px;
+    }
+    .company-logo {
+      max-width: {{ css.get('logoMaxWidth', '200px') }};
+      height: auto;
+      margin-bottom: 10px;
+    }
+    .company-name {
+      font-size: {{ css.get('companyNameSize', '18pt') }};
+      font-weight: bold;
+      color: {{ css.get('companyNameColor', '#333') }};
+    }
+    .company-tagline {
+      font-size: {{ css.get('taglineSize', '10pt') }};
+      color: {{ css.get('taglineColor', '#666') }};
+    }
+    
+    /* Additional custom CSS from template */
+    {{ css.get('customCSS', '') }}
+  </style>
+</head>
+<body>
+  <!-- HEADER SECTION -->
+  {% if sections.get('header', {}).get('enabled', True) %}
+  <div class="header-section">
+    {% if sections.header.get('show_logo', True) and sections.header.get('logo_url') %}
+    <img src="{{ sections.header.logo_url }}" alt="Company Logo" class="company-logo">
+    {% endif %}
+    
+    {% if sections.header.get('company_name') %}
+    <div class="company-name">{{ sections.header.company_name }}</div>
+    {% endif %}
+    
+    {% if sections.header.get('tagline') %}
+    <div class="company-tagline">{{ sections.header.tagline }}</div>
+    {% endif %}
+    
+    <h1>{{ sections.header.get('title', 'Quote Proposal') }}</h1>
+    
+    {% if sections.header.get('show_quote_number', True) %}
+    <p><strong>Quote Ref:</strong> {{ calc_result.get('quote_ref', 'N/A') }}</p>
+    {% endif %}
+    
+    {% if sections.header.get('show_date', True) %}
+    <p><strong>Date:</strong> {{ calc_result.get('proposal_date', 'N/A') }}</p>
+    {% endif %}
+  </div>
+  {% endif %}
+  
+  <!-- CLIENT INFO SECTION -->
+  {% if sections.get('body', {}).get('show_client_info', True) %}
+  <div class="client-info">
+    <h2>Client Information</h2>
+    <p><strong>Client:</strong> {{ calc_result.get('client_name', 'N/A') }}</p>
+    <p><strong>Address:</strong> {{ calc_result.get('client_address', 'N/A') }}</p>
+    {% if calc_result.get('client_email') %}
+    <p><strong>Email:</strong> {{ calc_result.client_email }}</p>
+    {% endif %}
+    {% if calc_result.get('client_phone') %}
+    <p><strong>Phone:</strong> {{ calc_result.client_phone }}</p>
+    {% endif %}
+  </div>
+  {% endif %}
+  
+  <!-- LINE ITEMS SECTION -->
+  {% if sections.get('body', {}).get('show_line_items_table', True) %}
+  {% for group in calc_result.get('groups', []) %}
+  <h2>{{ group.name }}</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Item</th>
+        <th>Description</th>
+        {% if sections.body.get('show_qty', True) %}
+        <th class="text-right">Qty</th>
+        {% endif %}
+        {% if sections.body.get('show_unit_cost', False) %}
+        <th class="text-right">Unit Cost (£)</th>
+        {% endif %}
+        <th class="text-right">Amount (£)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in group.items %}
+      <tr>
+        <td>{{ item.output_title }}</td>
+        <td>{{ item.internal_description }}</td>
+        {% if sections.body.get('show_qty', True) %}
+        <td class="text-right">{{ item.units }}</td>
+        {% endif %}
+        {% if sections.body.get('show_unit_cost', False) %}
+        <td class="text-right">{{ '%.2f'|format(item.unit_cost) }}</td>
+        {% endif %}
+        <td class="text-right">{{ '%.2f'|format(item.line_total) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endfor %}
+  {% endif %}
+  
+  <!-- SUBTOTALS SECTION -->
+  {% if sections.get('body', {}).get('show_subtotals', True) %}
+  <table>
+    {% for group in calc_result.get('groups', []) %}
+    <tr>
+      <td>{{ group.name }} Subtotal:</td>
+      <td class="text-right">£{{ '%.2f'|format(group.subtotal) }}</td>
+    </tr>
+    {% endfor %}
+    <tr>
+      <td class="grand-total">Grand Total:</td>
+      <td class="text-right grand-total">£{{ '%.2f'|format(calc_result.grand_total) }}</td>
+    </tr>
+  </table>
+  {% endif %}
+  
+  <!-- PAYMENT SCHEDULE SECTION -->
+  {% if sections.get('body', {}).get('show_payment_schedule', True) %}
+  <div class="payment-schedule">
+    <h2>Payment Schedule</h2>
+    <table>
+      <tr>
+        <td>Deposit ({{ '%.0f'|format(calc_result.deposit_pct * 100) }}%):</td>
+        <td class="text-right">£{{ '%.2f'|format(calc_result.deposit_amount) }}</td>
+      </tr>
+      <tr>
+        <td>Completion ({{ '%.0f'|format(calc_result.completion_pct * 100) }}%):</td>
+        <td class="text-right">£{{ '%.2f'|format(calc_result.completion_amount) }}</td>
+      </tr>
+      <tr>
+        <td>Balance:</td>
+        <td class="text-right">£{{ '%.2f'|format(calc_result.middle_balance) }}</td>
+      </tr>
+    </table>
+  </div>
+  {% endif %}
+  
+  <!-- FOOTER SECTION -->
+  {% if sections.get('footer', {}).get('enabled', True) %}
+  <div class="footer">
+    {% if sections.footer.get('show_page_numbers', True) %}
+    <p>Page <span class="page-number"></span></p>
+    {% endif %}
+    
+    {% if sections.footer.get('terms_text') %}
+    <p>{{ sections.footer.terms_text }}</p>
+    {% endif %}
+    
+    {% if sections.footer.get('contact_info') %}
+    <p>{{ sections.footer.contact_info }}</p>
+    {% endif %}
+    
+    {% if sections.footer.get('show_confidentiality', False) %}
+    <p><em>This document is confidential and intended for the addressee only.</em></p>
+    {% endif %}
+  </div>
+  {% endif %}
+</body>
+</html>

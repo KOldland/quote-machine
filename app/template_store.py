@@ -33,6 +33,7 @@ def _default_db_path() -> Path:
 
 
 def _question_kind(field: Dict[str, Any]) -> str:
+    """Return the internal “question kind” for a field."""
     field_type = str(field.get("type", "")).strip()
     if field_type:
         return field_type
@@ -44,16 +45,28 @@ def _question_kind(field: Dict[str, Any]) -> str:
     return "unknown"
 
 
-def _connect(db_path: Path) -> sqlite3.Connection:
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(db_path))
+from typing import Union
+def _connect(db_path: Union[Path, str]) -> sqlite3.Connection:
+    """Open a SQLite connection, ensuring the directory exists.
+
+    ``db_path`` may be a pathlib.Path instance or a plain string.
+    sqlite3.connect requires a string path, so we normalise the value to a
+    Path first (so we can safely use ``parent`` for directory creation) and
+    then convert back to ``str`` for the actual connection call.
+    """
+    # Normalise to ``Path`` so we can safely call ``parent``.
+    db_path_obj = Path(db_path) if not isinstance(db_path, Path) else db_path
+    db_path_obj.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(db_path_obj))
     conn.row_factory = sqlite3.Row
     return conn
 
 
 def _next_version(conn: sqlite3.Connection, template_id: int) -> int:
+    """Return the next version number for a given template."""
     row = conn.execute(
-        "SELECT COALESCE(MAX(version), 0) AS max_version FROM form_template_versions WHERE form_template_id = ?",
+        "SELECT COALESCE(MAX(version), 0) AS max_version "
+        "FROM form_template_versions WHERE form_template_id = ?",
         (template_id,),
     ).fetchone()
     return int(row["max_version"]) + 1 if row else 1
@@ -63,6 +76,18 @@ def _create_schema(conn: sqlite3.Connection) -> None:
     conn.executescript(
         """
         PRAGMA foreign_keys = ON;
+
+        CREATE TABLE IF NOT EXISTS output_templates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            form_template_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            sections_json TEXT NOT NULL DEFAULT '{}',
+            css_json TEXT NOT NULL DEFAULT '{}',
+            is_default INTEGER NOT NULL DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (form_template_id) REFERENCES form_templates(id) ON DELETE CASCADE
+        );
 
         CREATE TABLE IF NOT EXISTS tenants (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -78,6 +103,7 @@ def _create_schema(conn: sqlite3.Connection) -> None:
             name TEXT NOT NULL,
             description TEXT,
             status TEXT NOT NULL DEFAULT 'active',
+            settings_json TEXT NOT NULL DEFAULT '{}',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             UNIQUE (tenant_id, key),
@@ -205,6 +231,7 @@ def _create_schema(conn: sqlite3.Connection) -> None:
         );
         """
     )
+
 
 
 def _upsert_tenant(conn: sqlite3.Connection, slug: str, name: str) -> int:
@@ -365,21 +392,37 @@ def _sync_logic_rules(conn: sqlite3.Connection, version_id: int) -> int:
     return len(rows)
 
 
-def initialize_template_store(page_schemas: Dict[str, Any], *, template_key: str = "kitchen_only_template_test") -> Dict[str, Any]:
+def initialize_template_store(
+    page_schemas: Dict[str, Any],
+    *,
+    template_key: str = "kitchen_only_template_test",
+    db_path: Optional[Path] = None,
+) -> Dict[str, Any]:
     """
     Bootstrap and sync Template V1 metadata into a lightweight SQLite store.
 
-    This is Phase 1 infrastructure only and does not change runtime form rendering.
+    This is Phase 1 infrastructure only and does not change runtime form rendering.
     """
-    db_path = _default_db_path()
+    # Use the supplied path (e.g. a temporary test DB) or fall back to the default.
+    db_path = db_path or _default_db_path()
 
+    # -----------------------------------------------------------------
+    # Normalise the incoming page schema – we only care about the
+    # ``pages`` dict, everything else is ignored for the initial seed.
+    # -----------------------------------------------------------------
     pages = page_schemas.get("pages", {}) if isinstance(page_schemas, dict) else {}
     if not isinstance(pages, dict):
         pages = {}
 
+    # -----------------------------------------------------------------
+    # Open (or create) the SQLite file and make sure the schema exists.
+    # -----------------------------------------------------------------
     with _connect(db_path) as conn:
         _create_schema(conn)
 
+        # -----------------------------------------------------------------
+        # Create the default tenant and the top‑level form_template row.
+        # -----------------------------------------------------------------
         tenant_id = _upsert_tenant(conn, slug="default", name="Default Tenant")
         template_id = _upsert_form_template(
             conn,
@@ -388,22 +431,24 @@ def initialize_template_store(page_schemas: Dict[str, Any], *, template_key: str
             name="First Client Template V1",
             description="Baseline template mirrored from current first-client configuration.",
         )
-        
-        # IDEMPOTENT GUARD: If ANY version already exists for this template,
-        # treat the database as the permanent source of truth and skip seeding entirely.
-        # This prevents server restarts from creating rogue new versions and wiping
-        # UI-created pages. The database is the canonical record — page_schemas.json
-        # is only used for the very first seed on a blank database.
+
+        # -----------------------------------------------------------------
+        # IDEMPOTENT GUARD:
+        # If ANY version already exists for this template we treat the
+        # database as the source of truth and skip seeding.  This prevents
+        # server restarts from creating duplicate versions and wiping UI‑created pages.
+        # -----------------------------------------------------------------
         existing_count = conn.execute(
             "SELECT COUNT(*) AS cnt FROM form_template_versions WHERE form_template_id = ?",
-            (template_id,)
+            (template_id,),
         ).fetchone()["cnt"]
 
         if existing_count > 0:
+            create_default_output_template(template_key, db_path=db_path)
             latest = conn.execute(
                 "SELECT id, version FROM form_template_versions "
                 "WHERE form_template_id = ? ORDER BY version DESC LIMIT 1",
-                (template_id,)
+                (template_id,),
             ).fetchone()
             return {
                 "db_path": str(db_path),
@@ -414,7 +459,10 @@ def initialize_template_store(page_schemas: Dict[str, Any], *, template_key: str
                 "logic_rules": 0,
             }
 
-        # Only reached on a completely fresh database with no existing versions.
+        # -----------------------------------------------------------------
+        # Fresh DB – create the first version and populate pages, questions
+        # and logic‑rule bindings.
+        # -----------------------------------------------------------------
         version = 1
         version_id = _upsert_version(conn, template_id, version=version, payload=page_schemas)
 
@@ -422,6 +470,9 @@ def initialize_template_store(page_schemas: Dict[str, Any], *, template_key: str
         question_count = _replace_questions(conn, page_ids, pages)
         logic_rule_count = _sync_logic_rules(conn, version_id)
 
+        # Seed a default output template for this form
+        create_default_output_template(template_key, db_path=db_path)
+        
         conn.commit()
 
     return {
@@ -1340,3 +1391,145 @@ def get_payment_schedule_block(
         "completion_pct": 0.10,
         "allow_user_override": False,
     }
+
+# ── Output Template CRUD ──────────────────────────────────────────────
+
+DEFAULT_OUTPUT_SECTIONS = {
+    "header": {
+        "enabled": True,
+        "show_logo": True,
+        "logo_url": "/static/images/logo.png",
+        "show_quote_number": True,
+        "show_date": True,
+        "company_name": "Quote Machine",
+        "tagline": ""
+    },
+    "body": {
+        "show_client_info": True,
+        "show_line_items_table": True,
+        "show_subtotals": True,
+        "show_payment_schedule": True,
+        "group_by_category": True
+    },
+    "footer": {
+        "enabled": True,
+        "show_page_numbers": True,
+        "terms_text": "Terms and conditions apply...",
+        "contact_info": ""
+    }
+}
+
+
+def create_default_output_template(form_key: str, db_path: Optional[Path] = None) -> dict:
+    """Create a default output template for the given form template key.
+
+    If one already exists with is_default=1, returns that one instead.
+    """
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    try:
+        ft_row = conn.execute(
+            "SELECT id FROM form_templates WHERE key = ?", (form_key,)
+        ).fetchone()
+        if not ft_row:
+            return {"error": f"Form template '{form_key}' not found"}
+        ft_id = int(ft_row["id"])
+
+        existing = conn.execute(
+            "SELECT id FROM output_templates WHERE form_template_id = ? AND is_default = 1",
+            (ft_id,)
+        ).fetchone()
+        if existing:
+            return {"template_id": int(existing["id"]), "action": "already_exists"}
+
+        cur = conn.execute(
+            """
+            INSERT INTO output_templates
+                (form_template_id, name, sections_json, is_default)
+            VALUES (?, ?, ?, 1)
+            """,
+            (ft_id, "Default", json.dumps(DEFAULT_OUTPUT_SECTIONS))
+        )
+        conn.commit()
+        return {"template_id": cur.lastrowid, "action": "created"}
+    finally:
+        conn.close()
+
+
+def get_output_template(form_key: str, db_path: Optional[Path] = None) -> Optional[dict]:
+    """Return the default output template dict for a form template key, or None."""
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    try:
+        row = conn.execute(
+            """
+            SELECT ot.id, ot.name, ot.sections_json, ot.css_json,
+                   ot.is_default, ot.created_at, ot.updated_at
+            FROM output_templates ot
+            JOIN form_templates ft ON ft.id = ot.form_template_id
+            WHERE ft.key = ? AND ot.is_default = 1
+            ORDER BY ot.created_at DESC
+            LIMIT 1
+            """,
+            (form_key,)
+        ).fetchone()
+        if not row:
+            return None
+        result = dict(row)
+        result["sections"] = json.loads(result.pop("sections_json", "{}"))
+        result["css"] = json.loads(result.pop("css_json", "{}"))
+        return result
+    finally:
+        conn.close()
+
+
+def update_output_template(
+    template_id: int,
+    sections: Optional[dict] = None,
+    css: Optional[dict] = None,
+    db_path: Optional[Path] = None,
+) -> bool:
+    """Update sections_json and/or css_json for an output template."""
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    try:
+        sets = []
+        params = []
+        if sections is not None:
+            sets.append("sections_json = ?")
+            params.append(json.dumps(sections))
+        if css is not None:
+            sets.append("css_json = ?")
+            params.append(json.dumps(css))
+        if not sets:
+            return False
+        sets.append("updated_at = CURRENT_TIMESTAMP")
+        params.append(template_id)
+        conn.execute(
+            f"UPDATE output_templates SET {', '.join(sets)} WHERE id = ?",
+            params
+        )
+        conn.commit()
+        return conn.total_changes > 0
+    finally:
+        conn.close()
+
+
+def list_output_templates(form_key: str, db_path: Optional[Path] = None) -> list:
+    """Return all output templates for a form, ordered by is_default DESC, name."""
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    try:
+        rows = conn.execute(
+            """
+            SELECT ot.id, ot.name, ot.is_default, ot.created_at, ot.updated_at
+            FROM output_templates ot
+            JOIN form_templates ft ON ft.id = ot.form_template_id
+            WHERE ft.key = ?
+            ORDER BY ot.is_default DESC, ot.name ASC
+            """,
+            (form_key,)
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
