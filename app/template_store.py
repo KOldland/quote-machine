@@ -339,7 +339,10 @@ def _replace_questions(conn: sqlite3.Connection, page_ids: Dict[str, int], pages
     for page_key, page_id in page_ids.items():
         conn.execute("DELETE FROM question_templates WHERE page_template_id = ?", (page_id,))
         page = pages.get(page_key, {}) if isinstance(pages, dict) else {}
-        fields: Iterable[Dict[str, Any]] = page.get("fields", []) if isinstance(page, dict) else []
+        # SaaS: Read "blocks" (builder_beta format), fall back to "fields" (legacy)
+        fields: Iterable[Dict[str, Any]] = (
+            page.get("blocks", []) or page.get("fields", [])
+        ) if isinstance(page, dict) else []
         for idx, field in enumerate(fields):
             field_id = str(field.get("id", f"field_{idx}"))
             question_type = _question_kind(field)
@@ -390,29 +393,6 @@ def _sync_logic_rules(conn: sqlite3.Connection, version_id: int) -> int:
         )
 
     return len(rows)
-
-
-def initialize_template_store(
-    page_schemas: Dict[str, Any],
-    *,
-    template_key: str = "kitchen_only_template_test",
-    db_path: Optional[Path] = None,
-) -> Dict[str, Any]:
-    """
-    Bootstrap and sync Template V1 metadata into a lightweight SQLite store.
-
-    This is Phase 1 infrastructure only and does not change runtime form rendering.
-    """
-    # Use the supplied path (e.g. a temporary test DB) or fall back to the default.
-    db_path = db_path or _default_db_path()
-
-    # -----------------------------------------------------------------
-    # Normalise the incoming page schema – we only care about the
-    # ``pages`` dict, everything else is ignored for the initial seed.
-    # -----------------------------------------------------------------
-    pages = page_schemas.get("pages", {}) if isinstance(page_schemas, dict) else {}
-    if not isinstance(pages, dict):
-        pages = {}
 
     # -----------------------------------------------------------------
     # Open (or create) the SQLite file and make sure the schema exists.
@@ -484,6 +464,103 @@ def initialize_template_store(
         "logic_rules": logic_rule_count,
     }
 
+def initialize_template_store(
+    page_schemas: Dict[str, Any],
+    *,
+    template_key: str = "kitchen_only_template_test",
+    db_path: Optional[Path] = None,
+) -> Dict[str, Any]:
+    """
+    Bootstrap and sync Template V1 metadata into a lightweight SQLite store.
+
+    This is Phase 1 infrastructure only and does not change runtime form rendering.
+    """
+    # Use the supplied path (e.g. a temporary test DB) or fall back to the default.
+    db_path = db_path or _default_db_path()
+
+    # -----------------------------------------------------------------
+    # Normalise the incoming page schema – we only care about the
+    # ``pages`` dict, everything else is ignored for the initial seed.
+    # -----------------------------------------------------------------
+    # For SaaS: Read from builder_beta.pages (canonical), fall back to pages (legacy)
+    if isinstance(page_schemas, dict):
+        # Try builder_beta.pages first (SaaS structure with blocks)
+        pages = page_schemas.get("builder_beta", {}).get("pages", {})
+        # Fall back to legacy pages key if builder_beta not found
+        if not pages:
+            pages = page_schemas.get("pages", {})
+    else:
+        pages = {}
+
+    # -----------------------------------------------------------------
+    # Open (or create) the SQLite file and make sure the schema exists.
+    # -----------------------------------------------------------------
+    with _connect(db_path) as conn:
+        _create_schema(conn)
+
+        # -----------------------------------------------------------------
+        # Create the default tenant and the top‑level form_template row.
+        # -----------------------------------------------------------------
+        tenant_id = _upsert_tenant(conn, slug="default", name="Default Tenant")
+        template_id = _upsert_form_template(
+            conn,
+            tenant_id=tenant_id,
+            key=template_key,
+            name="First Client Template V1",
+            description="Baseline template mirrored from current first-client configuration.",
+        )
+
+        # -----------------------------------------------------------------
+        # IDEMPOTENT GUARD:
+        # If ANY version already exists for this template we treat the
+        # database as the source of truth and skip seeding.  This prevents
+        # server restarts from creating duplicate versions and wiping UI‑created pages.
+        # -----------------------------------------------------------------
+        existing_count = conn.execute(
+            "SELECT COUNT(*) AS cnt FROM form_template_versions WHERE form_template_id = ?",
+            (template_id,),
+        ).fetchone()["cnt"]
+
+        if existing_count > 0:
+            create_default_output_template(template_key, db_path=db_path)
+            latest = conn.execute(
+                "SELECT id, version FROM form_template_versions "
+                "WHERE form_template_id = ? ORDER BY version DESC LIMIT 1",
+                (template_id,),
+            ).fetchone()
+            return {
+                "db_path": str(db_path),
+                "template_key": template_key,
+                "version": int(latest["version"]),
+                "pages": "skipped (already seeded — database is source of truth)",
+                "questions": 0,
+                "logic_rules": 0,
+            }
+
+        # -----------------------------------------------------------------
+        # Fresh DB – create the first version and populate pages, questions
+        # and logic‑rule bindings.
+        # -----------------------------------------------------------------
+        version = 1
+        version_id = _upsert_version(conn, template_id, version=version, payload=page_schemas)
+
+        page_ids = _replace_page_templates(conn, version_id, pages)
+        question_count = _replace_questions(conn, page_ids, pages)
+        logic_rule_count = _sync_logic_rules(conn, version_id)
+
+        # Seed a default output template for this form
+        create_default_output_template(template_key, db_path=db_path)
+        
+        conn.commit()
+
+    return {
+        "db_path": str(db_path),
+        "template_key": template_key,
+        "version": version,
+        "pages": len(page_ids),
+        "questions": question_count,
+        "logic_rules": logic_rule_count,
+    }
 
 def _apply_page_flags(payload: Dict[str, Any], scenario_key: str, disabled_pages: Optional[Iterable[str]] = None) -> Dict[str, Any]:
     result = json.loads(json.dumps(payload))

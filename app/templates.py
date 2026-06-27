@@ -1126,5 +1126,64 @@ TEMPLATE_COORDINATES = {
 
 def get_layout_definition(template_key):
     return TEMPLATE_COORDINATES.get(template_key, [])
+
+
+def generate_template_svg(coordinates, canvas_width=220, canvas_height=340):
+    """Generate an SVG string previewing template coordinate rectangles.
+
+    Each block is rendered as a coloured, numbered rectangle so the
+    layout structure is visible at a glance. Coordinates are auto-scaled
+    to fit within the canvas.
+    """
+    svg_parts = [
+        '<svg xmlns="http://www.w3.org/2000/svg" '
+        f'viewBox="0 0 {canvas_width} {canvas_height}" '
+        f'width="{canvas_width}" height="{canvas_height}">'
+    ]
+
+    # Background
+    svg_parts.append(
+        f'<rect width="{canvas_width}" height="{canvas_height}" '
+        f'fill="#f8f8f8" stroke="#ddd" stroke-width="1"/>'
+    )
+
+    # Scale coordinates to fit the canvas with padding
+    if coordinates:
+        max_x = max(x + w for x, y, w, h in coordinates)
+        max_y = max(y + h for x, y, w, h in coordinates)
+        padding = 15
+        avail_w = canvas_width - 2 * padding
+        avail_h = canvas_height - 2 * padding
+        scale = min(avail_w / max_x, avail_h / max_y) if max_x > 0 and max_y > 0 else 1
+        offset_x = padding + (avail_w - max_x * scale) / 2
+        offset_y = padding + (avail_h - max_y * scale) / 2
+    else:
+        scale = 1
+        offset_x = 15
+        offset_y = 15
+
+    colors = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6',
+              '#1abc9c', '#e67e22', '#e91e63', '#00bcd4', '#ff5722']
+
+    for i, (x, y, w, h) in enumerate(coordinates):
+        color = colors[i % len(colors)]
+        rx = x * scale + offset_x
+        ry = y * scale + offset_y
+        rw = w * scale
+        rh = h * scale
+
+        svg_parts.append(
+            f'<rect x="{rx:.1f}" y="{ry:.1f}" width="{rw:.1f}" height="{rh:.1f}" '
+            f'fill="{color}" fill-opacity="0.25" stroke="{color}" stroke-width="2" rx="3"/>'
+        )
+        # Label with block number
+        svg_parts.append(
+            f'<text x="{rx + 3:.1f}" y="{ry + 14:.1f}" '
+            f'font-size="11" font-family="Arial, sans-serif" fill="{color}" '
+            f'font-weight="bold">{i + 1}</text>'
+        )
+
+    svg_parts.append('</svg>')
+    return '\n'.join(svg_parts)
     
         

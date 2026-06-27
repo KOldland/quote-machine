@@ -19,7 +19,7 @@ from flask_wtf.csrf import CSRFProtect
 from werkzeug.utils import secure_filename
 import gspread
 from google.oauth2.service_account import Credentials
-from templates import get_layout_definition
+from templates import get_layout_definition, generate_template_svg
 from pathlib import Path
 from copy import deepcopy
 import calculator
@@ -34,6 +34,12 @@ from template_store import (
 	import_sheet_rows_to_catalog,
 	get_line_items_by_codes,
 	get_all_pages,
+)
+from config import (
+    TEMPLATE_STORE_READ_ENABLED,
+    TEMPLATE_STORE_KEY,
+    TEMPLATE_STORE_DB_PATH,
+    FLASK_SECRET_KEY,
 )
 
 app = Flask(__name__)
@@ -50,9 +56,9 @@ SHEETS_DISABLED = is_truthy_env('QM_DISABLE_SHEETS')
 #                    'sheets' = live Sheets always (debug/override)
 CATALOG_SOURCE = os.getenv('QM_CATALOG_SOURCE', 'auto').strip().lower()
 
-# ---------------------------------------------------------------------------
+
 # Auth / Role system
-# ---------------------------------------------------------------------------
+
 # Bootstrap credential: set QM_ADMIN_PASSWORD env var on first run.
 # Use POST /admin/promote to elevate a session to admin role thereafter.
 ADMIN_PASSWORD = os.getenv('QM_ADMIN_PASSWORD', '')
@@ -90,7 +96,7 @@ if not os.path.exists(app.config['UPLOAD_FOLDER']):
 # Initialize the session extension
 Session(app)
 
-
+#inject current user role and edit mode into every template context
 @app.context_processor
 def inject_ui_context():
 	"""Inject auth and edit-mode state into every template context."""
@@ -112,10 +118,7 @@ def inject_ui_context():
 		db_pages=db_pages,
 	)
 
-
-# Set up Google Sheets API credentials
-SCOPES = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
-
+# Get line items for a page, grouped by category, from the template store.
 def _get_line_items_for_page(page_id: str):
     """Return line items for a page, grouped by category.
     Wraps template_store.get_line_items_for_page()."""
@@ -124,6 +127,7 @@ def _get_line_items_for_page(page_id: str):
     except Exception:
         return {}
 
+#Get list of category names for a page from the schema, fallback to keys from get_line_items_for_page().
 def _get_li_categories_from_schema(page_id: str):
     """Return list of category names for a page from the schema.
     Falls back to keys from get_line_items_for_page()."""
@@ -132,75 +136,6 @@ def _get_li_categories_from_schema(page_id: str):
         return list(items.keys()) if items else []
     except Exception:
         return []
-
-def build_mock_sheet_data():
-	# Representative dataset for test mode.
-	# Each prefix has at least one Include: Y row so checkbox groups render
-	# with realistic pre-selected items.
-	line_codes = [
-		('sn1', 'Special note test A',        'Y'),
-		('sn2', 'Special note test B',        'N'),
-		('sn3', 'Special note test C',        'Y'),
-		('bw1', 'Building works test A',      'Y'),
-		('bw2', 'Building works test B',      'N'),
-		('pp1', 'Planning status test',       'N'),
-		('cs1', 'Council test',               'N'),
-		('ew1', 'External wall test',         'Y'),
-		('er1', 'Roofing test',               'N'),
-		('id1', 'Internal door test',         'N'),
-		('dr1', 'Drainage test',              'N'),
-		('wp1', 'Waste and parking test',     'N'),
-		('frc1', 'Further requirements test', 'N'),
-		('dw1', 'Demolition works test',      'N'),
-		('fs1', 'Floor structure test',       'N'),
-		('gv1', 'Glass valley test',          'N'),
-		('rro1', 'Rear reception opening test','N'),
-		('iw1', 'Internal wall test',         'N'),
-		('ab1', 'Additional building work test A', 'Y'),
-		('ab2', 'Additional building work test B', 'N'),
-		('el1', 'Electrics test',             'Y'),
-		('pl1', 'Plumbing test',              'Y'),
-		('sk1', 'Skylight test',              'N'),
-		('vl1', 'Velux test',                 'N'),
-		('ac1', 'Aluminium capping test',     'N'),
-		('sld1', 'Sliding doors test',        'N'),
-		('oe1', 'Optional extras test',       'N'),
-		('fw1', 'Finishing works test',       'Y'),
-	]
-	return [
-		{
-			'Line Code': code,
-			'Internal Description': description,
-			'Include': include,
-			'description': '',
-		}
-		for code, description, include in line_codes
-	]
-
-
-if TEST_MODE:
-	client = None
-	spreadsheet_id = os.getenv('QM_SPREADSHEET_ID', 'TEST_SPREADSHEET')
-	sheet = None
-	mock_sheet_data = build_mock_sheet_data()
-elif SHEETS_DISABLED:
-	client = None
-	spreadsheet_id = os.getenv('QM_SPREADSHEET_ID', 'SHEETS_DISABLED')
-	sheet = None
-	mock_sheet_data = []
-else:
-	# Load credentials path from environment first, with local app fallback
-	creds_path = os.getenv('QM_CREDENTIALS_PATH', str(Path(__file__).with_name('QM_credentials.json')))
-	if not os.path.exists(creds_path):
-		raise FileNotFoundError(
-			"Google credentials file not found. Set QM_CREDENTIALS_PATH or place QM_credentials.json in the app directory."
-		)
-
-	# Initialize Google Sheets client
-	creds = Credentials.from_service_account_file(creds_path, scopes=SCOPES)
-	client = gspread.authorize(creds)
-	spreadsheet_id = os.getenv('QM_SPREADSHEET_ID', '1gscALSOGoaEYyuUN0zyu_pRAMvjjJvWjv3ZnAFCd5rQ')
-	sheet = client.open_by_key(spreadsheet_id).sheet1
 
 # Load layout intent metadata
 intent_path = Path(__file__).parent / 'layout_intents.json'
@@ -212,8 +147,10 @@ page_schema_path = Path(__file__).parent / 'page_schemas.json'
 with page_schema_path.open() as f:
 	page_schemas = json.load(f)
 
-TEMPLATE_STORE_KEY = os.getenv('QM_TEMPLATE_KEY', 'kitchen_only_template_test')
-TEMPLATE_STORE_READ_ENABLED = is_truthy_env('QM_TEMPLATE_STORE_READ')
+# DO NOT OVERWRITE: config.py values already imported correctly above
+# TEMPLATE_STORE_KEY and TEMPLATE_STORE_READ_ENABLED are imported from config.py
+# To change template key, set env var QM_TEMPLATE_STORE_KEY (not QM_TEMPLATE_KEY)
+print(f"[CONFIG] Using TEMPLATE_STORE_KEY={TEMPLATE_STORE_KEY}, READ_ENABLED={TEMPLATE_STORE_READ_ENABLED}")
 
 try:
 	template_store_bootstrap = initialize_template_store(page_schemas, template_key=TEMPLATE_STORE_KEY)
@@ -228,32 +165,6 @@ except Exception as exc:
 	print(f"Template store bootstrap skipped: {exc}")
 
 # Sync catalog data (sheet rows -> option_sets / option_items) on every startup.
-# In test mode this uses mock_sheet_data; in production it reads Google Sheets via the client.
-# Set QM_DISABLE_SHEETS=1 to skip Google reads and rely on DB/template-store data only.
-try:
-	if TEST_MODE:
-		_startup_sheet_rows = mock_sheet_data
-	elif SHEETS_DISABLED:
-		_startup_sheet_rows = None
-	else:
-		try:
-			_startup_sheet_rows = sheet.get_all_records() if sheet else None
-		except Exception as _sheet_exc:
-			print(f"Catalog import: could not read sheet at startup: {_sheet_exc}")
-			_startup_sheet_rows = None
-
-	if _startup_sheet_rows:
-		_catalog_result = import_sheet_rows_to_catalog(_startup_sheet_rows, template_key=TEMPLATE_STORE_KEY)
-		print(
-			"Catalog import ready:",
-			f"prefixes={_catalog_result.get('prefixes_written', 0)}",
-			f"items={_catalog_result.get('items_written', 0)}",
-		)
-	else:
-		print("Catalog import skipped: no sheet data available.")
-except Exception as exc:
-	print(f"Catalog import skipped: {exc}")
-
 if TEMPLATE_STORE_READ_ENABLED:
 	try:
 		db_payload = load_template_payload(template_key=TEMPLATE_STORE_KEY)
@@ -269,27 +180,7 @@ if TEMPLATE_STORE_READ_ENABLED:
 	except Exception as exc:
 		print(f"Template store read failed, falling back to JSON schema: {exc}")
 
-
-SUPPORTED_SCHEMA_FIELD_TYPES = {'checkbox_group'}
-
-DEFAULT_PRICING_RULES = {
-	'kitchen_light_rate': 30.0,
-	'kitchen_point_rate': 65.0,
-	'loft_light_rate': 30.0,
-	'loft_point_rate': 65.0,
-	'rounding_precision': 2,
-}
-
-DEFAULT_PAYMENT_PLAN_RULES = {
-	'deposit_percent': 10.0,
-	'stages': [
-		{'name': 'Weeks 1-8', 'percent': 50.0},
-		{'name': 'Weeks 9-12', 'percent': 30.0},
-		{'name': 'Completion', 'percent': 10.0},
-	],
-}
-
-
+# Get/initialize builder settings dict from page_schemas
 def get_builder_settings():
 	settings = page_schemas.setdefault('settings', {})
 	if not isinstance(settings, dict):
@@ -297,143 +188,7 @@ def get_builder_settings():
 		page_schemas['settings'] = settings
 	return settings
 
-
-def ensure_builder_settings_defaults():
-	settings = get_builder_settings()
-
-	pricing_rules = settings.get('pricing_rules')
-	if not isinstance(pricing_rules, dict):
-		settings['pricing_rules'] = deepcopy(DEFAULT_PRICING_RULES)
-	else:
-		for key, default_value in DEFAULT_PRICING_RULES.items():
-			pricing_rules.setdefault(key, default_value)
-
-	payment_plan_rules = settings.get('payment_plan_rules')
-	if not isinstance(payment_plan_rules, dict):
-		settings['payment_plan_rules'] = deepcopy(DEFAULT_PAYMENT_PLAN_RULES)
-	else:
-		payment_plan_rules.setdefault('deposit_percent', DEFAULT_PAYMENT_PLAN_RULES['deposit_percent'])
-		stages = payment_plan_rules.get('stages')
-		if not isinstance(stages, list) or len(stages) != 3:
-			payment_plan_rules['stages'] = deepcopy(DEFAULT_PAYMENT_PLAN_RULES['stages'])
-
-
-def _parse_builder_float(value, default_value, min_value=None, max_value=None):
-	number = to_float(value, default_value)
-	if min_value is not None:
-		number = max(number, min_value)
-	if max_value is not None:
-		number = min(number, max_value)
-	return number
-
-
-def _parse_builder_int(value, default_value, min_value=None, max_value=None):
-	try:
-		number = int(str(value).strip())
-	except (ValueError, TypeError):
-		number = int(default_value)
-	if min_value is not None:
-		number = max(number, min_value)
-	if max_value is not None:
-		number = min(number, max_value)
-	return number
-
-
-def get_pricing_rules():
-	ensure_builder_settings_defaults()
-	stored_rules = get_builder_settings().get('pricing_rules', {})
-	rules = deepcopy(DEFAULT_PRICING_RULES)
-	rules['kitchen_light_rate'] = _parse_builder_float(stored_rules.get('kitchen_light_rate'), rules['kitchen_light_rate'], 0, 10000)
-	rules['kitchen_point_rate'] = _parse_builder_float(stored_rules.get('kitchen_point_rate'), rules['kitchen_point_rate'], 0, 10000)
-	rules['loft_light_rate'] = _parse_builder_float(stored_rules.get('loft_light_rate'), rules['loft_light_rate'], 0, 10000)
-	rules['loft_point_rate'] = _parse_builder_float(stored_rules.get('loft_point_rate'), rules['loft_point_rate'], 0, 10000)
-	rules['rounding_precision'] = _parse_builder_int(stored_rules.get('rounding_precision'), rules['rounding_precision'], 0, 4)
-	return rules
-
-
-def get_payment_plan_rules():
-	ensure_builder_settings_defaults()
-	stored_rules = get_builder_settings().get('payment_plan_rules', {})
-	rules = deepcopy(DEFAULT_PAYMENT_PLAN_RULES)
-	rules['deposit_percent'] = _parse_builder_float(stored_rules.get('deposit_percent'), rules['deposit_percent'], 0, 100)
-
-	stored_stages = stored_rules.get('stages', [])
-	parsed_stages = []
-	for index, default_stage in enumerate(DEFAULT_PAYMENT_PLAN_RULES['stages']):
-		stored_stage = stored_stages[index] if index < len(stored_stages) and isinstance(stored_stages[index], dict) else {}
-		stage_name = str(stored_stage.get('name', default_stage['name'])).strip() or default_stage['name']
-		stage_percent = _parse_builder_float(stored_stage.get('percent'), default_stage['percent'], 0, 100)
-		parsed_stages.append({'name': stage_name, 'percent': stage_percent})
-
-	rules['stages'] = parsed_stages
-	return rules
-
-
-def calculate_payment_plan(total_amount, payment_plan_rules):
-	total = max(to_float(total_amount, 0.0), 0.0)
-	precision = _parse_builder_int(get_pricing_rules().get('rounding_precision', 2), 2, 0, 4)
-	entries = [
-		{'name': 'Deposit', 'percent': _parse_builder_float(payment_plan_rules.get('deposit_percent'), 0.0, 0, 100)}
-	]
-	entries.extend(payment_plan_rules.get('stages', []))
-
-	plan_entries = []
-	running_amount = 0.0
-	for index, entry in enumerate(entries):
-		name = str(entry.get('name', f'Stage {index + 1}')).strip() or f'Stage {index + 1}'
-		percent = _parse_builder_float(entry.get('percent'), 0.0, 0, 100)
-		if index == len(entries) - 1:
-			amount = round(total - running_amount, precision)
-		else:
-			amount = round(total * (percent / 100.0), precision)
-			running_amount += amount
-
-		plan_entries.append({
-			'name': name,
-			'percent': round(percent, 2),
-			'amount': amount,
-		})
-
-	return {
-		'total_amount': round(total, precision),
-		'entries': plan_entries,
-	}
-
-
-def validate_page_schema(page_schema):
-	if not page_schema:
-		return False
-
-	if not page_schema.get('id'):
-		return False
-
-	fields = page_schema.get('fields', [])
-	if not isinstance(fields, list):
-		return False
-
-	seen_ids = set()
-	for field in fields:
-		field_id = field.get('id')
-		field_type = field.get('type')
-		field_name = field.get('name')
-		if not field_id or not field_type or not field_name:
-			return False
-		if field_id in seen_ids:
-			return False
-		if field_type not in SUPPORTED_SCHEMA_FIELD_TYPES:
-			return False
-		seen_ids.add(field_id)
-
-	return True
-
-
-def get_page_schema(page_id):
-	page_schema = deepcopy(page_schemas.get('pages', {}).get(page_id))
-	if not validate_page_schema(page_schema):
-		return None
-	return page_schema
-
-
+#Legacy JSON persistence - still required for draft sync until builder write ops fully migrate to SQLite DB
 def save_page_schemas():
 	with page_schema_path.open('w') as f:
 		json.dump(page_schemas, f, indent=2)
@@ -444,7 +199,7 @@ def save_page_schemas():
 	except Exception as exc:
 		print(f"Template store sync skipped after save: {exc}")
 
-
+# Function patches field overrides (hidden, label, options) for a specific field in a page schema.
 def save_field_override(
 	page_id: str,
 	field_id: str,
@@ -566,32 +321,30 @@ published_schema_path = Path(__file__).parent / 'page_schemas_published.json'
 
 
 def publish_current_draft() -> dict:
-	"""Copy page_schemas.json → page_schemas_published.json and record metadata.
+    """Copy page_schemas.json → page_schemas_published.json and record metadata.
 
-	Returns a summary dict with published_at, db_version.
-	"""
-	import datetime as _dt
-	snapshot = json.loads(json.dumps(page_schemas))
-	with published_schema_path.open('w') as f:
-		json.dump(snapshot, f, indent=2)
+    Returns a summary dict with published_at, db_version.
+    """
+    import datetime as _dt
+    snapshot = json.loads(json.dumps(page_schemas))
+    with published_schema_path.open('w') as f:
+        json.dump(snapshot, f, indent=2)
 
-	db_version = None
-	try:
-		from template_store import get_latest_template_version
-		db_version = get_latest_template_version(TEMPLATE_STORE_KEY)
-	except Exception:
-		pass
+    db_version = None
+    try:
+        db_version = get_latest_template_version(TEMPLATE_STORE_KEY)
+    except Exception:
+        pass
 
-	meta = {
-		'published_at': _dt.datetime.utcnow().isoformat() + 'Z',
-		'published_by': 'admin',
-		'db_version': db_version,
-	}
-	settings = get_builder_settings()
-	settings['last_publish'] = meta
-	save_page_schemas()
-	return meta
-
+    meta = {
+        'published_at': _dt.datetime.utcnow().isoformat() + 'Z',
+        'published_by': 'admin',
+        'db_version': db_version,
+    }
+    settings = get_builder_settings()
+    settings['last_publish'] = meta
+    save_page_schemas()
+    return meta
 
 def rollback_to_published() -> dict:
 	"""Restore page_schemas from the last published snapshot.
@@ -2343,6 +2096,34 @@ def compose_template(image_plan, upload_folder, output_basename='final_output'):
 		print(f"[INFO] Saved layout page: {output_path}")
 	
 
+################################################################################
+# SVG TEMPLATE PREVIEW ROUTE
+################################################################################
+
+@app.route('/template_preview/<template_key>')
+def template_preview(template_key):
+    """Return an SVG preview image for the given template key.
+    
+    Uses the coordinate data from TEMPLATE_COORDINATES to generate
+    an on-the-fly SVG showing each block as a coloured rectangle.
+    No image files need to be stored.
+    """
+    coordinates = get_layout_definition(template_key)
+    if not coordinates:
+        # Return a simple "not found" SVG
+        return Response(
+            '<svg xmlns="http://www.w3.org/2000/svg" width="220" height="340">'
+            '<rect width="220" height="340" fill="#f8f8f8" stroke="#ddd"/>'
+            '<text x="110" y="170" text-anchor="middle" font-size="14" '
+            'font-family="Arial" fill="#999">Not found</text></svg>',
+            mimetype='image/svg+xml',
+            status=404
+        )
+    
+    svg_content = generate_template_svg(coordinates, canvas_width=220, canvas_height=340)
+    return Response(svg_content, mimetype='image/svg+xml')
+
+
 ################################################################################################################################
 		
 													# Function to update DESCRIPTION columns
@@ -2491,88 +2272,6 @@ def cleanup_include_column(processed_codes):
 		print(f" Error in cleanup_include_column(): {e}")
 
 
-################################################################################################################################
-									
-												#TITLE MAPPING DICTIONARY
-												
-################################################################################################################################
-	
-	
-TITLE_MAPPING = {
-	'selected_special_notes': 'Special Notes',
-	'selected_building_works': 'Building Works',
-	'selected_dw': 'Demolition Works',
-	'selected_pp': 'Planning Permission Status',
-	'selected_boundary_lines': 'Boundary Lines',
-	'selected_co': 'Contingency',
-	'selected_fw': 'Finishing Works',
-	'selected_foe': 'Finishing Works Optional Extras',
-	'selected_ew': 'External Wall',
-	'selected_er': 'Roofing Options',
-	'selected_fs': 'Floor Structure',
-	'selected_ps': 'Plastering',
-	'selected_id': 'Internal Doors',
-	'selected_dr': 'Drainage',
-	'selected_wp': 'Waste and Parking',
-	'selected_frc': 'Further Requirements and Considerations',
-	'selected_ab': 'Additional Building Items',
-	'selected_sww': 'Schedule of Works (Weeks 1-8)',
-	'selected_tww': 'Schedule of Works (Weeks 9-12)',
-	'selected_sd': 'Sliding Door Selection',
-	'selected_sld': 'Sliding Doors',
-	'selected_pc': 'Pricing Categories',
-	'selected_el': 'Electrics',
-	'selected_pl': 'Plumbing',
-	'selected_sk': 'Skylights',
-	'selected_vl': 'Velux Windows',
-	'selected_ac': 'Aluminium Capping',
-	'selected_gv': 'Glass Valley',
-	'selected_oe': 'Optional Extras',
-	'selected_bll': 'Boundary Line Wall Requirements (Left)',
-	'selected_blr': 'Boundary Line Wall Requirements (Right)',
-	'selected_rro': 'Rear Reception Opening Requirements',
-	'selected_basement': 'Basement',
-	'conservation_status': 'Conservation Area Status',
-	'selected_council': 'Local Council',
-	'pitched_roof_option': 'Pitched Roof Selection', 
-	'selected_iw': 'Internal Wall Options',
-	'selected_oe': 'Optional Extras',
-	'selected_fw': 'Finishing Works',
-	
-	# Manual input fields
-	'client_address': 'Client Address',
-	'Date': 'Date',
-	'dm1_manual_input': 'Approximate Extension Size (m)',
-	'dm2_manual_input': 'Rear Depth from Original Rear Wall (m)',
-	'dm3_manual_input': 'Full Width of Wall (m)',
-	'dm4_manual_input': 'Metres Width in Side Return',
-	'dm5_manual_input': 'Sliding Door Opening Width (m)', 
-	'pd4_manual_input': 'Fire Rated Doors',
-	'pd5_manual_input': 'Non-Fire Rated Doors',
-	'cs1_manual_input': 'Local Council',
-	'pd6_manual_input': 'Number of Kitchen Points',
-	'pd7_manual_input': 'Number of Kitchen Lights',
-	'pd8_manual_input': 'Number of Loft Points',
-	'pd9_manual_input': 'Number of Loft Lights',
-	'pd10_manual_input': 'Sliding Door Space',
-	'an1_manual_input': 'Additional Notes',  
-	'an2_manual_input': 'Neighbours Levels',
-	'an3_manual_input': 'Internal to External Levels (Steps)',
-	'an4_manual_input': 'Internal Heights',  
-	'an5_manual_input': 'Outrigger Stories',
-	'an6_manual_input': 'Flush External Walls',
-	'an7_manual_input': 'Further Notes',
-	'other_council_input': 'Other Council',
-	'lightwell_dimensions_input': 'Lightwell Dimensions',
-	'drainage_other_input': '',
-	
-	# Newly added mappings for specific line codes
-	'bw4': 'Create a Courtyard/Lightwell',
-	'dw4': 'Demolish Garden Wall',
-	'ew4': 'Wall Height (Metres)',
-	'ew5': 'Wall Height (Centimetres)',
-}
-
 
 
 ################################################################################################################################
@@ -2641,130 +2340,6 @@ def index():
 		edit_mode=False,
 		**_get_runtime_quote_context()
 	)
-
-
-################################################################################################################################
-
-											# PAGE - SPECIAL NOTES
-
-################################################################################################################################
-
-@app.route('/special_notes_page', methods=['POST', 'GET'])
-def special_notes_page():
-	# Track navigation
-	previous_page = session.get('last_visited', 'index')
-	session['last_visited'] = 'special_notes_page'
-	
-	# Get session storage
-	checkbox_data = session.setdefault('checkbox_data', {})
-	page_schema = compile_builder_beta_page_to_runtime_schema('special_notes_page')
-	
-	if request.method == 'POST':
-		checkbox_data = persist_schema_page_submission(page_schema, request.form, checkbox_data)
-		session['checkbox_data'] = checkbox_data
-		session.modified = True
-		return redirect(url_for('summary_page'))
-	
-	sheet_data = get_catalog()
-	page_schema = build_page_schema_context('special_notes_page', sheet_data, session.get('checkbox_data', {}))
-	
-	edit_requested = request.args.get('edit', '').lower() in {'1', 'true', 'yes'}
-	edit_mode = session.get('role') == 'admin' and edit_requested
-	_li_cats = _get_li_categories_from_schema('special_notes_page') or []
-
-	if edit_mode:
-		builder_state = get_builder_beta_state()
-		current_page_id = 'special_notes_page'
-		current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
-		selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
-		selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
-
-		return render_template(
-			'form.html',
-			page_schema=page_schema,
-			schema_render_mode='full',
-			previous_page=page_schema.get('navigation', {}).get('previous_endpoint', 'index') if page_schema else 'index',
-			next_page=page_schema.get('navigation', {}).get('next_endpoint', 'summary_page') if page_schema else 'summary_page',
-			title=page_schema.get('title', 'Special Notes') if page_schema else 'Special Notes',
-			builder_state=builder_state,
-			current_page={'id': current_page_id, 'title': page_schema.get('title', 'Special Notes') if page_schema else 'Special Notes', 'blocks': current_page_blocks},
-			current_page_id=current_page_id,
-			selected_block_id=selected_block_id,
-			selected_block=selected_block,
-			pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
-			li_categories=_li_cats,
-			**_get_runtime_quote_context(),
-		)
-	else:
-		return render_template(
-			'form.html',
-			page_schema=page_schema,
-			schema_render_mode='full',
-			previous_page=page_schema.get('navigation', {}).get('previous_endpoint', 'index') if page_schema else 'index',
-			next_page=page_schema.get('navigation', {}).get('next_endpoint', 'summary_page') if page_schema else 'summary_page',
-			title=page_schema.get('title', 'Special Notes') if page_schema else 'Special Notes',
-			li_categories=_li_cats,
-			**_get_runtime_quote_context(),
-		)
-
-
-@app.route('/summary_page', methods=['POST', 'GET'])
-def summary_page():
-	previous_page = session.get('last_visited', 'special_notes_page')
-	session['last_visited'] = 'summary_page'
-
-	if request.method == 'POST':
-		checkbox_data = session.setdefault('checkbox_data', {})
-		page_schema = compile_builder_beta_page_to_runtime_schema('summary_page')
-		checkbox_data = persist_schema_page_submission(page_schema, request.form, checkbox_data)
-		session['checkbox_data'] = checkbox_data
-		session.modified = True
-		return redirect(url_for('materials_page'))
-
-	sheet_data = get_catalog()
-	page_schema = build_page_schema_context('summary_page', sheet_data, session.get('checkbox_data', {}))
-	
-	edit_requested = request.args.get('edit', '').lower() in {'1', 'true', 'yes'}
-	edit_mode = session.get('role') == 'admin' and edit_requested
-	_li_cats = _get_li_categories_from_schema('summary_page') or []
-
-	if edit_mode:
-		builder_state = get_builder_beta_state()
-		current_page_id = 'summary_page'
-		current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
-		selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
-		selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
-
-		return render_template(
-			'form.html',
-			summary_page=True,
-			page_schema=page_schema,
-			schema_render_mode='full',
-			previous_page=previous_page,
-			next_page='materials_page',
-			title="Summary Page",
-			builder_state=builder_state,
-			current_page={'id': current_page_id, 'title': "Summary Page", 'blocks': current_page_blocks},
-			current_page_id=current_page_id,
-			selected_block_id=selected_block_id,
-			selected_block=selected_block,
-			pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
-			li_categories=_li_cats,
-			**_get_runtime_quote_context(),
-		)
-	else:
-		return render_template(
-			'form.html',
-			summary_page=True,
-			page_schema=page_schema,
-			schema_render_mode='full',
-			previous_page=previous_page,
-			next_page='materials_page',
-			title="Summary Page",
-			li_categories=_li_cats,
-			**_get_runtime_quote_context(),
-		)
-
 
 @app.route('/admin/template_store_status', methods=['GET'])
 @require_role('admin')
@@ -3005,296 +2580,6 @@ def builder_beta_page_editor(page_id):
 
 
 ################################################################################
-# PAGE - MATERIALS
-################################################################################
-
-@app.route('/materials_page', methods=['GET', 'POST'])
-def materials_page():
-    session['last_visited'] = 'materials_page'
-    checkbox_data = session.setdefault('checkbox_data', {})
-    page_schema = compile_builder_beta_page_to_runtime_schema('materials_page')
-
-    if request.method == 'POST':
-        checkbox_data = persist_schema_page_submission(page_schema, request.form, checkbox_data)
-        session['checkbox_data'] = checkbox_data
-        session.modified = True
-        return redirect(url_for('further_requirements_page'))
-
-    sheet_data = get_catalog()
-    page_schema = build_page_schema_context('materials_page', sheet_data, session.get('checkbox_data', {}))
-
-    edit_requested = request.args.get('edit', '').lower() in {'1', 'true', 'yes'}
-    edit_mode = session.get('role') == 'admin' and edit_requested
-    _li_cats = _get_li_categories_from_schema('materials_page') or []
-
-    if edit_mode:
-        builder_state = get_builder_beta_state()
-        current_page_id = 'materials_page'
-        current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
-        selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
-        selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
-
-        return render_template(
-            'form.html',
-            page_schema=page_schema,
-            schema_render_mode='full',
-            previous_page=page_schema.get('navigation', {}).get('previous_endpoint', 'summary_page') if page_schema else 'summary_page',
-            next_page=page_schema.get('navigation', {}).get('next_endpoint', 'further_requirements_page') if page_schema else 'further_requirements_page',
-            title=page_schema.get('title', 'Materials') if page_schema else 'Materials',
-            builder_state=builder_state,
-                                    current_page={'id': current_page_id, 'title': page_schema.get('title', 'Materials') if page_schema else 'Materials', 'blocks': current_page_blocks},
-            current_page_id=current_page_id,
-            selected_block_id=selected_block_id,
-            selected_block=selected_block,
-            pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
-            li_categories=_li_cats,
-            **_get_runtime_quote_context()
-        )
-    else:
-        return render_template(
-            'form.html',
-            page_schema=page_schema,
-            schema_render_mode='full',
-            previous_page=page_schema.get('navigation', {}).get('previous_endpoint', 'summary_page') if page_schema else 'summary_page',
-            next_page=page_schema.get('navigation', {}).get('next_endpoint', 'further_requirements_page') if page_schema else 'further_requirements_page',
-            title=page_schema.get('title', 'Materials') if page_schema else 'Materials',
-            li_categories=_li_cats,
-            **_get_runtime_quote_context()
-        )
-
-################################################################################
-# PAGE - FURTHER REQUIREMENTS
-################################################################################
-
-@app.route('/further_requirements_page', methods=['GET', 'POST'])
-def further_requirements_page():
-    session['last_visited'] = 'further_requirements_page'
-    checkbox_data = session.setdefault('checkbox_data', {})
-    page_schema = compile_builder_beta_page_to_runtime_schema('further_requirements_page')
-
-    if request.method == 'POST':
-        checkbox_data = persist_schema_page_submission(page_schema, request.form, checkbox_data)
-        session['checkbox_data'] = checkbox_data
-        session.modified = True
-        return redirect(url_for('additional_building_work_page'))
-
-    sheet_data = get_catalog()
-    page_schema = build_page_schema_context('further_requirements_page', sheet_data, session.get('checkbox_data', {}))
-
-    edit_requested = request.args.get('edit', '').lower() in {'1', 'true', 'yes'}
-    edit_mode = session.get('role') == 'admin' and edit_requested
-    _li_cats = _get_li_categories_from_schema('further_requirements_page') or []
-
-    if edit_mode:
-        builder_state = get_builder_beta_state()
-        current_page_id = 'further_requirements_page'
-        current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
-        selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
-        selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
-
-        return render_template(
-            'form.html',
-            page_schema=page_schema,
-            schema_render_mode='full',
-            previous_page=page_schema.get('navigation', {}).get('previous_endpoint', 'materials_page') if page_schema else 'materials_page',
-            next_page=page_schema.get('navigation', {}).get('next_endpoint', 'additional_building_work_page') if page_schema else 'additional_building_work_page',
-            title=page_schema.get('title', 'Further Requirements') if page_schema else 'Further Requirements',
-            builder_state=builder_state,
-			current_page={'id': current_page_id, 'title': page_schema.get('title', 'Further Requirements') if page_schema else 'Further Requirements', 'blocks': current_page_blocks},
-            current_page_id=current_page_id,
-            selected_block_id=selected_block_id,
-            selected_block=selected_block,
-            pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
-            li_categories=_li_cats,
-            **_get_runtime_quote_context()
-        )
-    else:
-        return render_template(
-            'form.html',
-            page_schema=page_schema,
-            schema_render_mode='full',
-            previous_page=page_schema.get('navigation', {}).get('previous_endpoint', 'materials_page') if page_schema else 'materials_page',
-            next_page=page_schema.get('navigation', {}).get('next_endpoint', 'additional_building_work_page') if page_schema else 'additional_building_work_page',
-            title=page_schema.get('title', 'Further Requirements') if page_schema else 'Further Requirements',
-            li_categories=_li_cats,
-            **_get_runtime_quote_context()
-        )
-
-################################################################################
-# PAGE - ADDITIONAL BUILDING WORK
-################################################################################
-
-@app.route('/additional_building_work_page', methods=['GET', 'POST'])
-def additional_building_work_page():
-    session['last_visited'] = 'additional_building_work_page'
-    checkbox_data = session.setdefault('checkbox_data', {})
-    page_schema = compile_builder_beta_page_to_runtime_schema('additional_building_work_page')
-
-    if request.method == 'POST':
-        checkbox_data = persist_schema_page_submission(page_schema, request.form, checkbox_data)
-        session['checkbox_data'] = checkbox_data
-        session.modified = True
-        return redirect(url_for('additional_costs_page'))
-
-    sheet_data = get_catalog()
-    page_schema = build_page_schema_context('additional_building_work_page', sheet_data, session.get('checkbox_data', {}))
-
-    edit_requested = request.args.get('edit', '').lower() in {'1', 'true', 'yes'}
-    edit_mode = session.get('role') == 'admin' and edit_requested
-    _li_cats = _get_li_categories_from_schema('additional_building_work_page') or []
-
-    if edit_mode:
-        builder_state = get_builder_beta_state()
-        current_page_id = 'additional_building_work_page'
-        current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
-        selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
-        selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
-
-        return render_template(
-            'form.html',
-            page_schema=page_schema,
-            schema_render_mode='full',
-            previous_page=page_schema.get('navigation', {}).get('previous_endpoint', 'further_requirements_page') if page_schema else 'further_requirements_page',
-            next_page=page_schema.get('navigation', {}).get('next_endpoint', 'additional_costs_page') if page_schema else 'additional_costs_page',
-            title=page_schema.get('title', 'Additional Building Work') if page_schema else 'Additional Building Work',
-            builder_state=builder_state,
-			current_page={'id': current_page_id, 'title': page_schema.get('title', 'Additional Building Work') if page_schema else 'Additional Building Work', 'blocks': current_page_blocks},
-            current_page_id=current_page_id,
-            selected_block_id=selected_block_id,
-            selected_block=selected_block,
-            pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
-            li_categories=_li_cats,
-            **_get_runtime_quote_context()
-        )
-    else:
-        return render_template(
-            'form.html',
-            page_schema=page_schema,
-            schema_render_mode='full',
-            previous_page=page_schema.get('navigation', {}).get('previous_endpoint', 'further_requirements_page') if page_schema else 'further_requirements_page',
-            next_page=page_schema.get('navigation', {}).get('next_endpoint', 'additional_costs_page') if page_schema else 'additional_costs_page',
-            title=page_schema.get('title', 'Additional Building Work') if page_schema else 'Additional Building Work',
-            li_categories=_li_cats,
-            **_get_runtime_quote_context()
-        )
-
-################################################################################
-# PAGE - ADDITIONAL COSTS
-################################################################################
-
-@app.route('/additional_costs_page', methods=['GET', 'POST'])
-def additional_costs_page():
-    session['last_visited'] = 'additional_costs_page'
-    checkbox_data = session.setdefault('checkbox_data', {})
-    page_schema = compile_builder_beta_page_to_runtime_schema('additional_costs_page')
-
-    if request.method == 'POST':
-        checkbox_data = persist_schema_page_submission(page_schema, request.form, checkbox_data)
-        session['checkbox_data'] = checkbox_data
-        session.modified = True
-        return redirect(url_for('optional_extras_page'))
-
-    sheet_data = get_catalog()
-    page_schema = build_page_schema_context('additional_costs_page', sheet_data, session.get('checkbox_data', {}))
-
-    edit_requested = request.args.get('edit', '').lower() in {'1', 'true', 'yes'}
-    edit_mode = session.get('role') == 'admin' and edit_requested
-    _li_cats = _get_li_categories_from_schema('additional_costs_page') or []
-
-    if edit_mode:
-        builder_state = get_builder_beta_state()
-        current_page_id = 'additional_costs_page'
-        current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
-        selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
-        selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
-
-        return render_template(
-            'form.html',
-            page_schema=page_schema,
-            schema_render_mode='full',
-            previous_page=page_schema.get('navigation', {}).get('previous_endpoint', 'additional_building_work_page') if page_schema else 'additional_building_work_page',
-            next_page=page_schema.get('navigation', {}).get('next_endpoint', 'optional_extras_page') if page_schema else 'optional_extras_page',
-            title=page_schema.get('title', 'Additional Costs') if page_schema else 'Additional Costs',
-            builder_state=builder_state,
-			current_page={'id': current_page_id, 'title': page_schema.get('title', 'Additional Costs') if page_schema else 'Additional Costs', 'blocks': current_page_blocks},
-            current_page_id=current_page_id,
-            selected_block_id=selected_block_id,
-            selected_block=selected_block,
-            pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
-            li_categories=_li_cats,
-            **_get_runtime_quote_context()
-        )
-    else:
-        return render_template(
-            'form.html',
-            page_schema=page_schema,
-            schema_render_mode='full',
-            previous_page=page_schema.get('navigation', {}).get('previous_endpoint', 'additional_building_work_page') if page_schema else 'additional_building_work_page',
-            next_page=page_schema.get('navigation', {}).get('next_endpoint', 'optional_extras_page') if page_schema else 'optional_extras_page',
-            title=page_schema.get('title', 'Additional Costs') if page_schema else 'Additional Costs',
-            li_categories=_li_cats,
-            **_get_runtime_quote_context()
-        )
-
-################################################################################
-# PAGE - OPTIONAL EXTRAS
-################################################################################
-
-@app.route('/optional_extras_page', methods=['GET', 'POST'])
-def optional_extras_page():
-    session['last_visited'] = 'optional_extras_page'
-    checkbox_data = session.setdefault('checkbox_data', {})
-    page_schema = compile_builder_beta_page_to_runtime_schema('optional_extras_page')
-
-    if request.method == 'POST':
-        checkbox_data = persist_schema_page_submission(page_schema, request.form, checkbox_data)
-        session['checkbox_data'] = checkbox_data
-        session.modified = True
-        return redirect(url_for('image_upload_page'))
-
-    sheet_data = get_catalog()
-    page_schema = build_page_schema_context('optional_extras_page', sheet_data, session.get('checkbox_data', {}))
-
-    edit_requested = request.args.get('edit', '').lower() in {'1', 'true', 'yes'}
-    edit_mode = session.get('role') == 'admin' and edit_requested
-    _li_cats = _get_li_categories_from_schema('optional_extras_page') or []
-
-    if edit_mode:
-        builder_state = get_builder_beta_state()
-        current_page_id = 'optional_extras_page'
-        current_page_blocks = builder_state.get('pages', {}).get(current_page_id, {}).get('blocks', [])
-        selected_block_id = request.args.get('selected_block_id', current_page_blocks[0]['id'] if current_page_blocks else '')
-        selected_block = next((b for b in current_page_blocks if b['id'] == selected_block_id), None)
-
-        return render_template(
-            'form.html',
-            page_schema=page_schema,
-            schema_render_mode='full',
-            previous_page=page_schema.get('navigation', {}).get('previous_endpoint', 'additional_costs_page') if page_schema else 'additional_costs_page',
-            next_page=page_schema.get('navigation', {}).get('next_endpoint', 'image_upload_page') if page_schema else 'image_upload_page',
-            title=page_schema.get('title', 'Optional Extras') if page_schema else 'Optional Extras',
-            builder_state=builder_state,
-			current_page={'id': current_page_id, 'title': page_schema.get('title', 'Optional Extras') if page_schema else 'Optional Extras', 'blocks': current_page_blocks},
-            current_page_id=current_page_id,
-            selected_block_id=selected_block_id,
-            selected_block=selected_block,
-            pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
-            li_categories=_li_cats,
-            **_get_runtime_quote_context()
-        )
-    else:
-        return render_template(
-            'form.html',
-            page_schema=page_schema,
-            schema_render_mode='full',
-            previous_page=page_schema.get('navigation', {}).get('previous_endpoint', 'additional_costs_page') if page_schema else 'additional_costs_page',
-            next_page=page_schema.get('navigation', {}).get('next_endpoint', 'image_upload_page') if page_schema else 'image_upload_page',
-            title=page_schema.get('title', 'Optional Extras') if page_schema else 'Optional Extras',
-            li_categories=_li_cats,
-            **_get_runtime_quote_context()
-        )
-
-################################################################################
 # PAGE - IMAGE UPLOAD
 ################################################################################
 
@@ -3454,379 +2739,4 @@ def submit():
     proposal_data = {
         'data': session.get('data', {}),
         'checkbox_data': checkbox_data,
-        'overrides': overrides,
-        'calculator_result': {
-            'subtotals': subtotals,
-            'subtotal': grand_total,
-            'groups': calc_result.get('groups', []),
-        },
-    }
-
-    # Store the finalized quote
-    session['proposal_data'] = proposal_data
-    session.modified = True
-
-    return redirect(url_for('trigger_production'))
-
-################################################################################
-# ROUTE - TRIGGER PRODUCTION
-################################################################################
-
-@app.route('/trigger_production', methods=['GET', 'POST'])
-def trigger_production():
-    '''Trigger the production workflow.'''
-    proposal_data = session.get('proposal_data', {})
-
-    # Future: Integrate with production workflow
-    # For now, store the trigger event
-    session['production_triggered'] = True
-    session.modified = True
-
-    return redirect(url_for('production_page'))
-
-################################################################################
-# PAGE - PRODUCTION
-################################################################################
-
-@app.route('/production-page', methods=['GET'])
-def production_page():
-    '''Show the production status page.'''
-    proposal_data = session.get('proposal_data', {})
-    production_triggered = session.get('production_triggered', False)
-
-    return render_template(
-        'production_page.html',
-        proposal_data=proposal_data,
-        production_triggered=production_triggered
-    )
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    """Login page."""
-    if request.method == 'POST':
-        username = request.form.get('username', '').strip()
-        password = request.form.get('password', '').strip()
-        
-        # Simple auth: check against environment or hardcoded admin
-        admin_user = os.environ.get('QM_ADMIN_USER', 'admin')
-        admin_pass = os.environ.get('QM_ADMIN_PASS', 'admin123')
-        
-        if username == admin_user and password == admin_pass:
-            session['username'] = username
-            session['role'] = 'admin'
-            session['full_name'] = 'Administrator'
-            session.modified = True
-            flash('Logged in successfully.', 'success')
-            next_url = session.pop('_login_next', None) or url_for('index')
-            return redirect(next_url)
-        
-        # Check credentials file for registered users
-        credentials_file = Path(__file__).parent / 'auth_credentials.json'
-        if credentials_file.exists():
-            with open(credentials_file) as f:
-                credentials = json.load(f)
-            if username in credentials:
-                import hashlib
-                hashed = hashlib.sha256(password.encode()).hexdigest()
-                if credentials[username]['password_hash'] == hashed:
-                    session['username'] = username
-                    session['role'] = credentials[username].get('role', 'user')
-                    session['full_name'] = credentials[username].get('full_name', username)
-                    session.modified = True
-                    flash('Logged in successfully.', 'success')
-                    next_url = session.pop('_login_next', None) or url_for('index')
-                    return redirect(next_url)
-        
-        flash('Invalid username or password.', 'error')
-        return redirect(url_for('login'))
-    
-    is_admin = session.get('role') == 'admin'
-    return render_template('login.html', is_admin=is_admin)
-
-
-@app.route('/logout', methods=['POST'])
-def logout():
-    """Log out and clear session."""
-    session.clear()
-    flash('You have been logged out.', 'success')
-    return redirect(url_for('login'))
-
-
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    """Register a new user. Admin only."""
-    if request.method == 'POST':
-        if session.get('role') != 'admin':
-            flash('Only admins can register new users.', 'error')
-            return redirect(url_for('login'))
-        
-        full_name = request.form.get('full_name', '').strip()
-        username = request.form.get('username', '').strip()
-        password = request.form.get('password', '').strip()
-        role = request.form.get('role', 'user')
-        
-        errors = []
-        if not username:
-            errors.append('Username is required.')
-        if len(password) < 6:
-            errors.append('Password must be at least 6 characters.')
-        confirm = request.form.get('confirm_password', '').strip()
-        if password != confirm:
-            errors.append('Passwords do not match.')
-        
-        if errors:
-            for err in errors:
-                flash(err, 'error')
-            return render_template('register.html')
-        
-        # Store credentials in a JSON file
-        credentials_file = Path(__file__).parent / 'auth_credentials.json'
-        if credentials_file.exists():
-            with open(credentials_file) as f:
-                credentials = json.load(f)
-        else:
-            credentials = {}
-        
-        if username in credentials:
-            flash('Username already exists.', 'error')
-            return render_template('register.html')
-        
-        import hashlib
-        hashed = hashlib.sha256(password.encode()).hexdigest()
-        credentials[username] = {
-            'full_name': full_name or username,
-            'password_hash': hashed,
-            'role': role,
-            'created_at': datetime.utcnow().isoformat()
-        }
-        
-        with open(credentials_file, 'w') as f:
-            json.dump(credentials, f, indent=2)
-        
-        flash(f'User {username} registered successfully.', 'success')
-        return redirect(url_for('list_users'))
-    
-    return render_template('register.html')
-
-
-@app.route('/admin/users', methods=['GET'])
-@require_role('admin')
-def list_users():
-    """List all registered users."""
-    credentials_file = Path(__file__).parent / 'auth_credentials.json'
-    if credentials_file.exists():
-        with open(credentials_file) as f:
-            credentials = json.load(f)
-    else:
-        credentials = {}
-    
-    # Return as dict matching the template's expected format
-    users = {}
-    for username, data in credentials.items():
-        users[username] = {
-            'name': data.get('full_name', username),
-            'role': data.get('role', 'user')
-        }
-    
-    return render_template(
-        'list_users.html',
-        users=users
-    )
-
-@app.route('/admin/promote-user/<username>', methods=['POST'])
-@require_role('admin')
-def promote_user(username):
-    """Promote a user to admin."""
-    credentials_file = Path(__file__).parent / 'auth_credentials.json'
-    if credentials_file.exists():
-        with open(credentials_file) as f:
-            credentials = json.load(f)
-        if username in credentials:
-            credentials[username]['role'] = 'admin'
-            with open(credentials_file, 'w') as f:
-                json.dump(credentials, f, indent=2)
-            flash(f'User {username} promoted to admin.', 'success')
-    return redirect(url_for('list_users'))
-
-
-@app.route('/admin/demote-user/<username>', methods=['POST'])
-@require_role('admin')
-def demote_user(username):
-    """Demote a user from admin to user."""
-    if username == session.get('username'):
-        flash('You cannot demote yourself.', 'error')
-        return redirect(url_for('list_users'))
-    credentials_file = Path(__file__).parent / 'auth_credentials.json'
-    if credentials_file.exists():
-        with open(credentials_file) as f:
-            credentials = json.load(f)
-        if username in credentials:
-            credentials[username]['role'] = 'user'
-            with open(credentials_file, 'w') as f:
-                json.dump(credentials, f, indent=2)
-            flash(f'User {username} demoted to user.', 'success')
-    return redirect(url_for('list_users'))
-
-
-@app.route('/admin/change-password/<username>', methods=['POST'])
-@require_role('admin')
-def change_password(username):
-    """Change a user's password."""
-    credentials_file = Path(__file__).parent / 'auth_credentials.json'
-    if credentials_file.exists():
-        with open(credentials_file) as f:
-            credentials = json.load(f)
-        if username in credentials:
-            new_password = request.form.get('new_password', '').strip()
-            if len(new_password) >= 6:
-                import hashlib
-                credentials[username]['password_hash'] = hashlib.sha256(new_password.encode()).hexdigest()
-                with open(credentials_file, 'w') as f:
-                    json.dump(credentials, f, indent=2)
-                flash(f'Password changed for {username}.', 'success')
-            else:
-                flash('Password must be at least 6 characters.', 'error')
-    return redirect(url_for('list_users'))
-
-
-@app.route('/admin/delete-user/<username>', methods=['POST'])
-@require_role('admin')
-def delete_user(username):
-    """Delete a user."""
-    if username == session.get('username'):
-        flash('You cannot delete your own account.', 'error')
-        return redirect(url_for('list_users'))
-    if username == 'admin':
-        flash('Cannot delete the default admin account.', 'error')
-        return redirect(url_for('list_users'))
-    credentials_file = Path(__file__).parent / 'auth_credentials.json'
-    if credentials_file.exists():
-        with open(credentials_file) as f:
-            credentials = json.load(f)
-        if username in credentials:
-            del credentials[username]
-            with open(credentials_file, 'w') as f:
-                json.dump(credentials, f, indent=2)
-            flash(f'User {username} deleted.', 'success')
-    return redirect(url_for('list_users'))
-
-
-@app.route('/admin/payment-schedule-config', methods=['GET'])
-@require_role('admin')
-def admin_payment_schedule_config():
-    """Render the admin payment schedule configuration page."""
-    import template_store as ts
-    block = ts.get_payment_schedule_block('builder_beta')
-    deposit_pct = block.get('deposit_pct', 0.10) if block else 0.10
-    completion_pct = block.get('completion_pct', 0.10) if block else 0.10
-    allow_user_override = block.get('allow_user_override', False) if block else False
-    
-    return render_template(
-        'admin_payment_schedule.html',
-        deposit_pct=deposit_pct,
-        completion_pct=completion_pct,
-        allow_user_override=allow_user_override
-    )
-
-
-# ---------------------------------------------------------------------------
-# Phase 3 — Output Template Editor API Routes
-# ---------------------------------------------------------------------------
-
-@app.route('/output_editor')
-@require_role('admin')
-def output_editor():
-    """Render the output template editor page."""
-    from template_store import get_template_store_overview
-    overview = get_template_store_overview()
-    return render_template('output_editor.html', templates=overview.get('templates', []))
-
-@app.route('/user_output_editor')
-@require_role('admin')
-def user_output_editor():
-    """Render the user output template editor page (Phase 4 WYSIWYG editor)."""
-    form_key = request.args.get('form_key', 'default')
-    return render_template('user_output_editor.html', form_key=form_key)
-
-@app.route('/api/output_template/<form_key>', methods=['GET'])
-@require_role('admin')
-def api_get_output_template(form_key):
-    """Return the default output template JSON for the given form_key."""
-    from template_store import get_output_template, list_output_templates, create_default_output_template
-    template = get_output_template(form_key)
-    if not template:
-        result = create_default_output_template(form_key)
-        if 'error' in result:
-            return jsonify({'error': result['error']}), 404
-        template = get_output_template(form_key)
-    all_templates = list_output_templates(form_key)
-    return jsonify({'template': template, 'all_templates': all_templates})
-
-
-@app.route('/api/output_template/<form_key>', methods=['POST'])
-@require_role('admin')
-def api_update_output_template(form_key):
-    """Update sections_json and/or css_json for the default output template."""
-    from template_store import get_output_template, update_output_template
-    data = request.get_json(force=True) or {}
-    template = get_output_template(form_key)
-    if not template:
-        return jsonify({'error': 'No output template found for this form'}), 404
-
-    updated = False
-    if 'sections' in data:
-        update_output_template(template['id'], sections=data['sections'])
-        updated = True
-    if 'css' in data:
-        update_output_template(template['id'], css=data['css'])
-        updated = True
-
-    if not updated:
-        return jsonify({'error': 'No valid fields to update'}), 400
-    return jsonify({'success': True})
-
-
-@app.route('/api/output_template/<form_key>/preview', methods=['GET'])
-@require_role('admin')
-def api_preview_output_template(form_key):
-    """Generate a live preview HTML from the output template + current quote data."""
-    from template_store import get_output_template
-    template = get_output_template(form_key)
-    if not template:
-        return jsonify({'error': 'No output template found'}), 404
-
-    overrides = session.get('overrides', {})
-    checkbox_data = session.get('checkbox_data', {})
-    try:
-        calc_result = calculator.calculate_quote(
-            form_key,
-            form_data=checkbox_data,
-            session_overrides=overrides,
-        )
-    except Exception as e:
-        current_app.logger.exception("Preview calculator failed")
-        return jsonify({'error': f'Calculator error: {str(e)}'}), 500
-
-    return render_template(
-        'output_editor_preview.html',
-        calc_result=calc_result,
-        sections=template['sections'],
-        css=template['css'],
-    )
-
-
-@app.route('/api/output_template/<form_key>/reset', methods=['POST'])
-@require_role('admin')
-def api_reset_output_template(form_key):
-    """Reset the output template to default sections and CSS."""
-    from template_store import get_output_template, update_output_template, DEFAULT_OUTPUT_SECTIONS
-    template = get_output_template(form_key)
-    if not template:
-        return jsonify({'error': 'No output template found'}), 404
-
-    update_output_template(template['id'], sections=DEFAULT_OUTPUT_SECTIONS, css={})
-    return jsonify({'success': True})
-
-# Register export routes blueprint
-from export_routes import export_bp
-app.register_blueprint(export_bp)
+        'overrides': overrid
