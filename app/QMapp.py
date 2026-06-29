@@ -7,6 +7,7 @@ import subprocess
 import time
 import json
 import functools
+import sqlite3
 from datetime import datetime
 from PIL import Image
 import traceback
@@ -17,8 +18,6 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from flask_session import Session
 from flask_wtf.csrf import CSRFProtect
 from werkzeug.utils import secure_filename
-import gspread
-from google.oauth2.service_account import Credentials
 from templates import get_layout_definition, generate_template_svg
 from pathlib import Path
 from copy import deepcopy
@@ -34,6 +33,7 @@ from template_store import (
 	import_sheet_rows_to_catalog,
 	get_line_items_by_codes,
 	get_all_pages,
+	get_line_items_for_page,
 )
 from config import (
     TEMPLATE_STORE_READ_ENABLED,
@@ -44,6 +44,22 @@ from config import (
 
 app = Flask(__name__)
 csrf = CSRFProtect(app)
+
+# Helper: parse builder form floats with bounds
+def _parse_builder_float(value, default, min_val, max_val):
+    try:
+        val = float(value)
+        return val if min_val <= val <= max_val else default
+    except (ValueError, TypeError):
+        return default
+
+# Helper: parse builder form ints with bounds
+def _parse_builder_int(value, default, min_val, max_val):
+    try:
+        val = int(value)
+        return val if min_val <= val <= max_val else default
+    except (ValueError, TypeError):
+        return default
 
 def is_truthy_env(name: str) -> bool:
 	return os.getenv(name, '').strip().lower() in {'1', 'true', 'yes', 'on'}
@@ -107,7 +123,6 @@ def inject_ui_context():
 	
 	db_pages = []
 	if edit_mode:
-		from template_store import get_all_pages
 		db_pages = get_all_pages(template_key=TEMPLATE_STORE_KEY)
 		
 	return dict(
@@ -121,35 +136,27 @@ def inject_ui_context():
 # Get line items for a page, grouped by category, from the template store.
 def _get_line_items_for_page(page_id: str):
     """Return line items for a page, grouped by category.
-    Wraps template_store.get_line_items_for_page()."""
+    Wraps get_line_items_for_page()."""
     try:
-        return template_store.get_line_items_for_page(page_id)
+        return get_line_items_for_page(page_id)
     except Exception:
         return {}
 
-#Get list of category names for a page from the schema, fallback to keys from get_line_items_for_page().
+# Get list of category names for a page from the schema, fallback to keys from get_line_items_for_page().
 def _get_li_categories_from_schema(page_id: str):
     """Return list of category names for a page from the schema.
     Falls back to keys from get_line_items_for_page()."""
     try:
-        items = template_store.get_line_items_for_page(page_id)
+        items = get_line_items_for_page(page_id)
         return list(items.keys()) if items else []
     except Exception:
         return []
 
-# Load layout intent metadata
-intent_path = Path(__file__).parent / 'layout_intents.json'
-with intent_path.open() as f:
-	layout_intents = json.load(f)
-
-# Load page schema metadata for builder-driven rendering.
+# Legacy: page_schemas.json – will be replaced by template store in subsequent chunks
 page_schema_path = Path(__file__).parent / 'page_schemas.json'
 with page_schema_path.open() as f:
-	page_schemas = json.load(f)
+    page_schemas = json.load(f)
 
-# DO NOT OVERWRITE: config.py values already imported correctly above
-# TEMPLATE_STORE_KEY and TEMPLATE_STORE_READ_ENABLED are imported from config.py
-# To change template key, set env var QM_TEMPLATE_STORE_KEY (not QM_TEMPLATE_KEY)
 print(f"[CONFIG] Using TEMPLATE_STORE_KEY={TEMPLATE_STORE_KEY}, READ_ENABLED={TEMPLATE_STORE_READ_ENABLED}")
 
 try:
@@ -180,156 +187,247 @@ if TEMPLATE_STORE_READ_ENABLED:
 	except Exception as exc:
 		print(f"Template store read failed, falling back to JSON schema: {exc}")
 
-# Get/initialize builder settings dict from page_schemas
 def get_builder_settings():
-	settings = page_schemas.setdefault('settings', {})
-	if not isinstance(settings, dict):
-		settings = {}
-		page_schemas['settings'] = settings
-	return settings
+    """Read builder settings from template store DB.
 
-#Legacy JSON persistence - still required for draft sync until builder write ops fully migrate to SQLite DB
+    Primary: form_templates.settings_json in SQLite.
+    Fallback: page_schemas['settings'] in-memory dict.
+    """
+    db_path = Path(__file__).parent / 'template_store.sqlite3'
+    if db_path.exists():
+        try:
+            conn = sqlite3.connect(str(db_path))
+            conn.row_factory = sqlite3.Row
+            row = conn.execute(
+                'SELECT settings_json FROM form_templates WHERE key = ?',
+                (TEMPLATE_STORE_KEY,),
+            ).fetchone()
+            conn.close()
+            if row and row['settings_json']:
+                settings = json.loads(row['settings_json'])
+                if isinstance(settings, dict):
+                    page_schemas['settings'] = settings  # keep in-memory sync
+                    return settings
+        except Exception as exc:
+            print(f"[get_builder_settings] DB read failed: {exc}")
+    # Legacy fallback: read from page_schemas dict
+    settings = page_schemas.setdefault('settings', {})
+    if not isinstance(settings, dict):
+        settings = {}
+        page_schemas['settings'] = settings
+    return settings
+
+
+def save_builder_settings(settings: dict):
+    """Persist builder settings to both DB and JSON file.
+
+    Primary: form_templates.settings_json in SQLite.
+    Also updates page_schemas['settings'] for in-memory consistency.
+    """
+    # 1. Write to DB
+    db_path = Path(__file__).parent / 'template_store.sqlite3'
+    if db_path.exists():
+        try:
+            conn = sqlite3.connect(str(db_path))
+            conn.execute(
+                'UPDATE form_templates SET settings_json = ? WHERE key = ?',
+                (json.dumps(settings, indent=2), TEMPLATE_STORE_KEY),
+            )
+            conn.commit()
+            conn.close()
+        except Exception as exc:
+            print(f"[save_builder_settings] DB write failed: {exc}")
+    # 2. Keep JSON dict in sync
+    page_schemas['settings'] = settings
+
 def save_page_schemas():
-	with page_schema_path.open('w') as f:
-		json.dump(page_schemas, f, indent=2)
+    with page_schema_path.open('w') as f:
+        json.dump(page_schemas, f, indent=2)
+    try:
+        initialize_template_store(page_schemas, template_key=TEMPLATE_STORE_KEY)
+    except Exception as exc:
+        print(f"Template store sync skipped after save: {exc}")
 
-	# Keep Template Store in sync with latest builder edits (Phase 1/2 bootstrap path).
-	try:
-		initialize_template_store(page_schemas, template_key=TEMPLATE_STORE_KEY)
-	except Exception as exc:
-		print(f"Template store sync skipped after save: {exc}")
-
-# Function patches field overrides (hidden, label, options) for a specific field in a page schema.
 def save_field_override(
-	page_id: str,
-	field_id: str,
-	hidden: Optional[bool] = None,
-	label_override: Optional[str] = None,
-	option_overrides: Optional[dict] = None,
-	format_options: Optional[dict] = None,
+    page_id: str,
+    field_id: str,
+    hidden: Optional[bool] = None,
+    label_override: Optional[str] = None,
+    option_overrides: Optional[dict] = None,
+    format_options: Optional[dict] = None,
 ) -> bool:
-	"""Patch hidden/label_override/option_overrides/format_options onto a field in page_schemas['pages'].
+    """Patch field overrides in DB (question_templates.metadata_json).
 
-	Returns True if the field was found and saved, False if page/field not found.
-	"""
-	pages = page_schemas.get('pages', {})
-	page = pages.get(page_id)
-	if not page:
-		return False
+    Returns True if the field was found and saved, False if page/field not found.
+    """
+    db_path = Path(__file__).parent / 'template_store.sqlite3'
+    if not db_path.exists():
+        return False
 
-	target_field = None
-	for field in page.get('fields', []):
-		if field.get('id') == field_id or field.get('name') == field_id:
-			target_field = field
-			break
+    try:
+        conn = sqlite3.connect(str(db_path))
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            '''SELECT qt.id, qt.metadata_json FROM question_templates qt
+               JOIN page_templates pt ON pt.id = qt.page_template_id
+               JOIN form_template_versions ftv ON ftv.id = pt.form_template_version_id
+               JOIN form_templates ft ON ft.id = ftv.form_template_id
+               WHERE ft.key = ? AND pt.page_key = ? AND qt.question_key = ?
+               ORDER BY ftv.version DESC LIMIT 1''',
+            (TEMPLATE_STORE_KEY, page_id, field_id),
+        ).fetchone()
 
-	if target_field is None:
-		return False
+        if not row:
+            conn.close()
+            return False
 
-	if hidden is not None:
-		target_field['hidden'] = bool(hidden)
-	if label_override is not None:
-		target_field['label_override'] = label_override.strip()
-	if format_options is not None:
-		target_field['format_options'] = dict(format_options)
-	if option_overrides is not None:
-		existing = target_field.setdefault('option_overrides', {})
-		for val, overrides in option_overrides.items():
-			entry = existing.setdefault(str(val), {})
-			if 'hidden' in overrides:
-				entry['hidden'] = bool(overrides['hidden'])
-			if 'deleted' in overrides:
-				entry['deleted'] = bool(overrides['deleted'])
-			if 'label_override' in overrides:
-				entry['label_override'] = str(overrides['label_override']).strip()
-			if 'format_options' in overrides and isinstance(overrides['format_options'], dict):
-				entry['format_options'] = dict(overrides['format_options'])
-			elif 'format' in overrides and isinstance(overrides['format'], dict):
-				entry['format_options'] = dict(overrides['format'])
-			if 'pricing_options' in overrides and isinstance(overrides['pricing_options'], dict):
-				entry['pricing_options'] = dict(overrides['pricing_options'])
-			if 'output_options' in overrides and isinstance(overrides['output_options'], dict):
-				entry['output_options'] = dict(overrides['output_options'])
+        meta = json.loads(row['metadata_json'] or '{}')
 
-	save_page_schemas()
-	return True
+        if hidden is not None:
+            meta['hidden'] = bool(hidden)
+        if label_override is not None:
+            meta['label_override'] = label_override.strip()
+        if format_options is not None:
+            meta['format_options'] = dict(format_options)
+        if option_overrides is not None:
+            existing = meta.setdefault('option_overrides', {})
+            for val, overrides in option_overrides.items():
+                entry = existing.setdefault(str(val), {})
+                if 'hidden' in overrides:
+                    entry['hidden'] = bool(overrides['hidden'])
+                if 'deleted' in overrides:
+                    entry['deleted'] = bool(overrides['deleted'])
+                if 'label_override' in overrides:
+                    entry['label_override'] = str(overrides['label_override']).strip()
+                if 'format_options' in overrides and isinstance(overrides['format_options'], dict):
+                    entry['format_options'] = dict(overrides['format_options'])
+                elif 'format' in overrides and isinstance(overrides['format'], dict):
+                    entry['format_options'] = dict(overrides['format'])
+                if 'pricing_options' in overrides and isinstance(overrides['pricing_options'], dict):
+                    entry['pricing_options'] = dict(overrides['pricing_options'])
+                if 'output_options' in overrides and isinstance(overrides['output_options'], dict):
+                    entry['output_options'] = dict(overrides['output_options'])
+
+        conn.execute(
+            'UPDATE question_templates SET metadata_json = ? WHERE id = ?',
+            (json.dumps(meta), int(row['id'])),
+        )
+        conn.commit()
+        conn.close()
+
+        # Sync full page_schemas dict (including builder_beta) to JSON + DB
+        save_page_schemas()
+        return True
+
+    except Exception as exc:
+        print(f'[save_field_override] DB write failed: {exc}')
+        return False
 
 
 
-def save_field_inspector(page_id: str, field_id: str, pricing_options: Optional[dict] = None, output_options: Optional[dict] = None) -> bool:
-	"""Patch pricing_options and output_options onto a field in page_schemas['pages'].
+def save_field_inspector(
+    page_id: str,
+    field_id: str,
+    pricing_options: Optional[dict] = None,
+    output_options: Optional[dict] = None,
+) -> bool:
+	"""Patch pricing/out options in DB (question_templates.metadata_json).
 
 	Returns True if the field was found and saved, False if page/field not found.
 	Validates pricing mode against ALLOWED_BLOCK_PRICING_MODES before saving.
 	"""
-	pages = page_schemas.get('pages', {})
-	page = pages.get(page_id)
-	if not page:
+	db_path = Path(__file__).parent / 'template_store.sqlite3'
+	if not db_path.exists():
 		return False
 
-	target_field = None
-	for field in page.get('fields', []):
-		if field.get('id') == field_id or field.get('name') == field_id:
-			target_field = field
-			break
+	try:
+		conn = sqlite3.connect(str(db_path))
+		conn.row_factory = sqlite3.Row
+		row = conn.execute(
+			'''SELECT qt.id, qt.metadata_json FROM question_templates qt
+			   JOIN page_templates pt ON pt.id = qt.page_template_id
+			   JOIN form_template_versions ftv ON ftv.id = pt.form_template_version_id
+			   JOIN form_templates ft ON ft.id = ftv.form_template_id
+			   WHERE ft.key = ? AND pt.page_key = ? AND qt.question_key = ?
+			   ORDER BY ftv.version DESC LIMIT 1''',
+			(TEMPLATE_STORE_KEY, page_id, field_id),
+		).fetchone()
 
-	if target_field is None:
+		if not row:
+			conn.close()
+			return False
+
+		meta = json.loads(row['metadata_json'] or '{}')
+
+		if pricing_options is not None:
+			mode = str(pricing_options.get('mode', 'none')).strip()
+			if mode not in ALLOWED_BLOCK_PRICING_MODES:
+				mode = 'none'
+			po = meta.setdefault('pricing_options', {
+				'enabled': False, 'mode': 'none', 'fixed_amount': 0.0,
+				'entered_key': '', 'quantity_key': '', 'rate': 0.0,
+			})
+			po['mode'] = mode
+			po['enabled'] = mode != 'none'
+			for key in ('fixed_amount', 'rate', 'percent_of_subtotal'):
+				if key in pricing_options:
+					try:
+						po[key] = float(pricing_options[key])
+					except (TypeError, ValueError):
+						pass
+			for key in ('entered_key', 'quantity_key'):
+				if key in pricing_options:
+					po[key] = str(pricing_options[key]).strip()
+
+		if output_options is not None:
+			oo = meta.setdefault('output_options', {
+				'include_in_output': True, 'output_label': '',
+				'group': '', 'sort_order': 0, 'value_mode': 'show_value',
+			})
+			if 'include_in_output' in output_options:
+				oo['include_in_output'] = bool(output_options['include_in_output'])
+			if 'output_label' in output_options:
+				oo['output_label'] = str(output_options['output_label']).strip()
+			if 'group' in output_options:
+				oo['group'] = str(output_options['group']).strip()
+			if 'value_mode' in output_options:
+				oo['value_mode'] = str(output_options['value_mode']).strip()
+
+		conn.execute(
+			'UPDATE question_templates SET metadata_json = ? WHERE id = ?',
+			(json.dumps(meta), int(row['id'])),
+		)
+		conn.commit()
+		conn.close()
+
+		# Sync full page_schemas dict (including builder_beta) to JSON + DB
+		save_page_schemas()
+		return True
+
+	except Exception as exc:
+		print(f'[save_field_inspector] DB write failed: {exc}')
 		return False
 
-	if pricing_options is not None:
-		mode = str(pricing_options.get('mode', 'none')).strip()
-		if mode not in ALLOWED_BLOCK_PRICING_MODES:
-			mode = 'none'
-		existing_po = target_field.setdefault('pricing_options', {
-			'enabled': False, 'mode': 'none', 'fixed_amount': 0.0,
-			'entered_key': '', 'quantity_key': '', 'rate': 0.0,
-		})
-		existing_po['mode'] = mode
-		existing_po['enabled'] = mode != 'none'
-		for key in ('fixed_amount', 'rate', 'percent_of_subtotal'):
-			if key in pricing_options:
-				try:
-					existing_po[key] = float(pricing_options[key])
-				except (TypeError, ValueError):
-					pass
-		for key in ('entered_key', 'quantity_key'):
-			if key in pricing_options:
-				existing_po[key] = str(pricing_options[key]).strip()
-
-	if output_options is not None:
-		existing_oo = target_field.setdefault('output_options', {
-			'include_in_output': True, 'output_label': '',
-			'group': '', 'sort_order': 0, 'value_mode': 'show_value',
-		})
-		if 'include_in_output' in output_options:
-			existing_oo['include_in_output'] = bool(output_options['include_in_output'])
-		if 'output_label' in output_options:
-			existing_oo['output_label'] = str(output_options['output_label']).strip()
-		if 'group' in output_options:
-			existing_oo['group'] = str(output_options['group']).strip()
-		if 'value_mode' in output_options:
-			existing_oo['value_mode'] = str(output_options['value_mode']).strip()
-
-	save_page_schemas()
-	return True
-
-
 # ---------------------------------------------------------------------------
-# Phase 5 — Draft / Publish helpers
+# Phase 5 — Draft / Publish helpers (legacy JSON snapshot)
 # ---------------------------------------------------------------------------
+# Published snapshot path — used by publish/rollback (re-seeds DB via save_page_schemas())
 published_schema_path = Path(__file__).parent / 'page_schemas_published.json'
 
 
 def publish_current_draft() -> dict:
-    """Copy page_schemas.json → page_schemas_published.json and record metadata.
+    """Snapshot the current draft to JSON file and sync to DB.
 
     Returns a summary dict with published_at, db_version.
     """
     import datetime as _dt
+
+    # 1. Snapshot current page_schemas to JSON file for backward compatibility
     snapshot = json.loads(json.dumps(page_schemas))
     with published_schema_path.open('w') as f:
         json.dump(snapshot, f, indent=2)
 
+    # 2. Record publish metadata
     db_version = None
     try:
         db_version = get_latest_template_version(TEMPLATE_STORE_KEY)
@@ -343,9 +441,15 @@ def publish_current_draft() -> dict:
     }
     settings = get_builder_settings()
     settings['last_publish'] = meta
+    
+    # 3. Persist settings to DB (so it survives restart)
+    save_builder_settings(settings)
+    
+    # 4. Also sync full schema to JSON + re-seed DB from JSON
     save_page_schemas()
     return meta
 
+# Reads published JSON snapshot, then re-seeds DB via save_page_schemas()
 def rollback_to_published() -> dict:
 	"""Restore page_schemas from the last published snapshot.
 
@@ -361,135 +465,6 @@ def rollback_to_published() -> dict:
 	page_schemas.update(restored)
 	save_page_schemas()
 	return {'rolledback_at': __import__('datetime').datetime.utcnow().isoformat() + 'Z'}
-
-
-def update_builder_draft_from_form(form_data):
-	warnings = []
-	pages = page_schemas.get('pages', {})
-	_valid_endpoint = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
-
-	# New page creation (Wave 1 page-builder slice)
-	new_page_id = form_data.get('new_page_id', '').strip()
-	if new_page_id:
-		if not _valid_endpoint.match(new_page_id):
-			warnings.append(f"New page id '{new_page_id}' is invalid — use letters, numbers, underscores only.")
-		elif new_page_id in pages or new_page_id in app.view_functions:
-			warnings.append(f"Page '{new_page_id}' already exists.")
-		else:
-			new_page_title = form_data.get('new_page_title', '').strip() or new_page_id.replace('_', ' ').title()
-			new_page_prev = form_data.get('new_page_prev', '').strip()
-			new_page_next = form_data.get('new_page_next', '').strip()
-
-			if new_page_prev and not _valid_endpoint.match(new_page_prev):
-				warnings.append(f"Invalid new page previous endpoint '{new_page_prev}' — must be a route name.")
-				new_page_prev = ''
-			if new_page_next and not _valid_endpoint.match(new_page_next):
-				warnings.append(f"Invalid new page next endpoint '{new_page_next}' — must be a route name.")
-				new_page_next = ''
-
-			existing_page_ids = list(pages.keys())
-			default_prev = existing_page_ids[-1] if existing_page_ids else 'index'
-			previous_endpoint = new_page_prev or default_prev
-			next_endpoint = new_page_next or 'review'
-
-			pages[new_page_id] = {
-				'id': new_page_id,
-				'title': new_page_title,
-				'navigation': {
-					'previous_endpoint': previous_endpoint,
-					'next_endpoint': next_endpoint,
-				},
-				'fields': [],
-			}
-
-			if previous_endpoint in pages and previous_endpoint != new_page_id:
-				pages[previous_endpoint].setdefault('navigation', {})['next_endpoint'] = new_page_id
-			if next_endpoint in pages and next_endpoint != new_page_id:
-				pages[next_endpoint].setdefault('navigation', {})['previous_endpoint'] = new_page_id
-
-			warnings.append(f"New page '{new_page_id}' created in builder draft. Route binding is part of the next page-builder slice.")
-
-	for page_id, page in pages.items():
-		# Page title
-		new_title = form_data.get(f'page_title__{page_id}', '').strip()
-		if new_title:
-			page['title'] = new_title
-
-		# Navigation endpoints — validate they look like a Flask route name (alphanumeric + underscores)
-		new_prev = form_data.get(f'page_prev__{page_id}', '').strip()
-		new_next = form_data.get(f'page_next__{page_id}', '').strip()
-		if new_prev:
-			if _valid_endpoint.match(new_prev):
-				page['navigation']['previous_endpoint'] = new_prev
-			else:
-				warnings.append(f"Invalid previous endpoint '{new_prev}' for {page_id} — must be a route name.")
-		if new_next:
-			if _valid_endpoint.match(new_next):
-				page['navigation']['next_endpoint'] = new_next
-			else:
-				warnings.append(f"Invalid next endpoint '{new_next}' for {page_id} — must be a route name.")
-
-		# Field labels and ordering
-		updated_fields = []
-		for index, field in enumerate(page.get('fields', [])):
-			label_key = f"label__{page_id}__{index}"
-			order_key = f"order__{page_id}__{index}"
-			updated_field = deepcopy(field)
-
-			new_label = form_data.get(label_key, '').strip()
-			if new_label:
-				updated_field['label'] = new_label
-
-			try:
-				order_value = int(form_data.get(order_key, str(index)))
-			except ValueError:
-				order_value = index
-
-			updated_fields.append((order_value, updated_field))
-
-		updated_fields.sort(key=lambda item: item[0])
-		page['fields'] = [item[1] for item in updated_fields]
-
-	settings = get_builder_settings()
-
-	pricing_rules = settings.setdefault('pricing_rules', deepcopy(DEFAULT_PRICING_RULES))
-	pricing_rules['kitchen_light_rate'] = _parse_builder_float(form_data.get('rules__kitchen_light_rate'), pricing_rules.get('kitchen_light_rate', 30.0), 0, 10000)
-	pricing_rules['kitchen_point_rate'] = _parse_builder_float(form_data.get('rules__kitchen_point_rate'), pricing_rules.get('kitchen_point_rate', 65.0), 0, 10000)
-	pricing_rules['loft_light_rate'] = _parse_builder_float(form_data.get('rules__loft_light_rate'), pricing_rules.get('loft_light_rate', 30.0), 0, 10000)
-	pricing_rules['loft_point_rate'] = _parse_builder_float(form_data.get('rules__loft_point_rate'), pricing_rules.get('loft_point_rate', 65.0), 0, 10000)
-	pricing_rules['rounding_precision'] = _parse_builder_int(form_data.get('rules__rounding_precision'), pricing_rules.get('rounding_precision', 2), 0, 4)
-
-	payment_plan_rules = settings.setdefault('payment_plan_rules', deepcopy(DEFAULT_PAYMENT_PLAN_RULES))
-	deposit_percent = _parse_builder_float(form_data.get('rules__deposit_percent'), payment_plan_rules.get('deposit_percent', 10.0), 0, 100)
-
-	candidate_stages = []
-	for stage_index, default_stage in enumerate(DEFAULT_PAYMENT_PLAN_RULES['stages'], start=1):
-		name_key = f'rules__stage_{stage_index}_name'
-		percent_key = f'rules__stage_{stage_index}_percent'
-		stage_name = form_data.get(name_key, default_stage['name']).strip() or default_stage['name']
-		stage_percent = _parse_builder_float(form_data.get(percent_key), default_stage['percent'], 0, 100)
-		candidate_stages.append({'name': stage_name, 'percent': stage_percent})
-
-	total_percent = deposit_percent + sum(stage['percent'] for stage in candidate_stages)
-	if round(total_percent, 2) != 100.0:
-		warnings.append('Payment plan not saved: deposit + stage percentages must equal 100%.')
-	else:
-		payment_plan_rules['deposit_percent'] = deposit_percent
-		payment_plan_rules['stages'] = candidate_stages
-
-	# Page reorder — submitted as comma-separated list of page_ids from drag-and-drop
-	page_order_str = form_data.get('page_order', '').strip()
-	if page_order_str:
-		ordered_ids = [pid.strip() for pid in page_order_str.split(',') if pid.strip() in pages]
-		if len(ordered_ids) == len(pages):
-			page_schemas['pages'] = {pid: pages[pid] for pid in ordered_ids}
-
-	save_page_schemas()
-	return warnings
-
-
-ensure_builder_settings_defaults()
-
 
 DEFAULT_BUILDER_BETA_QUESTION_TYPES = {
 	'checkbox_group': {
@@ -521,82 +496,16 @@ DEFAULT_BUILDER_BETA_QUESTION_TYPES = {
 
 ALLOWED_BLOCK_PRICING_MODES = {'none', 'fixed', 'entered', 'quantity_rate', 'percent_subtotal'}
 
-
-def _build_block_from_schema_field(page_id, field, position):
-	field_type = str(field.get('type', 'checkbox_group')).strip() or 'checkbox_group'
-	if field_type not in DEFAULT_BUILDER_BETA_QUESTION_TYPES:
-		if field_type == 'currency_input':
-			field_type = 'number_currency_input'
-		elif field_type == 'template_selector':
-			field_type = 'dropdown_select'
-		else:
-			field_type = 'static_text_heading'
-
-	field_id = field.get('id') or f'{page_id}_field_{position + 1}'
-	field_name = field.get('name') or field_id
-	label = field.get('label') or field_name.replace('_', ' ').title()
-
-	return {
-		'id': f'{page_id}__{field_id}',
-		'block_type': field_type,
-		'standard': {
-			'label': label,
-			'name': field_name,
-			'required': False,
-			'help_text': field.get('note', ''),
-			'source_prefix': str(field.get('source', {}).get('prefix', '') or ''),
-			'placeholder': '',
-			'dropdown_choices': [],
-			'static_content': '',
-			'static_variant': 'body',
-		},
-		'logic_options': {
-			'visibility': 'always',
-			'depends_on_field': '',
-			'depends_on_value': '',
-		},
-		'pricing_options': {
-			'enabled': False,
-			'mode': 'none',
-			'fixed_amount': 0.0,
-			'entered_key': '',
-			'rate': 0.0,
-			'quantity_key': '',
-			'percent_of_subtotal': 0.0,
-			'allow_user_override': False,
-		},
-		'output_options': {
-			'include_in_output': True,
-			'output_label': label,
-			'group': 'General',
-			'sort_order': position,
-			'value_mode': 'show_value',
-		},
-	}
-
-
-def _bootstrap_builder_beta_from_schema():
-	beta_pages = {}
-	for page_id, page in page_schemas.get('pages', {}).items():
-		blocks = [_build_block_from_schema_field(page_id, field, idx) for idx, field in enumerate(page.get('fields', []))]
-		beta_pages[page_id] = {
-			'id': page_id,
-			'title': page.get('title', page_id.replace('_', ' ').title()),
-			'navigation': deepcopy(page.get('navigation', {})),
-			'blocks': blocks,
-		}
-
-	return {
-		'version': 1,
-		'question_types': deepcopy(DEFAULT_BUILDER_BETA_QUESTION_TYPES),
-		'pages': beta_pages,
-	}
-
-
 def get_builder_beta_state():
+	"""Read builder beta state from dynamic payload (DB-synced via save_page_schemas)."""
 	state = page_schemas.get('builder_beta')
 	if not isinstance(state, dict):
-		state = _bootstrap_builder_beta_from_schema()
+		# No existing state — initialize clean default (no legacy bootstrap)
+		state = {
+			'version': 1,
+			'question_types': deepcopy(DEFAULT_BUILDER_BETA_QUESTION_TYPES),
+			'pages': {}
+		}
 		page_schemas['builder_beta'] = state
 		return state
 
@@ -609,8 +518,9 @@ def get_builder_beta_state():
 			question_types.setdefault(key, deepcopy(value))
 
 	pages = state.get('pages')
-	if not isinstance(pages, dict) or not pages:
-		state['pages'] = _bootstrap_builder_beta_from_schema().get('pages', {})
+	if not isinstance(pages, dict):
+		# Initialize empty pages dict (no legacy bootstrap)
+		state['pages'] = {}
 		pages = state['pages']
 
 	for page_id, page in pages.items():
@@ -654,7 +564,6 @@ def get_builder_beta_state():
 			output_options.setdefault('value_mode', 'show_value')
 
 	return state
-
 
 def _find_block(page, block_id):
 	for index, block in enumerate(page.get('blocks', [])):
@@ -706,6 +615,7 @@ def _new_block_template(block_type, page_id, position):
 		},
 	}
 
+#Persists builder beta changes to JSON and re-seeds DB via save_page_schemas()
 
 def update_builder_beta_page_from_form(page_id, form_data):
 	state = get_builder_beta_state()
@@ -869,7 +779,7 @@ def compile_builder_beta_page_to_runtime_schema(page_id):
 		'fields': compiled_fields,
 	}
 
-
+# Dynamic – prefers template store, falls back to sheet data
 def _builder_beta_checkbox_options(field_schema, sheet_data):
 	source = field_schema.get('source', {})
 	prefix = str(source.get('prefix', '') or '')
@@ -896,9 +806,6 @@ def _builder_beta_checkbox_options(field_schema, sheet_data):
 		})
 
 	return options
-
-
-
 
 def build_builder_beta_runtime_context(page_id, sheet_data, page_answers):
 	compiled_page = compile_builder_beta_page_to_runtime_schema(page_id)
@@ -988,7 +895,7 @@ def build_builder_beta_runtime_context(page_id, sheet_data, page_answers):
 	compiled_page['fields'] = runtime_fields
 	return compiled_page
 
-
+# @LEGACY: depends on get_builder_beta_state() which reads from page_schemas dict
 def resolve_builder_beta_navigation_targets(page_id, runtime_page):
 	state = get_builder_beta_state()
 	pages = state.get('pages', {})
@@ -1167,155 +1074,56 @@ def build_builder_beta_runtime_payload_preview(page_id, runtime_page, builder_be
 		'total_pricing_amount': round(global_subtotal_before_percent + global_percent_adjustments, 2),
 	}
 
-
-def build_schema_checkbox_group(field_schema, sheet_data, checkbox_data):
-	storage_key = field_schema.get('storage', {}).get('key', field_schema['name'])
-	preselected = checkbox_data.get(storage_key, {}).get('preselected', []).copy()
-	source = field_schema.get('source', {})
-	prefix = source.get('prefix', '')
-
-	if TEMPLATE_STORE_READ_ENABLED and prefix:
-		db_options = load_option_set(prefix, TEMPLATE_STORE_KEY)
-		if db_options is not None:
-			for opt in db_options:
-				opt.setdefault('output_role_default', infer_output_role(opt.get('value', ''), opt.get('label', '')))
-			field_schema['options'] = db_options
-			for opt in db_options:
-				if not preselected and opt['is_included'] and opt['value'] not in preselected:
-					preselected.append(opt['value'])
-			field_schema['preselected'] = preselected
-			return field_schema
-
-	options = []
-
-	for row in sheet_data:
-		line_code = row.get('Line Code', '').strip()
-		internal_description = row.get('Internal Description', '').strip()
-		include = row.get('Include', '').strip()
-
-		if not line_code_matches_source(line_code, prefix, source.get('suffix')):
-			continue
-
-		options.append({
-			'value': line_code,
-			'label': internal_description,
-			'is_included': include == 'Y',
-			'output_role_default': infer_output_role(line_code, internal_description),
-			'format_options': parse_line_code_format(line_code).get('format_options', {}),
-		})
-
-		if not preselected and include == 'Y' and line_code not in preselected:
-			preselected.append(line_code)
-
-	field_schema['options'] = options
-	field_schema['preselected'] = preselected
-	return field_schema
-
-
-def build_page_schema_context(page_id, sheet_data, checkbox_data):
-	# PHASE 6: prefer builder_beta state for all pages.
-	# Fallback to legacy get_page_schema only if page_id not in builder_beta.
-	state = get_builder_beta_state()
-	if page_id in state.get('pages', {}):
-		return build_builder_beta_runtime_context(page_id, sheet_data, checkbox_data)
-
-	page_schema = get_page_schema(page_id)
-	if not page_schema:
-		return None
-
-	for index, field_schema in enumerate(page_schema.get('fields', [])):
-		if field_schema.get('type') == 'checkbox_group':
-			page_schema['fields'][index] = build_schema_checkbox_group(field_schema, sheet_data, checkbox_data)
-
-	return page_schema
-
-
-def persist_schema_page_submission(page_schema, form_data, checkbox_data):
-	for field_schema in page_schema.get('fields', []):
-		storage_key = field_schema.get('storage', {}).get('key', field_schema['name'])
-		if field_schema.get('type') in {'checkbox_group', 'line_items_by_category'}:
-			selected_values = form_data.getlist(field_schema['name'])
-			checkbox_data[storage_key] = {'preselected': selected_values if selected_values else []}
-
-	return checkbox_data
-
-# Function to fetch and cache data
-def fetch_data():
-	if TEST_MODE:
-		return deepcopy(mock_sheet_data)
-
-	if SHEETS_DISABLED:
-		return []
-
-	try:
-		print("Fetching fresh data from Google Sheets...")
-		sheet = client.open_by_key(spreadsheet_id).worksheet("Sheet1")
-		return sheet.get_all_records()
-	except Exception as e:
-		print(f"Error fetching Google Sheets data: {e}")
-		return None
-	
 def fetch_catalog_from_db() -> list:
-	"""Read all catalog rows from SQLite option_sets/option_items.
+    """Read all catalog rows from SQLite option_sets/option_items.
 
-	Returns rows in the same dict format as fetch_data():
-	    [{'Line Code': 'bw1', 'Internal Description': '...', 'Include': 'Y'}, ...]
-	Returns [] if the DB has no rows for the current template key.
-	"""
-	try:
-		import sqlite3 as _sqlite3
-		db_path = os.path.join(os.path.dirname(__file__), 'template_store.sqlite3')
-		conn = _sqlite3.connect(db_path)
-		conn.row_factory = _sqlite3.Row
-		rows = conn.execute(
-			"""
-			SELECT oi.line_code, oi.label, oi.is_included
-			FROM option_items oi
-			JOIN option_sets os ON os.id = oi.option_set_id
-			JOIN form_template_versions ftv ON ftv.id = os.form_template_version_id
-			JOIN form_templates ft ON ft.id = ftv.form_template_id
-			WHERE ft.key = ?
-			ORDER BY os.prefix ASC, oi.sort_order ASC
-			""",
-			(TEMPLATE_STORE_KEY,),
-		).fetchall()
-		conn.close()
-		return [
-			{
-				'Line Code': row['line_code'],
-				'Internal Description': row['label'],
-				'Include': 'Y' if row['is_included'] else 'N',
-			}
-			for row in rows
-		]
-	except Exception as e:
-		print(f'[catalog_db] Error reading catalog from DB: {e}')
-		return []
-
+    Returns rows in the same dict format as fetch_data():
+        [{'Line Code': 'bw1', 'Internal Description': '...', 'Include': 'Y'}, ...]
+    Returns [] if the DB has no rows for the current template key.
+    """
+    try:
+        import sqlite3 as _sqlite3
+        db_path = os.path.join(os.path.dirname(__file__), 'template_store.sqlite3')
+        conn = _sqlite3.connect(db_path)
+        conn.row_factory = _sqlite3.Row
+        rows = conn.execute(
+            """
+            SELECT oi.line_code, oi.label, oi.is_included
+            FROM option_items oi
+            JOIN option_sets os ON os.id = oi.option_set_id
+            JOIN form_template_versions ftv ON ftv.id = os.form_template_version_id
+            JOIN form_templates ft ON ft.id = ftv.form_template_id
+            WHERE ft.key = ?
+            ORDER BY os.prefix ASC, oi.sort_order ASC
+            """,
+            (TEMPLATE_STORE_KEY,),
+        ).fetchall()
+        conn.close()
+        return [
+            {
+                'Line Code': row['line_code'],
+                'Internal Description': row['label'],
+                'Include': 'Y' if row['is_included'] else 'N',
+            }
+            for row in rows
+        ]
+    except Exception as e:
+        print(f'[catalog_db] Error reading catalog from DB: {e}')
+        return []
 
 def get_catalog() -> list:
-	"""Catalog source router — respects QM_CATALOG_SOURCE env var.
+    """Catalog source — now DB-only (template_store).
 
-	  auto   (default) — DB first; falls back to Sheets if DB is empty.
-	  db     — DB only. Safe for demo / offline use.
-	  sheets — Live Sheets always. Bypasses DB entirely.
-	"""
-	if CATALOG_SOURCE == 'sheets':
-		return fetch_data() or []
-
-	if CATALOG_SOURCE == 'db':
-		rows = fetch_catalog_from_db()
-		if not rows:
-			print('[catalog] DB empty and QM_CATALOG_SOURCE=db — returning []')
-		return rows
-
-	# auto: try DB first, fall back to Sheets
-	rows = fetch_catalog_from_db()
-	if rows:
-		return rows
-	print('[catalog] DB empty — falling back to Google Sheets')
-	return fetch_data() or []
-
+    Respects QM_CATALOG_SOURCE for logging, but always reads from DB.
+    """
+    rows = fetch_catalog_from_db()
+    if rows:
+        return rows
+    
+    # Log why DB was empty, but never fall back to Sheets
+    source_log = CATALOG_SOURCE if 'CATALOG_SOURCE' in globals() else 'auto'
+    print(f'[catalog] DB empty (source={source_log}) — returning []')
+    return []
 
 def allowed_file(filename):
 	return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -1423,38 +1231,6 @@ def handle_multi_dropdown_session(checkbox_data, dropdown_key, selected_list):
 		checkbox_data[dropdown_key] = {"preselected": []}  # Explicitly store empty
 		
 	session['checkbox_data'] = checkbox_data
-	
-# Parent/Child definition helper function
-def get_parent_child_map(sheet_data):
-	parent_child_map = {}  # Stores {parent: [child1, child2, ...]}
-	alphanumeric_to_line = {}  # Maps alphanumeric code -> original line_code
-	temp_mapping = {}  # Temporary {alphanumeric_code: [list of children]}
-	
-	# Step 1: Convert all line codes to alphanumeric and store the mapping
-	for row in sheet_data:
-		line_code = row.get("Line Code", "").strip()
-		alphanumeric_code = to_alphanumeric_code(line_code)
-		
-		# Skip empty alphanumeric codes to prevent IndexError
-		if not alphanumeric_code:
-			continue  # Skip processing this line to prevent errors
-		
-		# Store both original and alphanumeric versions
-		alphanumeric_to_line[alphanumeric_code] = line_code
-		
-		if alphanumeric_code[-1].isdigit():  # Parent ends in a number
-			temp_mapping[alphanumeric_code] = []  
-		else:  # Child ends in a letter or special character
-			parent_base = alphanumeric_code[:-1]  
-			temp_mapping.setdefault(parent_base, []).append(line_code)
-		
-	# Step 2: Convert alphanumeric map back to full line_code
-	for alphanumeric_parent, children in temp_mapping.items():
-		if alphanumeric_parent in alphanumeric_to_line:  # Ensure the parent exists
-			parent_line_code = alphanumeric_to_line[alphanumeric_parent]
-			parent_child_map[parent_line_code] = children  # Store with full `line_code`
-		
-	return parent_child_map  #  Parent/Child map in **line_code format**
 
 # Float conversion handling 
 def to_float(value, default=0.0):
@@ -1483,6 +1259,7 @@ def builder_page_details_json(page_key):
         return jsonify(dict(row))
     return jsonify({})
 
+# @LEGACY: depends on get_builder_beta_state() – will refactor when builder state migrated to template store
 @app.route('/form_editor')
 @app.route('/edit_home')
 @require_role('admin')
@@ -1552,6 +1329,7 @@ def switch_form():
     # For now, we update session['active_form_key'] = form_key
     session['active_form_key'] = form_key
     return jsonify({'success': True})
+
 @app.route('/builder_beta/save_form_as', methods=['POST'])
 @require_role('admin')
 def save_form_as():
@@ -1683,42 +1461,24 @@ def builder_category_details_save():
     page_key = data.get('page_key')
     old_name = data.get('old_name')
     new_name = data.get('new_name')
+    desc = data.get('description', '')  # ← FIXED: define desc
     output_group = data.get('output_group', 'General')
 
     conn = sqlite3.connect(db)
     try:
         # Get page id
         page_id = conn.execute("SELECT id FROM page_templates WHERE page_key = ?", [page_key]).fetchone()[0]
-        conn.execute("UPDATE category_templates SET name = ?, description = ?, output_group = ? WHERE page_template_id = ? AND name = ?",
-                     [new_name, desc, output_group, page_id, old_name])
+        conn.execute(
+            "UPDATE category_templates SET name = ?, description = ?, output_group = ? WHERE page_template_id = ? AND name = ?",
+            [new_name, desc, output_group, page_id, old_name]
+        )
 
-        # cascading update line_items category linking to match if changed
+        # Cascading update: line_items category linking to match if changed
         if old_name != new_name:
-            conn.execute("UPDATE line_items SET category = ? WHERE form_page = ? AND category = ?",
-                         [new_name, page_key, old_name])
-
-        # Also persist output_group to page_schemas.json
-        import json as _json
-        import os as _os
-        schema_path = _os.path.join(_os.path.dirname(__file__), 'page_schemas.json')
-        if _os.path.exists(schema_path):
-            with open(schema_path) as f:
-                schema = _json.load(f)
-            pages = schema.get('builder_beta', {}).get('pages', {})
-            page_data = pages.get(page_key)
-            if page_data and 'categories' in page_data:
-                for cat_entry in page_data['categories']:
-                    if isinstance(cat_entry, dict) and cat_entry.get('name') == old_name:
-                        cat_entry['output_group'] = output_group
-                        if new_name != old_name:
-                            cat_entry['name'] = new_name
-                        break
-                    elif isinstance(cat_entry, str) and cat_entry == old_name:
-                        idx = page_data['categories'].index(cat_entry)
-                        page_data['categories'][idx] = {'name': new_name, 'output_group': output_group, 'sort_order': 0}
-                        break
-                with open(schema_path, 'w') as f:
-                    _json.dump(schema, f, indent=2)
+            conn.execute(
+                "UPDATE line_items SET category = ? WHERE form_page = ? AND category = ?",
+                [new_name, page_key, old_name]
+            )
 
         conn.commit()
         return jsonify({'ok': True})
@@ -1726,7 +1486,7 @@ def builder_category_details_save():
         return jsonify({'error': str(e)}), 400
     finally:
         conn.close()
-
+		
 @app.route('/builder_beta/category/add', methods=['POST'])
 @require_role('admin')
 def builder_beta_category_add():
@@ -2125,156 +1885,6 @@ def template_preview(template_key):
 
 
 ################################################################################################################################
-		
-													# Function to update DESCRIPTION columns
-		
-################################################################################################################################
-		
-def update_description_column(**submit_to_description_function):
-	"""DEPRECATED: Description updates are now handled dynamically by the builder beta architecture."""
-	print("DEPRECATED: update_description_column called. This function is a no-op.")
-	return []
-		
-################################################################################################################################
-		
-												# Function to Update INCLUDE column 
-		
-################################################################################################################################
-		
-def update_include_column(combined_data, description_column_includes=None):
-	if TEST_MODE:
-		return
-
-	if description_column_includes is None:
-		description_column_includes = []  
-	
-	print(f"DEBUG: Entering update_include_column with combined_data = {combined_data}")
-	
-	
-	row_index = None  # Initialize row_index to avoid errors if it's referenced in an exception
-	processed_codes = []
-	
-	def flatten_values(values):
-		flattened = []
-		for value in values:
-			if isinstance(value, (list, tuple, set)):
-				flattened.extend(flatten_values(value))
-			elif value is None:
-				continue
-			elif isinstance(value, dict):
-				continue
-			else:
-				flattened.append(value)
-		return flattened
-	
-	try:
-		sheet_data = get_catalog()
-		updates = [] 
-		
-		if not sheet_data:
-			return  # Early exit if no data is fetched
-		
-		# Get parent-child relationships dynamically
-		parent_child_map = get_parent_child_map(sheet_data)
-		
-		# Create an alphanumeric lookup for line codes
-		line_code_to_alphanumeric = {row.get('Line Code', '').strip(): to_alphanumeric_code(row.get('Line Code', '')) for row in sheet_data}
-		
-		for row_index, row in enumerate(sheet_data, start=2):
-			line_code = row.get('Line Code', '').strip()  
-			include_status = row.get('Include', '') 
-			alphanumeric_code = line_code_to_alphanumeric.get(line_code, '')
-			
-			print(f"DEBUG: Processing Row {row_index} - Line Code: {line_code}, Include: {include_status}")
-			
-			# 🛠 Confirm `iw` is being found & processed
-			if line_code.startswith("iw"):  
-				print(f" `iw` Line Code {line_code} is being processed!")
-					
-			if line_code in description_column_includes and include_status != 'Y':
-				print(f" Line Code {line_code} is in Combined Data! Preparing to update...")
-				print(f" DEBUG: Marking {line_code} as 'Y' in Include column at row {row_index}")  # Add this log
-				
-				updates.append({'range': f'E{row_index}', 'values': [['Y']]})
-			
-			# If it's in `combined_data`, mark it as included
-			if line_code in combined_data:
-				print(f" DEBUG: Marking {line_code} as 'Y' in Include column at row {row_index}")  # Add this line
-				
-				if include_status != 'Y':
-					updates.append({'range': f'E{row_index}', 'values': [['Y']]})
-		
-				# Track processed codes
-				processed_codes.append(line_code)
-				
-				# Ensure children are included if parent is selected
-				if line_code in parent_child_map:  
-					for child_code in parent_child_map[line_code]:  # These are full `line_code`s
-						child_row_index = next(
-							(i for i, r in enumerate(sheet_data, start=2) if r.get('Line Code', '').strip() == child_code), 
-							None
-						)
-					
-						if child_row_index and sheet_data[child_row_index - 2].get('Include', '') != 'Y':  # -2 since we started at 2
-							updates.append({'range': f'E{child_row_index}', 'values': [['Y']]})
-							processed_codes.append(child_code) 	
-							
-		processed_codes.extend(flatten_values(combined_data))  
-		processed_codes.extend(flatten_values(description_column_includes))
-		processed_codes = [str(code) for code in processed_codes if code is not None]
-		processed_codes = list(dict.fromkeys(processed_codes))
-		
-		if updates:
-			sheet.batch_update(updates) 
-		cleanup_include_column(processed_codes)
-			
-	except Exception as e:
-		print(f"Error processing row {row_index if row_index is not None else 'unknown'}: {e}")
-		
-
-################################################################################################################################
-	
-												# CLEANUP INCLUDE COLUMN
-	
-################################################################################################################################
-
-def cleanup_include_column(processed_codes):
-	if TEST_MODE:
-		return
-	
-	try:		
-		sheet_data = get_catalog()
-		updates = []
-		
-		if not sheet_data:
-			return  # No data, exit early
-		
-		processed_codes = list(set(processed_codes))  
-		
-		print(f"DEBUG: Cleanup Running - Processed Codes: {processed_codes}")
-		
-		for row_index, row in enumerate(sheet_data, start=2):
-			line_code = row.get('Line Code', '').strip()  # Keep it in line_code format
-			include_status = row.get('Include', '')
-			
-			# Skip any codes that should remain 'Y'
-			if line_code in processed_codes:
-				continue  
-			
-			# Otherwise, mark as 'N'
-			if include_status != 'N':
-				updates.append({'range': f'E{row_index}', 'values': [['N']]})
-				
-		if updates:
-			sheet.batch_update(updates)
-			
-	except Exception as e:
-		print(f" Error in cleanup_include_column(): {e}")
-
-
-
-
-################################################################################################################################
 
 													# PAGE - Project Details
 
@@ -2378,35 +1988,7 @@ def template_clone():
 
 	return jsonify(result)
 
-
-@app.route('/admin/catalog_import', methods=['POST'])
-@csrf.exempt
-@require_role('admin')
-def catalog_import():
-	"""Import current sheet data into the option_sets / option_items catalog tables.
-
-	POST /admin/catalog_import
-	Optional JSON body: {"template_key": "first_client_template_v1"}
-
-	In test mode this imports the mock sheet data.
-	In production mode this fetches live data from Google Sheets.
-	Returns a JSON summary of how many prefixes and items were written.
-	"""
-	body = request.get_json(silent=True) or {}
-	template_key = str(body.get('template_key', TEMPLATE_STORE_KEY)).strip() or TEMPLATE_STORE_KEY
-
-	sheet_rows = fetch_data()
-	if sheet_rows is None:
-		return jsonify({'error': 'Failed to fetch sheet data'}), 502
-
-	try:
-		result = import_sheet_rows_to_catalog(sheet_rows, template_key=template_key)
-	except (FileNotFoundError, ValueError) as exc:
-		return jsonify({'error': str(exc)}), 400
-
-	return jsonify(result)
-
-
+#depends on save_field_override() which uses page_schemas.json – will refactor when template_store.patch_page_field() is available
 @app.route('/admin/field_override', methods=['POST'])
 @csrf.exempt
 @require_role('admin')
@@ -2467,7 +2049,7 @@ def admin_field_override():
 
 	return jsonify({'ok': True, 'page_id': page_id, 'field_id': field_id})
 
-
+# depends on save_field_inspector() which uses page_schemas.json – will refactor when template_store.patch_page_field() is available
 @app.route('/admin/field_inspector', methods=['POST'])
 @csrf.exempt
 @require_role('admin')
@@ -2511,7 +2093,7 @@ def admin_field_inspector():
 
 
 
-
+# depends on publish_current_draft() which writes page_schemas_published.json – will refactor when publish/rollback uses template store
 @csrf.exempt
 @app.route('/admin/publish_draft', methods=['POST'])
 @require_role('admin')
@@ -2523,7 +2105,7 @@ def admin_publish_draft():
 		return jsonify({'error': str(exc)}), 500
 	return jsonify({'ok': True, **meta})
 
-
+# calls rollback_to_published() which relies on page_schemas_published.json – will refactor when publish/rollback uses template store
 @csrf.exempt
 @app.route('/admin/rollback', methods=['POST'])
 @require_role('admin')
@@ -2537,7 +2119,7 @@ def admin_rollback():
 		return jsonify({'error': str(exc)}), 500
 	return jsonify({'ok': True, **result})
 
-
+#depends on get_builder_beta_state() and save_page_schemas() – will refactor when builder state migrated to template store
 @app.route('/builder_beta/page/<page_id>', methods=['POST'])
 @require_role('admin')
 def builder_beta_page_editor(page_id):
@@ -2582,21 +2164,35 @@ def builder_beta_page_editor(page_id):
 ################################################################################
 # PAGE - IMAGE UPLOAD
 ################################################################################
-
+# Builder-beta page route — renders from builder beta state
 @app.route('/image_upload_page', methods=['GET', 'POST'])
 def image_upload_page():
     session['last_visited'] = 'image_upload_page'
     checkbox_data = session.setdefault('checkbox_data', {})
-    page_schema = compile_builder_beta_page_to_runtime_schema('image_upload_page')
 
     if request.method == 'POST':
-        checkbox_data = persist_schema_page_submission(page_schema, request.form, checkbox_data)
+        # Builder-beta: save block values from form
+        state = get_builder_beta_state()
+        page = state.get('pages', {}).get('image_upload_page')
+        if page:
+            for block in page.get('blocks', []):
+                field_name = block.get('standard', {}).get('name')
+                if field_name:
+                    # Handle checkbox groups
+                    if block['block_type'] == 'checkbox_group':
+                        selected = request.form.getlist(field_name)
+                        checkbox_data[field_name] = {'preselected': selected}
+                    else:
+                        value = request.form.get(field_name, '')
+                        if value:
+                            checkbox_data[field_name] = value
+
         session['checkbox_data'] = checkbox_data
         session.modified = True
         return redirect(url_for('review'))
 
-    sheet_data = get_catalog()
-    page_schema = build_page_schema_context('image_upload_page', sheet_data, session.get('checkbox_data', {}))
+    # GET: build runtime schema from builder beta state
+    page_schema = compile_builder_beta_page_to_runtime_schema('image_upload_page')
 
     edit_requested = request.args.get('edit', '').lower() in {'1', 'true', 'yes'}
     edit_mode = session.get('role') == 'admin' and edit_requested
@@ -2617,7 +2213,7 @@ def image_upload_page():
             next_page=page_schema.get('navigation', {}).get('next_endpoint', 'review') if page_schema else 'review',
             title=page_schema.get('title', 'Image Upload') if page_schema else 'Image Upload',
             builder_state=builder_state,
-			current_page={'id': current_page_id, 'title': page_schema.get('title', 'Image Upload') if page_schema else 'Image Upload', 'blocks': current_page_blocks},
+            current_page={'id': current_page_id, 'title': page_schema.get('title', 'Image Upload') if page_schema else 'Image Upload', 'blocks': current_page_blocks},
             current_page_id=current_page_id,
             selected_block_id=selected_block_id,
             selected_block=selected_block,
@@ -2638,7 +2234,7 @@ def image_upload_page():
         )
 
 ################################################################################
-# PAGE - REVIEW (Cost Matrix)
+# PAGE - REVIEW (Cost Matrix / Quote Summary)
 ################################################################################
 
 @app.route('/review', methods=['GET', 'POST'])
@@ -2647,13 +2243,13 @@ def review():
     checkbox_data = session.get('checkbox_data', {})
 
     if request.method == 'POST':
+        # Persist any final checkbox changes from the review page and refresh
         checkbox_data = session.setdefault('checkbox_data', {})
-        # Persist any final checkbox changes from the review page
         for key, value in request.form.items():
             checkbox_data[key] = value
         session['checkbox_data'] = checkbox_data
         session.modified = True
-        return redirect(url_for('submit'))
+        return redirect(url_for('review'))
 
     # Build the cost matrix using the calculator engine
     # Pass current session overrides so output-group overrides are reflected
@@ -2677,10 +2273,10 @@ def review():
     # Recompute grand total after overrides
     grand_total = round(sum(subtotals.values()), 2)
 
-    # Get session overrides and payment schedule
+    # Get runtime context for the template
     ctx = _get_runtime_quote_context()
 
-    # Store rendered HTML for PDF export
+    # Store rendered HTML for PDF / Word export
     export_html = render_template(
         'export.html',
         client_name=ctx['client_name'],
@@ -2702,41 +2298,3 @@ def review():
         calc_result=calc_result,
         **ctx
     )
-
-################################################################################
-# ROUTE - SUBMIT (Finalize Quote)
-################################################################################
-
-@app.route('/submit', methods=['POST'])
-def submit():
-    '''Finalize the quote and generate the proposal.'''
-    overrides = session.get('overrides', {})
-    checkbox_data = session.get('checkbox_data', {})
-
-    # Run the calculator with current overrides to get final figures
-    try:
-        calc_result = calculator.calculate_quote(
-            TEMPLATE_STORE_KEY,
-            form_data=checkbox_data,
-            session_overrides=overrides,
-        )
-    except Exception as exc:
-        current_app.logger.warning('Calculator error at submit: %s', exc)
-        calc_result = {}
-
-    # Apply output-group level overrides on top of calculated subtotals
-    subtotals = dict(calc_result.get('subtotals', {}))
-    for gname in list(subtotals.keys()):
-        override_key = f'og_{gname}'
-        if override_key in overrides:
-            try:
-                subtotals[gname] = round(float(overrides[override_key]), 2)
-            except (TypeError, ValueError):
-                pass
-    grand_total = round(sum(subtotals.values()), 2)
-
-    # Collect all data from session
-    proposal_data = {
-        'data': session.get('data', {}),
-        'checkbox_data': checkbox_data,
-        'overrides': overrid
