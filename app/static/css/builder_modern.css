@@ -1,0 +1,379 @@
+/* Form Builder Styles */
+.form-builder-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background: #f5f7fa;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.builder-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    background: #ffffff;
+    border-bottom: 1px solid #e1e5e9;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.edit-badge {
+    background: #007bff;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.btn-primary {
+    background: #007bff;
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    text-decoration: none;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    display: inline-block;
+}
+
+.builder-workspace {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+.builder-canvas {
+    flex: 1;
+    padding: 24px;
+    overflow-y: auto;
+}
+
+.builder-canvas-content {
+    max-width: 800px;
+    margin: 0 auto;
+    min-height: 400px;
+}
+
+.empty-canvas-message {
+    text-align: center;
+    padding: 60px 20px;
+    color: #6c757d;
+}
+
+.empty-canvas-message h3 {
+    margin-bottom: 12px;
+    color: #495057;
+}
+
+.empty-canvas-message .btn-primary {
+    margin-top: 20px;
+}
+
+.builder-sidebar {
+    width: 280px;
+    background: #ffffff;
+    border-right: 1px solid #e1e5e9;
+    padding: 24px;
+    overflow-y: auto;
+}
+
+.sidebar-section {
+    margin-bottom: 32px;
+}
+
+.sidebar-section h3 {
+    margin: 0 0 16px 0;
+    font-size: 16px;
+    color: #495057;
+    font-weight: 600;
+}
+
+.component-palette {
+    display: grid;
+    gap: 8px;
+}
+
+.component-item {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.component-item:hover {
+    background: #e3f2fd;
+    border-color: #007bff;
+    transform: translateY(-1px);
+}
+
+.component-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    margin-right: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+}
+
+.component-info {
+    flex: 1;
+}
+
+.component-name {
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: #495057;
+}
+
+.component-desc {
+    font-size: 12px;
+    color: #6c757d;
+}
+
+.properties-sidebar {
+    width: 320px;
+    background: #ffffff;
+    border-left: 1px solid #e1e5e9;
+    padding: 24px;
+    overflow-y: auto;
+}
+
+.properties-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.properties-header h3 {
+    margin: 0;
+    font-size: 16px;
+    color: #495057;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    color: #6c757d;
+    cursor: pointer;
+    font-size: 18px;
+    padding: 4px;
+}
+
+.close-btn:hover {
+    color: #495057;
+}
+
+.properties-content {
+    font-size: 14px;
+}
+
+.no-selection {
+    text-align: center;
+    color: #6c757d;
+    font-style: italic;
+    margin-top: 40px;
+}
+
+.builder-block {
+    margin-bottom: 16px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    transition: all 0.2s;
+}
+
+.builder-block.selected {
+    box-shadow: 0 2px 8px rgba(0,123,255,0.15);
+    border: 1px solid #007bff;
+}
+
+.builder-block-header {
+    padding: 12px 16px;
+    color: white;
+    border-radius: 8px 8px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: move;
+}
+
+.builder-block-header:hover {
+    background: rgba(0,0,0,0.05);
+}
+
+.block-title {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.block-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-icon {
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: white;
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.btn-icon:hover {
+    background: rgba(255,255,255,0.3);
+}
+
+.builder-block-content {
+    padding: 16px;
+}
+
+/* Block type colors */
+.block-type-checkbox_group { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+.block-type-text_input { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+.block-type-number_currency_input { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+.block-type-dropdown_select { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+.block-type-static_text_heading { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+
+/* Form elements */
+.form-element {
+    margin-bottom: 16px;
+}
+
+.form-element label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+    color: #495057;
+}
+
+.form-element input,
+.form-element select,
+.form-element textarea {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.form-element input:focus,
+.form-element select:focus,
+.form-element textarea:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+}
+
+/* Preview styles */
+.preview-container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 40px;
+}
+
+.preview-header {
+    margin-bottom: 32px;
+    text-align: center;
+}
+
+.preview-title {
+    font-size: 32px;
+    color: #495057;
+    margin-bottom: 12px;
+}
+
+.preview-description {
+    font-size: 16px;
+    color: #6c757d;
+    margin-bottom: 24px;
+}
+
+.preview-field {
+    margin-bottom: 24px;
+}
+
+.preview-label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #495057;
+}
+
+.preview-checkbox {
+    margin-right: 8px;
+}
+
+.preview-actions {
+    margin-top: 40px;
+    text-align: center;
+}
+
+.preview-actions .btn-primary {
+    margin: 0 8px;
+}
+
+/* Utility classes */
+.mt-16 { margin-top: 16px; }
+.mb-16 { margin-bottom: 16px; }
+.p-16 { padding: 16px; }
+
+/* Animations */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.builder-block {
+    animation: fadeIn 0.3s ease-out;
+}
+
+/* ------------------------------------------------------------------ 
+   Content columns – each occupies 50 % of the available width, with
+   internal padding so the content has breathing room. The box‑sizing
+   rule keeps the padding from expanding the column width.
+   ------------------------------------------------------------------ */
+
+#col3-questions {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+#qlist-section, 
+#qmeta-section {
+    flex: 1 1 50%;
+    width: 50%; /* Force 50% constraint */
+    max-width: 50%;
+    padding: 15px; /* Breathing room */
+    box-sizing: border-box; /* Ensures padding subtracts from width, not adds */
+    overflow-y: auto; /* Ensures long content within a column can scroll */
+}
+
+/* Optional: Stack the columns on smaller screens */
+@media (max-width: 768px) {
+    #col3-questions {
+        flex-direction: column;
+         transition: all 0.3s ease;
+    }
+    
+    #qlist-section, 
+    #qmeta-section {
+        flex: 1 1 100%;
+        width: 100%;
+        max-width: 100%;
+    }
+}

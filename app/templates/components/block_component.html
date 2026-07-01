@@ -1,0 +1,24 @@
+{% import "macros/_builder_macros.html" as builder_macros %}
+
+<div class="builder-block" data-block-id="{{ block.id }}" data-block-type="{{ block.block_type }}">
+    <div class="builder-block-header" style="
+        background: {{ getBlockColor(block.block_type) }};
+        padding: 12px;
+        color: white;
+        border-radius: 8px 8px 0 0;
+        cursor: move;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    ">
+        <span class="block-title">{{ block.standard.label }}</span>
+        <div class="block-controls">
+            <button class="btn-icon" onclick="editBlock('{{ block.id }}')" title="Edit">✏️</button>
+            <button class="btn-icon" onclick="deleteBlock('{{ block.id }}')" title="Delete">🗑️</button>
+        </div>
+    </div>
+    
+    <div class="builder-block-content" style="padding: 16px; border: 1px solid #e0e0e0; border-top: none;">
+        {{ renderBlockPreview(block) }}
+    </div>
+</div>

@@ -35,7 +35,6 @@
             font-weight: 600;
             margin-bottom: .3rem;
         }
-        .login-card input[type="text"],
         .login-card input[type="password"] {
             width: 100%;
             padding: .5rem .75rem;
@@ -84,36 +83,12 @@
         {% endwith %}
 
         <form method="POST" action="{{ url_for('login') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="field">
-                <label for="username">Username</label>
-                <input type="text" id="username" name="username" autocomplete="username" required>
-            </div>
-            <div class="field">
-                <label for="password">Password</label>
+                <label for="password">Admin Password</label>
                 <input type="password" id="password" name="password" autocomplete="current-password" required>
             </div>
             <button type="submit">Log in</button>
         </form>
-        
-        {% if is_admin %}
-        <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #eee;">
-            <p style="margin: 0 0 .75rem 0; font-size: .85rem; color: #666;">Admin Controls</p>
-            <div style="display: flex; gap: .5rem; flex-wrap: wrap;">
-                <a href="{{ url_for('list_users') }}" class="btn-secondary" style="background: #6c757d; color: #fff; border: none; padding: .5rem .75rem; border-radius: 4px; text-decoration: none; font-size: .85rem; cursor: pointer;">User Management</a>
-                <a href="{{ url_for('form_editor') }}" class="btn-secondary" style="background: #6c757d; color: #fff; border: none; padding: .5rem .75rem; border-radius: 4px; text-decoration: none; font-size: .85rem; cursor: pointer;">Form Builder</a>
-                <form method="POST" action="{{ url_for('logout') }}" style="display: inline;">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="btn-secondary" style="background: #dc3545; color: #fff; border: none; padding: .5rem .75rem; border-radius: 4px; font-size: .85rem; cursor: pointer;">Logout</button>
-                </form>
-            </div>
-        </div>
-        {% else %}
-        <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #eee;">
-            <p style="margin: 0 0 .75rem 0; font-size: .85rem; color: #666;">New here?</p>
-            <a href="{{ url_for('register') }}" style="color: #1b3a6b; text-decoration: none; font-size: .85rem;">Contact admin to register</a>
-        </div>
-        {% endif %}
     </div>
 </div>
 </body>

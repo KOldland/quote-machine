@@ -1,0 +1,276 @@
+<div class="sidebar-section">
+    <h3>Component Palette</h3>
+    <div class="component-palette">
+        <div class="component-item" draggable="true" data-component-type="checkbox_group">
+            <div class="component-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <span>☑</span>
+            </div>
+            <div class="component-info">
+                <div class="component-name">Checkbox Group</div>
+                <div class="component-desc">Multiple selection options</div>
+            </div>
+        </div>
+
+        <div class="component-item" draggable="true" data-component-type="text_input">
+            <div class="component-icon" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                <span>📝</span>
+            </div>
+            <div class="component-info">
+                <div class="component-name">Text Input</div>
+                <div class="component-desc">Single line text field</div>
+            </div>
+        </div>
+
+        <div class="component-item" draggable="true" data-component-type="number_currency_input">
+            <div class="component-icon" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                <span>💰</span>
+            </div>
+            <div class="component-info">
+                <div class="component-name">Number/Currency Input</div>
+                <div class="component-desc">Numeric input with currency support</div>
+            </div>
+        </div>
+
+        <div class="component-item" draggable="true" data-component-type="dropdown_select">
+            <div class="component-icon" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+                <span>▼</span>
+            </div>
+            <div class="component-info">
+                <div class="component-name">Dropdown Select</div>
+                <div class="component-desc">Single selection from list</div>
+            </div>
+        </div>
+
+        <div class="component-item" draggable="true" data-component-type="static_text_heading">
+            <div class="component-icon" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+                <span>📄</span>
+            </div>
+            <div class="component-info">
+                <div class="component-name">Static Text/Heading</div>
+                <div class="component-desc">Title or descriptive text</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="sidebar-section">
+    <h3>Building Tips</h3>
+    <div style="background: #e3f2fd; padding: 16px; border-radius: 6px; font-size: 14px; color: #1976d2;">
+        <strong>Drag & Drop:</strong> Click and drag component items from the palette to the canvas.<br>
+        <strong>Resize:</strong> Hover over block edges to resize (available in advanced mode).<br>
+        <strong>Configure:</strong> Click the gear icon to edit block properties.<br>
+        <strong>Save:</strong> Changes are auto-saved when you navigate away or refresh.
+    </div>
+</div>
+
+<script>
+function initializeComponentDragAndDrop() {
+    const componentItems = document.querySelectorAll('.component-item');
+
+    componentItems.forEach(item => {
+        item.addEventListener('dragstart', function(e) {
+            const componentType = e.target.closest('.component-item').dataset.componentType;
+            e.dataTransfer.setData('text/plain', componentType);
+            e.dataTransfer.setData('application/json', JSON.stringify({
+                type: componentType,
+                label: e.target.closest('.component-item').querySelector('.component-name').textContent,
+                description: e.target.closest('.component-item').querySelector('.component-desc').textContent
+            }));
+            e.dataTransfer.effectAllowed = 'copy';
+
+            // Add visual feedback
+            e.target.closest('.component-item').style.opacity = '0.5';
+        });
+
+        item.addEventListener('dragend', function(e) {
+            e.target.closest('.component-item').style.opacity = '';
+        });
+    });
+}
+
+// Initialize preview module functionality
+function initializeBuilderPreview() {
+    window.builderPreview = {
+        currentPage: null,
+        blocks: [],
+        init: function(pageId) {
+            this.currentPage = pageId;
+            this.loadPreviewData();
+        },
+        loadPreviewData: function() {
+            // Load preview data for the current page
+            // This would typically make an API call to get the current page configuration
+            console.log('Loading preview data for page:', this.currentPage);
+        },
+        updateBlock: function(blockId, changes) {
+            // Update a specific block in the preview
+            const blockIndex = this.blocks.findIndex(b => b.id === blockId);
+            if (blockIndex !== -1) {
+                this.blocks[blockIndex] = { ...this.blocks[blockIndex], ...changes };
+                this.renderPreview();
+            }
+        },
+        renderPreview: function() {
+            // Render the preview based on current blocks
+            console.log('Rendering preview with blocks:', this.blocks);
+            // This would update the preview frame or UI
+        },
+        addBlock: function(block) {
+            this.blocks.push(block);
+            this.renderPreview();
+        },
+        removeBlock: function(blockId) {
+            this.blocks = this.blocks.filter(b => b.id !== blockId);
+            this.renderPreview();
+        }
+    };
+}
+
+// Initialize everything when DOM is loaded
+function initializeBuilder() {
+    initializeComponentDragAndDrop();
+    initializeBuilderPreview();
+
+    // Listen for messages from main builder
+    window.addEventListener('message', function(e) {
+        if (e.data.type === 'builder-action') {
+            switch(e.data.action) {
+                case 'add-component':
+                    if (window.builderPreview) {
+                        window.builderPreview.addBlock(e.data.component);
+                    }
+                    break;
+                case 'update-component':
+                    if (window.builderPreview) {
+                        window.builderPreview.updateBlock(e.data.blockId, e.data.changes);
+                    }
+                    break;
+                case 'remove-component':
+                    if (window.builderPreview) {
+                        window.builderPreview.removeBlock(e.data.blockId);
+                    }
+                    break;
+            }
+        }
+    });
+}
+
+// Initialize when document is ready
+document.addEventListener('DOMContentLoaded', initializeBuilder);
+
+// Helper function to show notifications
+function showBuilderNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `builder-notification ${type}`;
+    notification.textContent = message;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 12px 24px;
+        border-radius: 6px;
+        color: white;
+        font-weight: 600;
+        z-index: 1000;
+        animation: slideIn 0.3s ease-out;
+        ${type === 'error' ? 'background: #dc3545;' : 'background: #28a745;'}
+    `;
+
+    document.body.appendChild(notification);
+
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease-in';
+        setTimeout(() => {
+            document.body.removeChild(notification);
+        }, 300);
+    }, 3000);
+}
+
+// Add CSS animations for notifications
+const style = document.createElement('style');
+style.textContent = `
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideOut {
+    from { transform: translateX(0); opacity: 1; }
+    to { transform: translateX(100%); opacity: 0; }
+}
+
+.builder-notification {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    border-radius: 6px;
+}
+`;
+document.head.appendChild(style);
+</script>
+
+<style>
+/* Additional styles for interactive components */
+.component-item {
+    transition: all 0.3s ease;
+    cursor: grab;
+}
+
+.component-item:active {
+    cursor: grabbing;
+}
+
+.component-item.dragging {
+    opacity: 0.5;
+    transform: scale(0.95);
+}
+
+.component-palette {
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 8px;
+}
+
+.component-palette::-webkit-scrollbar {
+    width: 6px;
+}
+
+.component-palette::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.component-palette::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.component-palette::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Hover effects */
+.component-item:hover {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    border-color: #667eea !important;
+}
+
+.component-item:hover .component-name,
+.component-item:hover .component-desc {
+    color: white !important;
+}
+
+.component-item:hover .component-icon {
+    background: rgba(255,255,255,0.2) !important;
+}
+
+/* Selected state */
+.component-item.selected {
+    background: #e3f2fd;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0,123,255,0.2);
+}
+
+/* Animation for new components */
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(0,123,255,0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(0,123,255,0); }
+    100%

@@ -1,0 +1,172 @@
+{# ----------------------------------------------------------------------
+   builder_properties.html
+   ---------------------------------------------------------------
+   This partial is included from form.html (or any other template that
+   needs to show the editable properties of a single block).
+
+   Expected context variables (passed from the view):
+     • block            – the dict that represents the selected block
+     • selected_block_id – the id of the block (string)
+     • builder_state    – the whole builder‑beta state (optional, used
+                          for dropdowns, etc.)
+     • edit_mode        – True when the page is in “edit” mode
+   ----------------------------------------------------------------------- #}
+
+{% if block %}
+<div class="builder-properties">
+
+  <h4>Block “{{ block.id }}”</h4>
+
+  {# ---------- Standard block fields ---------- #}
+  <fieldset>
+    <legend>Standard settings</legend>
+
+    <label>Label:
+      <input type="text" name="standard_label"
+             value="{{ block.standard.label|e }}" />
+    </label><br>
+
+    <label>Name (used as field id):
+      <input type="text" name="standard_name"
+             value="{{ block.standard.name|e }}" />
+    </label><br>
+
+    <label>Required:
+      <input type="checkbox" name="standard_required"
+             {% if block.standard.required %}checked{% endif %} />
+    </label><br>
+
+    <label>Help text:
+      <textarea name="standard_help_text">{{ block.standard.help_text|e }}</textarea>
+    </label><br>
+
+    <label>Placeholder:
+      <input type="text" name="standard_placeholder"
+             value="{{ block.standard.placeholder|e }}" />
+    </label><br>
+
+    {# Dropdown choices (only for block types that support them) #}
+    {% if block.standard.get('dropdown_choices') %}
+      <fieldset>
+        <legend>Dropdown choices (one per line)</legend>
+        <textarea name="standard_dropdown_choices"
+                  rows="3">{{ block.standard.dropdown_choices|join('\n') }}</textarea>
+      </fieldset>
+    {% endif %}
+  </fieldset>
+
+  {# ---------- Logic options ---------- #}
+  <fieldset>
+    <legend>Logic / Visibility</legend>
+
+    <label>Visibility:
+      <select name="logic_visibility">
+        <option value="always" {% if block.logic_options.visibility == 'always' %}selected{% endif %}>Always</option>
+        <option value="conditional" {% if block.logic_options.visibility == 'conditional' %}selected{% endif %}>Conditional</option>
+      </select>
+    </label><br>
+
+    <label>Depends on field:
+      <input type="text" name="logic_depends_on_field"
+             value="{{ block.logic_options.depends_on_field|e }}" />
+    </label><br>
+
+    <label>Depends on value:
+      <input type="text" name="logic_depends_on_value"
+             value="{{ block.logic_options.depends_on_value|e }}" />
+    </label>
+  </fieldset>
+
+  {# ---------- Pricing options ---------- #}
+  <fieldset>
+    <legend>Pricing</legend>
+
+    <label>Enabled:
+      <input type="checkbox" name="pricing_enabled"
+             {% if block.pricing_options.enabled %}checked{% endif %} />
+    </label><br>
+
+    <label>Mode:
+      <select name="pricing_mode">
+        {% for m in ['none','fixed','entered','quantity_rate','percent_subtotal'] %}
+          <option value="{{ m }}" {% if block.pricing_options.mode == m %}selected{% endif %}>
+            {{ m }}
+          </option>
+        {% endfor %}
+      </select>
+    </label><br>
+
+    {# Fixed amount (used when mode = fixed) #}
+    {% if block.pricing_options.mode == 'fixed' %}
+      <label>Fixed amount:
+        <input type="number" step="0.01" name="pricing_fixed_amount"
+               value="{{ block.pricing_options.fixed_amount|default(0) }}" />
+      </label><br>
+    {% endif %}
+
+    {# Entered amount (used when mode = entered) #}
+    {% if block.pricing_options.mode == 'entered' %}
+      <label>Entered amount key:
+        <input type="text" name="pricing_entered_key"
+               value="{{ block.pricing_options.entered_key|e }}" />
+      </label><br>
+    {% endif %}
+
+    {# Rate / quantity (used when mode = quantity_rate) #}
+    {% if block.pricing_options.mode == 'quantity_rate' %}
+      <label>Rate:
+        <input type="number" step="0.01" name="pricing_rate"
+               value="{{ block.pricing_options.rate|default(0) }}" />
+      </label><br>
+
+      <label>Quantity key:
+        <input type="text" name="pricing_quantity_key"
+               value="{{ block.pricing_options.quantity_key|e }}" />
+      </label><br>
+    {% endif %}
+
+    {# Percent of subtotal (used when mode = percent_subtotal) #}
+    {% if block.pricing_options.mode == 'percent_subtotal' %}
+      <label>Percent of subtotal:
+        <input type="number" step="0.01" name="pricing_percent_of_subtotal"
+               value="{{ block.pricing_options.percent_of_subtotal|default(0) }}" />
+      </label><br>
+    {% endif %}
+  </fieldset>
+
+  {# ---------- Output options ---------- #}
+  <fieldset>
+    <legend>Output</legend>
+
+    <label>Include in output:
+      <input type="checkbox" name="output_include"
+             {% if block.output_options.include_in_output %}checked{% endif %} />
+    </label><br>
+
+    <label>Output label:
+      <input type="text" name="output_label"
+             value="{{ block.output_options.output_label|e }}" />
+    </label><br>
+
+    <label>Group:
+      <input type="text" name="output_group"
+             value="{{ block.output_options.group|e }}" />
+    </label><br>
+
+    <label>Sort order:
+      <input type="number" name="output_sort_order"
+             value="{{ block.output_options.sort_order|default(0) }}" />
+    </label><br>
+
+    <label>Value mode:
+      <select name="output_value_mode">
+        <option value="show_value" {% if block.output_options.value_mode == 'show_value' %}selected{% endif %}>Show value</option>
+        <option value="hide_value" {% if block.output_options.value_mode == 'hide_value' %}selected{% endif %}>Hide value</option>
+      </select>
+    </label>
+  </fieldset>
+
+</div>
+{% else %}
+<p class="text-muted">No block selected – nothing to edit.</p>
+{% endif %}

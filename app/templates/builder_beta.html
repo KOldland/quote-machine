@@ -2,11 +2,33 @@
 {% import "._builder_macros.html" as builder_macros %}
 
 {% block content %}
-<div class="builder-page-wrapper builder-line-items-layout">
-    {{ builder_macros.render_line_items_canvas() }}
-    {{ builder_macros.render_line_item_properties() }}
-</div>
+<div class="builder-page-wrapper builder-line-items-layout" style="display: flex; flex-direction: row; height: calc(100vh - 155px); width: 100%; border: 1px solid #dee2e6; background: #fff; overflow: hidden; margin-top: 1rem;">
 
+    {# ────────────────────────────────────────
+       LEFT column – Sections / Categories panel
+       (show “No categories” if li_categories is empty) 
+       ──────────────────────────────────────── #}
+    {{ builder_macros.render_li_sections_panel(
+        li_categories | default([]),
+        current_page_id | default('') ) }}
+
+    {# ────────────────────────────────────────
+       MIDDLE column – Canvas + vertical accordion
+       The wrapper class `li-3col-canvas` gives the proper flex
+       layout (left sidebar → canvas → right sidebar). 
+       ──────────────────────────────────────── #}
+    {{ builder_macros.render_li_question_panel(
+        current_page_id | default('') ) }}
+
+</div>
+{% endblock %}
+
+{# -----------------------------------------------------------------
+   The old `initLineItemsCanvas()` call is now only needed when the
+   page is **not** in edit mode (the new builder.js script takes over
+   when edit_mode is true). Keeping it here preserves backward
+   compatibility for any legacy non‑editable pages.
+   ----------------------------------------------------------------- #}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     if (typeof window.initLineItemsCanvas === 'function') {
@@ -14,14 +36,18 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 });
 </script>
+
 {% if edit_mode %}
+{# ---------------------------------------------------------------
+   Inject the runtime data that the JS editor expects.
+   All variables are guarded with `default` so the template never
+   raises a Jinja error if a value is missing.
+   --------------------------------------------------------------- #}
 <script>
-    // Inject builder state as JS globals
-    window.blocks = {{ current_page.blocks | tojson | safe if current_page else '[]' }};
-    window.pageId = {{ current_page_id | tojson | safe if current_page_id else "''" }};
-    window.selectedBlockId = {{ selected_block_id | tojson | safe if selected_block_id else 'null' }};
-    window.builderStateQuestionTypes = {{ builder_state.question_types | tojson | safe if builder_state else '{}' }};
+    window.blocks = {{ current_page.blocks | default([]) | tojson | safe }};
+    window.pageId = {{ current_page_id | default('') | tojson | safe }};
+    window.selectedBlockId = {{ selected_block_id | default('null') | tojson | safe }};
+    window.builderStateQuestionTypes = {{ builder_state.question_types | default({}) | tojson | safe }};
 </script>
 <script src="{{ url_for('static', filename='js/builder.js') }}" defer></script>
 {% endif %}
-{% endblock %}
