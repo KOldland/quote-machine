@@ -435,11 +435,14 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
     </div>
 
+    <!-- ====== Vertical resize handle between col2 and col3 ====== -->
+    <div class="resize-handle-vertical" id="resize-handle-col2-col3"></div>
+
     <!-- ====== COLUMN 3: Questions List & Question Meta ====== -->
     <div id="col3-questions" style="flex: 1.2; display: flex; flex-direction: column; overflow: hidden; background: #fafafa;">
         
         <!-- Top Half: Question List -->
-        <div id="qlist-section" style="flex: 0 0 38%; min-height: 250px; display: flex; flex-direction: column; border-bottom: 2px solid #dee2e6; background: #fff;">
+        <div id="qlist-section" style="flex: 0 0 38%; min-height: 80px; display: flex; flex-direction: column; border-bottom: 2px solid #dee2e6; background: #fff;">
             <div style="padding: 0 0.75rem; height: 48px; box-sizing: border-box; font-weight:700; color:#1b3a6b; font-size:0.85rem; background:#f0f4ff; border-bottom:1px solid #dee2e6; display: flex; justify-content: space-between; align-items: center;">
                 <span>Questions</span>
                 <span id="li-view-one-count" style="font-size: 0.75rem; font-weight: normal; color: #666;"></span>
@@ -452,8 +455,11 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
         </div>
 
+        <!-- ====== Horizontal resize handle between qlist and qmeta ====== -->
+        <div class="resize-handle-horizontal" id="resize-handle-qlist-qmeta"></div>
+
         <!-- Bottom Half: Question Editor -->
-        <div id="qmeta-section" style="flex: 1 1 55%; display: flex; flex-direction: column; overflow-y: auto; background: #fff;">
+        <div id="qmeta-section" style="flex: 1 1 55%; min-height: 80px; display: flex; flex-direction: column; overflow-y: auto; background: #fff;">
              <div id="li-view-empty-q" style="display:flex;flex:1;align-items:center;justify-content:center;color:#aaa;font-size:.9rem;">
                  Select a question to edit
              </div>
@@ -1332,8 +1338,108 @@ document.addEventListener('DOMContentLoaded', function() {
     // Accordion handler reference — defined here for removeEventListener support
     var _accordionHandler = null;
 
-    // Init
-    showEmpty();
+    // Init — default to Page Details view
+    var pageDetailsBtn = $id('btn-page-details');
+    if (pageDetailsBtn) {
+        pageDetailsBtn.click();
+    } else {
+        showEmpty();
+    }
+
+    // ── Draggable resize handles ──────────────────────────────────────────
+    function initResizeHandles() {
+        // Horizontal resize between qlist and qmeta
+        var hHandle = $id('resize-handle-qlist-qmeta');
+        var qlist = $id('qlist-section');
+        var qmeta = $id('qmeta-section');
+        var col3 = $id('col3-questions');
+        
+        if (hHandle && qlist && qmeta && col3) {
+            var isResizing = false;
+            var startY, startQlistFlex, startQmetaFlex;
+            
+            hHandle.addEventListener('mousedown', function(e) {
+                isResizing = true;
+                startY = e.clientY;
+                var col3Height = col3.offsetHeight;
+                startQlistFlex = qlist.offsetHeight / col3Height * 100;
+                startQmetaFlex = qmeta.offsetHeight / col3Height * 100;
+                hHandle.classList.add('active');
+                document.body.style.cursor = 'row-resize';
+                document.body.style.userSelect = 'none';
+                e.preventDefault();
+            });
+            
+            document.addEventListener('mousemove', function(e) {
+                if (!isResizing) return;
+                var deltaY = e.clientY - startY;
+                var col3Height = col3.offsetHeight;
+                var deltaPercent = (deltaY / col3Height) * 100;
+                
+                var newQlistPct = Math.max(10, Math.min(90, startQlistFlex + deltaPercent));
+                var newQmetaPct = 100 - newQlistPct;
+                
+                qlist.style.flex = '0 0 ' + newQlistPct + '%';
+                qmeta.style.flex = '1 1 ' + newQmetaPct + '%';
+            });
+            
+            document.addEventListener('mouseup', function() {
+                if (isResizing) {
+                    isResizing = false;
+                    hHandle.classList.remove('active');
+                    document.body.style.cursor = '';
+                    document.body.style.userSelect = '';
+                }
+            });
+        }
+        
+        // Vertical resize between col2 and col3
+        var vHandle = $id('resize-handle-col2-col3');
+        var col2 = $id('col2-meta');
+        var col3 = $id('col3-questions');
+        var parent = $id('li-question-panel');
+        
+        if (vHandle && col2 && col3 && parent) {
+            var isVResizing = false;
+            var startX, startCol2Flex, startCol3Flex;
+            
+            vHandle.addEventListener('mousedown', function(e) {
+                isVResizing = true;
+                startX = e.clientX;
+                var parentWidth = parent.offsetWidth;
+                startCol2Flex = col2.offsetWidth / parentWidth * 100;
+                startCol3Flex = col3.offsetWidth / parentWidth * 100;
+                vHandle.classList.add('active');
+                document.body.style.cursor = 'col-resize';
+                document.body.style.userSelect = 'none';
+                e.preventDefault();
+            });
+            
+            document.addEventListener('mousemove', function(e) {
+                if (!isVResizing) return;
+                var deltaX = e.clientX - startX;
+                var parentWidth = parent.offsetWidth;
+                var deltaPercent = (deltaX / parentWidth) * 100;
+                
+                var newCol2Pct = Math.max(15, Math.min(60, startCol2Flex + deltaPercent));
+                var newCol3Pct = 100 - newCol2Pct;
+                
+                col2.style.flex = '0 0 ' + newCol2Pct + '%';
+                col3.style.flex = '1 1 ' + newCol3Pct + '%';
+            });
+            
+            document.addEventListener('mouseup', function() {
+                if (isVResizing) {
+                    isVResizing = false;
+                    vHandle.classList.remove('active');
+                    document.body.style.cursor = '';
+                    document.body.style.userSelect = '';
+                }
+            });
+        }
+    }
+    
+    initResizeHandles();
 
 }());
 </script>
