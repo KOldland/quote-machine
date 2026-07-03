@@ -1,45 +1,140 @@
 <div class="preview-container">
     <div class="preview-header">
-        <h3 class="preview-title">Form Preview</h3>
-        <p class="preview-description">This is how your form will appear to end users</p>
+        <h3 class="preview-title">{{ title | default('Form Preview') }}</h3>
+        <p class="preview-description">Complete the form below to continue</p>
     </div>
 
     <div class="preview-form" id="preview-form">
-        <!-- Preview content will be dynamically populated -->
-        <div class="preview-element">
-            <label class="preview-label">Sample Input Field</label>
-            <input type="text" class="form-input" placeholder="Enter your response...">
-        </div>
+        {% if first_page %}
+            {# ── Home/Project Details page has no page_schema (server passes first_page=True) ── #}
+            <form method="POST" action="{{ url_for('index') }}" class="preview-form-content">
+                <div class="preview-element">
+                    <label class="preview-label" for="client_address">Client Address</label>
+                    <input type="text" id="client_address" name="client_address"
+                           class="form-input" placeholder="Enter client address..."
+                           value="{{ client_address | default('') }}">
+                </div>
+                <div class="preview-element">
+                    <label class="preview-label" for="Date">Proposal Date</label>
+                    <input type="date" id="Date" name="Date"
+                           class="form-input" value="{{ form_date | default('') }}">
+                </div>
+                <div class="preview-actions">
+                    <button type="submit" class="btn-primary">Continue</button>
+                </div>
+            </form>
+        {% elif page_schema and page_schema.fields %}
+            {# ── Dynamic page: render fields from the compiled schema ── #}
+            <form method="POST" action="{{ request.path }}" class="preview-form-content" id="preview-form-content">
+                {% for field in page_schema.fields %}
+                    {% if not field.hidden %}
+                        {% set meta = field.builder_beta_meta %}
+                        {% set block_type = meta.block_type | default(field.type) %}
 
-        <div class="preview-element">
-            <label class="preview-label">Multiple Options</label>
-            <div class="preview-checkbox-group">
-                <label class="preview-checkbox">
-                    <input type="checkbox" class="preview-checkbox-input"> Option 1
-                </label>
-                <label class="preview-checkbox">
-                    <input type="checkbox" class="preview-checkbox-input"> Option 2
-                </label>
-                <label class="preview-checkbox">
-                    <input type="checkbox" class="preview-checkbox-input"> Option 3
-                </label>
+                        {% if block_type == 'line_items_by_category' %}
+                            {# ── Line items: render accordions directly, no outer wrapper ── #}
+                            <div class="preview-li-accordion">
+                                {% if li_groups %}
+                                    {% for group in li_groups %}
+                                    <details class="preview-li-category" {% if loop.first %}open{% endif %}>
+                                        <summary class="preview-li-category-header">
+                                            <span class="preview-li-category-title">{{ group['category'] }}</span>
+                                            <span class="preview-li-category-count">{{ group['items'] | length }} items</span>
+                                        </summary>
+                                        <div class="preview-li-items">
+                                            {% for item in group['items'] %}
+                                            <label class="preview-li-item">
+                                                <input type="checkbox" class="preview-checkbox-input"
+                                                       name="{{ field.name }}" value="{{ item.value }}"
+                                                       {% if item.include_default == 'Y' %}checked{% endif %}>
+                                                <span class="preview-li-item-label">
+                                                    <input type="text" class="title-edit"
+                                                           value="{{ item.label }}"
+                                                           data-original="{{ item.label }}"
+                                                           data-code="{{ item.value }}"
+                                                           placeholder="Edit question title..."
+                                                           autocomplete="off" />
+                                                </span>
+                                                {% if item.value %}
+                                                <code class="preview-li-item-code">{{ item.value }}</code>
+                                                {% endif %}
+                                            </label>
+                                            {% endfor %}
+                                        </div>
+                                    </details>
+                                    {% endfor %}
+                                {% else %}
+                                    <p class="preview-li-empty">No line items configured for this category.</p>
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            {# ── Standard field types: render with outer wrapper ── #}
+                            <div class="preview-element preview-element-{{ block_type }}" data-field-id="{{ field.id }}">
+                                {% if block_type != 'static_text_heading' %}
+                                    <label class="preview-label" for="{{ field.name }}">
+                                        {{ field.label }}
+                                        {% if field.note %}
+                                            <span class="preview-note">{{ field.note }}</span>
+                                        {% endif %}
+                                    </label>
+                                {% endif %}
+
+                                {% if block_type == 'checkbox_group' %}
+                                <div class="preview-checkbox-group">
+                                    {% for choice in meta.dropdown_choices %}
+                                    <label class="preview-checkbox">
+                                        <input type="checkbox" class="preview-checkbox-input"
+                                               name="{{ field.name }}" value="{{ choice }}">
+                                        {{ choice }}
+                                    </label>
+                                    {% endfor %}
+                                </div>
+                            {% elif block_type == 'text_input' %}
+                                <input type="text" id="{{ field.name }}" name="{{ field.name }}"
+                                       class="form-input"
+                                       placeholder="{{ meta.placeholder or 'Enter text...' }}">
+                            {% elif block_type == 'number_currency_input' %}
+                                <div class="preview-currency-wrapper">
+                                    <span class="preview-currency-symbol">£</span>
+                                    <input type="number" id="{{ field.name }}" name="{{ field.name }}"
+                                           class="form-input preview-currency-input"
+                                           step="0.01" min="0"
+                                           placeholder="{{ meta.placeholder or '0.00' }}">
+                                </div>
+                            {% elif block_type == 'dropdown_select' %}
+                                <select id="{{ field.name }}" name="{{ field.name }}"
+                                        class="form-input preview-select">
+                                    <option value="">-- Select --</option>
+                                    {% for choice in meta.dropdown_choices %}
+                                    <option value="{{ choice }}">{{ choice }}</option>
+                                    {% endfor %}
+                                </select>
+                            {% elif block_type == 'static_text_heading' %}
+                                {% set variant = meta.static_variant | default('body') %}
+                                {% if variant == 'heading' %}
+                                <h3 class="preview-static-heading">{{ meta.static_content or field.label }}</h3>
+                                {% elif variant == 'subheading' %}
+                                <h4 class="preview-static-subheading">{{ meta.static_content or field.label }}</h4>
+                                {% elif variant == 'note' %}
+                                <p class="preview-static-note">{{ meta.static_content or field.label }}</p>
+                                {% else %}
+                                <p class="preview-static-body">{{ meta.static_content or field.label }}</p>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    {% endif %}
+                {% endfor %}
+                <div class="preview-actions">
+                    <button type="submit" class="btn-primary">Save & Continue</button>
+                </div>
+            </form>
+        {% else %}
+            {# ── Fallback: no fields configured yet ── #}
+            <div class="preview-empty">
+                <p>No form fields configured for this page.</p>
             </div>
-        </div>
-
-        <div class="preview-actions">
-            <button class="btn-primary">Save & Continue</button>
-            <button class="btn-secondary">Cancel</button>
-        </div>
-    </div>
-
-    <div class="preview-info">
-        <h4>Preview Features</h4>
-        <ul>
-            <li>Real-time form structure visualization</li>
-            <li>Responsive design preview</li>
-            <li>User input validation simulation</li>
-            <li>Mobile and desktop views</li>
-        </ul>
+        {% endif %}
     </div>
 </div>
 
@@ -174,26 +269,200 @@
     transform: translateY(-1px);
 }
 
-.preview-info {
-    background: #f8f9fa;
-    padding: 20px;
-    border-radius: 6px;
-    margin-top: 40px;
+/* ── Dynamic field styles ── */
+
+.preview-form-content {
+    margin-bottom: 0;
 }
 
-.preview-info h4 {
-    margin: 0 0 16px 0;
+.preview-note {
+    display: block;
+    font-weight: 400;
+    font-size: 13px;
+    color: #6c757d;
+    margin-top: 4px;
+}
+
+.preview-static-heading {
+    font-size: 22px;
+    font-weight: 700;
+    color: #2c3e50;
+    margin: 0;
+    padding: 0;
+}
+
+.preview-static-subheading {
+    font-size: 18px;
+    font-weight: 600;
+    color: #34495e;
+    margin: 0;
+    padding: 0;
+}
+
+.preview-static-body {
+    font-size: 15px;
+    color: #555;
+    margin: 0;
+    padding: 0;
+    line-height: 1.5;
+}
+
+.preview-static-note {
+    font-size: 13px;
+    color: #888;
+    margin: 0;
+    padding: 0;
+    font-style: italic;
+}
+
+.preview-currency-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.preview-currency-symbol {
+    font-size: 16px;
+    font-weight: 600;
     color: #495057;
 }
 
-.preview-info ul {
-    margin: 0;
-    padding-left: 20px;
+.preview-currency-input {
+    flex: 1;
+}
+
+.preview-select {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 14px;
+    background: #fff;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.preview-select:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+}
+
+.preview-empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: #999;
+    font-size: 15px;
+}
+
+/* Static text/heading elements don't need the usual padding/background */
+.preview-element-static_text_heading {
+    background: transparent;
+    border: none;
+    padding: 12px 20px;
+}
+
+.preview-element-static_text_heading:hover {
+    background: #f8f9fa;
+    border-color: transparent;
+}
+
+/* ── Line Items Accordion Styles ── */
+
+.preview-li-accordion {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.preview-li-category {
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #fff;
+}
+
+.preview-li-category-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: #f0f4ff;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14px;
+    color: #1b3a6b;
+    list-style: none;
+    user-select: none;
+}
+
+.preview-li-category-header::-webkit-details-marker {
+    display: none;
+}
+
+.preview-li-category-header::before {
+    content: '▶';
+    margin-right: 8px;
+    font-size: 10px;
+    color: #6c757d;
+    transition: transform 0.2s;
+}
+
+details[open] > .preview-li-category-header::before {
+    content: '▼';
+}
+
+.preview-li-category-title {
+    flex: 1;
+}
+
+.preview-li-category-count {
+    font-size: 12px;
+    font-weight: 400;
     color: #6c757d;
 }
 
-.preview-info li {
-    margin-bottom: 8px;
+.preview-li-items {
+    padding: 8px 14px 14px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.preview-li-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.15s;
+}
+
+.preview-li-item:hover {
+    background: #f0f4ff;
+}
+
+.preview-li-item-label {
+    flex: 1;
+    color: #333;
+}
+
+.preview-li-item-code {
+    font-size: 11px;
+    color: #888;
+    background: #f3f3f3;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: monospace;
+}
+
+.preview-li-empty {
+    color: #999;
+    font-size: 14px;
+    text-align: center;
+    padding: 20px;
 }
 
 /* Animation for preview updates */
