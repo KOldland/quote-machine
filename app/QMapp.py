@@ -11,6 +11,19 @@ import json
 import functools
 import sqlite3
 import logging
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # Fallback: manually read .env file if python-dotenv not available
+    env_path = os.path.join(os.path.dirname(__file__), '..', '.env')
+    if os.path.exists(env_path):
+        with open(env_path) as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    key, _, value = line.partition('=')
+                    os.environ.setdefault(key.strip(), value.strip())
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, abort, Response
 from datetime import datetime
 import traceback
@@ -2874,3 +2887,9 @@ def review():
         grand_total=grand_total,
         **ctx
     )
+
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    debug = os.environ.get('FLASK_DEBUG', '0') == '1'
+    app.run(host='0.0.0.0', port=port, debug=debug)

@@ -68,3 +68,11 @@ Test the full flow	                Walk through: start → fill form → review 
 Fix export	                        Ensure session['form_key'] is set; verify calculator can find line items
 Polish & cleanup	                Remove debug prints, add .gitignore for SQLite WAL files, verify startup
 Final walkthrough	                Complete end-to-end demo flow from start to PDF export
+
+intended structure of app. 
+
+There are in effect 3 modes
+
+1) Edit Mode <--- to avoid confsion later I am going to call this FORM BUILDER mode. This is where ADMIN can edit and build FORMS for the user to complete. 
+2) FORM Mode <--- this is the primary use mode. The intention is that the USER (not ADMIN) can quickly check the items in the FORM some of which may prompt for manual input (names, numbers etc) and then save this to a session. THis mode also has teh Culculator FUNCTION and IMAGE UPLOAD and ALIGNMENT FUNCTIONS
+3) QUOTATION EDITOR Mode <----- Moving forward we will call this EDIT mode. This mode is engaged after the USER has submitted their input, uploaded their images, saved there session and run REVIEW function. From REVIEW they then have a WYSIWYG editor that allows them to make edits to the QUOTATION. Edits such as changing test,, bold/underline/emphasis, font family selector, font type selector (H1, H2, H3, para), drag and drop image movement and edit/insert additional notes. 
