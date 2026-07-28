@@ -17,7 +17,7 @@ export_bp = Blueprint('export', __name__)
 def export_pdf():
     """Produce a PDF of the current quote using the output‑template stored in the DB."""
     # 1️⃣ Determine which form we are exporting
-    form_key = session.get('form_key', 'kitchen_only_template_test')  # Default for testing
+    form_key = session.get('form_key') or 'builder_beta'  # Default for testing
 
     # 2️⃣ Load the output template (fallback to default)
     template = get_output_template(form_key)
@@ -60,7 +60,7 @@ def export_docx():
     The DOCX is built with python‑docx, applying header/footer and basic styling
     from the template's `sections_json` and `css_json`.
     """
-    form_key = session.get('form_key', 'kitchen_only_template_test')  # Default for testing
+    form_key = session.get('form_key') or 'builder_beta'  # Default for testing
 
     # Load template with graceful fallback
     template = get_output_template(form_key)
@@ -73,8 +73,8 @@ def export_docx():
     except Exception as e:
         abort(500, description=f'Invalid template data: {e}')
 
-    # Fresh calculation
-    form_data = session.get('form_data', {})
+    # Fresh calculation - try session['form_data'], fallback to session['data'], then empty dict
+    form_data = session.get('form_data') or session.get('data', {})
     calc_result = calculate_quote(form_key, form_data)
 
     # ---------------------------------------------------------------------

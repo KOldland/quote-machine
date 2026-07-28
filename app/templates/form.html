@@ -2,13 +2,6 @@
 
 {% block content %}
 <div class="form-builder-container">
-    {% if is_admin and not edit_mode %}
-        <div class="builder-toolbar">
-            <span class="edit-badge">Admin View</span>
-            <a href="{{ request.path }}?edit=1" class="btn-primary">Edit Page</a>
-        </div>
-    {% endif %}
-
     {% if edit_mode %}
         {% include "partials/form_editor.html" %}
     {% else %}

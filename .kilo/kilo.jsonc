@@ -1,0 +1,175 @@
+{
+  "$schema": "https://app.kilo.ai/config.json",
+  "mcp": {},
+  "command": {
+    "boot": {
+      "template": "Please read the attached context files (context.md, system_architecture.md, calculator.md, SESSION.md) and initialize this session according to the instructions in boot.md. Report back only as requested in that file.",
+      "description": "Initialize fresh session with static blueprints and 5-request budget"
+    },
+    "wrap": {
+      "template": "Summarize current progress, prepare handoff updates for SESSION.md and current_development.md, and provide the Git commands for a clean repository save. Follow the instructions in wrap.md.",
+      "description": "Summarize progress, update tracking files, and generate Git commit commands"
+    }
+  },
+  "provider": {
+    "openrouter": {
+      "options": {
+        "apiKey": "REMOVED_SECRET",
+        "timeout": 300000
+      },
+      "models": {
+        "qwen/qwen3.6-flash": {
+          "name": "OR: Qwen 3.6 Flash ($0.1875/$1.13)",
+          "limit": {
+            "context": 1000000,
+            "output": 4096
+          },
+          "cost": {
+            "input": 0.1875,
+            "output": 1.13
+          }
+        },
+        "google/gemini-3.5-flash": {
+          "name": "OR: Gemini 3.5 Flash ($1.50/$9.00)",
+          "limit": {
+            "context": 1048576,
+            "output": 4096
+          },
+          "cost": {
+            "input": 1.5,
+            "output": 9
+          },
+          "modalities": {
+            "input": ["text", "image"]
+          },
+          "tool_call": true
+        },
+        "google/gemini-3.1-flash-lite": {
+          "name": "OR: Gemini 3.1 Flash-Lite ($0.25 / $1.50)",
+          "limit": {
+            "context": 1048576,
+            "output": 4096
+          },
+          "cost": {
+            "input": 0.25,
+            "output": 1.5
+          }
+        },
+        "deepseek/deepseek-v4-flash": {
+          "name": "OR: DeepSeek V4 Flash ($0.14 / $0.28)",
+          "limit": {
+            "context": 1000000,
+            "output": 4096
+          },
+          "cost": {
+            "input": 0.14,
+            "output": 0.28
+          }
+        },
+        "tencent/hy3-preview": {
+          "name": "OR: Hy3 Preview ($0.06 / $0.21)",
+          "limit": {
+            "context": 262144,
+            "output": 4096
+          },
+          "cost": {
+            "input": 0.06,
+            "output": 0.21
+          }
+        },
+        "moonshotai/kimi-k2.6": {
+          "name": "OR: Kimi K2.6 ($0.60 / $2.50 )",
+          "limit": {
+            "context": 262144,
+            "output": 4096
+          },
+          "cost": {
+            "input": 0.6,
+            "output": 2.5
+          }
+        },
+        "qwen/qwen3.6-plus": {
+          "name": "OR: Qwen 3.6 Plus ($0.325 / $1.95)",
+          "limit": {
+            "context": 1000000,
+            "output": 4096
+          },
+          "cost": {
+            "input": 0.325,
+            "output": 1.95
+          }
+        },
+        "cohere/north-mini-code:free": {
+          "name": "OR: Cohere North Mini Code (Free)",
+          "limit": {
+            "context": 256000,
+            "output": 4096
+          }
+        },
+        "openai/gpt-oss-20b:free": {
+          "name": "OR: OpenAI gpt-oss-20b (Free)",
+          "limit": {
+            "context": 131072,
+            "output": 4096
+          }
+        },
+        "poolside/laguna-m.1:free": {
+          "name": "OR: Poolside Laguna M.1 (Free)",
+          "limit": {
+            "context": 262144,
+            "output": 4096
+          }
+        },
+        "poolside/laguna-xs-2.1:free": {
+          "name": "OR: Poolside Laguna XS 2.1 (Free)",
+          "limit": {
+            "context": 262144,
+            "output": 4096
+          }
+        },
+        "nvidia/nemotron-3-ultra-550b-a55b:free": {
+          "name": "OR: NVIDIA: Nemotron 3 Ultra (free)",
+          "limit": {
+            "context": 262144,
+            "output": 4096
+          }
+        },
+        "nvidia/nemotron-3-super-120b-a12b:free": {
+          "name": "OR: NVIDIA: Nemotron 3 Super (free)",
+          "limit": {
+            "context": 262144,
+            "output": 4096
+          }
+        },
+        "google/gemma-4-26b-a4b-it:free": {
+          "name": "OR: GEMMA 4 26B (free)",
+          "limit": {
+            "context": 262144,
+            "output": 4096
+          }
+        },
+        "google/gemma-4-31b-it:free": {
+          "name": "OR: GEMMA 4 31B (free)",
+          "limit": {
+            "context": 262144,
+            "output": 4096
+          }
+        },
+        "inclusionai/ling-3.0-flash:free": {
+          "name": "OR: InclusionAI Ling 3.0 Flash (Free)",
+          "limit": {
+            "context": 262144,
+            "output": 4096
+          }
+        },
+        "poolside/laguna-s-2.1:free": {
+          "name": "OR: Lagune S2.1 (Free)",
+          "limit": {
+            "context": 262144,
+            "output": 4096
+          }
+        }
+      }
+    }
+  }
+}

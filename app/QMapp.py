@@ -92,8 +92,6 @@ logger = logging.getLogger(__name__)
 logger.info(f"[QMapp] ADMIN_PASSWORD (redacted) = {'*' * len(ADMIN_PASSWORD)}")
 
 VALID_ROLES = {'admin', 'user'}
-
-
 def require_role(*roles):
     """Decorator: redirect to /login when session role is not in `roles`."""
     def decorator(f):
@@ -580,10 +578,12 @@ def get_builder_beta_state():
 
     # 6️⃣  Ensure the 'pages' key exists in the state and that each page
     #     has the required keys (id, title, navigation, blocks).
-    pages = state.get('pages', {})
-    if not isinstance(pages, dict):
-        # If the schema supplied pages, use them; otherwise start empty.
-        pages = schema_pages if isinstance(schema_pages, dict) else {}
+    #     Only use state.get('pages') if it has actual content; otherwise
+    #     keep the pages from schema_pages above.
+    state_pages = state.get('pages', {})
+    if isinstance(state_pages, dict) and state_pages:
+        pages = state_pages
+    # else: keep pages from schema_pages (already set above)
 
     # Populate any missing defaults for each page.
     for pid, pg in pages.items():
@@ -1693,37 +1693,67 @@ def builder_line_item_add():
     page_key = data.get('page_key')
     category = data.get('category')
 
-    conn = sqlite3.connect(db)
-    conn.row_factory = sqlite3.Row
+    if not page_key or not category:
+        return jsonify({'success': False, 'error': 'page_key and category are required'}), 400
 
-    # get max sort
-    max_sort = conn.execute(
-        "SELECT MAX(sort_order) FROM line_items WHERE form_page = ? AND category = ?", [
-            page_key, category]).fetchone()[0]
-    next_sort = 0 if max_sort is None else max_sort + 1
-    new_code = f"new_{int(time.time())}"
+    conn = None
+    try:
+        conn = sqlite3.connect(db)
+        conn.row_factory = sqlite3.Row
 
-    cur = conn.cursor()
-    # Get default output_group from category_templates
-    default_group = conn.execute(
-        "SELECT output_group FROM category_templates ct JOIN page_templates p ON ct.page_template_id = p.id WHERE p.page_key = ? AND ct.name = ?",
-        [page_key, category]
-    ).fetchone()
-    output_group_val = default_group[0] if default_group else 'General'
+        # Verify the category exists before attempting insert
+        cat_exists = conn.execute(
+            "SELECT 1 FROM category_templates ct "
+            "JOIN page_templates p ON ct.page_template_id = p.id "
+            "WHERE p.page_key = ? AND ct.name = ?",
+            [page_key, category]
+        ).fetchone()
 
-    cur.execute('''
-        INSERT INTO line_items (form_page, category, line_code, internal_description, item_role, form_visible, sort_order, output_group)
-        VALUES (?, ?, ?, ?, ?, 1, ?, ?)
-    ''', [page_key, category, new_code, "New Question", "parent", next_sort, output_group_val])
-    conn.commit()
+        if not cat_exists:
+            return jsonify({
+                'success': False,
+                'error': f'Category "{category}" not found on page "{page_key}". Please add the category first.'
+            }), 404
 
-    new_id = cur.lastrowid
-    row = conn.execute(
-        "SELECT * FROM line_items WHERE id = ?",
-        [new_id]).fetchone()
-    conn.close()
+        # get max sort
+        max_sort = conn.execute(
+            "SELECT MAX(sort_order) FROM line_items WHERE form_page = ? AND category = ?",
+            [page_key, category]).fetchone()[0]
+        next_sort = 0 if max_sort is None else max_sort + 1
+        new_code = f"new_{int(time.time())}"
 
-    return jsonify({'ok': True, 'item': dict(row)})
+        cur = conn.cursor()
+        # Get default output_group from category_templates
+        default_group = conn.execute(
+            "SELECT output_group FROM category_templates ct "
+            "JOIN page_templates p ON ct.page_template_id = p.id "
+            "WHERE p.page_key = ? AND ct.name = ?",
+            [page_key, category]
+        ).fetchone()
+        output_group_val = default_group[0] if default_group else 'General'
+
+        cur.execute('''
+            INSERT INTO line_items (form_page, category, line_code, internal_description, item_role, form_visible, sort_order, output_group)
+            VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+        ''', [page_key, category, new_code, "New Question", "parent", next_sort, output_group_val])
+        conn.commit()
+
+        new_id = cur.lastrowid
+        row = conn.execute(
+            "SELECT * FROM line_items WHERE id = ?",
+            [new_id]).fetchone()
+
+        return jsonify({'success': True, 'item': dict(row)})
+
+    except sqlite3.Error as e:
+        return jsonify({'success': False, 'error': f'Database error: {str(e)}'}), 500
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'Unexpected error: {str(e)}'}), 500
+    finally:
+        if conn:
+            conn.close()
 
 
 @app.route('/builder_beta/category/delete', methods=['POST'])
@@ -1851,6 +1881,62 @@ def builder_line_item_save(item_id):
         return jsonify({'ok': False, 'error': str(e)}), 400
     finally:
         conn.close()
+
+
+# ── NEW: Save editable question title (internal_description) ─────────────
+@app.route('/save-title', methods=['POST'])
+@require_role('admin')
+def save_title():
+    """Persist an edited question title (internal_description) for a line item.
+
+    Expected JSON payload:
+      {
+        "code": "bw4^",          # line‑item line_code
+        "title": "Create a courtyard/lightwell"
+      }
+    """
+    import sqlite3
+    from pathlib import Path
+    db = str(Path(__file__).parent / 'template_store.sqlite3')
+    data = request.get_json(silent=True) or {}
+    code = data.get('code', '').strip()
+    new_title = data.get('title', '').strip()
+
+    if not code:
+        return jsonify({'success': False, 'error': 'Missing code'}), 400
+    if not new_title:
+        return jsonify({'success': False, 'error': 'Title cannot be empty'}), 400
+    if len(new_title) > 120:
+        return jsonify({'success': False, 'error': 'Title too long (max 120 chars)'}), 400
+
+    conn = None
+    try:
+        conn = sqlite3.connect(db)
+        conn.row_factory = sqlite3.Row
+
+        # Find the line item by line_code
+        row = conn.execute(
+            "SELECT id FROM line_items WHERE line_code = ?",
+            [code]
+        ).fetchone()
+
+        if not row:
+            return jsonify({'success': False, 'error': f'Line item with code "{code}" not found'}), 404
+
+        conn.execute(
+            "UPDATE line_items SET internal_description = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            [new_title, row['id']]
+        )
+        conn.commit()
+        return jsonify({'success': True, 'code': code, 'title': new_title})
+
+    except sqlite3.Error as e:
+        return jsonify({'success': False, 'error': f'Database error: {str(e)}'}), 500
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Unexpected error: {str(e)}'}), 500
+    finally:
+        if conn:
+            conn.close()
 
 
 @app.route('/builder_beta/line_items_json')
@@ -2209,8 +2295,25 @@ def dynamic_page(page_id):
             **_get_runtime_quote_context()
         )
     else:
-        page_config = page_schema 
-        
+        page_config = page_schema
+
+        # Compute line-items group data for line_items_by_category blocks
+        li_groups_data = None
+        for field in page_schema.get('fields', []):
+            if field.get('type') == 'line_items_by_category':
+                _li_raw = _get_line_items_for_page(page_id)
+                if isinstance(_li_raw, dict):
+                    li_groups_data = [
+                        {'category': c, 'items': [
+                            {'value': r.get('line_code', ''),
+                             'label': r.get('internal_description') or r.get('line_code', ''),
+                             'include_default': r.get('include_default') or 'N'}
+                            for r in v
+                        ]}
+                        for c, v in _li_raw.items()
+                    ]
+                break
+
         return render_template(
             'form.html',
             page_schema=page_schema,
@@ -2218,6 +2321,7 @@ def dynamic_page(page_id):
             schema_render_mode='full',
             title=page_schema.get('title', page_id.replace('_', ' ').title()),
             li_categories=_li_cats,
+            li_groups=li_groups_data,
             **_get_runtime_quote_context()
         )
 
@@ -2225,11 +2329,12 @@ def dynamic_page(page_id):
 def index():
     session['last_visited'] = 'index'
 
-    # Get the first page from builder beta state
+    # Get the first DYNAMIC page from builder beta state (skip redundant index page)
     state = get_builder_beta_state()
     pages = state.get('pages', {})
-    page_ids = sorted(pages.keys())  # or use display_order if available
-    first_page_id = page_ids[0] if page_ids else None
+    # Exclude 'index' (project details) from dynamic pages - start with next page
+    dynamic_page_ids = [pid for pid in sorted(pages.keys()) if pid != 'index']
+    first_dynamic_page = dynamic_page_ids[0] if dynamic_page_ids else None
 
     if request.method == 'POST':
         data = session.setdefault('data', {})
@@ -2247,9 +2352,9 @@ def index():
         session['data'] = data
         session.modified = True
 
-        # Redirect to the first builder beta page
-        if first_page_id:
-            return redirect(url_for('dynamic_page', page_id=first_page_id))
+        # Redirect to first dynamic page instead of redundant index page
+        if first_dynamic_page:
+            return redirect(url_for('dynamic_page', page_id=first_dynamic_page))
         return redirect(url_for('review'))
 
     # GET: preload form if data exists
@@ -2268,7 +2373,8 @@ def index():
         current_page=None,
         selected_block_id=None,
         edit_mode=False,
-        next_page=first_page_id,  # dynamic next page
+        next_page=first_dynamic_page,  # dynamic next page
+        form_date=form_date,
         **_get_runtime_quote_context()
     )
 
@@ -2691,12 +2797,80 @@ def review():
     session['quote_html'] = export_html
     session.modified = True
 
+    # ── FIX: Compile data in format expected by review.html ──
+    # review.html expects: review_data, li_by_category, totals_by_group, TITLE_MAPPING
+    
+    # Build review_data from session data (data and checkbox_data)
+    session_data = session.get('data', {})
+    
+    # Ensure form_data is populated from session['data']
+    session['form_data'] = session_data
+    
+    review_data = {}
+    # Group form data by sections from page_schemas
+    for page_id, page_info in page_schemas.get('pages', {}).items():
+        section_fields = []
+        
+        # Get fields for this page from compiled schema
+        compiled_page = compile_builder_beta_page_to_runtime_schema(page_id)
+        if compiled_page:
+            for field in compiled_page.get('fields', []):
+                field_name = field.get('name')
+                if field_name:
+                    # Get the value from session
+                    value = session_data.get(field_name) or checkbox_data.get(field_name, {}).get('preselected', [])
+                    if value:
+                        section_fields.append({
+                            'field_name': field_name,
+                            'display_name': field.get('label', field_name),
+                            'value': value,
+                            'type': field.get('type', 'unknown')
+                        })
+        
+        if section_fields:
+            review_data[page_info.get('title', page_id)] = {
+                'fields': section_fields,
+                'page_id': page_id
+            }
+
+    # Build li_by_category from calc_result - extracting selected line items
+    li_by_category = {}
+    for item in calc_result.get('items', []):
+        category = item.get('category', 'General')
+        if category not in li_by_category:
+            li_by_category[category] = []
+        
+        li_item = {
+            'line_code': item.get('line_code', ''),
+            'output_title': item.get('output_title', ''),
+            'internal_description': item.get('internal_description', ''),
+            'output_notes': item.get('output_notes', ''),
+            'output_guidance': item.get('output_guidance', ''),
+            'unit_cost': item.get('unit_cost', 0),
+            'units': item.get('units', 1),
+            'line_total': item.get('line_total', 0),
+            'pricing_visibility': item.get('pricing_visibility', 'admin_only'),
+            'category': item.get('category', 'General')
+        }
+        li_by_category[category].append(li_item)
+
+    # Build TITLE_MAPPING from page_schemas for field name translation
+    TITLE_MAPPING = {}
+    for page_id, page_info in page_schemas.get('pages', {}).items():
+        compiled_page = compile_builder_beta_page_to_runtime_schema(page_id)
+        if compiled_page:
+            for field in compiled_page.get('fields', []):
+                field_name = field.get('name')
+                display_name = field.get('label', field_name)
+                if field_name and display_name != field_name:
+                    TITLE_MAPPING[field_name] = display_name
+
     return render_template(
         'review.html',
-        pages=calc_result.get('groups', []),
+        review_data=review_data,
+        li_by_category=li_by_category,
         totals_by_group=subtotals,
+        TITLE_MAPPING=TITLE_MAPPING,
         grand_total=grand_total,
-        groups=calc_result.get('groups', []),
-        calc_result=calc_result,
         **ctx
     )

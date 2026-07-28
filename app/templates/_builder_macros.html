@@ -976,9 +976,10 @@ document.addEventListener('DOMContentLoaded', function() {
         var html = '<form id="li-edit-form" autocomplete="off">';
 
         html += _section('Description', true, [
-            _field('output_title',        'Internal Description',  'text',     item.output_title || item.internal_description || ''),
-            _field('output_notes',        'Output Notes',        'textarea', item.output_notes || ''),
-            _field('output_guidance',     'Output Guidance',     'textarea', item.output_guidance || ''),
+            _field('internal_description', 'Internal Description', 'text', item.internal_description || ''),
+            _field('output_title',         'Output Title',          'text', item.output_title || ''),
+            _field('output_notes',         'Output Notes',         'textarea', item.output_notes || ''),
+            _field('output_guidance',      'Output Guidance',      'textarea', item.output_guidance || ''),
         ]);
 
         html += _section('Secondary Questions', false, [
@@ -1166,6 +1167,51 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'SAVE QUESTION'; }
                 });
             });
+
+        // Auto-save Internal Description on blur / Enter
+            var titleField = form.querySelector('[name="internal_description"]');
+            if (titleField) {
+                function saveTitleField() {
+                    var newVal = titleField.value.trim();
+                    if (!newVal) return;
+                    if (newVal === (item.internal_description || '')) return;
+
+                    fetch('/builder_beta/line_item_save/' + item.id, {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''
+                        },
+                        body: JSON.stringify({ internal_description: newVal })
+                    })
+                    .then(function (r) { return r.json(); })   // ← ADD THIS LINE
+                    .then(function (data) {
+                        if (data.ok) {
+                            item.internal_description = newVal;
+                            var status = $id('li-save-status-v2');
+                            if (status) { status.textContent = '✓ Title saved'; setTimeout(function(){ status.textContent=''; }, 2000); }
+                            // Update the question list row and header
+                            $id('li-view-two-title').textContent = 'Question: ' + newVal;
+                            $id('li-view-two-title').title = newVal;
+                            // Update the list row description
+                            var selRow = document.querySelector('.li-qlist-row.selected .li-qlist-desc');
+                            if (selRow) { selRow.textContent = newVal; selRow.title = newVal; }
+                        }
+                    })
+                    .catch(function () {
+                        titleField.value = item.internal_description || '';
+                    });
+                }
+
+                titleField.addEventListener('blur', saveTitleField);
+                titleField.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        titleField.blur();
+                    }
+                });
+            }
         }
     }
 

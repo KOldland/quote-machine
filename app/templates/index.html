@@ -368,6 +368,21 @@
                         {% endif %}
                     </nav>
 
+                    {% if session.get('role') == 'admin' %}
+                        <div style="padding:0.5rem 0.75rem;border-top:1px solid rgba(255,255,255,0.15);">
+                            <a href="{{ request.path }}?edit=1"
+                               style="color:#4da6ff;text-decoration:none;font-size:0.85rem;font-weight:600;">
+                                ✎ Edit Mode
+                            </a>
+                        </div>
+                    {% else %}
+                        <div style="padding:0.5rem 0.75rem;border-top:1px solid rgba(255,255,255,0.15);">
+                            <a href="{{ url_for('login') }}"
+                               style="color:#aaa;text-decoration:none;font-size:0.85rem;font-weight:600;">
+                                🔒 Admin Login
+                            </a>
+                        </div>
+                    {% endif %}
                     <div class="nav-user">
                         <div class="nav-user-identity">
                             user: {{ session['username'] }} ({{ session.get('role','user') }})
