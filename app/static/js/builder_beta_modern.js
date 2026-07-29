@@ -327,10 +327,10 @@ class ModernBuilderBeta {
         };
 
         if (data && (method === 'POST' || method === 'PUT')) {
-            options.body = JSON.stringify(data);
+            opts.body = JSON.stringify(data);
         }
 
-        const response = await fetch(url, options);
+        const response = await fetch(url, opts);
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }

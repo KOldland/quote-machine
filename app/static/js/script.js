@@ -378,6 +378,24 @@ function updateDrainageInputs() {
 			}
 		}); 
 	});
+
+	// Step 9: Follow-up question toggle
+	console.log('Step 9: Follow-up question toggles...');
+	document.querySelectorAll('.preview-checkbox-input[data-follow-up="1"]').forEach(function(checkbox) {
+		var followUpValue = checkbox.value;
+		var followUpContainer = document.querySelector('.preview-follow-up[data-follow-up-for="' + followUpValue + '"]');
+		if (followUpContainer) {
+			checkbox.addEventListener('change', function() {
+				followUpContainer.style.display = checkbox.checked ? 'block' : 'none';
+				if (!checkbox.checked) {
+					var input = followUpContainer.querySelector('.preview-follow-up-input');
+					if (input) input.value = '';
+				}
+			});
+			// Set initial state
+			followUpContainer.style.display = checkbox.checked ? 'block' : 'none';
+		}
+	});
 				
 // --------------------- 10 IMAGE SELECTION TOGGLE ---------------------
 

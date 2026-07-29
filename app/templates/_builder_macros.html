@@ -1136,7 +1136,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 var saveBtn = form.querySelector('.li-save-btn');
                 if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
-                var status = $id('li-save-status-v2');
+                var status = $id('question-save-status');
 
                 fetch('/builder_beta/line_item_save/' + item.id, {
                     method: 'POST',
@@ -1154,6 +1154,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         Object.assign(item, payload);
                         if (status) { status.textContent = '✓ Saved'; setTimeout(function(){ status.textContent=''; }, 2500); }
                         if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'SAVE QUESTION'; }
+                        if (typeof showQmToast === 'function') { showQmToast('Question saved', true); }
                         // Refresh view-two title
                         $id('li-view-two-title').textContent = 'Question: ' + (item.output_title || item.internal_description || 'Unnamed Question');
                         $id('li-view-two-title').title = $id('li-view-two-title').textContent;
@@ -1189,8 +1190,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     .then(function (data) {
                         if (data.ok) {
                             item.internal_description = newVal;
-                            var status = $id('li-save-status-v2');
+                            var status = $id('question-save-status');
                             if (status) { status.textContent = '✓ Title saved'; setTimeout(function(){ status.textContent=''; }, 2000); }
+                            if (typeof showQmToast === 'function') { showQmToast('Title saved', true); }
                             // Update the question list row and header
                             $id('li-view-two-title').textContent = 'Question: ' + newVal;
                             $id('li-view-two-title').title = newVal;

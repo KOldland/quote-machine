@@ -960,7 +960,10 @@ def build_builder_beta_runtime_context(page_id, sheet_data, page_answers):
                     {'category': c, 'items': [
                         {'value': r.get('line_code', ''),
                          'label': r.get('internal_description') or r.get('line_code', ''),
-                         'include_default': r.get('include_default') or 'N'}
+                         'include_default': r.get('include_default') or 'N',
+                         'is_follow_up': r.get('is_follow_up') or 0,
+                         'follow_up_type': r.get('follow_up_type') or '',
+                         'follow_up_config': r.get('follow_up_config') or '{}'}
                         for r in v
                     ]}
                     for c, v in _li_raw.items()
@@ -2320,7 +2323,10 @@ def dynamic_page(page_id):
                         {'category': c, 'items': [
                             {'value': r.get('line_code', ''),
                              'label': r.get('internal_description') or r.get('line_code', ''),
-                             'include_default': r.get('include_default') or 'N'}
+                             'include_default': r.get('include_default') or 'N',
+                             'is_follow_up': r.get('is_follow_up') or 0,
+                             'follow_up_type': r.get('follow_up_type') or '',
+                             'follow_up_config': r.get('follow_up_config') or '{}'}
                             for r in v
                         ]}
                         for c, v in _li_raw.items()

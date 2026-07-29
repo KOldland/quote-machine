@@ -8,6 +8,7 @@
         {% if first_page %}
             {# ── Home/Project Details page has no page_schema (server passes first_page=True) ── #}
             <form method="POST" action="{{ url_for('index') }}" class="preview-form-content">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="preview-element">
                     <label class="preview-label" for="client_address">Client Address</label>
                     <input type="text" id="client_address" name="client_address"
@@ -26,6 +27,7 @@
         {% elif page_schema and page_schema.fields %}
             {# ── Dynamic page: render fields from the compiled schema ── #}
             <form method="POST" action="{{ request.path }}" class="preview-form-content" id="preview-form-content">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 {% for field in page_schema.fields %}
                     {% if not field.hidden %}
                         {% set meta = field.builder_beta_meta %}
@@ -42,14 +44,33 @@
                                             <span class="preview-li-category-count">{{ group['items'] | length }} items</span>
                                         </summary>
                                         <div class="preview-li-items">
-                                            {% for item in group['items'] %}
-<label class="preview-li-item">
-    <input type="checkbox" class="preview-checkbox-input"
-           name="{{ field.name }}" value="{{ item.value }}"
-           {% if item.include_default == 'Y' %}checked{% endif %}>
-    <span class="preview-li-item-label">{{ item.label }}</span>
-</label>
-                                            {% endfor %}
+{% for item in group['items'] %}
+ <label class="preview-li-item">
+     <input type="checkbox" class="preview-checkbox-input"
+            name="{{ field.name }}" value="{{ item.value }}"
+            {% if item.include_default == 'Y' %}checked{% endif %}
+            data-follow-up="{{ item.is_follow_up }}"
+            data-follow-up-type="{{ item.follow_up_type }}"
+            data-follow-up-config="{{ item.follow_up_config | e }}">
+     <span class="preview-li-item-label">{{ item.label }}</span>
+ </label>
+ {% if item.is_follow_up %}
+ <div class="preview-follow-up" data-follow-up-for="{{ item.value }}" style="display:none; margin-left:2rem; margin-bottom:0.5rem;">
+     {% set fu_type = item.follow_up_type or 'Dropdown (text)' %}
+     {% if fu_type.startswith('Dropdown') %}
+     <input type="text" class="form-input preview-follow-up-input"
+            name="follow_up_{{ item.value }}"
+            placeholder="Enter selection..."
+            style="width:100%; max-width:400px;">
+     {% elif fu_type.startswith('Single Entry') %}
+     <input type="text" class="form-input preview-follow-up-input"
+            name="follow_up_{{ item.value }}"
+            placeholder="Enter value..."
+            style="width:100%; max-width:400px;">
+     {% endif %}
+ </div>
+ {% endif %}
+ {% endfor %}
                                         </div>
                                     </details>
                                     {% endfor %}
