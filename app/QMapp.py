@@ -2662,7 +2662,186 @@ def image_upload_page():
     session['last_visited'] = 'image_upload_page'
     checkbox_data = session.setdefault('checkbox_data', {})
 
-    if request.method == 'POST':
+    # ── IMAGE UPLOAD HANDLING ──
+    project_title = session.get('data', {}).get('client_address', 'Unnamed_Project')
+    safe_title = secure_filename(project_title)
+    project_folder = os.path.join(app.config['UPLOAD_FOLDER'], safe_title)
+    os.makedirs(project_folder, exist_ok=True)
+
+    uploaded_images = session.get('uploaded_images', {})
+
+    # Handle individual image uploads (cover, CGI, floorplan)
+    for image_type in ['cover_image', 'cgi_image', 'floorplan_image']:
+        if image_type in request.files:
+            file = request.files[image_type]
+            if file and file.filename and allowed_file(file.filename):
+                filename = f"{image_type}.jpg"
+                save_path = os.path.join(project_folder, filename)
+                file.save(save_path)
+                with Image.open(save_path) as img:
+                    img.convert("RGB").save(save_path, format='JPEG', optimize=True, quality=85)
+                uploaded_images[filename] = url_for('static', filename=f'uploads/{safe_title}/{filename}')
+                session['uploaded_images'] = uploaded_images
+                session.modified = True
+                flash(f"{image_type.replace('_', ' ').title()} uploaded successfully.", "success")
+                return redirect(url_for('image_upload_page'))
+
+    # Handle site images upload
+    files = request.files.getlist('site_images')
+    action = request.form.get('action')
+    selected_images = request.form.getlist('selected_images')
+    selected_template_key = request.form.get('selected_template')
+    open_accordion = request.form.get('open_accordion')
+
+    index_offset = len([f for f in os.listdir(project_folder) if f.startswith('img_site_')])
+
+    # Reset session and file state if requested
+    if request.method == 'POST' and request.form.get('reset_session'):
+        for f in os.listdir(project_folder):
+            path = os.path.join(project_folder, f)
+            if os.path.isfile(path):
+                os.remove(path)
+        session.pop('uploaded_images', None)
+        session.pop('chosen_template', None)
+        session.pop('site_image_plan', None)
+        session.modified = True
+        flash("Session and project folder fully reset.", "info")
+        return redirect(url_for('image_upload_page'))
+
+    # Delete selected images
+    if action == 'delete' and selected_images:
+        for filename in selected_images:
+            path = os.path.join(project_folder, filename)
+            if os.path.exists(path):
+                os.remove(path)
+                uploaded_images.pop(filename, None)
+        session['uploaded_images'] = uploaded_images
+        session.modified = True
+
+    # Handle alternate layout selection preview
+    if selected_template_key:
+        session['chosen_template'] = selected_template_key
+        if session.get('site_image_plan'):
+            image_plan = [{
+                'template': selected_template_key,
+                'images': session['site_image_plan'][0]['images']
+            }]
+            compose_template(image_plan, project_folder)
+            from time import time
+            preview_url = url_for('static', filename=f'uploads/{safe_title}/final_output_1.jpg') + f'?v={int(time())}'
+            uploaded_images['final_output_1.jpg'] = preview_url
+            session['uploaded_images'] = uploaded_images
+            session.modified = True
+
+    # Re-analyze and recompose after deletion
+    image_meta = analyze_site_images(project_folder)
+    if image_meta:
+        template_plan = select_templates(image_meta)
+        session['site_image_plan'] = template_plan
+
+        # Ensure chosen template is valid
+        if session.get('chosen_template') not in template_plan[0]['templates']:
+            session['chosen_template'] = template_plan[0]['templates'][0]
+
+        for key in list(uploaded_images.keys()):
+            if key.startswith('final_output_') and key.endswith('.jpg'):
+                uploaded_images.pop(key, None)
+
+        if session.get('chosen_template'):
+            image_plan = [{
+                'template': session['chosen_template'],
+                'images': template_plan[0]['images']
+            }]
+            compose_template(image_plan, project_folder)
+            from time import time
+            preview_url = url_for('static', filename=f'uploads/{safe_title}/final_output_1.jpg') + f'?v={int(time())}'
+            uploaded_images['final_output_1.jpg'] = preview_url
+            session['uploaded_images'] = uploaded_images
+            session.modified = True
+
+    # Upload new files
+    if files and any(file.filename for file in files):
+        for i, file in enumerate(files, start=1):
+            if file and allowed_file(file.filename):
+                filename = f"img_site_{index_offset + i}.jpg"
+                save_path = os.path.join(project_folder, filename)
+                file.save(save_path)
+                with Image.open(save_path) as img:
+                    img.convert("RGB").save(save_path, format='JPEG', optimize=True, quality=85)
+                uploaded_images[filename] = url_for('static', filename=f'uploads/{safe_title}/{filename}')
+
+        uploaded_count = len(files)
+        if uploaded_count > 0:
+            flash(f"{uploaded_count} image{'s' if uploaded_count != 1 else ''} uploaded successfully.", "success")
+
+        # Clear layout
+        if request.form.get('clear_layout'):
+            for f in os.listdir(project_folder):
+                if f.startswith('final_output_') and f.endswith('.jpg'):
+                    os.remove(os.path.join(project_folder, f))
+                    uploaded_images.pop(f, None)
+            session['uploaded_images'] = uploaded_images
+            session.modified = True
+            return redirect(url_for('image_upload_page'))
+
+        # Store selected template
+        if selected_template_key:
+            session['chosen_template'] = selected_template_key
+
+        session['uploaded_images'] = uploaded_images
+        session.modified = True
+
+        # Recompose layout immediately when alternate template is selected
+        if session.get('site_image_plan'):
+            image_plan = [{
+                'template': selected_template_key,
+                'images': session['site_image_plan'][0]['images']
+            }]
+            compose_template(image_plan, project_folder)
+            from time import time
+            preview_url = url_for('static', filename=f'uploads/{safe_title}/final_output_1.jpg') + f'?v={int(time())}'
+            uploaded_images['final_output_1.jpg'] = preview_url
+            session['uploaded_images'] = uploaded_images
+            session.modified = True
+
+        # Analyze current images
+        image_meta = analyze_site_images(project_folder)
+        if not image_meta:
+            flash("No valid images found for layout.", "danger")
+
+        # Generate layout plan and store
+        template_plan = select_templates(image_meta)
+        session['site_image_plan'] = template_plan
+
+        # Default selection
+        if not session.get('chosen_template') and template_plan and template_plan[0]['templates']:
+            session['chosen_template'] = template_plan[0]['templates'][0]
+
+        # Ensure chosen template is still valid
+        if session.get('chosen_template') not in template_plan[0]['templates']:
+            session['chosen_template'] = template_plan[0]['templates'][0]
+
+        # Remove old preview pages from memory
+        for key in list(uploaded_images.keys()):
+            if key.startswith('final_output_') and key.endswith('.jpg'):
+                uploaded_images.pop(key, None)
+
+        # Compose updated preview(s)
+        if session.get('chosen_template'):
+            image_plan = [{
+                'template': session['chosen_template'],
+                'images': template_plan[0]['images']
+            }]
+            compose_template(image_plan, project_folder)
+
+            from time import time
+            preview_url = url_for('static', filename=f'uploads/{safe_title}/final_output_1.jpg') + f'?v={int(time())}'
+            uploaded_images['final_output_1.jpg'] = preview_url
+            session['uploaded_images'] = uploaded_images
+            session.modified = True
+
+    # ── FORM BUILDER BETA INTEGRATION ──
+    if request.method == 'POST' and not files:
         state = get_builder_beta_state()
         page = state.get('pages', {}).get('image_upload_page')
         if page:
@@ -2673,7 +2852,6 @@ def image_upload_page():
                         selected = request.form.getlist(field_name)
                         checkbox_data[field_name] = {'preselected': selected}
                     else:
-                        # FIXED - no .strip() needed for empty check
                         value = (request.form.get(field_name) or '')
                         if value:
                             checkbox_data[field_name] = value
@@ -2739,23 +2917,14 @@ def image_upload_page():
         )
     else:
         return render_template(
-            'form.html',
-            page_schema=page_schema,
-            schema_render_mode='full',
-            previous_page=page_schema.get(
-                'navigation',
-                {}).get(
-                'previous_endpoint',
-                'optional_extras_page') if page_schema else 'optional_extras_page',
-            next_page=page_schema.get(
-                'navigation',
-                {}).get(
-                'next_endpoint',
-                'review') if page_schema else 'review',
-            title=page_schema.get(
-                'title', 'Image Upload') if page_schema else 'Image Upload',
-            li_categories=_li_cats,
-            **_get_runtime_quote_context()
+            'image_upload.html',
+            image_upload_page=True,
+            previous_page='optional_extras_page',
+            next_page='review',
+            open_accordion=open_accordion,
+            title="Upload Quote-Specific Images",
+            uploaded_images=uploaded_images,
+            template_plan=session.get('site_image_plan', [])
         )
 
 ##########################################################################
