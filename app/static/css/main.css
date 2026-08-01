@@ -1218,6 +1218,23 @@ body {
     margin-top: 5px;
 }
 
+.accordion-body > ul > li {
+    list-style: none;
+    margin-bottom: 10px;
+}
+
+.accordion-body > ul > li > strong {
+    display: block;
+    margin-bottom: 0.4rem;
+    font-weight: 600;
+    color: #1f2d3d;
+}
+
+.accordion-body ul ul li {
+    margin-bottom: 4px;
+    color: #333;
+}
+
 .hidden-dropdown {
     margin-top: 5x; /* Adjust the top margin */
     margin-bottom: 15px; /* Add proper spacing below */

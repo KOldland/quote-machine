@@ -1,10 +1,9 @@
 {% extends "index.html" %}
 
 {% block content %}
-<div class="form-container"> 
+<div class="form-container">
     <h1>Review Your Submission</h1>
-    
-    
+
     {% for section, items in review_data.items() %}
     <div class="accordion-section">
         <button type="button" class="accordion-header" onclick="toggleAccordion('section{{ loop.index }}');">
@@ -13,79 +12,58 @@
         <div id="section{{ loop.index }}" class="accordion-body">
             {% if items is mapping %}
             <ul>
-                {% for key, value in items.items() %}
-                {% if value and value is iterable and not value is string %}
+            {% for key, value in items.items() %}
+                {% if value is mapping and value._type == 'line_items_by_category' %}
+                    {% for cat_name, cat_items in value.categories.items() %}
+                    <li><strong>{{ cat_name }}:</strong>
+                        <ul>
+                            {% for item in cat_items %}
+                            <li>{{ line_code_labels.get(item, item) }}</li>
+                            {% endfor %}
+                        </ul>
+                    </li>
+                    {% endfor %}
+                {% elif value and value is iterable and not value is string %}
                 <li><strong>{{ TITLE_MAPPING.get(key, key) }}:</strong>
                     <ul>
                         {% for item in value %}
-                        <li>{{ item }}</li>
+                        <li>{{ line_code_labels.get(item, item) }}</li>
                         {% endfor %}
                     </ul>
                 </li>
                 {% elif value %}
                 <li><strong>{{ TITLE_MAPPING.get(key, key) }}:</strong>
                     <ul>
-                        <li>{{ value }}</li> 
+                        <li>{{ value }}</li>
                     </ul>
                 </li>
                 {% else %}
-                    <li><strong>{{ TITLE_MAPPING.get(key, key) }}:</strong> 
+                    <li><strong>{{ TITLE_MAPPING.get(key, key) }}:</strong>
                         <ul>Not required for this project</ul>
                     </li>
                 {% endif %}
-                {% endfor %}
+            {% endfor %}
             </ul>
-            <br><br>
-            {% else %}
             {% endif %}
         </div>
     </div>
     {% endfor %}
 
-    
-
-
-    <!-- Line Items Output Section -->
-    {% if li_by_category %}
+    {% if not review_data %}
     <div class="accordion-section">
-        <button type="button" class="accordion-header" onclick="toggleAccordion('li_output_section');">
-            Selected Line Items
+        <button type="button" class="accordion-header" onclick="toggleAccordion('noEntriesSection');">
+            Your Entries
         </button>
-        <div id="li_output_section" class="accordion-body">
-            {% for category, rows in li_by_category.items() %}
-            <h4 style="margin-top:1rem;">{{ category }}</h4>
-            <ul>
-                {% for row in rows %}
-                <li>
-                    <strong>{{ row.output_title or row.internal_description or row.line_code }}</strong>
-                    {% if row.output_notes %}
-                    <br><span style="color:#555;">{{ row.output_notes }}</span>
-                    {% endif %}
-                    {% if row.output_guidance %}
-                    <br><em>{{ row.output_guidance }}</em>
-                    {% endif %}
-                    {% if row.pricing_visibility != 'admin_only' and row.unit_cost %}
-                    <br><span>Unit cost: £{{ "%.2f"|format(row.unit_cost) }}</span>
-                    {% endif %}
-                </li>
-                {% endfor %}
-            </ul>
-            {% endfor %}
+        <div id="noEntriesSection" class="accordion-body">
+            <p>No selections have been recorded yet. Complete the form to review your entries here.</p>
         </div>
     </div>
     {% endif %}
 
-    <!-- ── Interactive Cost Matrix (Revenue Pool Overrides) ── -->
-    <div class="accordion-section">
-        <button type="button" class="accordion-header" onclick="toggleAccordion('costMatrixSection');">
-            Cost Summary &amp; Payment Schedule
-        </button>
-        <div id="costMatrixSection" class="accordion-body">
-            {% if totals_by_group is defined and totals_by_group %}
-            <table id="costMatrixTable" style="width:100%; border-collapse:collapse; margin-top:0.5rem;">
-                <thead>
-                    <tr style="background:#f0f4ff; border-bottom:2px solid #1b3a6b;">
-                        <th style="text-align:left; padding:0.5rem 0.75rem; font-size:0.85rem;">Revenue Pool</th>
-                        <th style="text-align:right; padding:0.5rem 0.75rem; font-size:0.85rem;">Calculated Total</th>
-                        <th style="text-align:right; padding:0.5rem 0.
+    <div class="button-container">
+        <button type="button" class="btn" onclick="window.history.back()">Previous</button>
+        <button type="button" class="btn btn-primary" onclick="window.location.href='{{ url_for('image_upload_page') }}'">Continue</button>
+    </div>
 
+</div>
+{% endblock %}

@@ -27,6 +27,21 @@ TEMPLATE_COORDINATES = {
         (1593, 1301, 640, 905)
     ],
 
+    "template_2-1L1P_varB": [  # Mixed layout: portrait left, landscape right
+        (247, 1301, 640, 905),
+        (913, 1301, 1280, 905)
+    ],
+
+    "template_2-1L1P_varC": [  # Landscape top, portrait bottom
+        (300, 300, 1880, 1329),
+        (300, 1700, 1880, 1329)
+    ],
+
+    "template_2-1L1P_varD": [  # Portrait top, landscape bottom
+        (300, 300, 900, 2908),
+        (1300, 300, 900, 2908)
+    ],
+
     # === THREE BLOCK LAYOUTS ===
     
     "template_3-3L0P": [  # Vertical landscape stack
@@ -65,6 +80,30 @@ TEMPLATE_COORDINATES = {
         (1450, 1301, 640, 905)
     ],
     
+    "template_3-2L1P_varA": [  # 1P left, 2L right (mirror of above)
+        (390, 1301, 640, 905),
+        (1130, 1301, 960, 440),
+        (1130, 1767, 960, 440)
+    ],
+    
+    "template_3-2L1P_varB": [  # L top, P middle, L bottom (vertical stack)
+        (420, 588, 1640, 1160),
+        (620, 1788, 800, 1131),
+        (420, 2929, 1640, 1160)
+    ],
+    
+    "template_3-2L1P_varC": [  # L top, L middle, P bottom (vertical stack)
+        (420, 588, 1640, 1160),
+        (420, 1788, 1640, 1160),
+        (620, 2929, 800, 1131)
+    ],
+    
+    "template_3-2L1P_varD": [  # P top, L middle, L bottom (vertical stack)
+        (620, 588, 800, 1131),
+        (420, 1788, 1640, 1160),
+        (420, 2929, 1640, 1160)
+    ],
+    
     "template_3-1L2P": [  # Top 2 portrait, bottom landscape
         (420, 588, 800, 1131),
         (1260, 588, 800, 1131),
@@ -75,6 +114,36 @@ TEMPLATE_COORDINATES = {
         (420, 588, 1640, 1160),
         (420, 1788, 800, 1131),
         (1260, 1788, 800, 1131)
+    ],
+    
+    "template_3-1L2P_varB": [  # L, P, P vertical stack
+        (420, 588, 1640, 1160),
+        (420, 1788, 800, 1131),
+        (420, 2929, 800, 1131)
+    ],
+    
+    "template_3-1L2P_varC": [  # P, L, P vertical stack
+        (620, 588, 800, 1131),
+        (420, 1788, 1640, 1160),
+        (620, 2929, 800, 1131)
+    ],
+    
+    "template_3-1L2P_varD": [  # P, P, L vertical stack
+        (620, 588, 800, 1131),
+        (620, 1788, 800, 1131),
+        (420, 2929, 1640, 1160)
+    ],
+    
+    "template_3-1L2P_varE": [  # 1L left, 2P stacked right
+        (390, 1301, 960, 440),
+        (1450, 1301, 640, 905),
+        (1450, 1767, 640, 905)
+    ],
+    
+    "template_3-1L2P_varF": [  # 2P stacked left, 1L right
+        (390, 1301, 640, 905),
+        (390, 1767, 640, 905),
+        (1130, 1301, 960, 440)
     ],
     
     "template_3-0L3P": [  # Evenly spaced portrait blocks across top
@@ -133,14 +202,43 @@ TEMPLATE_COORDINATES = {
         (1256, 1160, 796, 1111),
         (440, 2291, 1612, 1140)
     ],
-    
+
     "template_4-2L2P_varA": [  # L-TL + L-BR, 2P diagonal corners
         (279, 520, 1200, 849),
         (1500, 520, 600, 849),
         (279, 1399, 600, 849),
         (899, 1399, 1200, 849)
     ],
-    
+
+    "template_4-2L2P_varB": [  # 2L left, 2P right (vertical stack)
+        (390, 1301, 960, 440),
+        (390, 1767, 960, 440),
+        (1450, 1301, 640, 905),
+        (1450, 1767, 640, 905)
+    ],
+
+    "template_4-2L2P_varC": [  # 2P left, 2L right (vertical stack)
+        (390, 1301, 640, 905),
+        (390, 1767, 640, 905),
+        (1130, 1301, 960, 440),
+        (1130, 1767, 960, 440)
+    ],
+
+    "template_4-2L2P_varD": [  # L top, P middle, L bottom (horizontal)
+        (420, 588, 820, 1131),
+        (1260, 588, 820, 1131),
+        (420, 1759, 820, 1131),
+        (1260, 1759, 820, 1131)
+    ],
+
+    "template_4-2L2P_varE": [  # 2L top, 2P bottom (horizontal stack)
+        (300, 300, 1414, 2000),
+        (1280, 300, 1414, 2000),
+        (300, 2300, 1414, 2000),
+        (1280, 2300, 1414, 2000)
+    ],
+
+
     "template_4-1L3P": [  # Top landscape, 3 portraits bottom
         (50, 350, 2380, 1683),
         (50, 2083, 760, 1074),
@@ -1120,9 +1218,8 @@ TEMPLATE_COORDINATES = {
         (1772, 1770, 706, 998)
     ],
     
-    
-}
 
+}
 
 def get_layout_definition(template_key):
     return TEMPLATE_COORDINATES.get(template_key, [])
@@ -1186,4 +1283,3 @@ def generate_template_svg(coordinates, canvas_width=220, canvas_height=340):
     svg_parts.append('</svg>')
     return '\n'.join(svg_parts)
     
-        

@@ -2118,8 +2118,7 @@ def select_templates(image_meta):
 
         if matching_templates:
             templates.append({
-                'templates': matching_templates[:4],
-                'remaining': matching_templates[4:],  # for "load more"
+                'templates': matching_templates,  # Return ALL matching templates
                 'images': [img['filename'] for img in chunk]
             })
         else:
@@ -2257,15 +2256,16 @@ def dynamic_page(page_id):
 
     if request.method == 'POST':
         for block in page.get('blocks', []):
-            field_name = block.get('standard', {}).get('name')
-            if field_name:
-                if block['block_type'] == 'checkbox_group':
-                    selected = request.form.getlist(field_name)
-                    checkbox_data[field_name] = {'preselected': selected}
-                else:
-                    value = (request.form.get(field_name) or '')
-                    if value:
-                        checkbox_data[field_name] = value
+            field_name = block.get('standard', {}).get('name') or block.get('id')
+            if not field_name:
+                continue
+            if block['block_type'] in ('checkbox_group', 'line_items_by_category'):
+                selected = request.form.getlist(field_name)
+                checkbox_data[field_name] = {'preselected': selected}
+            else:
+                value = (request.form.get(field_name) or '')
+                if value:
+                    checkbox_data[field_name] = value
         session['checkbox_data'] = checkbox_data
         session.modified = True
 
@@ -2658,6 +2658,7 @@ def builder_beta_page_editor(page_id):
 ##########################################################################
 # Builder-beta page route — renders from builder beta state
 @app.route('/image_upload_page', methods=['GET', 'POST'])
+@csrf.exempt
 def image_upload_page():
     session['last_visited'] = 'image_upload_page'
     checkbox_data = session.setdefault('checkbox_data', {})
@@ -2684,13 +2685,11 @@ def image_upload_page():
                 session['uploaded_images'] = uploaded_images
                 session.modified = True
                 flash(f"{image_type.replace('_', ' ').title()} uploaded successfully.", "success")
-                return redirect(url_for('image_upload_page'))
 
     # Handle site images upload
     files = request.files.getlist('site_images')
     action = request.form.get('action')
     selected_images = request.form.getlist('selected_images')
-    selected_template_key = request.form.get('selected_template')
     open_accordion = request.form.get('open_accordion')
 
     index_offset = len([f for f in os.listdir(project_folder) if f.startswith('img_site_')])
@@ -2702,8 +2701,6 @@ def image_upload_page():
             if os.path.isfile(path):
                 os.remove(path)
         session.pop('uploaded_images', None)
-        session.pop('chosen_template', None)
-        session.pop('site_image_plan', None)
         session.modified = True
         flash("Session and project folder fully reset.", "info")
         return redirect(url_for('image_upload_page'))
@@ -2717,47 +2714,6 @@ def image_upload_page():
                 uploaded_images.pop(filename, None)
         session['uploaded_images'] = uploaded_images
         session.modified = True
-
-    # Handle alternate layout selection preview
-    if selected_template_key:
-        session['chosen_template'] = selected_template_key
-        if session.get('site_image_plan'):
-            image_plan = [{
-                'template': selected_template_key,
-                'images': session['site_image_plan'][0]['images']
-            }]
-            compose_template(image_plan, project_folder)
-            from time import time
-            preview_url = url_for('static', filename=f'uploads/{safe_title}/final_output_1.jpg') + f'?v={int(time())}'
-            uploaded_images['final_output_1.jpg'] = preview_url
-            session['uploaded_images'] = uploaded_images
-            session.modified = True
-
-    # Re-analyze and recompose after deletion
-    image_meta = analyze_site_images(project_folder)
-    if image_meta:
-        template_plan = select_templates(image_meta)
-        session['site_image_plan'] = template_plan
-
-        # Ensure chosen template is valid
-        if session.get('chosen_template') not in template_plan[0]['templates']:
-            session['chosen_template'] = template_plan[0]['templates'][0]
-
-        for key in list(uploaded_images.keys()):
-            if key.startswith('final_output_') and key.endswith('.jpg'):
-                uploaded_images.pop(key, None)
-
-        if session.get('chosen_template'):
-            image_plan = [{
-                'template': session['chosen_template'],
-                'images': template_plan[0]['images']
-            }]
-            compose_template(image_plan, project_folder)
-            from time import time
-            preview_url = url_for('static', filename=f'uploads/{safe_title}/final_output_1.jpg') + f'?v={int(time())}'
-            uploaded_images['final_output_1.jpg'] = preview_url
-            session['uploaded_images'] = uploaded_images
-            session.modified = True
 
     # Upload new files
     if files and any(file.filename for file in files):
@@ -2784,64 +2740,29 @@ def image_upload_page():
             session.modified = True
             return redirect(url_for('image_upload_page'))
 
-        # Store selected template
-        if selected_template_key:
-            session['chosen_template'] = selected_template_key
-
         session['uploaded_images'] = uploaded_images
         session.modified = True
 
-        # Recompose layout immediately when alternate template is selected
-        if session.get('site_image_plan'):
-            image_plan = [{
-                'template': selected_template_key,
-                'images': session['site_image_plan'][0]['images']
-            }]
-            compose_template(image_plan, project_folder)
-            from time import time
-            preview_url = url_for('static', filename=f'uploads/{safe_title}/final_output_1.jpg') + f'?v={int(time())}'
-            uploaded_images['final_output_1.jpg'] = preview_url
-            session['uploaded_images'] = uploaded_images
+    # Always recompute dynamic layout after any upload/delete/clear so the user
+    # gets a fresh layout automatically without needing a manual button press.
+    site_images = sorted([f for f in uploaded_images if f.startswith('img_site_')])
+    cover_cgi_floorplan = [f for f in uploaded_images if f in ['cover_image.jpg', 'cgi_image.jpg', 'floorplan_image.jpg']]
+    ordered_images = cover_cgi_floorplan + site_images
+    if ordered_images:
+        try:
+            layout = compute_dynamic_layout(ordered_images, project_folder)
+            session['dynamic_layout'] = layout
+            compose_dynamic_layout(layout, project_folder)
+        except Exception as exc:
+            print(f"[layout] compute_dynamic_layout failed: {exc}")
+        finally:
             session.modified = True
-
-        # Analyze current images
-        image_meta = analyze_site_images(project_folder)
-        if not image_meta:
-            flash("No valid images found for layout.", "danger")
-
-        # Generate layout plan and store
-        template_plan = select_templates(image_meta)
-        session['site_image_plan'] = template_plan
-
-        # Default selection
-        if not session.get('chosen_template') and template_plan and template_plan[0]['templates']:
-            session['chosen_template'] = template_plan[0]['templates'][0]
-
-        # Ensure chosen template is still valid
-        if session.get('chosen_template') not in template_plan[0]['templates']:
-            session['chosen_template'] = template_plan[0]['templates'][0]
-
-        # Remove old preview pages from memory
-        for key in list(uploaded_images.keys()):
-            if key.startswith('final_output_') and key.endswith('.jpg'):
-                uploaded_images.pop(key, None)
-
-        # Compose updated preview(s)
-        if session.get('chosen_template'):
-            image_plan = [{
-                'template': session['chosen_template'],
-                'images': template_plan[0]['images']
-            }]
-            compose_template(image_plan, project_folder)
-
-            from time import time
-            preview_url = url_for('static', filename=f'uploads/{safe_title}/final_output_1.jpg') + f'?v={int(time())}'
-            uploaded_images['final_output_1.jpg'] = preview_url
-            session['uploaded_images'] = uploaded_images
-            session.modified = True
+    else:
+        session.pop('dynamic_layout', None)
+        session.modified = True
 
     # ── FORM BUILDER BETA INTEGRATION ──
-    if request.method == 'POST' and not files:
+    if request.method == 'POST' and not files and not action:
         state = get_builder_beta_state()
         page = state.get('pages', {}).get('image_upload_page')
         if page:
@@ -2916,6 +2837,11 @@ def image_upload_page():
             **_get_runtime_quote_context()
         )
     else:
+        from templates import TEMPLATE_COORDINATES
+        project_title = session.get('data', {}).get('client_address', 'Unnamed_Project')
+        safe_title = secure_filename(project_title)
+        preview_path = os.path.join(app.config['UPLOAD_FOLDER'], safe_title, 'final_output_1.jpg')
+        preview_url = url_for('static', filename=f'uploads/{safe_title}/final_output_1.jpg') if session.get('dynamic_layout') and os.path.exists(preview_path) else None
         return render_template(
             'image_upload.html',
             image_upload_page=True,
@@ -2924,13 +2850,235 @@ def image_upload_page():
             open_accordion=open_accordion,
             title="Upload Quote-Specific Images",
             uploaded_images=uploaded_images,
-            template_plan=session.get('site_image_plan', [])
+            saved_layout=session.get('dynamic_layout', []),
+            preview_url=preview_url,
         )
 
+
 ##########################################################################
-# PAGE - REVIEW (Cost Matrix / Quote Summary)
+# DYNAMIC LAYOUT ENDPOINTS
 ##########################################################################
 
+@app.route('/save_layout', methods=['POST'])
+@csrf.exempt
+def save_layout():
+    """Save the dynamic layout data from Gridstack and return enforced layout."""
+    try:
+        data = request.get_json()
+        layout = data.get('layout', [])
+        session['dynamic_layout'] = layout
+        session['saved_custom_layout'] = True
+        session.modified = True
+        return jsonify({'success': True, 'layout': layout})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/generate_preview', methods=['POST'])
+@csrf.exempt
+def generate_preview():
+    """Generate a preview image based on the dynamic layout."""
+    try:
+        data = request.get_json()
+        layout = data.get('layout', [])
+
+        session['dynamic_layout'] = layout
+        session['saved_custom_layout'] = True
+        session.modified = True
+
+        project_title = session.get('data', {}).get('client_address', 'Unnamed_Project')
+        safe_title = secure_filename(project_title)
+        project_folder = os.path.join(app.config['UPLOAD_FOLDER'], safe_title)
+
+        compose_dynamic_layout(layout, project_folder)
+
+        from time import time
+        preview_url = url_for('static', filename=f'uploads/{safe_title}/final_output_1.jpg') + f'?v={int(time())}'
+
+        return jsonify({'success': True, 'preview_url': preview_url, 'layout': layout})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/clear_dynamic_layout', methods=['POST'])
+@csrf.exempt
+def clear_dynamic_layout():
+    """Remove the pre-configured template layout from the session so the
+    drag-and-drop editor starts with a clean slate."""
+    session.pop('dynamic_layout', None)
+    session.pop('saved_custom_layout', None)
+    session.modified = True
+    return jsonify({'success': True})
+
+
+@app.route('/recompute_layout', methods=['POST'])
+@csrf.exempt
+def recompute_layout():
+    """Recompute the auto-layout from uploaded images and store in session."""
+    try:
+        project_title = session.get('data', {}).get('client_address', 'Unnamed_Project')
+        safe_title = secure_filename(project_title)
+        project_folder = os.path.join(app.config['UPLOAD_FOLDER'], safe_title)
+
+        uploaded_images = session.get('uploaded_images', {})
+        site_images = sorted([f for f in uploaded_images if f.startswith('img_site_')])
+        cover_cgi_floorplan = [f for f in uploaded_images if f in ['cover_image.jpg', 'cgi_image.jpg', 'floorplan_image.jpg']]
+        ordered_images = cover_cgi_floorplan + site_images
+
+        if ordered_images:
+            layout = compute_dynamic_layout(ordered_images, project_folder)
+            session['dynamic_layout'] = layout
+            session.pop('saved_custom_layout', None)
+            session.modified = True
+            return jsonify({'success': True, 'layout': layout})
+
+        session.pop('dynamic_layout', None)
+        session.pop('saved_custom_layout', None)
+        session.modified = True
+        return jsonify({'success': True, 'layout': []})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+def compute_dynamic_layout(image_filenames, upload_folder):
+    """Compute a 6-unit row-bin-packed layout for the given images.
+    
+    Returns a list of grid items with {id, x, y, w, h}.
+    """
+    CANVAS_WIDTH_UNITS = 6
+    items = []
+    for filename in image_filenames:
+        image_path = os.path.join(upload_folder, filename)
+        if not os.path.exists(image_path):
+            continue
+        try:
+            with Image.open(image_path) as img:
+                width, height = img.size
+                aspect_ratio = width / height if height else 1
+                if aspect_ratio < 0.8:
+                    orientation = 'portrait'
+                    unit_w = 2
+                    unit_h = 3
+                elif aspect_ratio > 1.2:
+                    orientation = 'landscape'
+                    unit_w = 3
+                    unit_h = 2
+                else:
+                    orientation = 'landscape'
+                    unit_w = 3
+                    unit_h = 2
+                items.append({
+                    'id': filename,
+                    'unit_w': unit_w,
+                    'unit_h': unit_h,
+                    'orientation': orientation,
+                    'aspect_ratio': aspect_ratio,
+                })
+        except Exception:
+            continue
+
+    layout = []
+    y = 0
+    i = 0
+    while i < len(items):
+        row_items = []
+        row_width = 0
+        while i < len(items) and row_width + items[i]['unit_w'] <= CANVAS_WIDTH_UNITS:
+            row_items.append(items[i])
+            row_width += items[i]['unit_w']
+            i += 1
+
+        if not row_items:
+            row_items.append(items[i])
+            row_width = items[i]['unit_w']
+            i += 1
+
+        # Normalize row height to tallest unit_h in row
+        row_unit_height = max(item['unit_h'] for item in row_items)
+        x = 0
+        for item in row_items:
+            layout.append({
+                'id': item['id'],
+                'x': x,
+                'y': y,
+                'w': item['unit_w'],
+                'h': row_unit_height,
+            })
+            x += item['unit_w']
+        y += row_unit_height
+
+    return layout
+
+
+def compose_dynamic_layout(layout, upload_folder, output_basename='final_output'):
+    """Compose images based on dynamic layout data from Gridstack.
+
+    Normalizes heights per row while preserving aspect ratios.
+    """
+    from PIL import Image, ImageOps
+
+    CANVAS_WIDTH = 2480  # A4 @ 300dpi
+    CANVAS_HEIGHT = 3508
+    UNIT_SIZE = CANVAS_WIDTH / 6  # 413.333px per unit
+    MARGIN = 10  # 10px margin inside each block
+
+    canvas = Image.new('RGB', (CANVAS_WIDTH, CANVAS_HEIGHT), (255, 255, 255))
+
+    rows = {}
+    print(f"[DEBUG compose_dynamic_layout] Input layout: {layout}")
+    sorted_layout = sorted(layout, key=lambda item: (item.get('y', 0), item.get('x', 0)))
+    for item in sorted_layout:
+        filename = item.get('id')
+        grid_x = item.get('x', 0)
+        grid_y = item.get('y', 0)
+        grid_w = item.get('w', 1)
+        grid_h = item.get('h', 1)
+
+        rows.setdefault(grid_y, []).append({
+            'filename': filename,
+            'x': grid_x,
+            'w': grid_w,
+            'h': grid_h,
+            'pixel_x': int(grid_x * UNIT_SIZE),
+            'pixel_y': int(grid_y * UNIT_SIZE),
+            'pixel_w': int(grid_w * UNIT_SIZE),
+            'pixel_h': int(grid_h * UNIT_SIZE),
+        })
+
+    for row_y, items in rows.items():
+        row_y_px = int(row_y * UNIT_SIZE)
+        for item in items:
+            filename = item['filename']
+            image_path = os.path.join(upload_folder, filename)
+            if not os.path.exists(image_path):
+                print(f"[WARNING] Image not found: {image_path}")
+                continue
+
+            try:
+                with Image.open(image_path) as img:
+                    img = img.convert("RGB")
+
+                    target_w = item['pixel_w'] - 2 * MARGIN
+                    target_h = item['pixel_h'] - 2 * MARGIN
+
+                    fitted_img = ImageOps.contain(
+                        img, (target_w, target_h), method=Image.LANCZOS)
+
+                    paste_x = item['pixel_x'] + MARGIN
+                    paste_y = item['pixel_y'] + MARGIN
+                    canvas.paste(fitted_img, (paste_x, paste_y))
+            except Exception as e:
+                print(f"[ERROR] Could not process {filename}: {e}")
+
+    filename = f"{output_basename}_1.jpg"
+    output_path = os.path.join(upload_folder, filename)
+    canvas.save(output_path)
+    print(f"[INFO] Saved dynamic layout: {output_path}")
+
+
+##########################################################################
+# PAGE - REVIEW (form answers summary; pricing lives in Calculator Mode)
+##########################################################################
 
 @app.route('/review', methods=['GET', 'POST'])
 def review():
@@ -2946,120 +3094,141 @@ def review():
         session.modified = True
         return redirect(url_for('review'))
 
-    # Build the cost matrix using the calculator engine
-    # Pass current session overrides so output-group overrides are reflected
-    overrides = session.get('overrides', {})
-    calc_result = calculator.calculate_quote(
-        TEMPLATE_STORE_KEY,
-        form_data=checkbox_data,
-        session_overrides=overrides,
-    )
-
-    # Apply output-group level overrides from session on top of calculated
-    # subtotals
-    subtotals = dict(calc_result['subtotals'])
-    grand_total = calc_result['subtotal']
-    for gname in list(subtotals.keys()):
-        override_key = f"og_{gname}"
-        if override_key in overrides:
-            try:
-                subtotals[gname] = round(float(overrides[override_key]), 2)
-            except (TypeError, ValueError):
-                pass
-    # Recompute grand total after overrides
-    grand_total = round(sum(subtotals.values()), 2)
-
-    # Get runtime context for the template
-    ctx = _get_runtime_quote_context()
-
-    # Store rendered HTML for PDF / Word export
-    export_html = render_template(
-        'export.html',
-        client_name=ctx['client_name'],
-        client_address=ctx['client_address'],
-        proposal_date=ctx['proposal_date'],
-        quote_ref=ctx['quote_ref'],
-        groups=calc_result.get('groups', []),
-        grand_total=grand_total,
-    )
-    session['quote_html'] = export_html
-    session.modified = True
-
-    # ── FIX: Compile data in format expected by review.html ──
-    # review.html expects: review_data, li_by_category, totals_by_group, TITLE_MAPPING
-    
-    # Build review_data from session data (data and checkbox_data)
+    # ── Build review_data: the user's form answers grouped by page (section) ──
+    # Review mode only shows what the user has selected/entered on each page.
+    # Pricing math (calculator, line items, cost matrix) lives in Calculator
+    # Mode — a separate page — so it is intentionally NOT computed here.
     session_data = session.get('data', {})
-    
-    # Ensure form_data is populated from session['data']
+    # Keep form_data available for the export routes (export_routes.py reads it).
     session['form_data'] = session_data
-    
-    review_data = {}
-    # Group form data by sections from page_schemas
-    for page_id, page_info in page_schemas.get('pages', {}).items():
-        section_fields = []
-        
-        # Get fields for this page from compiled schema
+
+    # Pages that are not "answer" pages worth reviewing. image_upload_page is
+    # the upload step that, in the new flow, runs AFTER the calculator.
+    SKIP_PAGES = {'image_upload_page'}
+
+    state_pages = get_builder_beta_state().get('pages', {})
+
+    # Pass 1: collect selected line codes so we can look up descriptions + categories
+    selected_codes = set()
+    raw_sections = {}
+    for page_id, page_info in state_pages.items():
+        if page_id in SKIP_PAGES:
+            continue
         compiled_page = compile_builder_beta_page_to_runtime_schema(page_id)
-        if compiled_page:
-            for field in compiled_page.get('fields', []):
-                field_name = field.get('name')
-                if field_name:
-                    # Get the value from session
-                    value = session_data.get(field_name) or checkbox_data.get(field_name, {}).get('preselected', [])
-                    if value:
-                        section_fields.append({
-                            'field_name': field_name,
-                            'display_name': field.get('label', field_name),
-                            'value': value,
-                            'type': field.get('type', 'unknown')
-                        })
-        
+        if not compiled_page:
+            continue
+
+        section_fields = {}
+        for field in compiled_page.get('fields', []):
+            field_name = field.get('name')
+            if not field_name:
+                continue
+
+            value = session_data.get(field_name)
+            if not value:
+                cb_val = checkbox_data.get(field_name)
+                if isinstance(cb_val, dict):
+                    value = cb_val.get('preselected', [])
+                elif cb_val:
+                    value = cb_val
+                else:
+                    value = []
+
+            if value:
+                if isinstance(value, (list, tuple)):
+                    for v in value:
+                        if isinstance(v, str) and v.strip():
+                            selected_codes.add(v.strip())
+                else:
+                    if isinstance(value, str) and value.strip():
+                        selected_codes.add(value.strip())
+                section_fields[field_name] = value
+
         if section_fields:
-            review_data[page_info.get('title', page_id)] = {
-                'fields': section_fields,
-                'page_id': page_id
-            }
+            title = page_info.get('title') or page_id.replace('_', ' ').title()
+            raw_sections[title] = section_fields
 
-    # Build li_by_category from calc_result - extracting selected line items
-    li_by_category = {}
-    for item in calc_result.get('items', []):
-        category = item.get('category', 'General')
-        if category not in li_by_category:
-            li_by_category[category] = []
-        
-        li_item = {
-            'line_code': item.get('line_code', ''),
-            'output_title': item.get('output_title', ''),
-            'internal_description': item.get('internal_description', ''),
-            'output_notes': item.get('output_notes', ''),
-            'output_guidance': item.get('output_guidance', ''),
-            'unit_cost': item.get('unit_cost', 0),
-            'units': item.get('units', 1),
-            'line_total': item.get('line_total', 0),
-            'pricing_visibility': item.get('pricing_visibility', 'admin_only'),
-            'category': item.get('category', 'General')
-        }
-        li_by_category[category].append(li_item)
+    # Resolve line codes → human-readable labels AND categories
+    line_code_labels = {}
+    line_code_categories = {}
+    if selected_codes:
+        try:
+            conn = sqlite3.connect(str(Path(__file__).parent / 'template_store.sqlite3'))
+            conn.row_factory = sqlite3.Row
+            placeholders = ','.join('?' for _ in selected_codes)
+            rows = conn.execute(
+                f'SELECT line_code, output_title, internal_description FROM line_items WHERE line_code IN ({placeholders})',
+                list(selected_codes),
+            ).fetchall()
+            for row in rows:
+                label = row['internal_description'] or row['output_title'] or row['line_code']
+                line_code_labels[row['line_code']] = label
+                category = row['output_title'].rstrip(':').strip()
+                line_code_categories[row['line_code']] = category
+            conn.close()
+        except Exception:
+            pass
 
-    # Build TITLE_MAPPING from page_schemas for field name translation
+    # Pass 2: build review_data, grouping line_items_by_category by category
+    review_data = {}
     TITLE_MAPPING = {}
-    for page_id, page_info in page_schemas.get('pages', {}).items():
+    for page_id, page_info in state_pages.items():
+        if page_id in SKIP_PAGES:
+            continue
         compiled_page = compile_builder_beta_page_to_runtime_schema(page_id)
-        if compiled_page:
-            for field in compiled_page.get('fields', []):
-                field_name = field.get('name')
-                display_name = field.get('label', field_name)
-                if field_name and display_name != field_name:
-                    TITLE_MAPPING[field_name] = display_name
+        if not compiled_page:
+            continue
+
+        section = {}
+        for field in compiled_page.get('fields', []):
+            field_name = field.get('name')
+            if not field_name:
+                continue
+
+            raw_value = raw_sections.get(page_info.get('title', ''), {}).get(field_name)
+            if not raw_value:
+                continue
+
+            meta = field.get('builder_beta_meta', {})
+            block_type = meta.get('block_type', field.get('type', 'unknown'))
+
+            label = field.get('label', field_name)
+            clean_label = re.sub(r'^\[beta:[^\]]*\]\s*', '', label) if label else field_name
+            if not clean_label or clean_label == field_name:
+                fallback = field_name
+                for suffix in ('__line_items', '_line_items'):
+                    if fallback.endswith(suffix):
+                        fallback = fallback[: -len(suffix)]
+                if fallback.startswith('li_'):
+                    fallback = fallback[len('li_'):]
+                fallback = fallback.replace('_page', '').replace('_', ' ').strip()
+                clean_label = fallback.title() if fallback else field_name.replace('_', ' ').title()
+            if field_name and clean_label != field_name:
+                TITLE_MAPPING[field_name] = clean_label
+
+            if block_type == 'line_items_by_category' and isinstance(raw_value, list):
+                categories = {}
+                for code in raw_value:
+                    category = line_code_categories.get(code, 'Other')
+                    categories.setdefault(category, []).append(code)
+                section[field_name] = {
+                    '_type': 'line_items_by_category',
+                    'categories': categories,
+                }
+            else:
+                section[field_name] = raw_value if isinstance(raw_value, (list, tuple)) else [raw_value]
+
+        if section:
+            title = page_info.get('title') or page_id.replace('_', ' ').title()
+            review_data[title] = section
+
+    ctx = _get_runtime_quote_context()
 
     return render_template(
         'review.html',
         review_data=review_data,
-        li_by_category=li_by_category,
-        totals_by_group=subtotals,
         TITLE_MAPPING=TITLE_MAPPING,
-        grand_total=grand_total,
+        line_code_labels=line_code_labels,
         **ctx
     )
 
