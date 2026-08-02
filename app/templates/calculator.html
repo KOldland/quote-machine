@@ -1,0 +1,354 @@
+{% extends "index.html" %}
+
+{% block content %}
+<div class="form-container">
+    <h1>Calculator</h1>
+
+    {% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
+
+    {% if result %}
+    <div class="accordion-section">
+        <div class="summary-box">
+            <div class="summary-row">
+                <span>Basic Build</span>
+                <span>£{{ "%.2f"|format(result.basic_build) }}</span>
+            </div>
+            <div class="summary-row">
+                <span>Subtotal (incl. options)</span>
+                <span>£{{ "%.2f"|format(result.subtotal) }}</span>
+            </div>
+            <div class="summary-row total">
+                <span>Schedule Grand Total</span>
+                <span>£{{ "%.2f"|format(result.schedule_grand_total) }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="accordion-section">
+        <button type="button" class="accordion-header" onclick="toggleAccordion('scheduleSection');">
+            Payment Schedule
+        </button>
+        <div id="scheduleSection" class="accordion-body">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Stage</th>
+                        <th class="text-end">Amount</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for stage in result.payment_schedule %}
+                    <tr>
+                        <td>{{ stage.stage }}</td>
+                        <td class="text-end">£{{ "%.2f"|format(stage.amount) }}</td>
+                        <td>{{ stage.note or '' }}</td>
+                    </tr>
+                    {% endfor %}
+                    <tr style="font-weight:bold;border-top:2px solid #dee2e6;">
+                        <td>Schedule Total</td>
+                        <td class="text-end">£{{ "%.2f"|format(result.schedule_total) }}</td>
+                        <td></td>
+                    </tr>
+                    {% if result.has_temp_kitchen %}
+                    <tr>
+                        <td>Temp Kitchen Removal</td>
+                        <td class="text-end">£{{ "%.2f"|format(result.temp_kitchen_cost) }}</td>
+                        <td>Chosen</td>
+                    </tr>
+                    {% endif %}
+                    {% if result.has_glazing %}
+                    <tr>
+                        <td>Complete Glazing Openings</td>
+                        <td class="text-end">£{{ "%.2f"|format(result.glazing_cost) }}</td>
+                        <td>Chosen</td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:1rem 0;">
+        <h2>Line Items</h2>
+        <div>
+            <button type="button" class="btn btn-secondary" id="btn-edit-mode" onclick="toggleEditMode()">Edit Mode</button>
+            <button type="button" class="btn btn-primary" id="btn-save-changes" style="display:none;" onclick="saveAllChanges()">Save Changes</button>
+        </div>
+    </div>
+
+    <div id="line-items-container">
+        {% for group in result.groups %}
+        {% set group_idx = loop.index %}
+        <div class="accordion-section">
+            <button type="button" class="accordion-header" onclick="toggleAccordion('group{{ group_idx }}');">
+                {{ group.name }} — £{{ "%.2f"|format(group.subtotal) }}
+            </button>
+            <div id="group{{ group_idx }}" class="accordion-body">
+                <div class="section-override" style="margin-bottom:1rem;padding:0.75rem;background:#f8f9fa;border-radius:4px;">
+                    <label style="font-weight:600;margin-right:0.5rem;">Section Override (£):</label>
+                    <input type="number" step="0.01" min="0" class="form-control section-override-input"
+                           data-group="{{ group.name }}"
+                           value="{{ "%.2f"|format(group.subtotal) }}"
+                           style="width:150px;display:inline-block;">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="applySectionOverride('{{ group.name }}', this)">Apply</button>
+                </div>
+
+                {% set cats = {} %}
+                {% for item in group.line_items %}
+                {% set _ = cats.update({item.category: (cats.get(item.category, []) + [item])}) %}
+                {% endfor %}
+
+                {% for cat_name, cat_items in cats.items() %}
+                <div class="category-block" style="margin-bottom:1rem;border:1px solid #dee2e6;border-radius:4px;overflow:hidden;">
+                    <button type="button" class="accordion-header"                      onclick="toggleAccordion('group{{ group_idx }}-cat{{ loop.index }}');"
+                            style="background:#e9ecef;font-weight:600;">
+                        {{ cat_name }}
+                        {% set cat_subtotal = cat_items | map(attribute='line_total') | sum %}
+                        — £{{ "%.2f"|format(cat_subtotal) }}
+                    </button>
+                    <div id="group{{ group_idx }}-cat{{ loop.index }}" class="accordion-body" style="padding:0;">
+                        <div style="padding:0.5rem 0.75rem;background:#f8f9fa;border-bottom:1px solid #dee2e6;">
+                            <label style="font-weight:600;margin-right:0.5rem;font-size:0.85rem;">Category Override (£):</label>
+                            <input type="number" step="0.01" min="0" class="form-control category-override-input"
+                                   data-group="{{ group.name }}" data-category="{{ cat_name }}"
+                                   value="{{ "%.2f"|format(cat_subtotal) }}"
+                                   style="width:150px;display:inline-block;">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="applyCategoryOverride('{{ group.name }}', '{{ cat_name }}', this)">Apply</button>
+                        </div>
+                        <table class="table table-sm" style="margin-bottom:0;">
+                            <thead>
+                                <tr>
+                                    <th>Item</th>
+                                    <th class="text-end">Unit Cost</th>
+                                    <th class="text-end">Units</th>
+                                    <th class="text-end">Line Total</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in cat_items %}
+                                <tr class="line-item-row" data-line-code="{{ item.line_code }}" data-item-id="{{ item.id }}">
+                                    <td>{{ item.output_title or item.internal_description or item.line_code }}</td>
+                                    <td class="text-end">
+                                        <input type="number" step="0.01" min="0" class="form-control line-unit-cost"
+                                               data-line-code="{{ item.line_code }}" data-item-id="{{ item.id }}"
+                                               value="{{ "%.2f"|format(item.unit_cost) }}"
+                                               style="width:100px;display:inline-block;text-align:right;">
+                                    </td>
+                                    <td class="text-end">
+                                        <input type="number" step="1" min="0" class="form-control line-units"
+                                               data-line-code="{{ item.line_code }}" data-item-id="{{ item.id }}"
+                                               value="{{ item.units }}"
+                                               style="width:70px;display:inline-block;text-align:right;">
+                                    </td>
+                                    <td class="text-end line-total">£{{ "%.2f"|format(item.line_total) }}</td>
+                                    <td class="text-end">
+                                        {% if session.get('role') == 'admin' %}
+                                        <button type="button" class="btn btn-sm btn-warning"
+                                                onclick="saveAsDbDefault('{{ item.line_code }}', this)">Save as DB Default</button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="button-container">
+        <button type="button" class="btn" onclick="window.history.back()">Previous</button>
+        <button type="button" class="btn btn-primary" onclick="window.location.href='{{ url_for('image_upload_page') }}'">Continue</button>
+    </div>
+</div>
+{% endif %}
+
+<script>
+let editMode = false;
+
+function toggleEditMode() {
+    editMode = !editMode;
+    const btnEdit = document.getElementById('btn-edit-mode');
+    const btnSave = document.getElementById('btn-save-changes');
+    const inputs = document.querySelectorAll('.line-unit-cost, .line-units, .section-override-input, .category-override-input');
+    if (editMode) {
+        btnEdit.textContent = 'Cancel Edit';
+        btnEdit.classList.remove('btn-secondary');
+        btnEdit.classList.add('btn-danger');
+        btnSave.style.display = 'inline-block';
+        inputs.forEach(el => el.removeAttribute('readonly'));
+    } else {
+        btnEdit.textContent = 'Edit Mode';
+        btnEdit.classList.remove('btn-danger');
+        btnEdit.classList.add('btn-secondary');
+        btnSave.style.display = 'none';
+        inputs.forEach(el => el.setAttribute('readonly', 'readonly'));
+    }
+}
+
+function updateLineTotal(row) {
+    const unitCost = parseFloat(row.querySelector('.line-unit-cost').value) || 0;
+    const units = parseFloat(row.querySelector('.line-units').value) || 0;
+    const total = unitCost * units;
+    row.querySelector('.line-total').textContent = '£' + total.toFixed(2);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const unitInputs = document.querySelectorAll('.line-unit-cost, .line-units');
+    unitInputs.forEach(input => {
+        input.setAttribute('readonly', 'readonly');
+        input.addEventListener('change', function() {
+            const row = this.closest('.line-item-row');
+            if (row) updateLineTotal(row);
+        });
+    });
+});
+
+function getCsrfToken() {
+    const el = document.querySelector('input[name="csrf_token"]');
+    return el ? el.value : '';
+}
+
+async function saveAllChanges() {
+    const rows = document.querySelectorAll('.line-item-row');
+    const promises = [];
+    rows.forEach(row => {
+        const lineCode = row.dataset.lineCode;
+        const unitCostInput = row.querySelector('.line-unit-cost');
+        const unitsInput = row.querySelector('.line-units');
+        const unitCost = parseFloat(unitCostInput.value);
+        const units = parseFloat(unitsInput.value);
+        if (!isNaN(unitCost) && unitCost >= 0) {
+            promises.push(
+                fetch('/api/line-item/override', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCsrfToken(),
+                    },
+                    body: JSON.stringify({ line_code: lineCode, unit_cost: unitCost, scope: 'project' }),
+                }).then(r => r.json())
+            );
+        }
+        updateLineTotal(row);
+    });
+    try {
+        const results = await Promise.all(promises);
+        const failed = results.filter(r => !r.success);
+        if (failed.length > 0) {
+            alert('Some changes failed to save: ' + failed.map(f => f.error).join(', '));
+        } else {
+            alert('All changes saved successfully.');
+        }
+    } catch (err) {
+        alert('Error saving changes: ' + err.message);
+    }
+}
+
+function applySectionOverride(groupName, btn) {
+    const input = btn.parentElement.querySelector('.section-override-input');
+    const newSubtotal = parseFloat(input.value);
+    if (isNaN(newSubtotal) || newSubtotal < 0) {
+        alert('Please enter a valid amount.');
+        return;
+    }
+    const groupSection = btn.closest('.accordion-body');
+    const rows = groupSection.querySelectorAll('.line-item-row');
+    const currentSubtotal = Array.from(rows).reduce((sum, row) => {
+        const unitCost = parseFloat(row.querySelector('.line-unit-cost').value) || 0;
+        const units = parseFloat(row.querySelector('.line-units').value) || 0;
+        return sum + (unitCost * units);
+    }, 0);
+    if (currentSubtotal === 0) {
+        alert('Cannot redistribute: section subtotal is zero.');
+        return;
+    }
+    const ratio = newSubtotal / currentSubtotal;
+    rows.forEach(row => {
+        const unitCostInput = row.querySelector('.line-unit-cost');
+        const unitsInput = row.querySelector('.line-units');
+        const unitCost = parseFloat(unitCostInput.value) || 0;
+        const units = parseFloat(unitsInput.value) || 0;
+        const newUnitCost = unitCost * ratio;
+        const newUnits = units;
+        unitCostInput.value = newUnitCost.toFixed(2);
+        unitsInput.value = newUnits.toFixed(2);
+        updateLineTotal(row);
+    });
+}
+
+function applyCategoryOverride(groupName, catName, btn) {
+    const input = btn.parentElement.querySelector('.category-override-input');
+    const newSubtotal = parseFloat(input.value);
+    if (isNaN(newSubtotal) || newSubtotal < 0) {
+        alert('Please enter a valid amount.');
+        return;
+    }
+    const categoryBlock = btn.closest('.category-block');
+    const rows = categoryBlock.querySelectorAll('.line-item-row');
+    const currentSubtotal = Array.from(rows).reduce((sum, row) => {
+        const unitCost = parseFloat(row.querySelector('.line-unit-cost').value) || 0;
+        const units = parseFloat(row.querySelector('.line-units').value) || 0;
+        return sum + (unitCost * units);
+    }, 0);
+    if (currentSubtotal === 0) {
+        alert('Cannot redistribute: category subtotal is zero.');
+        return;
+    }
+    const ratio = newSubtotal / currentSubtotal;
+    rows.forEach(row => {
+        const unitCostInput = row.querySelector('.line-unit-cost');
+        const unitsInput = row.querySelector('.line-units');
+        const unitCost = parseFloat(unitCostInput.value) || 0;
+        const units = parseFloat(unitsInput.value) || 0;
+        const newUnitCost = unitCost * ratio;
+        const newUnits = units;
+        unitCostInput.value = newUnitCost.toFixed(2);
+        unitsInput.value = newUnits.toFixed(2);
+        updateLineTotal(row);
+    });
+}
+
+async function saveAsDbDefault(lineCode, btn) {
+    const row = btn.closest('.line-item-row');
+    const unitCostInput = row.querySelector('.line-unit-cost');
+    const unitCost = parseFloat(unitCostInput.value);
+    if (isNaN(unitCost) || unitCost < 0) {
+        alert('Please enter a valid unit cost before saving as default.');
+        return;
+    }
+    if (!confirm(`Save £${unitCost.toFixed(2)} as the new default price for ${lineCode}? This will affect all future quotes.`)) {
+        return;
+    }
+    try {
+        const resp = await fetch('/api/line-item/override', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken(),
+            },
+            body: JSON.stringify({ line_code: lineCode, unit_cost: unitCost, scope: 'db' }),
+        });
+        const data = await resp.json();
+        if (data.success) {
+            alert('Default price updated successfully.');
+        } else {
+            alert('Failed: ' + data.error);
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+    }
+</script>
+<div style="margin-top: 1rem; text-align: right;">
+    <button type="button" class="btn btn-primary" id="addCalcToQuoteBtn">Add Calculator Summary to Quote</button>
+</div>
+<script src="{{ url_for('static', filename='js/quote_editor_integration.js') }}"></script>
+{% endblock %}

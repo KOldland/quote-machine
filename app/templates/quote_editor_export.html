@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Quote</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+    .block { margin-bottom: 16px; page-break-inside: avoid; }
+    .block-form { margin: 8px 0; padding: 12px; }
+    .block-calculator { margin: 8px 0; padding: 12px; }
+    .block-notes { margin: 8px 0; padding: 12px; }
+    .block-image { margin: 8px 0; padding: 12px; text-align: center; }
+    .block-image img { max-width: 100%; height: auto; }
+    .block-image_group { margin: 8px 0; padding: 12px; }
+    .calc-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    .calc-table th, .calc-table td { border: 1px solid #ccc; padding: 6px; text-align: left; }
+    .calc-table th { background: #f5f5f5; }
+    .grand-total { font-weight: bold; font-size: 1.1em; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  {% for block in blocks %}
+    {% set btype = block.type %}
+    {% set snapshot = block.snapshot %}
+    {% set settings = block.settings %}
+    <div class="block block-{{ btype }}" style="margin-top:{{ settings.margin_top }}px; margin-bottom:{{ settings.margin_bottom }}px; padding:{{ settings.padding }}px;">
+      {% if btype == 'form' %}
+        <p><strong>{{ snapshot.label }}:</strong> {{ snapshot.value }}</p>
+      {% elif btype == 'calculator' %}
+        {% set groups = snapshot.groups %}
+        {% if groups %}
+          <table class="calc-table">
+            <thead><tr><th>Item</th><th>Description</th><th>Total</th><th>Group</th></tr></thead>
+            <tbody>
+              {% for group in groups %}
+                {% for item in group.items %}
+                  <tr>
+                    <td>{{ item.output_title }}</td>
+                    <td>{{ item.internal_description }}</td>
+                    <td>{{ "%.2f"|format(item.line_total) }}</td>
+                    <td>{{ group.name }}</td>
+                  </tr>
+                {% endfor %}
+              {% endfor %}
+            </tbody>
+          </table>
+        {% endif %}
+        <p class="grand-total">Grand Total: {{ "%.2f"|format(snapshot.grand_total) }}</p>
+      {% elif btype == 'notes' %}
+        <div>{{ snapshot.content | safe }}</div>
+      {% elif btype == 'image' %}
+        <img src="{{ snapshot.url }}" alt="Image" />
+      {% elif btype == 'image_group' %}
+        {% set images = snapshot.images %}
+        {% set cols = snapshot.columns | default(2) %}
+        <div style="display: grid; grid-template-columns: repeat({{ cols }}, 1fr); gap: 8px;">
+          {% for img in images %}
+            <div><img src="{{ img.url }}" alt="Image" style="width:100%; height:auto;" /></div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+  {% endfor %}
+</body>
+</html>

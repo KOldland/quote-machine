@@ -169,6 +169,10 @@ function showToast(message, type) {
 
     <br><hr><br>
 
+    <div style="text-align: right; margin-bottom: 1rem;">
+        <button type="button" class="btn btn-primary" id="addImagesToQuoteBtn">Add Uploaded Images to Quote</button>
+    </div>
+
     <!-- Nav Buttons -->
     <div class="button-container">
         {% if previous_page and previous_page != '/' %}
@@ -181,3 +185,4 @@ function showToast(message, type) {
 </div>
 
 {% endblock %}
+<script src="{{ url_for('static', filename='js/quote_editor_integration.js') }}"></script>

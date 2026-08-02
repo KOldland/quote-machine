@@ -25,3 +25,6 @@ flask_session/
 
 # Temporary files
 tmp/
+
+# Archive (test scripts, patches, stale files)
+archive/

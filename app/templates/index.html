@@ -218,6 +218,8 @@
                              style="margin-top:.5rem;display:flex;flex-direction:column;gap:.35rem;">
                             <a href="/form_editor?edit=1" class="btn btn-sidebar"
                                style="width:100%;text-align:left;">Form Editor</a>
+                            <a href="{{ url_for('admin_payment_schedule') }}" class="btn btn-sidebar"
+                               style="width:100%;text-align:left;">Payment Schedule Config</a>
                             <button type="button" id="btn-load-form" class="btn btn-sidebar"
                                     style="width:100%;">Load Form</button>
                             <form method="GET" action="{{ url_for('index') }}" style="width:100%;">
@@ -361,11 +363,10 @@
                         {% endif %}
 
                         <a href="{{ url_for('review') }}" class="nav-link {% if request.endpoint == 'review' %}active{% endif %}">Review</a>
-                        <a href="{{ url_for('dynamic_page', page_id='production') }}" class="nav-link {% if request.endpoint == 'dynamic_page' and request.view_args.get('page_id') == 'production' %}active{% endif %}">Production</a>
-
-                        {% if session.get('role') == 'admin' %}
-                            <a href="{{ url_for('admin_payment_schedule') }}" class="nav-link {% if request.endpoint == 'admin_payment_schedule_config' %}active{% endif %}">Payment Schedule Config</a>
-                        {% endif %}
+                        <a href="{{ url_for('calculator') }}" class="nav-link {% if request.endpoint == 'calculator' %}active{% endif %}">Calculator</a>
+                        <a href="{{ url_for('image_upload_page') }}" class="nav-link {% if request.endpoint == 'image_upload_page' %}active{% endif %}">Image Upload</a>
+                        <a href="{{ url_for('quote_editor') }}" class="nav-link {% if request.endpoint == 'quote_editor' %}active{% endif %}">Quote Editor</a>
+                        <a href="{{ url_for('save_load') }}" class="nav-link {% if request.endpoint == 'save_load' %}active{% endif %}">Save/Load</a>
                     </nav>
 
                     {% if session.get('role') == 'admin' %}
@@ -408,6 +409,7 @@
         </div>
 
         <div class="main-content">
+            {% block styles %}{% endblock %}
             {% block content %}{% endblock %}
         </div>
     </div>

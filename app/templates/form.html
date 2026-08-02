@@ -9,6 +9,11 @@
     {% endif %}
 </div>
 
+<div style="margin-top: 1rem; text-align: right;">
+    <button type="button" class="btn btn-primary" id="addFormToQuoteBtn">Add Current Page to Quote</button>
+</div>
+
 <!-- Load the modern JavaScript after the container so the DOM is ready -->
 <script src="{{ url_for('static', filename='js/builder_beta_modern.js') }}"></script>
+<script src="{{ url_for('static', filename='js/quote_editor_integration.js') }}"></script>
 {% endblock %}

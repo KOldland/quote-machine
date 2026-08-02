@@ -1,0 +1,74 @@
+{% extends "index.html" %}
+
+{% block content %}
+<div class="form-container">
+    <h1>Save / Load</h1>
+
+    {% if saved %}
+    <div class="alert alert-success">Session saved successfully.</div>
+    {% endif %}
+    {% if loaded %}
+    <div class="alert alert-success">Session loaded successfully.</div>
+    {% endif %}
+    {% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
+
+    <div class="accordion-section">
+        <button type="button" class="accordion-header" onclick="toggleAccordion('saveSection');">
+            Save Current Session
+        </button>
+        <div id="saveSection" class="accordion-body">
+            <form method="POST" action="{{ url_for('save_load') }}">
+                <input type="hidden" name="action" value="save">
+                <div class="mb-3">
+                    <label for="save_name" class="form-label">Session Name</label>
+                    <input type="text" class="form-control" id="save_name" name="save_name" placeholder="My Quote Session" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="accordion-section">
+        <button type="button" class="accordion-header" onclick="toggleAccordion('loadSection');">
+            Load Saved Session
+        </button>
+        <div id="loadSection" class="accordion-body">
+            {% if saved_sessions %}
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Saved At</th>
+                        <th class="text-end">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sess in saved_sessions %}
+                    <tr>
+                        <td>{{ sess.name }}</td>
+                        <td>{{ sess.created_at }}</td>
+                        <td class="text-end">
+                            <form method="POST" action="{{ url_for('save_load') }}" style="display:inline;">
+                                <input type="hidden" name="action" value="load">
+                                <input type="hidden" name="session_id" value="{{ sess.id }}">
+                                <button type="submit" class="btn btn-sm btn-primary">Load</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p>No saved sessions found.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="button-container">
+        <button type="button" class="btn" onclick="window.history.back()">Previous</button>
+        <button type="button" class="btn btn-primary" onclick="window.location.href='{{ url_for('review') }}'">Review</button>
+    </div>
+</div>
+{% endblock %}

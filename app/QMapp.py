@@ -1579,24 +1579,60 @@ def session_override():
 
 
 # ── Quote Calculator: admin payment-schedule defaults ────────────────────
-@app.route('/admin/payment-schedule', methods=['POST'])
+@app.route('/admin/payment-schedule', methods=['GET', 'POST'])
 @require_role('admin')
 def admin_payment_schedule():
     """Save default deposit/completion percentages and the allow-override flag."""
     import template_store as ts
-    data = request.get_json(force=True) or {}
-    deposit_pct = float(data.get('deposit_pct', 0.10))
-    completion_pct = float(data.get('completion_pct', 0.10))
-    allow_override = bool(data.get('allow_user_override', False))
+    settings = ts.get_payment_schedule_block('builder_beta')
 
-    # Persist into a dedicated block inside the builder_beta form template
-    ts.upsert_payment_schedule_block(
-        template_key='builder_beta',
-        deposit_pct=deposit_pct,
-        completion_pct=completion_pct,
-        allow_user_override=allow_override,
+    if request.method == 'POST':
+        data = request.get_json(force=True) or {}
+        deposit_pct = float(data.get('deposit_pct', settings.get('deposit_pct', 0.10)))
+        completion_pct = float(data.get('completion_pct', settings.get('completion_pct', 0.10)))
+        allow_override = bool(data.get('allow_user_override', settings.get('allow_user_override', False)))
+        initial_payment_pct = float(data.get('initial_payment_pct', settings.get('initial_payment_pct', 0.05)))
+        initial_payment_floor = float(data.get('initial_payment_floor', settings.get('initial_payment_floor', 3000.0)))
+        initial_payment_ceiling_threshold = float(data.get('initial_payment_ceiling_threshold', settings.get('initial_payment_ceiling_threshold', 70000.0)))
+        initial_payment_floor_above_ceiling = float(data.get('initial_payment_floor_above_ceiling', settings.get('initial_payment_floor_above_ceiling', 4000.0)))
+        completion_meeting_plus_3rd_pct = float(data.get('completion_meeting_plus_3rd_pct', settings.get('completion_meeting_plus_3rd_pct', 0.35)))
+        weekly_payment_count = int(data.get('weekly_payment_count', settings.get('weekly_payment_count', 4)))
+        temp_kitchen_line_code = str(data.get('temp_kitchen_line_code', settings.get('temp_kitchen_line_code', 'pl6')))
+        temp_kitchen_cost = float(data.get('temp_kitchen_cost', settings.get('temp_kitchen_cost', 250.0)))
+        glazing_cost = float(data.get('glazing_cost', settings.get('glazing_cost', 500.0)))
+
+        ts.upsert_payment_schedule_block(
+            template_key='builder_beta',
+            deposit_pct=deposit_pct,
+            completion_pct=completion_pct,
+            allow_user_override=allow_override,
+            initial_payment_pct=initial_payment_pct,
+            initial_payment_floor=initial_payment_floor,
+            initial_payment_ceiling_threshold=initial_payment_ceiling_threshold,
+            initial_payment_floor_above_ceiling=initial_payment_floor_above_ceiling,
+            completion_meeting_plus_3rd_pct=completion_meeting_plus_3rd_pct,
+            weekly_payment_count=weekly_payment_count,
+            temp_kitchen_line_code=temp_kitchen_line_code,
+            temp_kitchen_cost=temp_kitchen_cost,
+            glazing_cost=glazing_cost,
+        )
+        return jsonify({'success': True})
+
+    return render_template(
+        'admin_payment_schedule.html',
+        deposit_pct=settings.get('deposit_pct', 0.10),
+        completion_pct=settings.get('completion_pct', 0.10),
+        allow_user_override=settings.get('allow_user_override', False),
+        initial_payment_pct=settings.get('initial_payment_pct', 0.05),
+        initial_payment_floor=settings.get('initial_payment_floor', 3000.0),
+        initial_payment_ceiling_threshold=settings.get('initial_payment_ceiling_threshold', 70000.0),
+        initial_payment_floor_above_ceiling=settings.get('initial_payment_floor_above_ceiling', 4000.0),
+        completion_meeting_plus_3rd_pct=settings.get('completion_meeting_plus_3rd_pct', 0.35),
+        weekly_payment_count=settings.get('weekly_payment_count', 4),
+        temp_kitchen_line_code=settings.get('temp_kitchen_line_code', 'pl6'),
+        temp_kitchen_cost=settings.get('temp_kitchen_cost', 250.0),
+        glazing_cost=settings.get('glazing_cost', 500.0),
     )
-    return jsonify({'success': True})
 
 
 @app.route('/builder_beta/page_details_save/<page_key>', methods=['POST'])
@@ -3232,6 +3268,169 @@ def review():
         **ctx
     )
 
+
+@app.route('/calculator', methods=['GET', 'POST'])
+def calculator():
+    session['last_visited'] = 'calculator'
+    context = {}
+    template_key = session.get('template_key', 'standard_build')
+    form_data = session.get('data', {})
+    session_overrides = session.get('session_overrides', {})
+    try:
+        from calculator import calculate_quote
+        context['result'] = calculate_quote(template_key, form_data, session_overrides)
+    except Exception as exc:
+        context['error'] = str(exc)
+    return render_template('calculator.html', **context)
+
+
+@app.route('/api/line-item/override', methods=['POST'])
+@csrf.exempt
+def api_line_item_override():
+    data = request.get_json(force=True) or {}
+    line_code = data.get('line_code', '').strip()
+    unit_cost = data.get('unit_cost')
+    scope = data.get('scope', 'project')
+
+    if not line_code or unit_cost is None:
+        return jsonify({'success': False, 'error': 'line_code and unit_cost are required'}), 400
+
+    try:
+        unit_cost = float(unit_cost)
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'error': 'unit_cost must be a number'}), 400
+
+    db_path = str(Path(__file__).parent / 'template_store.sqlite3')
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+
+    row = conn.execute(
+        "SELECT id FROM line_items WHERE line_code = ? LIMIT 1",
+        (line_code,),
+    ).fetchone()
+    conn.close()
+
+    if not row:
+        return jsonify({'success': False, 'error': f'Line item {line_code} not found'}), 404
+
+    item_id = row['id']
+
+    if scope == 'db':
+        if session.get('role') != 'admin':
+            return jsonify({'success': False, 'error': 'Admin role required to update DB defaults'}), 403
+        conn = sqlite3.connect(db_path)
+        conn.execute(
+            "UPDATE line_items SET unit_cost = ? WHERE id = ?",
+            (unit_cost, item_id),
+        )
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'scope': 'db', 'line_code': line_code, 'unit_cost': unit_cost})
+
+    session_overrides = session.setdefault('session_overrides', {})
+    overrides = session_overrides.setdefault('overrides', {})
+    overrides[str(item_id)] = unit_cost
+    session.modified = True
+    return jsonify({'success': True, 'scope': 'project', 'line_code': line_code, 'unit_cost': unit_cost})
+
+
+@app.route('/quote_editor', methods=['GET', 'POST'])
+def quote_editor():
+    session['last_visited'] = 'quote_editor'
+    form_key = session.get('template_key', 'builder_beta')
+    layouts = []
+    try:
+        from template_store import list_quote_editor_layouts
+        layouts = list_quote_editor_layouts(form_key)
+    except Exception:
+        pass
+    return render_template('user_output_editor.html', form_key=form_key, layouts=layouts)
+
+
+@app.route('/save-load', methods=['GET', 'POST'])
+def save_load():
+    session['last_visited'] = 'save_load'
+    db_path = str(Path(__file__).parent / 'template_store.sqlite3')
+    saved = False
+    loaded = False
+    error = None
+    saved_sessions = []
+    conn = sqlite3.connect(db_path)
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS saved_sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            session_data TEXT NOT NULL,
+            user_id INTEGER,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    conn.commit()
+
+    if request.method == 'POST':
+        action = request.form.get('action')
+        if action == 'save':
+            save_name = request.form.get('save_name', '').strip()
+            if not save_name:
+                error = 'Session name is required.'
+            else:
+                data_to_save = {
+                    'data': session.get('data', {}),
+                    'checkbox_data': session.get('checkbox_data', {}),
+                    'session_overrides': session.get('session_overrides', {}),
+                    'template_key': session.get('template_key'),
+                }
+                try:
+                    conn.execute(
+                        'INSERT INTO saved_sessions (name, session_data, user_id) VALUES (?, ?, ?)',
+                        (save_name, json.dumps(data_to_save), session.get('user_id'))
+                    )
+                    conn.commit()
+                    saved = True
+                except Exception as exc:
+                    error = str(exc)
+        elif action == 'load':
+            session_id = request.form.get('session_id')
+            if session_id:
+                row = conn.execute(
+                    'SELECT id, session_data FROM saved_sessions WHERE id = ?', (session_id,)
+                ).fetchone()
+                if row:
+                    try:
+                        loaded_data = json.loads(row['session_data'])
+                        session['data'] = loaded_data.get('data', {})
+                        session['checkbox_data'] = loaded_data.get('checkbox_data', {})
+                        session['session_overrides'] = loaded_data.get('session_overrides', {})
+                        if loaded_data.get('template_key'):
+                            session['template_key'] = loaded_data['template_key']
+                        session.modified = True
+                        loaded = True
+                    except Exception as exc:
+                        error = str(exc)
+    conn.close()
+
+    conn = sqlite3.connect(db_path)
+    rows = conn.execute('SELECT id, name, created_at FROM saved_sessions ORDER BY created_at DESC').fetchall()
+    conn.close()
+    for row in rows:
+        saved_sessions.append({'id': row[0], 'name': row[1], 'created_at': row[2]})
+
+    return render_template(
+        'save_load.html',
+        saved=saved,
+        loaded=loaded,
+        error=error,
+        saved_sessions=saved_sessions,
+    )
+
+
+from quote_editor_routes import quote_editor_bp
+from quote_editor_export import quote_editor_export_bp
+from export_routes import export_bp
+
+app.register_blueprint(quote_editor_bp)
+app.register_blueprint(quote_editor_export_bp)
+app.register_blueprint(export_bp)
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

@@ -89,6 +89,34 @@ def _create_schema(conn: sqlite3.Connection) -> None:
             FOREIGN KEY (form_template_id) REFERENCES form_templates(id) ON DELETE CASCADE
         );
 
+        CREATE TABLE IF NOT EXISTS quote_editor_layouts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            form_template_id INTEGER NOT NULL,
+            name TEXT NOT NULL DEFAULT 'Default',
+            blocks_json TEXT NOT NULL DEFAULT '[]',
+            settings_json TEXT NOT NULL DEFAULT '{}',
+            is_default INTEGER NOT NULL DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (form_template_id) REFERENCES form_templates(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS saved_quotes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            form_template_id INTEGER NOT NULL,
+            layout_id INTEGER,
+            name TEXT NOT NULL,
+            client_name TEXT,
+            notes TEXT,
+            blocks_json TEXT NOT NULL,
+            settings_json TEXT NOT NULL DEFAULT '{}',
+            status TEXT NOT NULL DEFAULT 'draft',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (form_template_id) REFERENCES form_templates(id) ON DELETE CASCADE
+        );
+
         CREATE TABLE IF NOT EXISTS tenants (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             slug TEXT NOT NULL UNIQUE,
@@ -1409,6 +1437,16 @@ def upsert_payment_schedule_block(
     deposit_pct: float = 0.10,
     completion_pct: float = 0.10,
     allow_user_override: bool = False,
+    initial_payment_pct: float = 0.05,
+    initial_payment_floor: float = 3000.0,
+    initial_payment_ceiling_threshold: float = 70000.0,
+    initial_payment_floor_above_ceiling: float = 4000.0,
+    completion_meeting_plus_3rd_pct: float = 0.35,
+    weekly_payment_count: int = 4,
+    optional_line_codes: Optional[list[str]] = None,
+    temp_kitchen_line_code: str = "pl6",
+    temp_kitchen_cost: float = 250.0,
+    glazing_cost: float = 500.0,
     db_path: Optional[Path] = None,
 ) -> None:
     """Persist payment-schedule defaults into form_templates.settings_json."""
@@ -1430,6 +1468,16 @@ def upsert_payment_schedule_block(
         "deposit_pct": deposit_pct,
         "completion_pct": completion_pct,
         "allow_user_override": allow_user_override,
+        "initial_payment_pct": initial_payment_pct,
+        "initial_payment_floor": initial_payment_floor,
+        "initial_payment_ceiling_threshold": initial_payment_ceiling_threshold,
+        "initial_payment_floor_above_ceiling": initial_payment_floor_above_ceiling,
+        "completion_meeting_plus_3rd_pct": completion_meeting_plus_3rd_pct,
+        "weekly_payment_count": weekly_payment_count,
+        "optional_line_codes": optional_line_codes or ["pl6", "glazing"],
+        "temp_kitchen_line_code": temp_kitchen_line_code,
+        "temp_kitchen_cost": temp_kitchen_cost,
+        "glazing_cost": glazing_cost,
     }
 
     conn.execute(
@@ -1461,12 +1509,32 @@ def get_payment_schedule_block(
             "deposit_pct": 0.10,
             "completion_pct": 0.10,
             "allow_user_override": False,
+            "initial_payment_pct": 0.05,
+            "initial_payment_floor": 3000.0,
+            "initial_payment_ceiling_threshold": 70000.0,
+            "initial_payment_floor_above_ceiling": 4000.0,
+            "completion_meeting_plus_3rd_pct": 0.35,
+            "weekly_payment_count": 4,
+            "optional_line_codes": ["pl6", "glazing"],
+            "temp_kitchen_line_code": "pl6",
+            "temp_kitchen_cost": 250.0,
+            "glazing_cost": 500.0,
         })
 
     return {
         "deposit_pct": 0.10,
         "completion_pct": 0.10,
         "allow_user_override": False,
+        "initial_payment_pct": 0.05,
+        "initial_payment_floor": 3000.0,
+        "initial_payment_ceiling_threshold": 70000.0,
+        "initial_payment_floor_above_ceiling": 4000.0,
+        "completion_meeting_plus_3rd_pct": 0.35,
+        "weekly_payment_count": 4,
+        "optional_line_codes": ["pl6", "glazing"],
+        "temp_kitchen_line_code": "pl6",
+        "temp_kitchen_cost": 250.0,
+        "glazing_cost": 500.0,
     }
 
 # ── Output Template CRUD ──────────────────────────────────────────────
@@ -1608,5 +1676,300 @@ def list_output_templates(form_key: str, db_path: Optional[Path] = None) -> list
             (form_key,)
         ).fetchall()
         return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+# ── Quote Editor Layouts ─────────────────────────────────────────────
+
+def _get_form_template_id(conn: sqlite3.Connection, form_key: str) -> Optional[int]:
+    row = conn.execute("SELECT id FROM form_templates WHERE key = ?", (form_key,)).fetchone()
+    return int(row["id"]) if row else None
+
+
+def create_quote_editor_layout(
+    form_key: str,
+    name: str = "Default",
+    blocks_json: Optional[list] = None,
+    is_default: bool = True,
+    db_path: Optional[Path] = None,
+) -> Optional[dict]:
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    try:
+        ft_id = _get_form_template_id(conn, form_key)
+        if not ft_id:
+            return None
+        cur = conn.execute(
+            """
+            INSERT INTO quote_editor_layouts
+                (form_template_id, name, blocks_json, is_default)
+            VALUES (?, ?, ?, ?)
+            """,
+            (ft_id, name, json.dumps(blocks_json or []), 1 if is_default else 0),
+        )
+        conn.commit()
+        row = conn.execute("SELECT * FROM quote_editor_layouts WHERE id = ?", (cur.lastrowid,)).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def get_quote_editor_layout(
+    form_key: str,
+    layout_id: Optional[int] = None,
+    db_path: Optional[Path] = None,
+) -> Optional[dict]:
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    try:
+        ft_id = _get_form_template_id(conn, form_key)
+        if not ft_id:
+            return None
+        if layout_id is not None:
+            row = conn.execute(
+                "SELECT * FROM quote_editor_layouts WHERE id = ? AND form_template_id = ?",
+                (layout_id, ft_id),
+            ).fetchone()
+        else:
+            row = conn.execute(
+                """
+                SELECT * FROM quote_editor_layouts
+                WHERE form_template_id = ? AND is_default = 1
+                ORDER BY created_at DESC LIMIT 1
+                """,
+                (ft_id,),
+            ).fetchone()
+        if not row:
+            return None
+        result = dict(row)
+        result["blocks_json"] = json.loads(result.get("blocks_json", "[]"))
+        result["settings_json"] = json.loads(result.get("settings_json", "{}"))
+        return result
+    finally:
+        conn.close()
+
+
+def list_quote_editor_layouts(form_key: str, db_path: Optional[Path] = None) -> list:
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    try:
+        ft_id = _get_form_template_id(conn, form_key)
+        if not ft_id:
+            return []
+        rows = conn.execute(
+            """
+            SELECT id, name, is_default, created_at, updated_at
+            FROM quote_editor_layouts
+            WHERE form_template_id = ?
+            ORDER BY is_default DESC, updated_at DESC
+            """,
+            (ft_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def update_quote_editor_layout(
+    layout_id: int,
+    form_key: str,
+    blocks_json: Optional[list] = None,
+    settings: Optional[dict] = None,
+    name: Optional[str] = None,
+    db_path: Optional[Path] = None,
+) -> bool:
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    try:
+        sets = []
+        params = []
+        if blocks_json is not None:
+            sets.append("blocks_json = ?")
+            params.append(json.dumps(blocks_json))
+        if settings is not None:
+            sets.append("settings_json = ?")
+            params.append(json.dumps(settings))
+        if name is not None:
+            sets.append("name = ?")
+            params.append(name)
+        if not sets:
+            return False
+        sets.append("updated_at = CURRENT_TIMESTAMP")
+        params.extend([layout_id])
+        conn.execute(
+            f"UPDATE quote_editor_layouts SET {', '.join(sets)} WHERE id = ?",
+            params,
+        )
+        conn.commit()
+        return conn.total_changes > 0
+    finally:
+        conn.close()
+
+
+def delete_quote_editor_layout(layout_id: int, form_key: str, db_path: Optional[Path] = None) -> bool:
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    try:
+        ft_id = _get_form_template_id(conn, form_key)
+        if not ft_id:
+            return False
+        conn.execute(
+            "DELETE FROM quote_editor_layouts WHERE id = ? AND form_template_id = ?",
+            (layout_id, ft_id),
+        )
+        conn.commit()
+        return conn.total_changes > 0
+    finally:
+        conn.close()
+
+
+def duplicate_quote_editor_layout(
+    layout_id: int,
+    form_key: str,
+    new_name: str,
+    db_path: Optional[Path] = None,
+) -> Optional[dict]:
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    try:
+        row = conn.execute("SELECT * FROM quote_editor_layouts WHERE id = ?", (layout_id,)).fetchone()
+        if not row:
+            return None
+        ft_id = _get_form_template_id(conn, form_key)
+        if not ft_id:
+            return None
+        cur = conn.execute(
+            """
+            INSERT INTO quote_editor_layouts
+                (form_template_id, name, blocks_json, settings_json, is_default)
+            VALUES (?, ?, ?, ?, 0)
+            """,
+            (ft_id, new_name, row["blocks_json"], row["settings_json"]),
+        )
+        conn.commit()
+        new_row = conn.execute("SELECT * FROM quote_editor_layouts WHERE id = ?", (cur.lastrowid,)).fetchone()
+        result = dict(new_row) if new_row else None
+        if result:
+            result["blocks_json"] = json.loads(result.get("blocks_json", "[]"))
+            result["settings_json"] = json.loads(result.get("settings_json", "{}"))
+        return result
+    finally:
+        conn.close()
+
+
+# ── Saved Quotes ─────────────────────────────────────────────────────
+
+def save_quote(
+    form_key: str,
+    blocks_json: list,
+    name: str,
+    client_name: str = "",
+    notes: str = "",
+    layout_id: Optional[int] = None,
+    user_id: Optional[int] = None,
+    settings: Optional[dict] = None,
+    db_path: Optional[Path] = None,
+) -> Optional[dict]:
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    try:
+        ft_id = _get_form_template_id(conn, form_key)
+        if not ft_id:
+            return None
+        cur = conn.execute(
+            """
+            INSERT INTO saved_quotes
+                (form_template_id, layout_id, name, client_name, notes, blocks_json, settings_json, user_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                ft_id,
+                layout_id,
+                name,
+                client_name,
+                notes,
+                json.dumps(blocks_json),
+                json.dumps(settings or {}),
+                user_id,
+            ),
+        )
+        conn.commit()
+        row = conn.execute("SELECT * FROM saved_quotes WHERE id = ?", (cur.lastrowid,)).fetchone()
+        result = dict(row) if row else None
+        if result:
+            result["blocks_json"] = json.loads(result.get("blocks_json", "[]"))
+            result["settings_json"] = json.loads(result.get("settings_json", "{}"))
+        return result
+    finally:
+        conn.close()
+
+
+def get_saved_quote(quote_id: int, form_key: str, db_path: Optional[Path] = None) -> Optional[dict]:
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    try:
+        ft_id = _get_form_template_id(conn, form_key)
+        if not ft_id:
+            return None
+        row = conn.execute(
+            "SELECT * FROM saved_quotes WHERE id = ? AND form_template_id = ?",
+            (quote_id, ft_id),
+        ).fetchone()
+        if not row:
+            return None
+        result = dict(row)
+        result["blocks_json"] = json.loads(result.get("blocks_json", "[]"))
+        result["settings_json"] = json.loads(result.get("settings_json", "{}"))
+        return result
+    finally:
+        conn.close()
+
+
+def list_saved_quotes(form_key: str, user_id: Optional[int] = None, db_path: Optional[Path] = None) -> list:
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    try:
+        ft_id = _get_form_template_id(conn, form_key)
+        if not ft_id:
+            return []
+        if user_id is not None:
+            rows = conn.execute(
+                """
+                SELECT id, name, client_name, status, created_at, updated_at
+                FROM saved_quotes
+                WHERE form_template_id = ? AND (user_id = ? OR user_id IS NULL)
+                ORDER BY updated_at DESC
+                """,
+                (ft_id, user_id),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                """
+                SELECT id, name, client_name, status, created_at, updated_at
+                FROM saved_quotes
+                WHERE form_template_id = ?
+                ORDER BY updated_at DESC
+                """,
+                (ft_id,),
+            ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def delete_saved_quote(quote_id: int, form_key: str, db_path: Optional[Path] = None) -> bool:
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    try:
+        ft_id = _get_form_template_id(conn, form_key)
+        if not ft_id:
+            return False
+        conn.execute(
+            "DELETE FROM saved_quotes WHERE id = ? AND form_template_id = ?",
+            (quote_id, ft_id),
+        )
+        conn.commit()
+        return conn.total_changes > 0
     finally:
         conn.close()

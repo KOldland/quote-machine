@@ -1,70 +1,114 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Output Template Editor - Quote Machine</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/user_output_editor.css') }}">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-<body>
-    <!-- Top Toolbar -->
-    <div class="editor-toolbar">
-        <h1>Output Template Editor - {{ form_key }}</h1>
-        <div class="toolbar-actions">
-            <button id="save-btn" class="btn btn-primary">Save Template</button>
-            <button id="reset-btn" class="btn btn-secondary">Reset to Default</button>
-            <a href="/output_editor" class="btn btn-outline">Back to Template List</a>
-        </div>
+{% extends "index.html" %}
+{% block title %}Quote Editor{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/user_output_editor.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="quote-editor">
+  <header class="editor-header">
+    <h1>Quote Editor</h1>
+    <div class="editor-header__controls">
+      <select id="layoutSelector">
+        <option value="">Select Layout...</option>
+        {% for layout in layouts %}
+        <option value="{{ layout.id }}">{{ layout.name }}{% if layout.is_default %} (Default){% endif %}</option>
+        {% endfor %}
+      </select>
+      <button id="saveLayoutBtn" class="btn btn-primary">Save Layout</button>
+      <button id="saveAsTemplateBtn" class="btn btn-secondary">Save As Template</button>
+      <button id="saveQuoteBtn" class="btn btn-primary">Save Quote</button>
+      <button id="loadQuoteBtn" class="btn btn-secondary">Load Quote</button>
+      <button id="exportPdfBtn" class="btn btn-accent">Export PDF</button>
+      <button id="exportDocxBtn" class="btn btn-accent">Export DOCX</button>
     </div>
+  </header>
 
-    <!-- Main Three-Column Layout -->
-    <div class="editor-container">
-        
-        <!-- Left Sidebar: Section Picker -->
-        <div class="sidebar">
-            <h3>Sections</h3>
-                        <div class="section-list">
-                <div class="section-card" data-section="header">
-                    <i class="fa-solid fa-heading section-icon"></i>
-                    <span class="section-name">Header</span>
-                </div>
-                <div class="section-card" data-section="body">
-                    <i class="fa-solid fa-table-list section-icon"></i>
-                    <span class="section-name">Body</span>
-                </div>
-                <div class="section-card" data-section="footer">
-                    <i class="fa-solid fa-shoe-prints section-icon"></i>
-                    <span class="section-name">Footer</span>
-                </div>
-                <div class="section-card" data-section="styling">
-                    <i class="fa-solid fa-code section-icon"></i>
-                    <span class="section-name">Styling (CSS)</span>
-                </div>
-            </div>
-        </div>
+  <div class="editor-body">
+    <aside class="editor-source-column" id="sourceColumn">
+      <h3>Source Mapping</h3>
+      <div id="sourceColumnContent">
+        <p class="editor-source-column__placeholder">Select a block to see its source mapping.</p>
+      </div>
+    </aside>
 
-        <!-- Center: Live Preview Pane -->
-        <div class="preview-pane">
-            <div class="preview-header">
-                <h3>Live Preview</h3>
-                <button id="refresh-preview-btn" class="btn-small">↻ Refresh</button>
-            </div>
-            <div class="preview-container">
-                <iframe id="preview-frame" src="about:blank"></iframe>
-            </div>
-        </div>
+    <main class="editor-canvas" id="editorCanvas">
+      <div class="editor-toolbar" id="editorToolbar">
+        <button type="button" data-command="formatBlock" data-value="H1" title="Heading 1">H1</button>
+        <button type="button" data-command="formatBlock" data-value="H2" title="Heading 2">H2</button>
+        <button type="button" data-command="formatBlock" data-value="P" title="Paragraph">P</button>
+        <button type="button" data-command="bold" title="Bold"><strong>B</strong></button>
+        <button type="button" data-command="italic" title="Italic"><em>I</em></button>
+        <button type="button" data-command="underline" title="Underline"><u>U</u></button>
+        <span class="toolbar-separator"></span>
+        <button type="button" data-command="justifyLeft" title="Align Left">Left</button>
+        <button type="button" data-command="justifyCenter" title="Align Center">Center</button>
+        <button type="button" data-command="justifyRight" title="Align Right">Right</button>
+        <span class="toolbar-separator"></span>
+        <button type="button" id="insertImageToolbarBtn" title="Insert Image">Image</button>
+      </div>
+      <div id="blocksContainer">
+        <p class="editor-canvas__empty">Add blocks from the right panel to get started.</p>
+      </div>
+    </main>
 
-        <!-- Right Panel: Properties Editor -->
-        <div class="properties-panel">
-            <h3>Properties</h3>
-            <div id="properties-content">
-                <!-- Dynamic content based on selected section -->
-                <p class="placeholder-text">Select a section to edit its properties</p>
-            </div>
-        </div>
+    <aside class="editor-insert-panel" id="insertPanel">
+      <h3>Insert Block</h3>
+      <button class="insert-btn" data-block-type="notes">Notes Block</button>
+      <button class="insert-btn" data-block-type="calculator">Calculator Block</button>
+      <button class="insert-btn" data-block-type="image_group">Image Group</button>
+      <button class="insert-btn" data-block-type="image">Image</button>
+
+      <hr>
+
+      <h3>Actions</h3>
+      <button class="action-btn" id="loadLayoutBtn">Load Layout</button>
+      <button class="action-btn" id="deleteLayoutBtn">Delete Layout</button>
+      <button class="action-btn" id="duplicateLayoutBtn">Duplicate Layout</button>
+      <button class="action-btn" id="exportPdfBtn2">Export PDF</button>
+      <button class="action-btn" id="exportDocxBtn2">Export DOCX</button>
+    </aside>
+  </div>
+</div>
+
+<!-- Image Gallery Modal -->
+<div id="imageGalleryModal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <h3>Select Image</h3>
+    <div class="gallery-grid" id="galleryGrid"></div>
+    <div class="gallery-actions">
+      <button id="galleryUploadBtn" class="btn btn-primary">Upload New Image</button>
+      <input type="file" id="galleryFileInput" accept="image/*" style="display:none;">
+      <button id="galleryCloseBtn" class="btn btn-secondary">Close</button>
     </div>
+  </div>
+</div>
 
-    <!-- Scripts -->
-    <script src="{{ url_for('static', filename='js/user_output_editor.js') }}"></script>
-</body>
-</html>
+<!-- Save Quote Modal -->
+<div id="saveQuoteModal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <h3>Save Quote</h3>
+    <label>Quote Name <input type="text" id="quoteNameInput" required></label>
+    <label>Client Name <input type="text" id="clientNameInput"></label>
+    <label>Notes <textarea id="quoteNotesInput"></textarea></label>
+    <div class="modal-actions">
+      <button id="confirmSaveQuoteBtn" class="btn btn-primary">Save</button>
+      <button id="closeSaveQuoteModal" class="btn btn-secondary">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Load Quote Modal -->
+<div id="loadQuoteModal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <h3>Load Quote</h3>
+    <div id="loadQuoteList"></div>
+    <button id="closeLoadQuoteModal" class="btn btn-secondary">Close</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script src="{{ url_for('static', filename='js/user_output_editor.js') }}"></script>
+{% endblock %}

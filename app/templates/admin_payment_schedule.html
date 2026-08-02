@@ -113,6 +113,68 @@
             </div>
 
             <div class="form-group">
+                <label for="initial_payment_pct">Initial Payment % of Basic Build</label>
+                <input type="number" step="0.5" min="0" max="100" id="initial_payment_pct" name="initial_payment_pct"
+                       value="{{ (initial_payment_pct * 100) | int }}" required>
+                <div class="help-text">Percentage of the basic build subtotal collected as the initial deposit.</div>
+            </div>
+
+            <div class="form-group">
+                <label for="initial_payment_floor">Initial Payment Floor (£)</label>
+                <input type="number" step="100" min="0" id="initial_payment_floor" name="initial_payment_floor"
+                       value="{{ initial_payment_floor | int }}" required>
+                <div class="help-text">Minimum initial payment for builds up to the ceiling threshold.</div>
+            </div>
+
+            <div class="form-group">
+                <label for="initial_payment_ceiling_threshold">Ceiling Threshold (£)</label>
+                <input type="number" step="1000" min="0" id="initial_payment_ceiling_threshold" name="initial_payment_ceiling_threshold"
+                       value="{{ initial_payment_ceiling_threshold | int }}" required>
+                <div class="help-text">Basic-build value above which the higher floor applies.</div>
+            </div>
+
+            <div class="form-group">
+                <label for="initial_payment_floor_above_ceiling">Initial Payment Floor Above Ceiling (£)</label>
+                <input type="number" step="100" min="0" id="initial_payment_floor_above_ceiling" name="initial_payment_floor_above_ceiling"
+                       value="{{ initial_payment_floor_above_ceiling | int }}" required>
+                <div class="help-text">Minimum initial payment when the basic build exceeds the ceiling threshold.</div>
+            </div>
+
+            <div class="form-group">
+                <label for="completion_meeting_plus_3rd_pct">Com. Meeting + 3rd Payment % of Basic Build</label>
+                <input type="number" step="0.5" min="0" max="100" id="completion_meeting_plus_3rd_pct" name="completion_meeting_plus_3rd_pct"
+                       value="{{ (completion_meeting_plus_3rd_pct * 100) | int }}" required>
+                <div class="help-text">Combined percentage of the basic build subtotal for the communication meeting and third payment stages.</div>
+            </div>
+
+            <div class="form-group">
+                <label for="weekly_payment_count">Weekly Payment Count</label>
+                <input type="number" step="1" min="1" max="20" id="weekly_payment_count" name="weekly_payment_count"
+                       value="{{ weekly_payment_count | int }}" required>
+                <div class="help-text">Number of equal weekly instalments after the initial deposit and combined meeting/3rd payment.</div>
+            </div>
+
+            <div class="form-group">
+                <label for="temp_kitchen_line_code">Temp Kitchen Line Code</label>
+                <input type="text" id="temp_kitchen_line_code" name="temp_kitchen_line_code"
+                       value="{{ temp_kitchen_line_code }}" required>
+                <div class="help-text">Line code for the temporary kitchen removal option. If not selected, its cost is redistributed into the final payment.</div>
+            </div>
+
+            <div class="form-group">
+                <label for="temp_kitchen_cost">Temp Kitchen Cost (£)</label>
+                <input type="number" step="1" min="0" id="temp_kitchen_cost" name="temp_kitchen_cost"
+                       value="{{ temp_kitchen_cost | int }}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="glazing_cost">Glazing Cost (£)</label>
+                <input type="number" step="1" min="0" id="glazing_cost" name="glazing_cost"
+                       value="{{ glazing_cost | int }}" required>
+                <div class="help-text">Fixed cost added to the final payment when complete glazing openings are included.</div>
+            </div>
+
+            <div class="form-group">
                 <label class="checkbox-label">
                     <input type="checkbox" id="allow_user_override" name="allow_user_override"
                            {% if allow_user_override %}checked{% endif %}>
@@ -145,6 +207,15 @@ document.addEventListener('DOMContentLoaded', function() {
         const depositPct = parseFloat(document.getElementById('deposit_pct').value) || 0;
         const completionPct = parseFloat(document.getElementById('completion_pct').value) || 0;
         const allowOverride = document.getElementById('allow_user_override').checked;
+        const initialPaymentPct = parseFloat(document.getElementById('initial_payment_pct').value) || 0.05;
+        const initialPaymentFloor = parseFloat(document.getElementById('initial_payment_floor').value) || 3000;
+        const initialPaymentCeilingThreshold = parseFloat(document.getElementById('initial_payment_ceiling_threshold').value) || 70000;
+        const initialPaymentFloorAboveCeiling = parseFloat(document.getElementById('initial_payment_floor_above_ceiling').value) || 4000;
+        const completionMeetingPlus3rdPct = parseFloat(document.getElementById('completion_meeting_plus_3rd_pct').value) || 0.35;
+        const weeklyPaymentCount = parseInt(document.getElementById('weekly_payment_count').value, 10) || 4;
+        const tempKitchenLineCode = document.getElementById('temp_kitchen_line_code').value.trim() || 'pl6';
+        const tempKitchenCost = parseFloat(document.getElementById('temp_kitchen_cost').value) || 250;
+        const glazingCost = parseFloat(document.getElementById('glazing_cost').value) || 500;
 
         if (depositPct + completionPct > 100) {
             statusEl.textContent = 'Deposit + Completion cannot exceed 100%';
@@ -167,6 +238,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 deposit_pct: depositPct / 100,
                 completion_pct: completionPct / 100,
                 allow_user_override: allowOverride,
+                initial_payment_pct: initialPaymentPct / 100,
+                initial_payment_floor: initialPaymentFloor,
+                initial_payment_ceiling_threshold: initialPaymentCeilingThreshold,
+                initial_payment_floor_above_ceiling: initialPaymentFloorAboveCeiling,
+                completion_meeting_plus_3rd_pct: completionMeetingPlus3rdPct / 100,
+                weekly_payment_count: weeklyPaymentCount,
+                temp_kitchen_line_code: tempKitchenLineCode,
+                temp_kitchen_cost: tempKitchenCost,
+                glazing_cost: glazingCost,
             }),
         })
         .then(function(res) {
