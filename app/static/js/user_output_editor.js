@@ -11,12 +11,13 @@
     image: { label: 'Image', icon: '🖼️' },
   };
 
-  const PAGE_BREAK_AFTER = new Set(['page_title', 'category_title']);
+  const PAGE_BREAK_AFTER = new Set(['page_title']);
 
   let blocks = [];
   let pages = [];
   let activeBlockId = null;
   let sortableInstance = null;
+  let copiedSettings = null;
 
   function generateId() {
     return 'block_' + Math.random().toString(36).slice(2, 9);
@@ -36,15 +37,28 @@
     return BLOCK_TYPES[type] || { label: type, icon: '📄' };
   }
 
+  function getDefaultSettings(type) {
+    switch (type) {
+      case 'page_title':
+        return { margin_top: 10, margin_bottom: 10, padding: 12, alignment: 'left' };
+      case 'category_title':
+        return { margin_top: 5, margin_bottom: 5, padding: 12, alignment: 'left' };
+      case 'form_question':
+        return { margin_top: 2, margin_bottom: 2, padding: 12, alignment: 'left' };
+      default:
+        return { margin_top: 8, margin_bottom: 8, padding: 12, alignment: 'left' };
+    }
+  }
+
   function rebuildPages() {
     pages = [];
     let currentPage = [];
     blocks.forEach(block => {
-      currentPage.push(block);
-      if (PAGE_BREAK_AFTER.has(block.type)) {
+      if (block.type === 'page_title' && currentPage.length > 0) {
         pages.push(currentPage);
         currentPage = [];
       }
+      currentPage.push(block);
     });
     if (currentPage.length || pages.length === 0) {
       pages.push(currentPage);
@@ -201,7 +215,7 @@
       return;
     }
 
-    const settings = block.settings || { margin_top: 8, margin_bottom: 8, padding: 12, alignment: 'left' };
+    const settings = block.settings || getDefaultSettings(block.type);
     const typeInfo = getTypeInfo(block.type);
 
     let html = `
@@ -287,7 +301,7 @@
       snapshot: blockData.snapshot || {},
       editor_overrides: blockData.editor_overrides || {},
       flags: blockData.flags || { source_dirty: false, editor_dirty: false },
-      settings: blockData.settings || { margin_top: 8, margin_bottom: 8, padding: 12, alignment: 'left' },
+      settings: blockData.settings || getDefaultSettings(blockData.type),
     };
     blocks.push(block);
     rebuildPages();
@@ -636,7 +650,93 @@
     document.getElementById('exportModal').style.display = 'none';
   }
 
+  let previewPageIndex = 0;
+
+  function openPreviewModal() {
+    previewPageIndex = Math.max(0, Math.min(window.__currentPageIndex || 0, pages.length - 1));
+    renderPreviewPage();
+    document.getElementById('previewModal').style.display = 'flex';
+  }
+
+  function closePreviewModal() {
+    document.getElementById('previewModal').style.display = 'none';
+  }
+
+  function renderPreviewPage() {
+    const pageBlocks = pages[previewPageIndex] || [];
+    document.getElementById('previewPageNum').textContent = previewPageIndex + 1;
+    document.getElementById('previewPrevBtn').disabled = previewPageIndex === 0;
+    document.getElementById('previewNextBtn').disabled = previewPageIndex >= pages.length - 1;
+
+    let html = '';
+    pageBlocks.forEach(block => {
+      const snapshot = block.snapshot || {};
+      const settings = block.settings || {};
+      const marginTop = settings.margin_top || 8;
+      const marginBottom = settings.margin_bottom || 8;
+      const padding = settings.padding || 12;
+      const alignment = settings.alignment || 'left';
+
+      if (block.type === 'page_title') {
+        html += `<h1 style="margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:${padding}px; text-align:${alignment};">${escapeHtml(snapshot.title || '')}</h1>`;
+      } else if (block.type === 'category_title') {
+        html += `<h2 style="margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:${padding}px; text-align:${alignment};">${escapeHtml(snapshot.title || '')}</h2>`;
+      } else if (block.type === 'form_question') {
+        const label = escapeHtml(snapshot.label || '');
+        const value = escapeHtml(snapshot.value || '');
+        html += `<div class="preview-question" style="margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:${padding}px; text-align:${alignment};"><strong>${label}:</strong> ${value}</div>`;
+      } else if (block.type === 'calculator') {
+        const groups = snapshot.groups || [];
+        if (groups.length) {
+          html += `<div class="preview-calculator" style="margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:${padding}px;"><table class="calc-table"><thead><tr><th>Item</th><th>Total</th><th>Group</th></tr></thead><tbody>`;
+          groups.forEach(g => {
+            (g.items || []).forEach(item => {
+              html += `<tr><td>${escapeHtml(item.output_title || '')}</td><td>${item.line_total?.toFixed(2) || '0.00'}</td><td>${escapeHtml(g.name || '')}</td></tr>`;
+            });
+          });
+          html += `</tbody></table><p><strong>Grand Total: ${snapshot.grand_total?.toFixed(2) || '0.00'}</strong></p></div>`;
+        }
+      } else if (block.type === 'notes') {
+        html += `<div class="preview-notes" style="margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:${padding}px;">${snapshot.content || ''}</div>`;
+      } else if (block.type === 'image') {
+        const url = snapshot.url || '';
+        if (url) {
+          html += `<div class="preview-image" style="margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:${padding}px; text-align:${alignment};"><img src="${escapeHtml(url)}" style="max-width:100%; height:auto;" /></div>`;
+        }
+      } else if (block.type === 'image_group') {
+        const images = snapshot.images || [];
+        const cols = snapshot.columns || 2;
+        if (images.length) {
+          html += `<div class="preview-image-group" style="margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:${padding}px; display:grid; grid-template-columns: repeat(${cols}, 1fr); gap:8px;">`;
+          images.forEach(img => {
+            html += `<img src="${escapeHtml(img.url || '')}" style="width:100%; height:auto;" />`;
+          });
+          html += `</div>`;
+        }
+      }
+    });
+
+    document.getElementById('previewPage').innerHTML = html || '<p style="text-align:center; color:#999; padding:40px;">This page is empty.</p>';
+  }
+
+  function initPreviewNav() {
+    document.getElementById('previewPrevBtn').addEventListener('click', () => {
+      if (previewPageIndex > 0) {
+        previewPageIndex--;
+        renderPreviewPage();
+      }
+    });
+
+    document.getElementById('previewNextBtn').addEventListener('click', () => {
+      if (previewPageIndex < pages.length - 1) {
+        previewPageIndex++;
+        renderPreviewPage();
+      }
+    });
+  }
+
   function initModals() {
+    document.getElementById('previewBtn').addEventListener('click', openPreviewModal);
     document.getElementById('saveBtn').addEventListener('click', openSaveModal);
     document.getElementById('loadBtn').addEventListener('click', openLoadModal);
     document.getElementById('exportBtn').addEventListener('click', openExportModal);
@@ -652,6 +752,7 @@
     });
     document.getElementById('exportPdfBtn').addEventListener('click', exportPDF);
     document.getElementById('exportDocxBtn').addEventListener('click', exportDOCX);
+    document.getElementById('closePreviewModal').addEventListener('click', closePreviewModal);
 
     document.querySelectorAll('#loadTabs .tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -661,6 +762,85 @@
         document.getElementById('loadQuotesList').style.display = tab === 'quotes' ? 'block' : 'none';
         document.getElementById('loadTemplatesList').style.display = tab === 'templates' ? 'block' : 'none';
       });
+    });
+  }
+
+  function initOutsideClickClose() {
+    document.querySelectorAll('.modal').forEach(modal => {
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          modal.style.display = 'none';
+        }
+      });
+    });
+  }
+
+  function initContextMenu() {
+    const existingMenu = document.getElementById('blockContextMenu');
+    if (existingMenu) existingMenu.remove();
+
+    const menu = document.createElement('div');
+    menu.id = 'blockContextMenu';
+    menu.className = 'block-context-menu';
+    menu.innerHTML = `
+      <div class="context-menu-item" data-action="copy-style">Copy Style</div>
+      <div class="context-menu-item" data-action="paste-style">Paste Style</div>
+    `;
+    document.body.appendChild(menu);
+
+    document.addEventListener('click', () => {
+      menu.style.display = 'none';
+    });
+
+    document.addEventListener('contextmenu', (e) => {
+      const blockEl = e.target.closest('.editor-block');
+      if (!blockEl) {
+        menu.style.display = 'none';
+        return;
+      }
+
+      e.preventDefault();
+      const blockId = blockEl.dataset.blockId;
+      const block = blocks.find(b => b.id === blockId);
+      if (!block) return;
+
+      activeBlockId = blockId;
+      setActiveBlock(blockId);
+
+      menu.querySelectorAll('.context-menu-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const action = item.dataset.action;
+          if (action === 'copy-style') {
+            copiedSettings = {
+              settings: { ...(block.settings || {}) },
+              content: getBlockEl(blockId)?.querySelector('.editor-block__content')?.innerHTML || '',
+            };
+            menu.style.display = 'none';
+          } else if (action === 'paste-style') {
+            if (copiedSettings && activeBlockId) {
+              const targetBlock = blocks.find(b => b.id === activeBlockId);
+              if (targetBlock) {
+                targetBlock.settings = { ...copiedSettings.settings };
+                applyBlockStyles(targetBlock);
+                const targetContent = getBlockEl(activeBlockId)?.querySelector('.editor-block__content');
+                if (targetContent && copiedSettings.content) {
+                  targetContent.innerHTML = copiedSettings.content;
+                  targetBlock.editor_overrides = { ...(targetBlock.editor_overrides || {}), content: copiedSettings.content };
+                  targetBlock.flags = targetBlock.flags || {};
+                  targetBlock.flags.editor_dirty = true;
+                  targetBlock.querySelector('.editor-block__source-dot')?.classList.add('editor-block__source-dot--editor');
+                }
+                updateSettingsPanel();
+              }
+            }
+            menu.style.display = 'none';
+          }
+        });
+      });
+
+      menu.style.display = 'block';
+      menu.style.left = e.clientX + 'px';
+      menu.style.top = e.clientY + 'px';
     });
   }
 
@@ -718,9 +898,12 @@
     refreshLayoutSelector();
     initToolbar();
     initPageNav();
+    initPreviewNav();
     initGallery();
     initInsertButtons();
     initModals();
+    initOutsideClickClose();
+    initContextMenu();
     updateSettingsPanel();
     await checkPendingBlocks();
   }

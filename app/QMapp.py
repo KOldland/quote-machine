@@ -2307,7 +2307,9 @@ def dynamic_page(page_id):
 
         try:
             form_data = session.get('data', {})
-            pending = []
+            existing_pending = session.get('quote_editor_pending_blocks', [])
+            existing_ids = {b.get('id') for b in existing_pending}
+            pending = list(existing_pending)
             seen_pages = set()
             seen_categories = set()
             for block in page.get('blocks', []):
@@ -2331,16 +2333,18 @@ def dynamic_page(page_id):
                     page_title = page.get('title') or page_id.replace('_', ' ').title()
                     if page_title not in seen_pages:
                         seen_pages.add(page_title)
-                        pending.append({
-                            'id': f"form__{page_id}__page_title",
-                            'type': 'page_title',
-                            'source_page': page_id,
-                            'source_block_id': '__page_title__',
-                            'snapshot': {'title': page_title},
-                            'editor_overrides': {},
-                            'flags': { 'source_dirty': False, 'editor_dirty': False },
-                            'settings': { 'margin_top': 8, 'margin_bottom': 8, 'padding': 12, 'alignment': 'left' },
-                        })
+                        page_title_id = f"form__{page_id}__page_title"
+                        if page_title_id not in existing_ids:
+                            pending.append({
+                                'id': page_title_id,
+                                'type': 'page_title',
+                                'source_page': page_id,
+                                'source_block_id': '__page_title__',
+                                'snapshot': {'title': page_title},
+                                'editor_overrides': {},
+                                'flags': { 'source_dirty': False, 'editor_dirty': False },
+                                'settings': { 'margin_top': 10, 'margin_bottom': 10, 'padding': 12, 'alignment': 'left' },
+                            })
 
                     page_categories = {c['name']: c.get('sort_order', 0) for c in page.get('categories', [])}
                     items.sort(key=lambda x: (
@@ -2356,16 +2360,18 @@ def dynamic_page(page_id):
                             current_category = category
                             if category not in seen_categories:
                                 seen_categories.add(category)
-                                pending.append({
-                                    'id': f"form__{page_id}__category__{category}",
-                                    'type': 'category_title',
-                                    'source_page': page_id,
-                                    'source_block_id': '__category_title__',
-                                    'snapshot': {'title': category},
-                                    'editor_overrides': {},
-                                    'flags': { 'source_dirty': False, 'editor_dirty': False },
-                                    'settings': { 'margin_top': 8, 'margin_bottom': 8, 'padding': 12, 'alignment': 'left' },
-                                })
+                                category_id = f"form__{page_id}__category__{category}"
+                                if category_id not in existing_ids:
+                                    pending.append({
+                                        'id': category_id,
+                                        'type': 'category_title',
+                                        'source_page': page_id,
+                                        'source_block_id': '__category_title__',
+                                        'snapshot': {'title': category},
+                                        'editor_overrides': {},
+                                        'flags': { 'source_dirty': False, 'editor_dirty': False },
+                                        'settings': { 'margin_top': 5, 'margin_bottom': 5, 'padding': 12, 'alignment': 'left' },
+                                    })
 
                         output_title = item.get('output_title', '') or item.get('internal_description', '') or item.get('line_code', '')
                         output_notes = item.get('output_guidance', '') or item.get('output_notes', '')
@@ -2374,51 +2380,57 @@ def dynamic_page(page_id):
                             parts.append(output_notes)
                         value_text = ' '.join(parts)
 
-                        pending.append({
-                            'id': f"form__{page_id}__{field_name}__{item.get('line_code', '')}",
-                            'type': 'form_question',
-                            'source_page': page_id,
-                            'source_block_id': str(field_name),
-                            'snapshot': {
-                                'label': output_title,
-                                'value': value_text,
-                                'line_code': item.get('line_code', ''),
-                                'category': category,
-                            },
-                            'editor_overrides': {},
-                            'flags': { 'source_dirty': False, 'editor_dirty': False },
-                            'settings': { 'margin_top': 8, 'margin_bottom': 8, 'padding': 12, 'alignment': 'left' },
-                        })
+                        question_id = f"form__{page_id}__{field_name}__{item.get('line_code', '')}"
+                        if question_id not in existing_ids:
+                            pending.append({
+                                'id': question_id,
+                                'type': 'form_question',
+                                'source_page': page_id,
+                                'source_block_id': str(field_name),
+                                'snapshot': {
+                                    'label': output_title,
+                                    'value': value_text,
+                                    'line_code': item.get('line_code', ''),
+                                    'category': category,
+                                },
+                                'editor_overrides': {},
+                                'flags': { 'source_dirty': False, 'editor_dirty': False },
+                                'settings': { 'margin_top': 2, 'margin_bottom': 2, 'padding': 12, 'alignment': 'left' },
+                            })
                     continue
 
                 if block['block_type'] in ('checkbox_group', 'text_input', 'number_currency_input', 'dropdown_select'):
                     page_title = page.get('title') or page_id.replace('_', ' ').title()
                     if page_title not in seen_pages:
                         seen_pages.add(page_title)
-                        pending.append({
-                            'id': f"form__{page_id}__page_title",
-                            'type': 'page_title',
-                            'source_page': page_id,
-                            'source_block_id': '__page_title__',
-                            'snapshot': {'title': page_title},
-                            'editor_overrides': {},
-                            'flags': { 'source_dirty': False, 'editor_dirty': False },
-                            'settings': { 'margin_top': 8, 'margin_bottom': 8, 'padding': 12, 'alignment': 'left' },
-                        })
+                        page_title_id = f"form__{page_id}__page_title"
+                        if page_title_id not in existing_ids:
+                            pending.append({
+                                'id': page_title_id,
+                                'type': 'page_title',
+                                'source_page': page_id,
+                                'source_block_id': '__page_title__',
+                                'snapshot': {'title': page_title},
+                                'editor_overrides': {},
+                                'flags': { 'source_dirty': False, 'editor_dirty': False },
+                                'settings': { 'margin_top': 10, 'margin_bottom': 10, 'padding': 12, 'alignment': 'left' },
+                            })
 
-                    pending.append({
-                        'id': f"form__{page_id}__{field_name}",
-                        'type': 'form_question',
-                        'source_page': page_id,
-                        'source_block_id': str(field_name),
-                        'snapshot': {
-                            'label': block.get('standard', {}).get('label', field_name),
-                            'value': raw_value if isinstance(raw_value, str) else ', '.join(raw_value),
-                        },
-                        'editor_overrides': {},
-                        'flags': { 'source_dirty': False, 'editor_dirty': False },
-                        'settings': { 'margin_top': 8, 'margin_bottom': 8, 'padding': 12, 'alignment': 'left' },
-                    })
+                        question_id = f"form__{page_id}__{field_name}"
+                        if question_id not in existing_ids:
+                            pending.append({
+                                'id': question_id,
+                                'type': 'form_question',
+                                'source_page': page_id,
+                                'source_block_id': str(field_name),
+                                'snapshot': {
+                                    'label': block.get('standard', {}).get('label', field_name),
+                                    'value': raw_value if isinstance(raw_value, str) else ', '.join(raw_value),
+                                },
+                                'editor_overrides': {},
+                                'flags': { 'source_dirty': False, 'editor_dirty': False },
+                                'settings': { 'margin_top': 2, 'margin_bottom': 2, 'padding': 12, 'alignment': 'left' },
+                            })
             session['quote_editor_pending_blocks'] = pending
             session.modified = True
         except Exception:

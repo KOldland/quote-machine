@@ -288,7 +288,7 @@ def add_form_block():
                     'snapshot': {'title': page_title},
                     'editor_overrides': {},
                     'flags': { 'source_dirty': False, 'editor_dirty': False },
-                    'settings': { 'margin_top': 8, 'margin_bottom': 8, 'padding': 12, 'alignment': 'left' },
+                    'settings': { 'margin_top': 10, 'margin_bottom': 10, 'padding': 12, 'alignment': 'left' },
                 })
 
             page_categories = {c['name']: c.get('sort_order', 0) for c in page.get('categories', [])}
@@ -313,7 +313,7 @@ def add_form_block():
                             'snapshot': {'title': category},
                             'editor_overrides': {},
                             'flags': { 'source_dirty': False, 'editor_dirty': False },
-                            'settings': { 'margin_top': 8, 'margin_bottom': 8, 'padding': 12, 'alignment': 'left' },
+                            'settings': { 'margin_top': 5, 'margin_bottom': 5, 'padding': 12, 'alignment': 'left' },
                         })
 
                 output_title = item.get('output_title', '') or item.get('internal_description', '') or item.get('line_code', '')
@@ -336,7 +336,7 @@ def add_form_block():
                     },
                     'editor_overrides': {},
                     'flags': { 'source_dirty': False, 'editor_dirty': False },
-                    'settings': { 'margin_top': 8, 'margin_bottom': 8, 'padding': 12, 'alignment': 'left' },
+                    'settings': { 'margin_top': 2, 'margin_bottom': 2, 'padding': 12, 'alignment': 'left' },
                 })
             continue
 
@@ -352,7 +352,7 @@ def add_form_block():
                     'snapshot': {'title': page_title},
                     'editor_overrides': {},
                     'flags': { 'source_dirty': False, 'editor_dirty': False },
-                    'settings': { 'margin_top': 8, 'margin_bottom': 8, 'padding': 12, 'alignment': 'left' },
+                    'settings': { 'margin_top': 10, 'margin_bottom': 10, 'padding': 12, 'alignment': 'left' },
                 })
 
             snapshot_blocks.append({
@@ -366,7 +366,7 @@ def add_form_block():
                 },
                 'editor_overrides': {},
                 'flags': { 'source_dirty': False, 'editor_dirty': False },
-                'settings': { 'margin_top': 8, 'margin_bottom': 8, 'padding': 12, 'alignment': 'left' },
+                'settings': { 'margin_top': 2, 'margin_bottom': 2, 'padding': 12, 'alignment': 'left' },
             })
     return jsonify({'success': True, 'blocks': snapshot_blocks})
 

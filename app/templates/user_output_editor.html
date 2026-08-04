@@ -11,6 +11,7 @@
   <header class="editor-header">
     <h1>Quote Editor</h1>
     <div class="editor-header__controls">
+      <button id="previewBtn" class="btn btn-secondary">Preview</button>
       <button id="saveBtn" class="btn btn-primary">Save</button>
       <button id="loadBtn" class="btn btn-secondary">Load</button>
       <button id="exportBtn" class="btn btn-accent">Export</button>
@@ -117,6 +118,24 @@
       <span class="export-icon">&#128220;</span> Export as DOCX
     </button>
     <button id="closeExportModal" class="btn btn-secondary" style="margin-top:12px;">Cancel</button>
+  </div>
+</div>
+
+<!-- Preview Modal -->
+<div id="previewModal" class="modal" style="display:none;">
+  <div class="modal-content preview-modal-content">
+    <h3>Page Preview</h3>
+    <div class="preview-toolbar">
+      <button type="button" class="doc-nav-btn" id="previewPrevBtn" title="Previous page">&#8592; Previous</button>
+      <span class="doc-nav-info">Page <span id="previewPageNum">1</span></span>
+      <button type="button" class="doc-nav-btn" id="previewNextBtn" title="Next page">Next &#8594;</button>
+    </div>
+    <div class="preview-viewport" id="previewViewport">
+      <div class="preview-page" id="previewPage">
+        <!-- Rendered preview content -->
+      </div>
+    </div>
+    <button id="closePreviewModal" class="btn btn-secondary" style="margin-top:12px;">Close</button>
   </div>
 </div>
 
