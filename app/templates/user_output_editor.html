@@ -11,46 +11,59 @@
   <header class="editor-header">
     <h1>Quote Editor</h1>
     <div class="editor-header__controls">
-      <select id="layoutSelector">
-        <option value="">Select Layout...</option>
-        {% for layout in layouts %}
-        <option value="{{ layout.id }}">{{ layout.name }}{% if layout.is_default %} (Default){% endif %}</option>
-        {% endfor %}
-      </select>
-      <button id="saveLayoutBtn" class="btn btn-primary">Save Layout</button>
-      <button id="saveAsTemplateBtn" class="btn btn-secondary">Save As Template</button>
-      <button id="saveQuoteBtn" class="btn btn-primary">Save Quote</button>
-      <button id="loadQuoteBtn" class="btn btn-secondary">Load Quote</button>
-      <button id="exportPdfBtn" class="btn btn-accent">Export PDF</button>
-      <button id="exportDocxBtn" class="btn btn-accent">Export DOCX</button>
+      <button id="saveBtn" class="btn btn-primary">Save</button>
+      <button id="loadBtn" class="btn btn-secondary">Load</button>
+      <button id="exportBtn" class="btn btn-accent">Export</button>
     </div>
   </header>
 
   <div class="editor-body">
-    <aside class="editor-source-column" id="sourceColumn">
-      <h3>Source Mapping</h3>
-      <div id="sourceColumnContent">
-        <p class="editor-source-column__placeholder">Select a block to see its source mapping.</p>
+    <aside class="editor-settings-column" id="settingsColumn">
+      <h3>Block Settings</h3>
+      <div id="settingsPanel">
+        <p class="editor-settings-placeholder">Select a block to edit its settings.</p>
       </div>
     </aside>
 
     <main class="editor-canvas" id="editorCanvas">
       <div class="editor-toolbar" id="editorToolbar">
-        <button type="button" data-command="formatBlock" data-value="H1" title="Heading 1">H1</button>
-        <button type="button" data-command="formatBlock" data-value="H2" title="Heading 2">H2</button>
-        <button type="button" data-command="formatBlock" data-value="P" title="Paragraph">P</button>
+        <select id="textTypeSelect" title="Text type">
+          <option value="P">Paragraph</option>
+          <option value="H1">Heading 1</option>
+          <option value="H2">Heading 2</option>
+          <option value="H3">Heading 3</option>
+          <option value="NOTE">Note</option>
+          <option value="GUIDE">Guide</option>
+        </select>
         <button type="button" data-command="bold" title="Bold"><strong>B</strong></button>
         <button type="button" data-command="italic" title="Italic"><em>I</em></button>
         <button type="button" data-command="underline" title="Underline"><u>U</u></button>
+        <button type="button" data-command="strikeThrough" title="Strikethrough"><s>S</s></button>
         <span class="toolbar-separator"></span>
-        <button type="button" data-command="justifyLeft" title="Align Left">Left</button>
-        <button type="button" data-command="justifyCenter" title="Align Center">Center</button>
-        <button type="button" data-command="justifyRight" title="Align Right">Right</button>
+        <button type="button" data-command="justifyLeft" title="Align Left">&#8676;</button>
+        <button type="button" data-command="justifyCenter" title="Align Center">&#8596;</button>
+        <button type="button" data-command="justifyRight" title="Align Right">&#8677;</button>
         <span class="toolbar-separator"></span>
-        <button type="button" id="insertImageToolbarBtn" title="Insert Image">Image</button>
+        <button type="button" id="insertUnorderedList" title="Bullet List">&#8226; List</button>
+        <button type="button" id="insertOrderedList" title="Numbered List">1. List</button>
+        <span class="toolbar-separator"></span>
+        <button type="button" id="insertImageToolbarBtn" title="Insert Image">&#128247;</button>
       </div>
-      <div id="blocksContainer">
-        <p class="editor-canvas__empty">Add blocks from the right panel to get started.</p>
+
+      <div class="document-viewport" id="documentViewport">
+        <div class="document-pages" id="documentPages">
+          <div class="document-page" id="documentPage">
+            <div id="blocksContainer">
+              <p class="editor-canvas__empty">Add blocks from the right panel to get started.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="document-nav" id="documentNav">
+        <button type="button" class="doc-nav-btn" id="prevPageBtn" title="Previous page">&#8592; Previous</button>
+        <span class="doc-nav-info">Page <span id="currentPageNum">1</span></span>
+        <button type="button" class="doc-nav-btn" id="nextPageBtn" title="Next page">Next &#8594;</button>
       </div>
     </main>
 
@@ -60,16 +73,50 @@
       <button class="insert-btn" data-block-type="calculator">Calculator Block</button>
       <button class="insert-btn" data-block-type="image_group">Image Group</button>
       <button class="insert-btn" data-block-type="image">Image</button>
-
-      <hr>
-
-      <h3>Actions</h3>
-      <button class="action-btn" id="loadLayoutBtn">Load Layout</button>
-      <button class="action-btn" id="deleteLayoutBtn">Delete Layout</button>
-      <button class="action-btn" id="duplicateLayoutBtn">Duplicate Layout</button>
-      <button class="action-btn" id="exportPdfBtn2">Export PDF</button>
-      <button class="action-btn" id="exportDocxBtn2">Export DOCX</button>
     </aside>
+  </div>
+</div>
+
+<!-- Save Modal -->
+<div id="saveModal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <h3>Save</h3>
+    <label>Name <input type="text" id="saveNameInput" placeholder="My Quote"></label>
+    <label>
+      <input type="checkbox" id="saveAsTemplateCheckbox"> Save as Template
+    </label>
+    <div class="modal-actions">
+      <button id="confirmSaveBtn" class="btn btn-primary">Save</button>
+      <button id="closeSaveModal" class="btn btn-secondary">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Load Modal -->
+<div id="loadModal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <h3>Load</h3>
+    <div id="loadTabs">
+      <button class="tab-btn active" data-tab="quotes">Saved Quotes</button>
+      <button class="tab-btn" data-tab="templates">Blank Templates</button>
+    </div>
+    <div id="loadQuotesList" class="tab-content"></div>
+    <div id="loadTemplatesList" class="tab-content" style="display:none;"></div>
+    <button id="closeLoadModal" class="btn btn-secondary" style="margin-top:12px;">Close</button>
+  </div>
+</div>
+
+<!-- Export Modal -->
+<div id="exportModal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <h3>Export</h3>
+    <button class="export-option" id="exportPdfBtn">
+      <span class="export-icon">&#128196;</span> Export as PDF
+    </button>
+    <button class="export-option" id="exportDocxBtn">
+      <span class="export-icon">&#128220;</span> Export as DOCX
+    </button>
+    <button id="closeExportModal" class="btn btn-secondary" style="margin-top:12px;">Cancel</button>
   </div>
 </div>
 
@@ -86,29 +133,10 @@
   </div>
 </div>
 
-<!-- Save Quote Modal -->
-<div id="saveQuoteModal" class="modal" style="display:none;">
-  <div class="modal-content">
-    <h3>Save Quote</h3>
-    <label>Quote Name <input type="text" id="quoteNameInput" required></label>
-    <label>Client Name <input type="text" id="clientNameInput"></label>
-    <label>Notes <textarea id="quoteNotesInput"></textarea></label>
-    <div class="modal-actions">
-      <button id="confirmSaveQuoteBtn" class="btn btn-primary">Save</button>
-      <button id="closeSaveQuoteModal" class="btn btn-secondary">Cancel</button>
-    </div>
-  </div>
-</div>
-
-<!-- Load Quote Modal -->
-<div id="loadQuoteModal" class="modal" style="display:none;">
-  <div class="modal-content">
-    <h3>Load Quote</h3>
-    <div id="loadQuoteList"></div>
-    <button id="closeLoadQuoteModal" class="btn btn-secondary">Close</button>
-  </div>
-</div>
-
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script>
+  window.__quoteEditorPendingBlocks = {{ pending_blocks | tojson }};
+  window.__quoteEditorPendingBlock = {{ pending_block | tojson if pending_block is defined else 'null' }};
+</script>
 <script src="{{ url_for('static', filename='js/user_output_editor.js') }}"></script>
 {% endblock %}

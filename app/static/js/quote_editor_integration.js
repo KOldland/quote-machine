@@ -1,33 +1,19 @@
 (function () {
   'use strict';
 
-  async function addFormPageToQuote() {
-    const pageKey = document.body.dataset.pageKey || new URLSearchParams(window.location.search).get('page');
-    if (!pageKey) {
-      alert('Unable to determine current page key.');
-      return;
-    }
-    try {
-      const res = await fetch(`/quote_editor/add-form-block?page=${encodeURIComponent(pageKey)}`);
-      const data = await res.json();
-      if (data.success) {
-        sessionStorage.setItem('quote_editor_pending_blocks', JSON.stringify(data.blocks));
-        window.location.href = '/quote_editor';
-      } else {
-        alert('Failed: ' + (data.error || 'unknown'));
-      }
-    } catch (err) {
-      alert('Failed to add page to quote.');
-    }
-  }
-
   async function addCalcToQuote() {
     try {
       const res = await fetch('/quote_editor/add-calc-block');
       const data = await res.json();
       if (data.success) {
-        sessionStorage.setItem('quote_editor_pending_block', JSON.stringify(data.block));
-        window.location.href = '/quote_editor';
+        const store = await fetch('/quote_editor/set-pending-block', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ block: data.block }),
+        }).then(r => r.json());
+        if (store.success) {
+          window.location.href = '/quote_editor';
+        }
       } else {
         alert('Failed: ' + (data.error || 'unknown'));
       }
@@ -41,8 +27,14 @@
       const res = await fetch('/quote_editor/add-image-group-block');
       const data = await res.json();
       if (data.success) {
-        sessionStorage.setItem('quote_editor_pending_block', JSON.stringify(data.block));
-        window.location.href = '/quote_editor';
+        const store = await fetch('/quote_editor/set-pending-block', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ block: data.block }),
+        }).then(r => r.json());
+        if (store.success) {
+          window.location.href = '/quote_editor';
+        }
       } else {
         alert('Failed: ' + (data.error || 'unknown'));
       }
@@ -52,7 +44,6 @@
   }
 
   function init() {
-    document.getElementById('addFormToQuoteBtn')?.addEventListener('click', addFormPageToQuote);
     document.getElementById('addCalcToQuoteBtn')?.addEventListener('click', addCalcToQuote);
     document.getElementById('addImagesToQuoteBtn')?.addEventListener('click', addImagesToQuote);
   }

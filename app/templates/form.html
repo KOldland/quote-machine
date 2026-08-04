@@ -1,16 +1,12 @@
 {% extends "index.html" %}
 
 {% block content %}
-<div class="form-builder-container">
+<div class="form-builder-container" data-page-key="{{ current_page_id }}">
     {% if edit_mode %}
         {% include "partials/form_editor.html" %}
     {% else %}
         {% include "partials/form_preview.html" %}
     {% endif %}
-</div>
-
-<div style="margin-top: 1rem; text-align: right;">
-    <button type="button" class="btn btn-primary" id="addFormToQuoteBtn">Add Current Page to Quote</button>
 </div>
 
 <!-- Load the modern JavaScript after the container so the DOM is ready -->

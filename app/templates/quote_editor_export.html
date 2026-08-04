@@ -6,7 +6,9 @@
   <style>
     body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
     .block { margin-bottom: 16px; page-break-inside: avoid; }
-    .block-form { margin: 8px 0; padding: 12px; }
+    .block-page_title { margin: 8px 0; padding: 12px; }
+    .block-category_title { margin: 8px 0; padding: 12px; }
+    .block-form_question { margin: 8px 0; padding: 12px; }
     .block-calculator { margin: 8px 0; padding: 12px; }
     .block-notes { margin: 8px 0; padding: 12px; }
     .block-image { margin: 8px 0; padding: 12px; text-align: center; }
@@ -24,7 +26,11 @@
     {% set snapshot = block.snapshot %}
     {% set settings = block.settings %}
     <div class="block block-{{ btype }}" style="margin-top:{{ settings.margin_top }}px; margin-bottom:{{ settings.margin_bottom }}px; padding:{{ settings.padding }}px;">
-      {% if btype == 'form' %}
+      {% if btype == 'page_title' %}
+        <h1>{{ snapshot.title }}</h1>
+      {% elif btype == 'category_title' %}
+        <h2>{{ snapshot.title }}</h2>
+      {% elif btype == 'form_question' %}
         <p><strong>{{ snapshot.label }}:</strong> {{ snapshot.value }}</p>
       {% elif btype == 'calculator' %}
         {% set groups = snapshot.groups %}

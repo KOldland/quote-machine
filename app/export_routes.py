@@ -4,10 +4,6 @@ import requests
 from urllib.parse import urlparse
 import tempfile, os
 from flask import Blueprint, render_template, send_file, session, abort
-import weasyprint
-from docx import Document
-from docx.shared import Pt, Inches, RGBColor
-from docx.enum.text import WD_ALIGN_PARAGRAPH
 from template_store import get_output_template, create_default_output_template
 from calculator import calculate_quote
 
@@ -44,7 +40,8 @@ def export_pdf():
     )
 
     # 5️⃣ Convert HTML → PDF with WeasyPrint
-    pdf_bytes = weasyprint.HTML(string=rendered_html).write_pdf()
+    from weasyprint import HTML
+    pdf_bytes = HTML(string=rendered_html).write_pdf()
 
     # 6️⃣ Stream the PDF back to the client
     return send_file(
@@ -80,6 +77,10 @@ def export_docx():
     # ---------------------------------------------------------------------
     # Build DOCX document
     # ---------------------------------------------------------------------
+    from docx import Document
+    from docx.shared import Pt, Inches, RGBColor
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+
     doc = Document()
 
     # ---- Header ----------------------------------------------------------

@@ -28,6 +28,7 @@ from template_store import (
     delete_saved_quote,
     load_template_payload,
     _get_form_template_id,
+    get_line_items_by_codes,
 )
 
 quote_editor_bp = Blueprint('quote_editor', __name__)
@@ -254,33 +255,119 @@ def add_form_block():
     page = pages.get(page_key, {})
     blocks = page.get('blocks', page.get('fields', []))
     form_data = session.get('data', {})
+    checkbox_data = session.get('checkbox_data', {})
     snapshot_blocks = []
+    seen_pages = set()
+    seen_categories = set()
     for b in blocks:
+        block_type = b.get('block_type', b.get('type', ''))
         storage = b.get('storage', {})
         key = storage.get('key', str(b.get('id', '')))
-        value = form_data.get(key, '')
-        snapshot_blocks.append({
-            'id': f"form__{page_key}__{b.get('id', key)}",
-            'type': 'form',
-            'source_page': page_key,
-            'source_block_id': str(b.get('id', key)),
-            'snapshot': {
-                'label': b.get('label', ''),
-                'value': value,
-                'captured_at': None,
-            },
-            'editor_overrides': {},
-            'flags': {
-                'source_dirty': False,
-                'editor_dirty': False,
-            },
-            'settings': {
-                'margin_top': 8,
-                'margin_bottom': 8,
-                'padding': 12,
-                'alignment': 'left',
-            },
-        })
+        raw_value = checkbox_data.get(key) or form_data.get(key) or ''
+        if isinstance(raw_value, dict):
+            raw_value = raw_value.get('preselected', [])
+        if not raw_value:
+            continue
+
+        if block_type == 'line_items_by_category' and isinstance(raw_value, list):
+            selected_codes = [v for v in raw_value if isinstance(v, str) and v.strip()]
+            if not selected_codes:
+                continue
+            items = get_line_items_by_codes(selected_codes)
+            if not items:
+                continue
+
+            page_title = page.get('title') or page_key.replace('_', ' ').title()
+            if page_title not in seen_pages:
+                seen_pages.add(page_title)
+                snapshot_blocks.append({
+                    'id': f"form__{page_key}__page_title",
+                    'type': 'page_title',
+                    'source_page': page_key,
+                    'source_block_id': '__page_title__',
+                    'snapshot': {'title': page_title},
+                    'editor_overrides': {},
+                    'flags': { 'source_dirty': False, 'editor_dirty': False },
+                    'settings': { 'margin_top': 8, 'margin_bottom': 8, 'padding': 12, 'alignment': 'left' },
+                })
+
+            page_categories = {c['name']: c.get('sort_order', 0) for c in page.get('categories', [])}
+            items.sort(key=lambda x: (
+                page_categories.get(x.get('category', ''), 999),
+                x.get('sort_order', 0),
+                x.get('line_code', '')
+            ))
+
+            current_category = None
+            for item in items:
+                category = item.get('category', '')
+                if category and category != current_category:
+                    current_category = category
+                    if category not in seen_categories:
+                        seen_categories.add(category)
+                        snapshot_blocks.append({
+                            'id': f"form__{page_key}__category__{category}",
+                            'type': 'category_title',
+                            'source_page': page_key,
+                            'source_block_id': '__category_title__',
+                            'snapshot': {'title': category},
+                            'editor_overrides': {},
+                            'flags': { 'source_dirty': False, 'editor_dirty': False },
+                            'settings': { 'margin_top': 8, 'margin_bottom': 8, 'padding': 12, 'alignment': 'left' },
+                        })
+
+                output_title = item.get('output_title', '') or item.get('internal_description', '') or item.get('line_code', '')
+                output_notes = item.get('output_guidance', '') or item.get('output_notes', '')
+                parts = [output_title]
+                if output_notes:
+                    parts.append(output_notes)
+                value_text = ' '.join(parts)
+
+                snapshot_blocks.append({
+                    'id': f"form__{page_key}__{key}__{item.get('line_code', '')}",
+                    'type': 'form_question',
+                    'source_page': page_key,
+                    'source_block_id': str(key),
+                    'snapshot': {
+                        'label': output_title,
+                        'value': value_text,
+                        'line_code': item.get('line_code', ''),
+                        'category': category,
+                    },
+                    'editor_overrides': {},
+                    'flags': { 'source_dirty': False, 'editor_dirty': False },
+                    'settings': { 'margin_top': 8, 'margin_bottom': 8, 'padding': 12, 'alignment': 'left' },
+                })
+            continue
+
+        if block_type in ('checkbox_group', 'text_input', 'number_currency_input', 'dropdown_select'):
+            page_title = page.get('title') or page_key.replace('_', ' ').title()
+            if page_title not in seen_pages:
+                seen_pages.add(page_title)
+                snapshot_blocks.append({
+                    'id': f"form__{page_key}__page_title",
+                    'type': 'page_title',
+                    'source_page': page_key,
+                    'source_block_id': '__page_title__',
+                    'snapshot': {'title': page_title},
+                    'editor_overrides': {},
+                    'flags': { 'source_dirty': False, 'editor_dirty': False },
+                    'settings': { 'margin_top': 8, 'margin_bottom': 8, 'padding': 12, 'alignment': 'left' },
+                })
+
+            snapshot_blocks.append({
+                'id': f"form__{page_key}__{b.get('id', key)}",
+                'type': 'form_question',
+                'source_page': page_key,
+                'source_block_id': str(b.get('id', key)),
+                'snapshot': {
+                    'label': b.get('label', ''),
+                    'value': raw_value if isinstance(raw_value, str) else ', '.join(raw_value),
+                },
+                'editor_overrides': {},
+                'flags': { 'source_dirty': False, 'editor_dirty': False },
+                'settings': { 'margin_top': 8, 'margin_bottom': 8, 'padding': 12, 'alignment': 'left' },
+            })
     return jsonify({'success': True, 'blocks': snapshot_blocks})
 
 
@@ -338,3 +425,13 @@ def add_image_group_block():
         },
     }
     return jsonify({'success': True, 'block': block})
+
+
+@quote_editor_bp.route('/quote_editor/set-pending-block', methods=['POST'])
+def set_pending_block():
+    data = request.get_json(force=True) or {}
+    block = data.get('block')
+    if block:
+        session['quote_editor_pending_block'] = block
+        session.modified = True
+    return jsonify({'success': True, 'redirect': '/quote_editor'})

@@ -2,14 +2,19 @@
   'use strict';
 
   const BLOCK_TYPES = {
+    page_title: { label: 'Page Title', icon: 'H1' },
+    category_title: { label: 'Category Title', icon: 'H2' },
+    form_question: { label: 'Question', icon: '📋' },
     notes: { label: 'Notes', icon: '📝' },
     calculator: { label: 'Calculator', icon: '🧮' },
     image_group: { label: 'Image Group', icon: '🖼️' },
     image: { label: 'Image', icon: '🖼️' },
-    form: { label: 'Form', icon: '📋' },
   };
 
+  const PAGE_BREAK_AFTER = new Set(['page_title', 'category_title']);
+
   let blocks = [];
+  let pages = [];
   let activeBlockId = null;
   let sortableInstance = null;
 
@@ -21,16 +26,101 @@
     return document.querySelector(`.editor-block[data-block-id="${blockId}"]`);
   }
 
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  function getTypeInfo(type) {
+    return BLOCK_TYPES[type] || { label: type, icon: '📄' };
+  }
+
+  function rebuildPages() {
+    pages = [];
+    let currentPage = [];
+    blocks.forEach(block => {
+      currentPage.push(block);
+      if (PAGE_BREAK_AFTER.has(block.type)) {
+        pages.push(currentPage);
+        currentPage = [];
+      }
+    });
+    if (currentPage.length || pages.length === 0) {
+      pages.push(currentPage);
+    }
+  }
+
+  function renderCurrentPage() {
+    const container = document.getElementById('blocksContainer');
+    container.innerHTML = '';
+
+    const pageIndex = Math.max(0, Math.min(window.__currentPageIndex || 0, pages.length - 1));
+    window.__currentPageIndex = pageIndex;
+    const pageBlocks = pages[pageIndex] || [];
+
+    document.getElementById('currentPageNum').textContent = pageIndex + 1;
+    document.getElementById('prevPageBtn').disabled = pageIndex === 0;
+    document.getElementById('nextPageBtn').disabled = pageIndex >= pages.length - 1;
+
+    if (!pageBlocks.length) {
+      container.innerHTML = '<p class="editor-canvas__empty">This page is empty. Add blocks from the right panel.</p>';
+      return;
+    }
+
+    pageBlocks.forEach(block => {
+      const el = createBlockEl(block);
+      container.appendChild(el);
+      applyBlockStyles(block);
+    });
+
+    if (sortableInstance) {
+      sortableInstance.destroy();
+      sortableInstance = null;
+    }
+
+    const canvas = document.getElementById('blocksContainer');
+    sortableInstance = Sortable.create(canvas, {
+      animation: 150,
+      handle: '.editor-block__drag-handle',
+      onEnd: (evt) => {
+        const newOrder = [...canvas.querySelectorAll('.editor-block')].map(el => el.dataset.blockId);
+        const pageBlockIds = pageBlocks.map(b => b.id);
+        const remainingBlocks = blocks.filter(b => !pageBlockIds.includes(b.id));
+
+        const reordered = newOrder.map(id => pageBlocks.find(b => b.id === id)).filter(Boolean);
+        blocks = [...remainingBlocks, ...reordered];
+        rebuildPages();
+      }
+    });
+  }
+
   function createBlockEl(block) {
     const wrapper = document.createElement('div');
     wrapper.className = 'editor-block';
     wrapper.dataset.blockId = block.id;
     wrapper.dataset.blockType = block.type;
 
-    const typeInfo = BLOCK_TYPES[block.type] || { label: block.type, icon: '📄' };
+    const typeInfo = getTypeInfo(block.type);
     const snapshot = block.snapshot || {};
-    const settings = block.settings || {};
     const flags = block.flags || {};
+
+    let contentHtml = '';
+    let isEditable = 'true';
+
+    if (block.type === 'page_title') {
+      contentHtml = `<h1>${escapeHtml(snapshot.title || '')}</h1>`;
+      isEditable = 'false';
+    } else if (block.type === 'category_title') {
+      contentHtml = `<h2>${escapeHtml(snapshot.title || '')}</h2>`;
+      isEditable = 'false';
+    } else if (block.type === 'form_question') {
+      const label = escapeHtml(snapshot.label || '');
+      const value = escapeHtml(snapshot.value || '');
+      contentHtml = label ? `<strong>${label}:</strong> ${value}` : value;
+    } else {
+      contentHtml = renderBlockContent(block);
+    }
 
     wrapper.innerHTML = `
       <div class="editor-block__header">
@@ -39,20 +129,8 @@
         <span class="editor-block__source-dot ${flags.source_dirty ? 'editor-block__source-dot--dirty' : ''} ${flags.editor_dirty ? 'editor-block__source-dot--editor' : ''}" title=""></span>
         <button class="editor-block__remove" title="Remove block">&times;</button>
       </div>
-      <div class="editor-block__content" contenteditable="true" data-placeholder="Type here...">
-        ${renderBlockContent(block)}
-      </div>
-      <div class="editor-block__settings">
-        <label>Margin T <input type="number" data-setting="margin_top" value="${settings.margin_top || 8}" min="0" max="40"></label>
-        <label>Margin B <input type="number" data-setting="margin_bottom" value="${settings.margin_bottom || 8}" min="0" max="40"></label>
-        <label>Padding <input type="number" data-setting="padding" value="${settings.padding || 12}" min="0" max="40"></label>
-        <label>Align
-          <select data-setting="alignment">
-            <option value="left" ${settings.alignment === 'left' ? 'selected' : ''}>Left</option>
-            <option value="center" ${settings.alignment === 'center' ? 'selected' : ''}>Center</option>
-            <option value="right" ${settings.alignment === 'right' ? 'selected' : ''}>Right</option>
-          </select>
-        </label>
+      <div class="editor-block__content" contenteditable="${isEditable}" data-placeholder="Type here...">
+        ${contentHtml}
       </div>
     `;
 
@@ -61,22 +139,17 @@
     });
 
     const contentEl = wrapper.querySelector('.editor-block__content');
-    contentEl.addEventListener('input', () => {
-      block.editor_overrides = { ...(block.editor_overrides || {}), content: contentEl.innerHTML };
-      block.flags = block.flags || {};
-      block.flags.editor_dirty = true;
-      wrapper.querySelector('.editor-block__source-dot').classList.add('editor-block__source-dot--editor');
-    });
-
-    wrapper.querySelectorAll('[data-setting]').forEach(input => {
-      input.addEventListener('change', () => {
-        block.settings = block.settings || {};
-        block.settings[input.dataset.setting] = input.type === 'number' ? parseInt(input.value, 10) || 0 : input.value;
+    if (isEditable === 'true') {
+      contentEl.addEventListener('input', () => {
+        block.editor_overrides = { ...(block.editor_overrides || {}), content: contentEl.innerHTML };
+        block.flags = block.flags || {};
+        block.flags.editor_dirty = true;
+        wrapper.querySelector('.editor-block__source-dot').classList.add('editor-block__source-dot--editor');
       });
-    });
+    }
 
     wrapper.addEventListener('click', (e) => {
-      if (e.target.closest('.editor-block__settings') || e.target.closest('.editor-block__header')) return;
+      if (e.target.closest('.editor-block__header')) return;
       setActiveBlock(block.id);
     });
 
@@ -86,10 +159,8 @@
   function renderBlockContent(block) {
     const snapshot = block.snapshot || {};
     switch (block.type) {
-      case 'form':
-        const label = snapshot.label || '';
-        const value = snapshot.value || '';
-        return label ? `<strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}` : escapeHtml(value);
+      case 'notes':
+        return snapshot.content || '<p>Start typing notes...</p>';
       case 'calculator':
         const groups = snapshot.groups || [];
         let html = '<div class="calc-summary"><table class="calc-table"><thead><tr><th>Item</th><th>Total</th><th>Group</th></tr></thead><tbody>';
@@ -100,8 +171,6 @@
         });
         html += `</tbody></table><p><strong>Grand Total: ${snapshot.grand_total?.toFixed(2) || '0.00'}</strong></p></div>`;
         return html;
-      case 'notes':
-        return snapshot.content || '<p>Start typing notes...</p>';
       case 'image':
         const url = snapshot.url || '';
         return url ? `<img src="${escapeHtml(url)}" style="max-width:100%; height:auto;" />` : '<p>No image selected</p>';
@@ -120,10 +189,95 @@
     }
   }
 
-  function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+  function updateSettingsPanel() {
+    const panel = document.getElementById('settingsPanel');
+    if (!activeBlockId) {
+      panel.innerHTML = '<p class="editor-settings-placeholder">Select a block to edit its settings.</p>';
+      return;
+    }
+    const block = blocks.find(b => b.id === activeBlockId);
+    if (!block) {
+      panel.innerHTML = '<p class="editor-settings-placeholder">Select a block to edit its settings.</p>';
+      return;
+    }
+
+    const settings = block.settings || { margin_top: 8, margin_bottom: 8, padding: 12, alignment: 'left' };
+    const typeInfo = getTypeInfo(block.type);
+
+    let html = `
+      <div class="settings-block">
+        <div class="settings-block__header">
+          <span>${typeInfo.icon} ${typeInfo.label}</span>
+        </div>
+        <div class="settings-block__body">
+          <label>Margin Top
+            <input type="number" data-setting="margin_top" value="${settings.margin_top || 8}" min="0" max="40">
+          </label>
+          <label>Margin Bottom
+            <input type="number" data-setting="margin_bottom" value="${settings.margin_bottom || 8}" min="0" max="40">
+          </label>
+          <label>Padding
+            <input type="number" data-setting="padding" value="${settings.padding || 12}" min="0" max="40">
+          </label>
+          <label>Alignment
+            <select data-setting="alignment">
+              <option value="left" ${settings.alignment === 'left' ? 'selected' : ''}>Left</option>
+              <option value="center" ${settings.alignment === 'center' ? 'selected' : ''}>Center</option>
+              <option value="right" ${settings.alignment === 'right' ? 'selected' : ''}>Right</option>
+            </select>
+          </label>
+        </div>
+      </div>
+    `;
+
+    if (block.type === 'page_title' || block.type === 'category_title') {
+      const title = escapeHtml(block.snapshot?.title || '');
+      html += `
+        <div class="settings-block">
+          <div class="settings-block__header">Content</div>
+          <div class="settings-block__body">
+            <label>Title Text
+              <input type="text" data-setting="title" value="${title}">
+            </label>
+          </div>
+        </div>
+      `;
+    }
+
+    panel.innerHTML = html;
+
+    panel.querySelectorAll('[data-setting]').forEach(input => {
+      input.addEventListener('input', () => {
+        const key = input.dataset.setting;
+        if (key === 'title') {
+          block.snapshot = block.snapshot || {};
+          block.snapshot.title = input.value;
+          const contentEl = getBlockEl(block.id)?.querySelector('.editor-block__content');
+          if (contentEl && block.type === 'page_title') {
+            contentEl.innerHTML = `<h1>${escapeHtml(input.value)}</h1>`;
+          } else if (contentEl && block.type === 'category_title') {
+            contentEl.innerHTML = `<h2>${escapeHtml(input.value)}</h2>`;
+          }
+          return;
+        }
+        block.settings = block.settings || {};
+        block.settings[key] = input.type === 'number' ? parseInt(input.value, 10) || 0 : input.value;
+        applyBlockStyles(block);
+      });
+    });
+  }
+
+  function applyBlockStyles(block) {
+    const el = getBlockEl(block.id);
+    if (!el) return;
+    const s = block.settings || {};
+    const content = el.querySelector('.editor-block__content');
+    if (content) {
+      content.style.marginTop = (s.margin_top || 0) + 'px';
+      content.style.marginBottom = (s.margin_bottom || 0) + 'px';
+      content.style.padding = (s.padding || 0) + 'px';
+      content.style.textAlign = s.alignment || 'left';
+    }
   }
 
   function addBlock(blockData) {
@@ -136,25 +290,22 @@
       settings: blockData.settings || { margin_top: 8, margin_bottom: 8, padding: 12, alignment: 'left' },
     };
     blocks.push(block);
-    const el = createBlockEl(block);
-    const container = document.getElementById('blocksContainer');
-    const empty = container.querySelector('.editor-canvas__empty');
-    if (empty) empty.remove();
-    container.appendChild(el);
+    rebuildPages();
+    window.__currentPageIndex = pages.length - 1;
+    renderCurrentPage();
     setActiveBlock(block.id);
     return block;
   }
 
   function removeBlock(blockId) {
     blocks = blocks.filter(b => b.id !== blockId);
-    const el = getBlockEl(blockId);
-    if (el) el.remove();
-    if (activeBlockId === blockId) activeBlockId = null;
-    updateSourceColumn();
-    const container = document.getElementById('blocksContainer');
-    if (!container.querySelector('.editor-block')) {
-      container.innerHTML = '<p class="editor-canvas__empty">Add blocks from the right panel to get started.</p>';
+    rebuildPages();
+    const wasActive = activeBlockId === blockId;
+    if (wasActive) {
+      activeBlockId = null;
+      updateSettingsPanel();
     }
+    renderCurrentPage();
   }
 
   function setActiveBlock(blockId) {
@@ -165,59 +316,18 @@
       el.style.outline = '2px solid #0d6efd';
       el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
-    updateSourceColumn();
-  }
-
-  function updateSourceColumn() {
-    const container = document.getElementById('sourceColumnContent');
-    if (!activeBlockId) {
-      container.innerHTML = '<p class="editor-source-column__placeholder">Select a block to see its source mapping.</p>';
-      return;
-    }
-    const block = blocks.find(b => b.id === activeBlockId);
-    if (!block || block.type !== 'form') {
-      container.innerHTML = '<p class="editor-source-column__placeholder">Source mapping is only available for Form blocks.</p>';
-      return;
-    }
-    const snapshot = block.snapshot || {};
-    const flags = block.flags || {};
-    container.innerHTML = `
-      <div class="editor-source-item">
-        <div class="editor-source-item__header">
-          <span class="editor-source-item__dot ${flags.source_dirty ? 'editor-source-item__dot--dirty' : ''}"></span>
-          <span class="editor-source-item__type">Form Block</span>
-        </div>
-        <div><strong>Page:</strong> ${escapeHtml(block.source_page || 'N/A')}</div>
-        <div><strong>Block:</strong> ${escapeHtml(block.source_block_id || 'N/A')}</div>
-        <div><strong>Label:</strong> ${escapeHtml(snapshot.label || 'N/A')}</div>
-        <div><strong>Value:</strong> ${escapeHtml(snapshot.value || 'N/A')}</div>
-        ${flags.source_dirty ? '<div style="color:#dc3545; font-size:0.8rem;">Source changed since snapshot</div>' : ''}
-        ${flags.editor_dirty ? '<div style="color:#d39e00; font-size:0.8rem;">Edited in quote editor</div>' : ''}
-      </div>
-    `;
-  }
-
-  function initSortable() {
-    const canvas = document.getElementById('blocksContainer');
-    if (sortableInstance) sortableInstance.destroy();
-    sortableInstance = Sortable.create(canvas, {
-      animation: 150,
-      handle: '.editor-block__drag-handle',
-      onEnd: (evt) => {
-        const newOrder = [...canvas.querySelectorAll('.editor-block')].map(el => el.dataset.blockId);
-        blocks = newOrder.map(id => blocks.find(b => b.id === id)).filter(Boolean);
-      }
-    });
+    updateSettingsPanel();
   }
 
   function initToolbar() {
     const toolbar = document.getElementById('editorToolbar');
+    const textSelect = document.getElementById('textTypeSelect');
+
     toolbar.addEventListener('click', (e) => {
       const btn = e.target.closest('button[data-command]');
       if (!btn) return;
       const command = btn.dataset.command;
-      const value = btn.dataset.value || null;
-      document.execCommand(command, false, value);
+      document.execCommand(command, false, null);
       const active = document.querySelector('.editor-block__content:focus');
       if (active) {
         const blockEl = active.closest('.editor-block');
@@ -234,8 +344,61 @@
       }
     });
 
+    textSelect.addEventListener('change', () => {
+      const value = textSelect.value;
+      const active = document.querySelector('.editor-block__content:focus');
+      if (!active) return;
+      if (value === 'NOTE' || value === 'GUIDE') {
+        document.execCommand('formatBlock', false, 'DIV');
+        active.classList.add(`editor-block__${value.toLowerCase()}`);
+      } else {
+        document.execCommand('formatBlock', false, value);
+      }
+      const blockEl = active.closest('.editor-block');
+      if (blockEl) {
+        const blockId = blockEl.dataset.blockId;
+        const block = blocks.find(b => b.id === blockId);
+        if (block) {
+          block.editor_overrides = { ...(block.editor_overrides || {}), content: active.innerHTML };
+          block.flags = block.flags || {};
+          block.flags.editor_dirty = true;
+          blockEl.querySelector('.editor-block__source-dot').classList.add('editor-block__source-dot--editor');
+        }
+      }
+    });
+
+    document.getElementById('insertUnorderedList').addEventListener('click', () => {
+      document.execCommand('insertUnorderedList', false, null);
+    });
+
+    document.getElementById('insertOrderedList').addEventListener('click', () => {
+      document.execCommand('insertOrderedList', false, null);
+    });
+
     document.getElementById('insertImageToolbarBtn').addEventListener('click', () => {
       openGalleryModal('image');
+    });
+  }
+
+  function initPageNav() {
+    document.getElementById('prevPageBtn').addEventListener('click', () => {
+      const current = window.__currentPageIndex || 0;
+      if (current > 0) {
+        window.__currentPageIndex = current - 1;
+        activeBlockId = null;
+        updateSettingsPanel();
+        renderCurrentPage();
+      }
+    });
+
+    document.getElementById('nextPageBtn').addEventListener('click', () => {
+      const current = window.__currentPageIndex || 0;
+      if (current < pages.length - 1) {
+        window.__currentPageIndex = current + 1;
+        activeBlockId = null;
+        updateSettingsPanel();
+        renderCurrentPage();
+      }
     });
   }
 
@@ -262,12 +425,12 @@
         item.addEventListener('click', () => {
           const url = item.dataset.url;
           if (mode === 'image_group') {
-            const block = addBlock({
+            addBlock({
               type: 'image_group',
               snapshot: { images: [{ url, filename: item.dataset.filename }], columns: 2 },
             });
           } else {
-            const block = addBlock({
+            addBlock({
               type: 'image',
               snapshot: { url, filename: item.dataset.filename },
             });
@@ -311,64 +474,16 @@
     try {
       const res = await fetch(`/quote_editor/layouts/${layoutId}`);
       const data = await res.json();
-      if (data.success || data.layout) {
+      if (data.layout) {
         blocks = [];
-        document.getElementById('blocksContainer').innerHTML = '';
+        activeBlockId = null;
+        updateSettingsPanel();
         const layout = data.layout || {};
         const blist = layout.blocks_json || [];
         blist.forEach(b => addBlock(b));
-        initSortable();
       }
     } catch (err) {
       alert('Failed to load layout');
-    }
-  }
-
-  async function saveCurrentLayout() {
-    const name = prompt('Layout name:', 'My Layout');
-    if (!name) return;
-    const payload = {
-      name,
-      blocks_json: collectBlocks(),
-      is_default: false,
-    };
-    try {
-      const res = await fetch('/quote_editor/layouts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (data.success) {
-        alert('Layout saved');
-        refreshLayoutSelector();
-      }
-    } catch (err) {
-      alert('Save failed');
-    }
-  }
-
-  async function saveAsTemplate() {
-    const name = prompt('Template name:', 'My Template');
-    if (!name) return;
-    const payload = {
-      name,
-      blocks_json: collectBlocks(),
-      is_default: false,
-    };
-    try {
-      const res = await fetch('/quote_editor/layouts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (data.success) {
-        alert('Template saved');
-        refreshLayoutSelector();
-      }
-    } catch (err) {
-      alert('Save failed');
     }
   }
 
@@ -382,31 +497,30 @@
     }));
   }
 
-  async function saveQuote() {
-    const modal = document.getElementById('saveQuoteModal');
-    modal.style.display = 'flex';
+  function openSaveModal() {
+    document.getElementById('saveModal').style.display = 'flex';
   }
 
-  async function confirmSaveQuote() {
-    const name = document.getElementById('quoteNameInput').value.trim();
+  async function confirmSave() {
+    const name = document.getElementById('saveNameInput').value.trim();
     if (!name) return alert('Name is required');
+    const asTemplate = document.getElementById('saveAsTemplateCheckbox').checked;
     const payload = {
       name,
-      client_name: document.getElementById('clientNameInput').value.trim(),
-      notes: document.getElementById('quoteNotesInput').value.trim(),
       blocks_json: collectBlocks(),
-      settings_json: {},
+      is_default: false,
     };
     try {
-      const res = await fetch('/quote_editor/save-quote', {
+      const res = await fetch('/quote_editor/layouts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (data.success) {
-        alert('Quote saved');
-        document.getElementById('saveQuoteModal').style.display = 'none';
+        alert(asTemplate ? 'Template saved' : 'Quote saved');
+        document.getElementById('saveModal').style.display = 'none';
+        refreshLayoutSelector();
       } else {
         alert('Save failed: ' + (data.error || 'unknown'));
       }
@@ -415,76 +529,158 @@
     }
   }
 
-  async function loadQuoteList() {
-    const modal = document.getElementById('loadQuoteModal');
-    modal.style.display = 'flex';
-    const list = document.getElementById('loadQuoteList');
-    list.innerHTML = '<p>Loading...</p>';
+  function openLoadModal() {
+    document.getElementById('loadModal').style.display = 'flex';
+    loadQuotesList();
+    loadTemplatesList();
+  }
+
+  async function loadQuotesList() {
+    const container = document.getElementById('loadQuotesList');
+    container.innerHTML = '<p>Loading...</p>';
     try {
       const res = await fetch('/quote_editor/quotes');
       const data = await res.json();
       const quotes = data.quotes || [];
       if (!quotes.length) {
-        list.innerHTML = '<p>No saved quotes.</p>';
+        container.innerHTML = '<p>No saved quotes.</p>';
         return;
       }
-      list.innerHTML = quotes.map(q => `
+      container.innerHTML = quotes.map(q => `
         <div class="quote-list-item">
           <div><strong>${escapeHtml(q.name)}</strong> <small>${escapeHtml(q.client_name || '')}</small></div>
           <div>
             <button data-load="${q.id}">Load</button>
-            <button data-delete="${q.id}">Delete</button>
+            <button class="delete" data-delete="${q.id}">Delete</button>
           </div>
         </div>
       `).join('');
-      list.querySelectorAll('[data-load]').forEach(btn => {
+      container.querySelectorAll('[data-load]').forEach(btn => {
         btn.addEventListener('click', async () => {
           const id = parseInt(btn.dataset.load);
           const r = await fetch(`/quote_editor/load-quote/${id}`);
           const d = await r.json();
           if (d.success) {
             blocks = [];
-            document.getElementById('blocksContainer').innerHTML = '';
+            activeBlockId = null;
+            updateSettingsPanel();
             const quote = d.quote || {};
             const blist = quote.blocks_json || [];
             blist.forEach(b => addBlock(b));
-            initSortable();
-            modal.style.display = 'none';
+            document.getElementById('loadModal').style.display = 'none';
           }
         });
       });
-      list.querySelectorAll('[data-delete]').forEach(btn => {
+      container.querySelectorAll('[data-delete]').forEach(btn => {
         btn.addEventListener('click', async () => {
           const id = parseInt(btn.dataset.delete);
           if (!confirm('Delete this quote?')) return;
           await fetch(`/quote_editor/quotes/${id}`, { method: 'DELETE' });
-          loadQuoteList();
+          loadQuotesList();
         });
       });
     } catch (err) {
-      list.innerHTML = '<p>Failed to load quotes.</p>';
+      container.innerHTML = '<p>Failed to load quotes.</p>';
     }
   }
 
-  function refreshLayoutSelector() {
-    const sel = document.getElementById('layoutSelector');
-    const current = sel.value;
-    fetch('/quote_editor/layouts')
-      .then(r => r.json())
-      .then(data => {
-        const layouts = data.layouts || [];
-        sel.innerHTML = '<option value="">Select Layout...</option>' + layouts.map(l =>
-          `<option value="${l.id}" ${current == l.id ? 'selected' : ''}>${escapeHtml(l.name)}${l.is_default ? ' (Default)' : ''}</option>`
-        ).join('');
+  async function loadTemplatesList() {
+    const container = document.getElementById('loadTemplatesList');
+    container.innerHTML = '<p>Loading...</p>';
+    try {
+      const res = await fetch('/quote_editor/layouts');
+      const data = await res.json();
+      const layouts = data.layouts || [];
+      if (!layouts.length) {
+        container.innerHTML = '<p>No templates available.</p>';
+        return;
+      }
+      container.innerHTML = layouts.map(l => `
+        <div class="quote-list-item">
+          <div><strong>${escapeHtml(l.name)}</strong> ${l.is_default ? '(Default)' : ''}</div>
+          <div><button data-load-template="${l.id}">Load</button></div>
+        </div>
+      `).join('');
+      container.querySelectorAll('[data-load-template]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const id = parseInt(btn.dataset.loadTemplate);
+          const r = await fetch(`/quote_editor/layouts/${id}`);
+          const d = await r.json();
+          if (d.layout) {
+            blocks = [];
+            activeBlockId = null;
+            updateSettingsPanel();
+            const layout = d.layout || {};
+            const blist = layout.blocks_json || [];
+            blist.forEach(b => addBlock(b));
+            document.getElementById('loadModal').style.display = 'none';
+          }
+        });
       });
+    } catch (err) {
+      container.innerHTML = '<p>Failed to load templates.</p>';
+    }
+  }
+
+  function openExportModal() {
+    document.getElementById('exportModal').style.display = 'flex';
   }
 
   function exportPDF() {
     window.location.href = '/api/quote-editor/export-pdf';
+    document.getElementById('exportModal').style.display = 'none';
   }
 
   function exportDOCX() {
     window.location.href = '/api/quote-editor/export-docx';
+    document.getElementById('exportModal').style.display = 'none';
+  }
+
+  function initModals() {
+    document.getElementById('saveBtn').addEventListener('click', openSaveModal);
+    document.getElementById('loadBtn').addEventListener('click', openLoadModal);
+    document.getElementById('exportBtn').addEventListener('click', openExportModal);
+    document.getElementById('closeSaveModal').addEventListener('click', () => {
+      document.getElementById('saveModal').style.display = 'none';
+    });
+    document.getElementById('confirmSaveBtn').addEventListener('click', confirmSave);
+    document.getElementById('closeLoadModal').addEventListener('click', () => {
+      document.getElementById('loadModal').style.display = 'none';
+    });
+    document.getElementById('closeExportModal').addEventListener('click', () => {
+      document.getElementById('exportModal').style.display = 'none';
+    });
+    document.getElementById('exportPdfBtn').addEventListener('click', exportPDF);
+    document.getElementById('exportDocxBtn').addEventListener('click', exportDOCX);
+
+    document.querySelectorAll('#loadTabs .tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#loadTabs .tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const tab = btn.dataset.tab;
+        document.getElementById('loadQuotesList').style.display = tab === 'quotes' ? 'block' : 'none';
+        document.getElementById('loadTemplatesList').style.display = tab === 'templates' ? 'block' : 'none';
+      });
+    });
+  }
+
+  async function checkPendingBlocks() {
+    if (window.__quoteEditorPendingBlock) {
+      try {
+        addBlock(window.__quoteEditorPendingBlock);
+        window.__quoteEditorPendingBlock = null;
+      } catch (e) {
+        console.error('Failed to parse pending block', e);
+      }
+    }
+    if (window.__quoteEditorPendingBlocks && Array.isArray(window.__quoteEditorPendingBlocks)) {
+      try {
+        window.__quoteEditorPendingBlocks.forEach(b => addBlock(b));
+        window.__quoteEditorPendingBlocks = [];
+      } catch (e) {
+        console.error('Failed to parse pending blocks', e);
+      }
+    }
   }
 
   function initInsertButtons() {
@@ -499,69 +695,33 @@
           addBlock({ type: 'image_group', snapshot: { images: [], columns: 2 } });
           return;
         }
-        if (type === 'calculator') {
-          fetch('/quote_editor/add-calc-block')
-            .then(r => r.json())
-            .then(data => { if (data.success) addBlock(data.block); });
-          return;
-        }
-        if (type === 'notes') {
-          addBlock({ type: 'notes', snapshot: { content: '' } });
-          return;
-        }
+        addBlock({ type });
       });
     });
   }
 
-  function initActions() {
-    document.getElementById('saveLayoutBtn').addEventListener('click', saveCurrentLayout);
-    document.getElementById('saveAsTemplateBtn').addEventListener('click', saveAsTemplate);
-    document.getElementById('saveQuoteBtn').addEventListener('click', saveQuote);
-    document.getElementById('loadQuoteBtn').addEventListener('click', loadQuoteList);
-    document.getElementById('exportPdfBtn').addEventListener('click', exportPDF);
-    document.getElementById('exportDocxBtn').addEventListener('click', exportDOCX);
-    document.getElementById('exportPdfBtn2').addEventListener('click', exportPDF);
-    document.getElementById('exportDocxBtn2').addEventListener('click', exportDOCX);
-    document.getElementById('loadLayoutBtn').addEventListener('click', loadLayout);
-    document.getElementById('saveQuoteModal').querySelector('#closeSaveQuoteModal').addEventListener('click', () => {
-      document.getElementById('saveQuoteModal').style.display = 'none';
-    });
-    document.getElementById('confirmSaveQuoteBtn').addEventListener('click', confirmSaveQuote);
-    document.getElementById('closeLoadQuoteModal').addEventListener('click', () => {
-      document.getElementById('loadQuoteModal').style.display = 'none';
-    });
-  }
-
-  async function checkPendingBlocks() {
-    const pending = sessionStorage.getItem('quote_editor_pending_block');
-    if (pending) {
-      try {
-        const block = JSON.parse(pending);
-        addBlock(block);
-        sessionStorage.removeItem('quote_editor_pending_block');
-      } catch (e) {
-        console.error('Failed to parse pending block', e);
-      }
-    }
-    const pendingList = sessionStorage.getItem('quote_editor_pending_blocks');
-    if (pendingList) {
-      try {
-        const list = JSON.parse(pendingList);
-        list.forEach(b => addBlock(b));
-        sessionStorage.removeItem('quote_editor_pending_blocks');
-      } catch (e) {
-        console.error('Failed to parse pending blocks', e);
-      }
-    }
+  function refreshLayoutSelector() {
+    const sel = document.getElementById('layoutSelector');
+    if (!sel) return;
+    const current = sel.value;
+    fetch('/quote_editor/layouts')
+      .then(r => r.json())
+      .then(data => {
+        const layouts = data.layouts || [];
+        sel.innerHTML = '<option value="">Select Layout...</option>' + layouts.map(l =>
+          `<option value="${l.id}" ${current == l.id ? 'selected' : ''}>${escapeHtml(l.name)}${l.is_default ? ' (Default)' : ''}</option>`
+        ).join('');
+      });
   }
 
   async function init() {
     refreshLayoutSelector();
-    initSortable();
     initToolbar();
+    initPageNav();
     initGallery();
     initInsertButtons();
-    initActions();
+    initModals();
+    updateSettingsPanel();
     await checkPendingBlocks();
   }
 

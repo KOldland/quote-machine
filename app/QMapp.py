@@ -2305,6 +2305,125 @@ def dynamic_page(page_id):
         session['checkbox_data'] = checkbox_data
         session.modified = True
 
+        try:
+            form_data = session.get('data', {})
+            pending = []
+            seen_pages = set()
+            seen_categories = set()
+            for block in page.get('blocks', []):
+                field_name = block.get('standard', {}).get('name') or block.get('id')
+                if not field_name:
+                    continue
+                raw_value = checkbox_data.get(field_name) or form_data.get(field_name) or ''
+                if isinstance(raw_value, dict):
+                    raw_value = raw_value.get('preselected', [])
+                if not raw_value:
+                    continue
+
+                if block['block_type'] == 'line_items_by_category' and isinstance(raw_value, list):
+                    selected_codes = [v for v in raw_value if isinstance(v, str) and v.strip()]
+                    if not selected_codes:
+                        continue
+                    items = get_line_items_by_codes(selected_codes)
+                    if not items:
+                        continue
+
+                    page_title = page.get('title') or page_id.replace('_', ' ').title()
+                    if page_title not in seen_pages:
+                        seen_pages.add(page_title)
+                        pending.append({
+                            'id': f"form__{page_id}__page_title",
+                            'type': 'page_title',
+                            'source_page': page_id,
+                            'source_block_id': '__page_title__',
+                            'snapshot': {'title': page_title},
+                            'editor_overrides': {},
+                            'flags': { 'source_dirty': False, 'editor_dirty': False },
+                            'settings': { 'margin_top': 8, 'margin_bottom': 8, 'padding': 12, 'alignment': 'left' },
+                        })
+
+                    page_categories = {c['name']: c.get('sort_order', 0) for c in page.get('categories', [])}
+                    items.sort(key=lambda x: (
+                        page_categories.get(x.get('category', ''), 999),
+                        x.get('sort_order', 0),
+                        x.get('line_code', '')
+                    ))
+
+                    current_category = None
+                    for item in items:
+                        category = item.get('category', '')
+                        if category and category != current_category:
+                            current_category = category
+                            if category not in seen_categories:
+                                seen_categories.add(category)
+                                pending.append({
+                                    'id': f"form__{page_id}__category__{category}",
+                                    'type': 'category_title',
+                                    'source_page': page_id,
+                                    'source_block_id': '__category_title__',
+                                    'snapshot': {'title': category},
+                                    'editor_overrides': {},
+                                    'flags': { 'source_dirty': False, 'editor_dirty': False },
+                                    'settings': { 'margin_top': 8, 'margin_bottom': 8, 'padding': 12, 'alignment': 'left' },
+                                })
+
+                        output_title = item.get('output_title', '') or item.get('internal_description', '') or item.get('line_code', '')
+                        output_notes = item.get('output_guidance', '') or item.get('output_notes', '')
+                        parts = [output_title]
+                        if output_notes:
+                            parts.append(output_notes)
+                        value_text = ' '.join(parts)
+
+                        pending.append({
+                            'id': f"form__{page_id}__{field_name}__{item.get('line_code', '')}",
+                            'type': 'form_question',
+                            'source_page': page_id,
+                            'source_block_id': str(field_name),
+                            'snapshot': {
+                                'label': output_title,
+                                'value': value_text,
+                                'line_code': item.get('line_code', ''),
+                                'category': category,
+                            },
+                            'editor_overrides': {},
+                            'flags': { 'source_dirty': False, 'editor_dirty': False },
+                            'settings': { 'margin_top': 8, 'margin_bottom': 8, 'padding': 12, 'alignment': 'left' },
+                        })
+                    continue
+
+                if block['block_type'] in ('checkbox_group', 'text_input', 'number_currency_input', 'dropdown_select'):
+                    page_title = page.get('title') or page_id.replace('_', ' ').title()
+                    if page_title not in seen_pages:
+                        seen_pages.add(page_title)
+                        pending.append({
+                            'id': f"form__{page_id}__page_title",
+                            'type': 'page_title',
+                            'source_page': page_id,
+                            'source_block_id': '__page_title__',
+                            'snapshot': {'title': page_title},
+                            'editor_overrides': {},
+                            'flags': { 'source_dirty': False, 'editor_dirty': False },
+                            'settings': { 'margin_top': 8, 'margin_bottom': 8, 'padding': 12, 'alignment': 'left' },
+                        })
+
+                    pending.append({
+                        'id': f"form__{page_id}__{field_name}",
+                        'type': 'form_question',
+                        'source_page': page_id,
+                        'source_block_id': str(field_name),
+                        'snapshot': {
+                            'label': block.get('standard', {}).get('label', field_name),
+                            'value': raw_value if isinstance(raw_value, str) else ', '.join(raw_value),
+                        },
+                        'editor_overrides': {},
+                        'flags': { 'source_dirty': False, 'editor_dirty': False },
+                        'settings': { 'margin_top': 8, 'margin_bottom': 8, 'padding': 12, 'alignment': 'left' },
+                    })
+            session['quote_editor_pending_blocks'] = pending
+            session.modified = True
+        except Exception:
+            pass
+
         nav = resolve_builder_beta_navigation_targets(page_id, page_schema)
         next_page = nav.get('next_page_id')
         if next_page and next_page in all_pages:
@@ -2377,6 +2496,7 @@ def dynamic_page(page_id):
             title=page_schema.get('title', page_id.replace('_', ' ').title()),
             li_categories=_li_cats,
             li_groups=li_groups_data,
+            current_page_id=page_id,
             **_get_runtime_quote_context()
         )
 
@@ -3344,7 +3464,15 @@ def quote_editor():
         layouts = list_quote_editor_layouts(form_key)
     except Exception:
         pass
-    return render_template('user_output_editor.html', form_key=form_key, layouts=layouts)
+    pending_blocks = session.pop('quote_editor_pending_blocks', [])
+    pending_block = session.pop('quote_editor_pending_block', None)
+    return render_template(
+        'user_output_editor.html',
+        form_key=form_key,
+        layouts=layouts,
+        pending_blocks=pending_blocks,
+        pending_block=pending_block,
+    )
 
 
 @app.route('/save-load', methods=['GET', 'POST'])

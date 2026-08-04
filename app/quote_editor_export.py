@@ -7,10 +7,6 @@ Provides PDF and DOCX export for block-based quote editor layouts.
 import io
 import json
 from flask import Blueprint, render_template, send_file, request, session, abort
-from weasyprint import HTML
-from docx import Document
-from docx.shared import Pt, Inches, RGBColor
-from docx.enum.text import WD_ALIGN_PARAGRAPH
 from template_store import get_quote_editor_layout
 
 quote_editor_export_bp = Blueprint('quote_editor_export', __name__)
@@ -29,6 +25,7 @@ def _load_blocks():
 
 @quote_editor_export_bp.route('/api/quote-editor/export-pdf')
 def export_pdf():
+    from weasyprint import HTML
     blocks = _load_blocks()
     rendered_html = render_template('quote_editor_export.html', blocks=blocks)
     pdf_bytes = HTML(string=rendered_html).write_pdf()
@@ -42,6 +39,13 @@ def export_pdf():
 
 @quote_editor_export_bp.route('/api/quote-editor/export-docx')
 def export_docx():
+    from docx import Document
+    from docx.shared import Pt, Inches, RGBColor
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    import requests
+    import tempfile
+    import os
+
     blocks = _load_blocks()
     doc = Document()
 
@@ -53,7 +57,21 @@ def export_docx():
         padding = settings.get('padding', 12)
         alignment = settings.get('alignment', 'left')
 
-        if btype == 'form':
+        if btype == 'page_title':
+            snapshot = block.get('snapshot', {})
+            title = snapshot.get('title', '')
+            if title:
+                p = doc.add_heading(title, level=1)
+                p.paragraph_format.space_after = Pt(margin_bottom)
+
+        elif btype == 'category_title':
+            snapshot = block.get('snapshot', {})
+            title = snapshot.get('title', '')
+            if title:
+                p = doc.add_heading(title, level=2)
+                p.paragraph_format.space_after = Pt(margin_bottom)
+
+        elif btype == 'form_question':
             snapshot = block.get('snapshot', {})
             label = snapshot.get('label', '')
             value = snapshot.get('value', '')
@@ -100,7 +118,6 @@ def export_docx():
                 url = img.get('url', '')
                 if url:
                     try:
-                        import requests, tempfile, os
                         if url.startswith('http'):
                             resp = requests.get(url, timeout=5)
                             resp.raise_for_status()
@@ -111,10 +128,9 @@ def export_docx():
                             doc.add_picture(tmp_path, width=Inches(5.5))
                             os.unlink(tmp_path)
                         else:
-                            import os as _os
-                            static_root = _os.path.join(_os.path.dirname(__file__), 'static')
-                            full_path = _os.path.join(static_root, url.lstrip('/'))
-                            if _os.path.exists(full_path):
+                            static_root = os.path.join(os.path.dirname(__file__), 'static')
+                            full_path = os.path.join(static_root, url.lstrip('/'))
+                            if os.path.exists(full_path):
                                 doc.add_picture(full_path, width=Inches(5.5))
                     except Exception:
                         pass
