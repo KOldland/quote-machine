@@ -48,7 +48,7 @@
  <label class="preview-li-item">
      <input type="checkbox" class="preview-checkbox-input"
             name="{{ field.name }}" value="{{ item.value }}"
-            {% if item.include_default == 'Y' %}checked{% endif %}
+            {% if item.checked %}checked{% endif %}
             data-follow-up="{{ item.is_follow_up }}"
             data-follow-up-type="{{ item.follow_up_type }}"
             data-follow-up-config="{{ item.follow_up_config | e }}">

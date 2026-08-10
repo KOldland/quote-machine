@@ -873,6 +873,14 @@ document.addEventListener('DOMContentLoaded', function() {
         html += _section('Meta', false, [
             _field('cat_page_key', 'Belongs to Page', 'text', _pageKey, true)
         ]);
+        html += _section('Category Image', false, [
+            '<div id="cat-image-wrap" style="margin-bottom:8px;">' +
+              (data.category_image ? '<img src="' + (data.category_image || '') + '" style="max-width:160px;max-height:100px;border:1px solid #ccc;border-radius:4px;">' : '<span style="color:#888;font-size:.8rem;">No image attached.</span>') +
+            '</div>',
+            '<button type="button" id="btn-cat-attach-image" class="li-save-btn" style="width:auto;padding:0.4rem 1rem;margin-bottom:8px;">Attach Image</button>',
+            '<button type="button" id="btn-cat-remove-image" class="li-delete-btn" style="width:auto;padding:0.4rem 1rem;background:#dc3545;color:#fff;border:none;border-radius:5px;' + (data.category_image ? '' : 'display:none;') + '>Remove Image</button>',
+            '<input type="hidden" name="cat_category_image" value="' + (data.category_image || '') + '">'
+        ]);
 
         // Render sticky action buttons correctly mapping back onto Category View wrapper level
         var footerHtml = '<div class="cat-sticky-footer" style="background:#fff; margin-top:1rem; padding:.75rem; border-top:1px solid #dee2e6;">';
@@ -908,6 +916,30 @@ document.addEventListener('DOMContentLoaded', function() {
 
         _attachAccordion($id('li-category-editor'));
         
+        // Category image attach / remove
+        var attachBtn = $id('btn-cat-attach-image');
+        var removeBtn = $id('btn-cat-remove-image');
+        var imgWrap = $id('cat-image-wrap');
+        var imgInput = $id('li-category-edit-form') ? $id('li-category-edit-form').querySelector('input[name="cat_category_image"]') : null;
+        if (attachBtn && window.QuoteGallery) {
+            attachBtn.addEventListener('click', function() {
+                window.QuoteGallery.open(function(img) {
+                    if (imgInput) imgInput.value = img.url;
+                    if (imgWrap) imgWrap.innerHTML = '<img src="' + img.url + '" style="max-width:160px;max-height:100px;border:1px solid #ccc;border-radius:4px;">';
+                    if (removeBtn) removeBtn.style.display = '';
+                });
+            });
+        } else if (attachBtn) {
+            attachBtn.style.display = 'none';
+        }
+        if (removeBtn) {
+            removeBtn.addEventListener('click', function() {
+                if (imgInput) imgInput.value = '';
+                if (imgWrap) imgWrap.innerHTML = '<span style="color:#888;font-size:.8rem;">No image attached.</span>';
+                removeBtn.style.display = 'none';
+            });
+        }
+        
         // Attach Category actions (targeting the DOM globally since footer moved)
         var btnSaveC = $id('btn-cat-save');
         var btnDelC = $id('btn-cat-delete');
@@ -924,10 +956,11 @@ document.addEventListener('DOMContentLoaded', function() {
             var newName = frm.querySelector('input[name="cat_name"]').value;
             var outputGroup = frm.querySelector('input[name="cat_output_group"]').value || 'General';
             var visible = $id('cat-visibility-checkbox').checked;
+            var categoryImage = (frm.querySelector('input[name="cat_category_image"]') || {}).value || '';
             fetch('/builder_beta/category_details_save', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json', 'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''},
-                body: JSON.stringify({ page_key: _pageKey, old_name: catName, new_name: newName, description: desc, output_group: outputGroup, form_visible: visible })
+                body: JSON.stringify({ page_key: _pageKey, old_name: catName, new_name: newName, description: desc, output_group: outputGroup, form_visible: visible, category_image: categoryImage })
             }).then(r => r.json()).then(d => {
                 if (d.ok) {
                     if (newName !== catName) window.location.reload();

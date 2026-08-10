@@ -840,7 +840,7 @@
         },
         "blocks": [
           {
-            "id": "li_additional_costs",
+            "id": "additional_costs_page__line_items",
             "block_type": "line_items_by_category",
             "config": {}
           },

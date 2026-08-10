@@ -1664,15 +1664,16 @@ def builder_category_details_json():
     conn = sqlite3.connect(db)
     conn.row_factory = sqlite3.Row
     row = conn.execute('''
-
-        SELECT c.name, c.description, c.output_group
+        SELECT c.id, c.name, c.description, c.output_group, c.image_url
         FROM category_templates c
         JOIN page_templates p ON c.page_template_id = p.id
         WHERE p.page_key = ? AND c.name = ?
     ''', [page_key, name]).fetchone()
     conn.close()
     if row:
-        return jsonify(dict(row))
+        result = dict(row)
+        result['category_image'] = result.get('image_url', '') or ''
+        return jsonify(result)
     return jsonify({})
 
 
@@ -1688,6 +1689,7 @@ def builder_category_details_save():
     new_name = data.get('new_name')
     desc = data.get('description', '')  # ← FIXED: define desc
     output_group = data.get('output_group', 'General')
+    category_image = (data.get('category_image') or '').strip()
 
     conn = sqlite3.connect(db)
     try:
@@ -1695,9 +1697,10 @@ def builder_category_details_save():
         page_id = conn.execute(
             "SELECT id FROM page_templates WHERE page_key = ?",
             [page_key]).fetchone()[0]
+
         conn.execute(
-            "UPDATE category_templates SET name = ?, description = ?, output_group = ? WHERE page_template_id = ? AND name = ?",
-            [new_name, desc, output_group, page_id, old_name]
+            "UPDATE category_templates SET name = ?, description = ?, output_group = ?, image_url = ? WHERE page_template_id = ? AND name = ?",
+            [new_name, desc, output_group, category_image, page_id, old_name]
         )
 
         # Cascading update: line_items category linking to match if changed
@@ -2330,6 +2333,7 @@ def dynamic_page(page_id):
                     if not items:
                         continue
 
+
                     page_title = page.get('title') or page_id.replace('_', ' ').title()
                     if page_title not in seen_pages:
                         seen_pages.add(page_title)
@@ -2370,7 +2374,7 @@ def dynamic_page(page_id):
                                         'snapshot': {'title': category},
                                         'editor_overrides': {},
                                         'flags': { 'source_dirty': False, 'editor_dirty': False },
-                                        'settings': { 'margin_top': 5, 'margin_bottom': 5, 'padding': 12, 'alignment': 'left' },
+                                        'settings': { 'margin_top': 5, 'margin_bottom': 5, 'padding': 12, 'alignment': 'left', 'font_size': 20 },
                                     })
 
                         output_title = item.get('output_title', '') or item.get('internal_description', '') or item.get('line_code', '')
@@ -2395,7 +2399,7 @@ def dynamic_page(page_id):
                                 },
                                 'editor_overrides': {},
                                 'flags': { 'source_dirty': False, 'editor_dirty': False },
-                                'settings': { 'margin_top': 2, 'margin_bottom': 2, 'padding': 12, 'alignment': 'left' },
+                                'settings': { 'margin_top': 2, 'margin_bottom': 2, 'padding': 12, 'alignment': 'left', 'font_size': 16 },
                             })
                     continue
 
@@ -2413,24 +2417,24 @@ def dynamic_page(page_id):
                                 'snapshot': {'title': page_title},
                                 'editor_overrides': {},
                                 'flags': { 'source_dirty': False, 'editor_dirty': False },
-                                'settings': { 'margin_top': 10, 'margin_bottom': 10, 'padding': 12, 'alignment': 'left' },
+                                'settings': { 'margin_top': 10, 'margin_bottom': 10, 'padding': 12, 'alignment': 'left', 'font_size': 24 },
                             })
 
-                        question_id = f"form__{page_id}__{field_name}"
-                        if question_id not in existing_ids:
-                            pending.append({
-                                'id': question_id,
-                                'type': 'form_question',
-                                'source_page': page_id,
-                                'source_block_id': str(field_name),
-                                'snapshot': {
-                                    'label': block.get('standard', {}).get('label', field_name),
-                                    'value': raw_value if isinstance(raw_value, str) else ', '.join(raw_value),
-                                },
-                                'editor_overrides': {},
-                                'flags': { 'source_dirty': False, 'editor_dirty': False },
-                                'settings': { 'margin_top': 2, 'margin_bottom': 2, 'padding': 12, 'alignment': 'left' },
-                            })
+                    question_id = f"form__{page_id}__{field_name}"
+                    if question_id not in existing_ids:
+                        pending.append({
+                            'id': question_id,
+                            'type': 'form_question',
+                            'source_page': page_id,
+                            'source_block_id': str(field_name),
+                            'snapshot': {
+                                'label': block.get('standard', {}).get('label', field_name),
+                                'value': raw_value if isinstance(raw_value, str) else ', '.join(raw_value),
+                            },
+                            'editor_overrides': {},
+                            'flags': { 'source_dirty': False, 'editor_dirty': False },
+                            'settings': { 'margin_top': 2, 'margin_bottom': 2, 'padding': 12, 'alignment': 'left', 'font_size': 16 },
+                        })
             session['quote_editor_pending_blocks'] = pending
             session.modified = True
         except Exception:
@@ -2482,8 +2486,15 @@ def dynamic_page(page_id):
 
         # Compute line-items group data for line_items_by_category blocks
         li_groups_data = None
+        saved_cb = session.get('checkbox_data', {})
         for field in page_schema.get('fields', []):
             if field.get('type') == 'line_items_by_category':
+                field_name = field.get('name') or block.get('id')
+                _saved = saved_cb.get(field_name)
+                if isinstance(_saved, dict):
+                    _saved = _saved.get('preselected', [])
+                if not isinstance(_saved, list):
+                    _saved = []
                 _li_raw = _get_line_items_for_page(page_id)
                 if isinstance(_li_raw, dict):
                     li_groups_data = [
@@ -2493,7 +2504,9 @@ def dynamic_page(page_id):
                              'include_default': r.get('include_default') or 'N',
                              'is_follow_up': r.get('is_follow_up') or 0,
                              'follow_up_type': r.get('follow_up_type') or '',
-                             'follow_up_config': r.get('follow_up_config') or '{}'}
+                             'follow_up_config': r.get('follow_up_config') or '{}',
+                             'checked': (r.get('line_code', '') in _saved) if _saved
+                                        else (r.get('include_default') == 'Y')}
                             for r in v
                         ]}
                         for c, v in _li_raw.items()
@@ -3476,8 +3489,8 @@ def quote_editor():
         layouts = list_quote_editor_layouts(form_key)
     except Exception:
         pass
-    pending_blocks = session.pop('quote_editor_pending_blocks', [])
-    pending_block = session.pop('quote_editor_pending_block', None)
+    pending_blocks = session.get('quote_editor_pending_blocks', [])
+    pending_block = session.get('quote_editor_pending_block', None)
     return render_template(
         'user_output_editor.html',
         form_key=form_key,

@@ -33,6 +33,30 @@ from template_store import (
 
 quote_editor_bp = Blueprint('quote_editor', __name__)
 
+
+def _get_category_image(page_key, category_name):
+    """Return the category_image URL stored on the category_templates row."""
+    try:
+        import sqlite3 as _sql
+        conn = _sql.connect(str(DB_PATH))
+        conn.row_factory = _sql.Row
+        row = conn.execute(
+            '''
+            SELECT ct.image_url
+            FROM category_templates ct
+            JOIN page_templates pt ON pt.id = ct.page_template_id
+            WHERE pt.page_key = ? AND ct.name = ?
+            ''',
+            (page_key, category_name),
+        ).fetchone()
+        conn.close()
+        if row and row['image_url']:
+            return row['image_url'] or ''
+    except Exception:
+        pass
+    return ''
+
+
 DB_PATH = Path(__file__).parent / "template_store.sqlite3"
 UPLOAD_DIR = Path(__file__).parent / "static" / "uploads" / "quote_editor"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -168,11 +192,16 @@ def upload_image():
     dest = UPLOAD_DIR / unique_name
     file.save(str(dest))
     url = f"/static/uploads/quote_editor/{unique_name}"
+    raw_tags = request.form.get('tags', '')
+    tags = [t.strip().lower() for t in raw_tags.split(',') if t.strip()]
+    category = (request.form.get('category') or '').strip()
     session.setdefault('quote_editor_images', [])
     session['quote_editor_images'].append({
         'url': url,
         'filename': unique_name,
         'original_name': filename,
+        'tags': tags,
+        'category': category,
     })
     session.modified = True
     try:
@@ -186,6 +215,8 @@ def upload_image():
         'url': url,
         'filename': unique_name,
         'original_name': filename,
+        'tags': tags,
+        'category': category,
         'width': width,
         'height': height,
     })
@@ -193,6 +224,9 @@ def upload_image():
 
 @quote_editor_bp.route('/quote_editor/images', methods=['GET'])
 def list_images():
+    tag_filter = (request.args.get('tag') or '').strip().lower()
+    category_filter = (request.args.get('category') or '').strip().lower()
+    q_filter = (request.args.get('q') or '').strip().lower()
     editor_images = session.get('quote_editor_images', [])
     files = []
     if UPLOAD_DIR.exists():
@@ -203,7 +237,34 @@ def list_images():
                     'filename': f.name,
                 })
     all_images = editor_images + [f for f in files if f['filename'] not in {i['filename'] for i in editor_images}]
-    return jsonify({'success': True, 'images': all_images})
+
+    # Ensure all entries have tags/category keys
+    for img in all_images:
+        img.setdefault('tags', [])
+        img.setdefault('category', '')
+
+    if tag_filter:
+        all_images = [i for i in all_images if tag_filter in i['tags']]
+    if category_filter:
+        all_images = [i for i in all_images if i['category'].lower() == category_filter]
+    if q_filter:
+        all_images = [
+            i for i in all_images
+            if q_filter in (i.get('original_name') or '').lower()
+            or q_filter in (i.get('category') or '').lower()
+            or any(q_filter in t for t in i.get('tags', []))
+        ]
+
+    # Collect available tags + categories for filter UI
+    all_tags = sorted({t for i in all_images for t in i.get('tags', [])})
+    all_categories = sorted({i.get('category') for i in all_images if i.get('category')})
+
+    return jsonify({
+        'success': True,
+        'images': all_images,
+        'tags': all_tags,
+        'categories': all_categories,
+    })
 
 
 # ── Source Block Data ───────────────────────────────────────────────
@@ -305,15 +366,16 @@ def add_form_block():
                     current_category = category
                     if category not in seen_categories:
                         seen_categories.add(category)
+                        category_image = _get_category_image(page_key, category)
                         snapshot_blocks.append({
                             'id': f"form__{page_key}__category__{category}",
                             'type': 'category_title',
                             'source_page': page_key,
                             'source_block_id': '__category_title__',
-                            'snapshot': {'title': category},
+                            'snapshot': {'title': category, 'category_image': category_image},
                             'editor_overrides': {},
                             'flags': { 'source_dirty': False, 'editor_dirty': False },
-                            'settings': { 'margin_top': 5, 'margin_bottom': 5, 'padding': 12, 'alignment': 'left' },
+                            'settings': { 'margin_top': 5, 'margin_bottom': 5, 'padding': 12, 'alignment': 'left', 'font_size': 20 },
                         })
 
                 output_title = item.get('output_title', '') or item.get('internal_description', '') or item.get('line_code', '')
@@ -352,7 +414,7 @@ def add_form_block():
                     'snapshot': {'title': page_title},
                     'editor_overrides': {},
                     'flags': { 'source_dirty': False, 'editor_dirty': False },
-                    'settings': { 'margin_top': 10, 'margin_bottom': 10, 'padding': 12, 'alignment': 'left' },
+                    'settings': { 'margin_top': 10, 'margin_bottom': 10, 'padding': 12, 'alignment': 'left', 'font_size': 24 },
                 })
 
             snapshot_blocks.append({
@@ -366,7 +428,7 @@ def add_form_block():
                 },
                 'editor_overrides': {},
                 'flags': { 'source_dirty': False, 'editor_dirty': False },
-                'settings': { 'margin_top': 2, 'margin_bottom': 2, 'padding': 12, 'alignment': 'left' },
+                'settings': { 'margin_top': 2, 'margin_bottom': 2, 'padding': 12, 'alignment': 'left', 'font_size': 16 },
             })
     return jsonify({'success': True, 'blocks': snapshot_blocks})
 
@@ -395,6 +457,7 @@ def add_calc_block():
             'margin_bottom': 8,
             'padding': 12,
             'alignment': 'left',
+            'font_size': 14,
         },
     }
     return jsonify({'success': True, 'block': block})
@@ -422,6 +485,7 @@ def add_image_group_block():
             'margin_bottom': 8,
             'padding': 12,
             'alignment': 'left',
+            'font_size': 14,
         },
     }
     return jsonify({'success': True, 'block': block})

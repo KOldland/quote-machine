@@ -9,15 +9,93 @@
     calculator: { label: 'Calculator', icon: '🧮' },
     image_group: { label: 'Image Group', icon: '🖼️' },
     image: { label: 'Image', icon: '🖼️' },
+    page_break: { label: 'Page Break', icon: '↵' },
   };
 
-  const PAGE_BREAK_AFTER = new Set(['page_title']);
+let blocks = [];
+let pages = [];
+let activeBlockId = null;
+let sortableInstance = null;
+let copiedSettings = null;
+let documentStyles = {
+  font_family: 'Arial, sans-serif',
+  font_size_base: 16,
+  header_html: '',
+  footer_html: '',
+  header_font_size: 10,
+  footer_font_size: 8,
+  page_size: 'A4',
+  header_hide_on_cover: false,
+  footer_hide_on_cover: false,
+  margins: {
+    margin_top: 20,
+    margin_bottom: 20,
+    margin_left: 25,
+    margin_right: 25,
+  },
+  typography: {
+    h1: { family: '', weight: '', size: 24, bold: false, italic: false, underline: false },
+    h2: { family: '', weight: '', size: 20, bold: false, italic: false, underline: false },
+    h3: { family: '', weight: '', size: 18, bold: false, italic: false, underline: false },
+    para: { family: '', weight: '', size: 16, bold: false, italic: false, underline: false },
+    notes: { family: '', weight: '', size: 14, bold: false, italic: false, underline: false },
+    guide: { family: '', weight: '', size: 14, bold: false, italic: false, underline: false },
+  },
+  tables: {
+    border: '1px solid #ccc',
+    header_bg: '#f5f5f5',
+    row_bg: '#ffffff',
+    alt_row_bg: '#fafafa',
+    font_size: 14,
+  },
+  images: {
+    frame: 'none',
+    shadow: false,
+  },
+  links: {
+    color: '#0d6efd',
+    underline: true,
+  },
+};
 
-  let blocks = [];
-  let pages = [];
-  let activeBlockId = null;
-  let sortableInstance = null;
-  let copiedSettings = null;
+const TYPO_ELEMENTS = ['h1', 'h2', 'h3', 'para', 'notes', 'guide'];
+const TYPO_LABELS = {
+  h1: 'Heading 1', h2: 'Heading 2', h3: 'Heading 3',
+  para: 'Paragraph', notes: 'Notes', guide: 'Guide',
+};
+const FONT_FAMILIES = [
+  { value: 'Arial, sans-serif', label: 'Arial' },
+  { value: 'Helvetica, sans-serif', label: 'Helvetica' },
+  { value: 'Times New Roman, serif', label: 'Times New Roman' },
+  { value: 'Georgia, serif', label: 'Georgia' },
+  { value: 'Courier New, monospace', label: 'Courier New' },
+  { value: 'Verdana, sans-serif', label: 'Verdana' },
+  { value: 'Roboto, sans-serif', label: 'Roboto (Google)' },
+  { value: 'Open Sans, sans-serif', label: 'Open Sans (Google)' },
+  { value: 'Lora, serif', label: 'Lora (Google)' },
+  { value: 'Merriweather, serif', label: 'Merriweather (Google)' },
+  { value: 'Montserrat, sans-serif', label: 'Montserrat (Google)' },
+  { value: 'Poppins, sans-serif', label: 'Poppins (Google)' },
+];
+const FONT_WEIGHTS = [
+  { value: '', label: 'Inherit' },
+  { value: '300', label: 'Light (300)' },
+  { value: '400', label: 'Regular (400)' },
+  { value: '500', label: 'Medium (500)' },
+  { value: '600', label: 'Semibold (600)' },
+  { value: '700', label: 'Bold (700)' },
+  { value: 'bold', label: 'Bold' },
+];
+const IMAGE_FRAMES = [
+  { value: 'none', label: 'None' },
+  { value: '1px solid #ccc', label: 'Thin border' },
+  { value: '3px solid #333', label: 'Thick border' },
+  { value: '6px double #999', label: 'Double border' },
+];
+
+  let historyStack = [];
+  let historyIndex = -1;
+  const MAX_HISTORY = 50;
 
   function generateId() {
     return 'block_' + Math.random().toString(36).slice(2, 9);
@@ -40,21 +118,48 @@
   function getDefaultSettings(type) {
     switch (type) {
       case 'page_title':
-        return { margin_top: 10, margin_bottom: 10, padding: 12, alignment: 'left' };
+        return { margin_top: 10, margin_bottom: 10, padding: 12, alignment: 'left', font_size: 24 };
       case 'category_title':
-        return { margin_top: 5, margin_bottom: 5, padding: 12, alignment: 'left' };
+        return { margin_top: 5, margin_bottom: 5, padding: 12, alignment: 'left', font_size: 20 };
       case 'form_question':
-        return { margin_top: 2, margin_bottom: 2, padding: 12, alignment: 'left' };
+        return { margin_top: 2, margin_bottom: 2, padding: 12, alignment: 'left', font_size: 16 };
       default:
-        return { margin_top: 8, margin_bottom: 8, padding: 12, alignment: 'left' };
+        return { margin_top: 8, margin_bottom: 8, padding: 12, alignment: 'left', font_size: 16 };
     }
+  }
+
+  function pushHistory() {
+    const state = JSON.stringify(blocks);
+    if (historyIndex >= 0 && historyStack[historyIndex] === state) return;
+    historyStack = historyStack.slice(0, historyIndex + 1);
+    historyStack.push(state);
+    if (historyStack.length > MAX_HISTORY) historyStack.shift();
+    historyIndex = historyStack.length - 1;
+  }
+
+  function undo() {
+    if (historyIndex <= 0) return;
+    historyIndex--;
+    blocks = JSON.parse(historyStack[historyIndex]);
+    rebuildPages();
+    renderCurrentPage();
+    updateNavPanel();
+  }
+
+  function redo() {
+    if (historyIndex >= historyStack.length - 1) return;
+    historyIndex++;
+    blocks = JSON.parse(historyStack[historyIndex]);
+    rebuildPages();
+    renderCurrentPage();
+    updateNavPanel();
   }
 
   function rebuildPages() {
     pages = [];
     let currentPage = [];
     blocks.forEach(block => {
-      if (block.type === 'page_title' && currentPage.length > 0) {
+      if ((block.type === 'page_title' || block.type === 'page_break') && currentPage.length > 0) {
         pages.push(currentPage);
         currentPage = [];
       }
@@ -104,7 +209,9 @@
 
         const reordered = newOrder.map(id => pageBlocks.find(b => b.id === id)).filter(Boolean);
         blocks = [...remainingBlocks, ...reordered];
+        pushHistory();
         rebuildPages();
+        updateNavPanel();
       }
     });
   }
@@ -126,7 +233,13 @@
       contentHtml = `<h1>${escapeHtml(snapshot.title || '')}</h1>`;
       isEditable = 'false';
     } else if (block.type === 'category_title') {
-      contentHtml = `<h2>${escapeHtml(snapshot.title || '')}</h2>`;
+      const catImg = snapshot.category_image
+        ? `<img src="${escapeHtml(snapshot.category_image)}" alt="" class="category-image" style="max-width:200px;max-height:120px;display:block;margin-bottom:8px;border-radius:4px;">`
+        : '';
+      contentHtml = `${catImg}<h2>${escapeHtml(snapshot.title || '')}</h2>`;
+      isEditable = 'false';
+    } else if (block.type === 'page_break') {
+      contentHtml = '<div class="page-break-visual">Page Break</div>';
       isEditable = 'false';
     } else if (block.type === 'form_question') {
       const label = escapeHtml(snapshot.label || '');
@@ -149,12 +262,14 @@
     `;
 
     wrapper.querySelector('.editor-block__remove').addEventListener('click', () => {
+      pushHistory();
       removeBlock(block.id);
     });
 
     const contentEl = wrapper.querySelector('.editor-block__content');
     if (isEditable === 'true') {
       contentEl.addEventListener('input', () => {
+        pushHistory();
         block.editor_overrides = { ...(block.editor_overrides || {}), content: contentEl.innerHTML };
         block.flags = block.flags || {};
         block.flags.editor_dirty = true;
@@ -203,84 +318,6 @@
     }
   }
 
-  function updateSettingsPanel() {
-    const panel = document.getElementById('settingsPanel');
-    if (!activeBlockId) {
-      panel.innerHTML = '<p class="editor-settings-placeholder">Select a block to edit its settings.</p>';
-      return;
-    }
-    const block = blocks.find(b => b.id === activeBlockId);
-    if (!block) {
-      panel.innerHTML = '<p class="editor-settings-placeholder">Select a block to edit its settings.</p>';
-      return;
-    }
-
-    const settings = block.settings || getDefaultSettings(block.type);
-    const typeInfo = getTypeInfo(block.type);
-
-    let html = `
-      <div class="settings-block">
-        <div class="settings-block__header">
-          <span>${typeInfo.icon} ${typeInfo.label}</span>
-        </div>
-        <div class="settings-block__body">
-          <label>Margin Top
-            <input type="number" data-setting="margin_top" value="${settings.margin_top || 8}" min="0" max="40">
-          </label>
-          <label>Margin Bottom
-            <input type="number" data-setting="margin_bottom" value="${settings.margin_bottom || 8}" min="0" max="40">
-          </label>
-          <label>Padding
-            <input type="number" data-setting="padding" value="${settings.padding || 12}" min="0" max="40">
-          </label>
-          <label>Alignment
-            <select data-setting="alignment">
-              <option value="left" ${settings.alignment === 'left' ? 'selected' : ''}>Left</option>
-              <option value="center" ${settings.alignment === 'center' ? 'selected' : ''}>Center</option>
-              <option value="right" ${settings.alignment === 'right' ? 'selected' : ''}>Right</option>
-            </select>
-          </label>
-        </div>
-      </div>
-    `;
-
-    if (block.type === 'page_title' || block.type === 'category_title') {
-      const title = escapeHtml(block.snapshot?.title || '');
-      html += `
-        <div class="settings-block">
-          <div class="settings-block__header">Content</div>
-          <div class="settings-block__body">
-            <label>Title Text
-              <input type="text" data-setting="title" value="${title}">
-            </label>
-          </div>
-        </div>
-      `;
-    }
-
-    panel.innerHTML = html;
-
-    panel.querySelectorAll('[data-setting]').forEach(input => {
-      input.addEventListener('input', () => {
-        const key = input.dataset.setting;
-        if (key === 'title') {
-          block.snapshot = block.snapshot || {};
-          block.snapshot.title = input.value;
-          const contentEl = getBlockEl(block.id)?.querySelector('.editor-block__content');
-          if (contentEl && block.type === 'page_title') {
-            contentEl.innerHTML = `<h1>${escapeHtml(input.value)}</h1>`;
-          } else if (contentEl && block.type === 'category_title') {
-            contentEl.innerHTML = `<h2>${escapeHtml(input.value)}</h2>`;
-          }
-          return;
-        }
-        block.settings = block.settings || {};
-        block.settings[key] = input.type === 'number' ? parseInt(input.value, 10) || 0 : input.value;
-        applyBlockStyles(block);
-      });
-    });
-  }
-
   function applyBlockStyles(block) {
     const el = getBlockEl(block.id);
     if (!el) return;
@@ -291,10 +328,12 @@
       content.style.marginBottom = (s.margin_bottom || 0) + 'px';
       content.style.padding = (s.padding || 0) + 'px';
       content.style.textAlign = s.alignment || 'left';
+      content.style.fontSize = (s.font_size || 16) + 'px';
     }
   }
 
   function addBlock(blockData) {
+    pushHistory();
     const block = {
       id: blockData.id || generateId(),
       type: blockData.type,
@@ -308,6 +347,7 @@
     window.__currentPageIndex = pages.length - 1;
     renderCurrentPage();
     setActiveBlock(block.id);
+    updateNavPanel();
     return block;
   }
 
@@ -320,6 +360,7 @@
       updateSettingsPanel();
     }
     renderCurrentPage();
+    updateNavPanel();
   }
 
   function setActiveBlock(blockId) {
@@ -331,6 +372,7 @@
       el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
     updateSettingsPanel();
+    updateNavHighlight();
   }
 
   function initToolbar() {
@@ -342,6 +384,7 @@
       if (!btn) return;
       const command = btn.dataset.command;
       document.execCommand(command, false, null);
+      pushHistory();
       const active = document.querySelector('.editor-block__content:focus');
       if (active) {
         const blockEl = active.closest('.editor-block');
@@ -368,6 +411,7 @@
       } else {
         document.execCommand('formatBlock', false, value);
       }
+      pushHistory();
       const blockEl = active.closest('.editor-block');
       if (blockEl) {
         const blockId = blockEl.dataset.blockId;
@@ -383,15 +427,20 @@
 
     document.getElementById('insertUnorderedList').addEventListener('click', () => {
       document.execCommand('insertUnorderedList', false, null);
+      pushHistory();
     });
 
     document.getElementById('insertOrderedList').addEventListener('click', () => {
       document.execCommand('insertOrderedList', false, null);
+      pushHistory();
     });
 
     document.getElementById('insertImageToolbarBtn').addEventListener('click', () => {
       openGalleryModal('image');
     });
+
+    document.getElementById('undoBtn')?.addEventListener('click', undo);
+    document.getElementById('redoBtn')?.addEventListener('click', redo);
   }
 
   function initPageNav() {
@@ -402,6 +451,7 @@
         activeBlockId = null;
         updateSettingsPanel();
         renderCurrentPage();
+        updateNavPanel();
       }
     });
 
@@ -412,44 +462,83 @@
         activeBlockId = null;
         updateSettingsPanel();
         renderCurrentPage();
+        updateNavPanel();
       }
     });
   }
 
-  async function openGalleryModal(mode) {
+  let galleryOnSelect = null;
+
+  async function openGalleryModal(mode, onSelect) {
     const modal = document.getElementById('imageGalleryModal');
     const grid = document.getElementById('galleryGrid');
+    galleryOnSelect = typeof onSelect === 'function' ? onSelect : null;
     modal.style.display = 'flex';
+    await renderGalleryGrid(mode, {});
+  }
+
+  async function renderGalleryGrid(mode, filters) {
+    const grid = document.getElementById('galleryGrid');
     grid.innerHTML = '<p>Loading images...</p>';
     try {
-      const res = await fetch('/quote_editor/images');
+      const params = new URLSearchParams();
+      if (filters.tag) params.set('tag', filters.tag);
+      if (filters.category) params.set('category', filters.category);
+      if (filters.q) params.set('q', filters.q);
+      const res = await fetch('/quote_editor/images?' + params.toString());
       const data = await res.json();
       const images = data.images || [];
+      const tags = data.tags || [];
+      const categories = data.categories || [];
+
+      // Populate filter dropdowns (preserve current selection)
+      const tagSel = document.getElementById('galleryTagFilter');
+      const catSel = document.getElementById('galleryCategoryFilter');
+      if (tagSel) {
+        const cur = tagSel.value;
+        tagSel.innerHTML = '<option value="">All tags</option>' + tags.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+        tagSel.value = cur;
+      }
+      if (catSel) {
+        const cur = catSel.value;
+        catSel.innerHTML = '<option value="">All categories</option>' + categories.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+        catSel.value = cur;
+      }
+
       if (!images.length) {
         grid.innerHTML = '<p>No images available. Upload one below.</p>';
         return;
       }
-      grid.innerHTML = images.map(img => `
+      grid.innerHTML = images.map(img => {
+        const tagsHtml = (img.tags || []).map(t => `<span class="gallery-tag">${escapeHtml(t)}</span>`).join('');
+        return `
         <div class="gallery-item" data-url="${escapeHtml(img.url)}" data-filename="${escapeHtml(img.filename || '')}">
           <img src="${escapeHtml(img.url)}" alt="${escapeHtml(img.original_name || img.filename)}">
           <div class="gallery-item__name">${escapeHtml(img.original_name || img.filename)}</div>
-        </div>
-      `).join('');
+          <div class="gallery-item__tags">${tagsHtml}</div>
+        </div>`;
+      }).join('');
       grid.querySelectorAll('.gallery-item').forEach(item => {
         item.addEventListener('click', () => {
           const url = item.dataset.url;
+          const filename = item.dataset.filename;
+          if (galleryOnSelect) {
+            galleryOnSelect({ url, filename });
+            document.getElementById('imageGalleryModal').style.display = 'none';
+            return;
+          }
           if (mode === 'image_group') {
             addBlock({
               type: 'image_group',
-              snapshot: { images: [{ url, filename: item.dataset.filename }], columns: 2 },
+              snapshot: { images: [{ url, filename }], columns: 2 },
             });
           } else {
             addBlock({
               type: 'image',
-              snapshot: { url, filename: item.dataset.filename },
+              snapshot: { url, filename },
             });
           }
-          modal.style.display = 'none';
+          document.getElementById('imageGalleryModal').style.display = 'none';
         });
       });
     } catch (err) {
@@ -470,16 +559,34 @@
       if (!file) return;
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('tags', document.getElementById('galleryTagsInput')?.value || '');
+      formData.append('category', document.getElementById('galleryCategoryInput')?.value || '');
       try {
         const res = await fetch('/quote_editor/upload-image', { method: 'POST', body: formData });
         const data = await res.json();
         if (data.success) {
-          openGalleryModal('image');
+          await renderGalleryGrid('image', {});
         }
       } catch (err) {
         alert('Upload failed');
       }
     });
+
+    // Filter bar wiring
+    const search = document.getElementById('gallerySearchInput');
+    const tagSel = document.getElementById('galleryTagFilter');
+    const catSel = document.getElementById('galleryCategoryFilter');
+    const applyFilters = async () => {
+      const filters = {
+        q: search?.value || '',
+        tag: tagSel?.value || '',
+        category: catSel?.value || '',
+      };
+      await renderGalleryGrid('image', filters);
+    };
+    search?.addEventListener('input', applyFilters);
+    tagSel?.addEventListener('change', applyFilters);
+    catSel?.addEventListener('change', applyFilters);
   }
 
   async function loadLayout() {
@@ -495,6 +602,10 @@
         const layout = data.layout || {};
         const blist = layout.blocks_json || [];
         blist.forEach(b => addBlock(b));
+        const settings = layout.settings_json || {};
+        if (settings.document_styles) {
+          documentStyles = { ...documentStyles, ...settings.document_styles };
+        }
       }
     } catch (err) {
       alert('Failed to load layout');
@@ -511,6 +622,58 @@
     }));
   }
 
+  function collectDocumentStyles() {
+    const typography = {};
+    TYPO_ELEMENTS.forEach(el => {
+      const prefix = 'docTypo_' + el;
+      typography[el] = {
+        family: document.getElementById(prefix + '_family')?.value || documentStyles.typography[el].family,
+        weight: document.getElementById(prefix + '_weight')?.value || documentStyles.typography[el].weight,
+        size: parseInt(document.getElementById(prefix + '_size')?.value, 10) || documentStyles.typography[el].size,
+        bold: document.getElementById(prefix + '_bold')?.checked || false,
+        italic: document.getElementById(prefix + '_italic')?.checked || false,
+        underline: document.getElementById(prefix + '_underline')?.checked || false,
+      };
+    });
+    return {
+      font_family: document.getElementById('docFontFamily')?.value || documentStyles.font_family,
+      font_size_base: parseInt(document.getElementById('docFontSizeBase')?.value, 10) || documentStyles.font_size_base,
+      header_html: document.getElementById('docHeaderHtml')?.value || documentStyles.header_html,
+      footer_html: document.getElementById('docFooterHtml')?.value || documentStyles.footer_html,
+      header_font_size: parseInt(document.getElementById('docHeaderFontSize')?.value, 10) || documentStyles.header_font_size,
+      footer_font_size: parseInt(document.getElementById('docFooterFontSize')?.value, 10) || documentStyles.footer_font_size,
+      page_size: document.getElementById('docPageSize')?.value || documentStyles.page_size,
+      header_hide_on_cover: document.getElementById('docHeaderHideCover')?.checked || false,
+      footer_hide_on_cover: document.getElementById('docFooterHideCover')?.checked || false,
+      margins: {
+        margin_top: parseInt(document.getElementById('docMarginTop')?.value, 10) || documentStyles.margins.margin_top,
+        margin_bottom: parseInt(document.getElementById('docMarginBottom')?.value, 10) || documentStyles.margins.margin_bottom,
+        margin_left: parseInt(document.getElementById('docMarginLeft')?.value, 10) || documentStyles.margins.margin_left,
+        margin_right: parseInt(document.getElementById('docMarginRight')?.value, 10) || documentStyles.margins.margin_right,
+      },
+      typography,
+      tables: {
+        border: document.getElementById('docTableBorder')?.value || documentStyles.tables.border,
+        header_bg: document.getElementById('docTableHeaderBg')?.value || documentStyles.tables.header_bg,
+        row_bg: document.getElementById('docTableRowBg')?.value || documentStyles.tables.row_bg,
+        alt_row_bg: document.getElementById('docTableAltRowBg')?.value || documentStyles.tables.alt_row_bg,
+        font_size: parseInt(document.getElementById('docTableFontSize')?.value, 10) || documentStyles.tables.font_size,
+      },
+      images: {
+        frame: document.getElementById('docImageFrame')?.value || documentStyles.images.frame,
+        shadow: document.getElementById('docImageShadow')?.checked || false,
+      },
+      links: {
+        color: document.getElementById('docLinkColor')?.value || documentStyles.links.color,
+        underline: document.getElementById('docLinkUnderline')?.checked || false,
+      },
+    };
+  }
+
+  function applyDocumentStylesToEditor() {
+    documentStyles = { ...documentStyles, ...collectDocumentStyles() };
+  }
+
   function openSaveModal() {
     document.getElementById('saveModal').style.display = 'flex';
   }
@@ -522,6 +685,7 @@
     const payload = {
       name,
       blocks_json: collectBlocks(),
+      settings_json: { document_styles: collectDocumentStyles() },
       is_default: false,
     };
     try {
@@ -575,12 +739,19 @@
           const r = await fetch(`/quote_editor/load-quote/${id}`);
           const d = await r.json();
           if (d.success) {
-            blocks = [];
-            activeBlockId = null;
-            updateSettingsPanel();
+            const stylesOnly = document.getElementById('loadStylesOnlyCheckbox')?.checked;
             const quote = d.quote || {};
-            const blist = quote.blocks_json || [];
-            blist.forEach(b => addBlock(b));
+            const settings = quote.settings_json || {};
+            if (settings.document_styles) {
+              documentStyles = { ...documentStyles, ...settings.document_styles };
+            }
+            if (!stylesOnly) {
+              blocks = [];
+              activeBlockId = null;
+              updateSettingsPanel();
+              const blist = quote.blocks_json || [];
+              blist.forEach(b => addBlock(b));
+            }
             document.getElementById('loadModal').style.display = 'none';
           }
         });
@@ -621,12 +792,19 @@
           const r = await fetch(`/quote_editor/layouts/${id}`);
           const d = await r.json();
           if (d.layout) {
-            blocks = [];
-            activeBlockId = null;
-            updateSettingsPanel();
+            const stylesOnly = document.getElementById('loadStylesOnlyCheckbox')?.checked;
             const layout = d.layout || {};
-            const blist = layout.blocks_json || [];
-            blist.forEach(b => addBlock(b));
+            const settings = layout.settings_json || {};
+            if (settings.document_styles) {
+              documentStyles = { ...documentStyles, ...settings.document_styles };
+            }
+            if (!stylesOnly) {
+              blocks = [];
+              activeBlockId = null;
+              updateSettingsPanel();
+              const blist = layout.blocks_json || [];
+              blist.forEach(b => addBlock(b));
+            }
             document.getElementById('loadModal').style.display = 'none';
           }
         });
@@ -735,6 +913,92 @@
     });
   }
 
+  function openStylesModal() {
+    document.getElementById('stylesModal').style.display = 'flex';
+    document.getElementById('docFontFamily').value = documentStyles.font_family;
+    document.getElementById('docFontSizeBase').value = documentStyles.font_size_base;
+    document.getElementById('docHeaderHtml').value = documentStyles.header_html;
+    document.getElementById('docFooterHtml').value = documentStyles.footer_html;
+    document.getElementById('docHeaderFontSize').value = documentStyles.header_font_size;
+    document.getElementById('docFooterFontSize').value = documentStyles.footer_font_size;
+    document.getElementById('docPageSize').value = documentStyles.page_size;
+    document.getElementById('docHeaderHideCover').checked = documentStyles.header_hide_on_cover;
+    document.getElementById('docFooterHideCover').checked = documentStyles.footer_hide_on_cover;
+    document.getElementById('docMarginTop').value = documentStyles.margins.margin_top;
+    document.getElementById('docMarginBottom').value = documentStyles.margins.margin_bottom;
+    document.getElementById('docMarginLeft').value = documentStyles.margins.margin_left;
+    document.getElementById('docMarginRight').value = documentStyles.margins.margin_right;
+    TYPO_ELEMENTS.forEach(el => {
+      const prefix = 'docTypo_' + el;
+      const t = documentStyles.typography[el];
+      if (document.getElementById(prefix + '_family')) document.getElementById(prefix + '_family').value = t.family;
+      if (document.getElementById(prefix + '_weight')) document.getElementById(prefix + '_weight').value = t.weight;
+      if (document.getElementById(prefix + '_size')) document.getElementById(prefix + '_size').value = t.size;
+      if (document.getElementById(prefix + '_bold')) document.getElementById(prefix + '_bold').checked = t.bold;
+      if (document.getElementById(prefix + '_italic')) document.getElementById(prefix + '_italic').checked = t.italic;
+      if (document.getElementById(prefix + '_underline')) document.getElementById(prefix + '_underline').checked = t.underline;
+    });
+    document.getElementById('docTableBorder').value = documentStyles.tables.border;
+    document.getElementById('docTableHeaderBg').value = documentStyles.tables.header_bg;
+    document.getElementById('docTableRowBg').value = documentStyles.tables.row_bg;
+    document.getElementById('docTableAltRowBg').value = documentStyles.tables.alt_row_bg;
+    document.getElementById('docTableFontSize').value = documentStyles.tables.font_size;
+    document.getElementById('docImageFrame').value = documentStyles.images.frame;
+    document.getElementById('docImageShadow').checked = documentStyles.images.shadow;
+    document.getElementById('docLinkColor').value = documentStyles.links.color;
+    document.getElementById('docLinkUnderline').checked = documentStyles.links.underline;
+  }
+
+  function closeStylesModal() {
+    document.getElementById('stylesModal').style.display = 'none';
+  }
+
+  function confirmStyles() {
+    documentStyles = collectDocumentStyles();
+    closeStylesModal();
+  }
+
+  function buildTypographyRows() {
+    const container = document.getElementById('typographyRows');
+    if (!container) return;
+    let html = '';
+    TYPO_ELEMENTS.forEach(el => {
+      const prefix = 'docTypo_' + el;
+      const familyOpts = FONT_FAMILIES.map(f => `<option value="${f.value}">${f.label}</option>`).join('');
+      const weightOpts = FONT_WEIGHTS.map(w => `<option value="${w.value}">${w.label}</option>`).join('');
+      html += `
+        <div class="typography-row">
+          <div class="typography-row__label">${TYPO_LABELS[el]}</div>
+          <div class="typography-row__controls">
+            <select id="${prefix}_family" title="Font family">${familyOpts}</select>
+            <select id="${prefix}_weight" title="Weight">${weightOpts}</select>
+            <input type="number" id="${prefix}_size" min="8" max="72" title="Size (px)" style="width:64px;">
+            <label class="chk" title="Bold"><input type="checkbox" id="${prefix}_bold">B</label>
+            <label class="chk" title="Italic"><input type="checkbox" id="${prefix}_italic"><em>I</em></label>
+            <label class="chk" title="Underline"><input type="checkbox" id="${prefix}_underline"><u>U</u></label>
+          </div>
+        </div>`;
+    });
+    container.innerHTML = html;
+  }
+
+  function initStylesModal() {
+    buildTypographyRows();
+    document.getElementById('stylesBtn').addEventListener('click', openStylesModal);
+    document.getElementById('closeStylesModal').addEventListener('click', closeStylesModal);
+    document.getElementById('confirmStylesBtn').addEventListener('click', confirmStyles);
+    document.querySelectorAll('.styles-tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.styles-tab').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const tab = btn.dataset.stylesTab;
+        document.querySelectorAll('.styles-panel').forEach(p => p.style.display = 'none');
+        const panel = document.getElementById('styles' + tab.charAt(0).toUpperCase() + tab.slice(1));
+        if (panel) panel.style.display = 'block';
+      });
+    });
+  }
+
   function initModals() {
     document.getElementById('previewBtn').addEventListener('click', openPreviewModal);
     document.getElementById('saveBtn').addEventListener('click', openSaveModal);
@@ -811,25 +1075,14 @@
         item.addEventListener('click', () => {
           const action = item.dataset.action;
           if (action === 'copy-style') {
-            copiedSettings = {
-              settings: { ...(block.settings || {}) },
-              content: getBlockEl(blockId)?.querySelector('.editor-block__content')?.innerHTML || '',
-            };
+            copiedSettings = { ...(block.settings || {}) };
             menu.style.display = 'none';
           } else if (action === 'paste-style') {
             if (copiedSettings && activeBlockId) {
               const targetBlock = blocks.find(b => b.id === activeBlockId);
               if (targetBlock) {
-                targetBlock.settings = { ...copiedSettings.settings };
+                targetBlock.settings = { ...copiedSettings };
                 applyBlockStyles(targetBlock);
-                const targetContent = getBlockEl(activeBlockId)?.querySelector('.editor-block__content');
-                if (targetContent && copiedSettings.content) {
-                  targetContent.innerHTML = copiedSettings.content;
-                  targetBlock.editor_overrides = { ...(targetBlock.editor_overrides || {}), content: copiedSettings.content };
-                  targetBlock.flags = targetBlock.flags || {};
-                  targetBlock.flags.editor_dirty = true;
-                  targetBlock.querySelector('.editor-block__source-dot')?.classList.add('editor-block__source-dot--editor');
-                }
                 updateSettingsPanel();
               }
             }
@@ -841,6 +1094,184 @@
       menu.style.display = 'block';
       menu.style.left = e.clientX + 'px';
       menu.style.top = e.clientY + 'px';
+    });
+  }
+
+  function updateSettingsPanel() {
+    const panel = document.getElementById('settingsPanel');
+    if (!activeBlockId) {
+      panel.innerHTML = '<p class="editor-settings-placeholder">Select a block to edit its settings.</p>';
+      return;
+    }
+    const block = blocks.find(b => b.id === activeBlockId);
+    if (!block) {
+      panel.innerHTML = '<p class="editor-settings-placeholder">Select a block to edit its settings.</p>';
+      return;
+    }
+
+    const settings = block.settings || getDefaultSettings(block.type);
+    const typeInfo = getTypeInfo(block.type);
+
+    let html = `
+      <div class="settings-block">
+        <div class="settings-block__header">
+          <span>${typeInfo.icon} ${typeInfo.label}</span>
+        </div>
+        <div class="settings-block__body">
+          <label>Margin Top
+            <input type="number" data-setting="margin_top" value="${settings.margin_top || 8}" min="0" max="40">
+          </label>
+          <label>Margin Bottom
+            <input type="number" data-setting="margin_bottom" value="${settings.margin_bottom || 8}" min="0" max="40">
+          </label>
+          <label>Padding
+            <input type="number" data-setting="padding" value="${settings.padding || 12}" min="0" max="40">
+          </label>
+          <label>Font Size
+            <input type="number" data-setting="font_size" value="${settings.font_size || 16}" min="8" max="72">
+          </label>
+          <label>Alignment
+            <select data-setting="alignment">
+              <option value="left" ${settings.alignment === 'left' ? 'selected' : ''}>Left</option>
+              <option value="center" ${settings.alignment === 'center' ? 'selected' : ''}>Center</option>
+              <option value="right" ${settings.alignment === 'right' ? 'selected' : ''}>Right</option>
+            </select>
+          </label>
+        </div>
+      </div>
+    `;
+
+    if (block.type === 'page_title' || block.type === 'category_title') {
+      const title = escapeHtml(block.snapshot?.title || '');
+      html += `
+        <div class="settings-block">
+          <div class="settings-block__header">Content</div>
+          <div class="settings-block__body">
+            <label>Title Text
+              <input type="text" data-setting="title" value="${title}">
+            </label>
+          </div>
+        </div>
+      `;
+    }
+
+    panel.innerHTML = html;
+
+    panel.querySelectorAll('[data-setting]').forEach(input => {
+      input.addEventListener('input', () => {
+        const key = input.dataset.setting;
+        if (key === 'title') {
+          pushHistory();
+          block.snapshot = block.snapshot || {};
+          block.snapshot.title = input.value;
+          const contentEl = getBlockEl(block.id)?.querySelector('.editor-block__content');
+          if (contentEl && block.type === 'page_title') {
+            contentEl.innerHTML = `<h1>${escapeHtml(input.value)}</h1>`;
+          } else if (contentEl && block.type === 'category_title') {
+            contentEl.innerHTML = `<h2>${escapeHtml(input.value)}</h2>`;
+          }
+          return;
+        }
+        pushHistory();
+        block.settings = block.settings || {};
+        block.settings[key] = input.type === 'number' ? parseInt(input.value, 10) || 0 : input.value;
+        applyBlockStyles(block);
+      });
+    });
+  }
+
+  function updateNavPanel() {
+    const panel = document.getElementById('navPanel');
+    if (!panel) return;
+
+    let html = '';
+    let currentPageIndex = 0;
+    let pageBlocks = [];
+    let pageStartIndex = 0;
+
+    blocks.forEach((block, index) => {
+      if (block.type === 'page_title') {
+        currentPageIndex++;
+        pageBlocks = [];
+        pageStartIndex = index;
+      }
+      pageBlocks.push(block);
+    });
+
+    // Rebuild pages for accurate page counts
+    rebuildPages();
+
+    let currentFormPage = null;
+    let currentCategory = null;
+
+    blocks.forEach((block, index) => {
+      const typeInfo = getTypeInfo(block.type);
+      const snapshot = block.snapshot || {};
+
+      if (block.type === 'page_title') {
+        currentFormPage = snapshot.title || 'Untitled Page';
+        currentCategory = null;
+        const isActive = activeBlockId === block.id;
+        html += `<div class="nav-item nav-item--page ${isActive ? 'nav-item--active' : ''}" data-block-id="${block.id}">
+          <span class="nav-item__icon">${typeInfo.icon}</span>
+          <span class="nav-item__label">${escapeHtml(currentFormPage)}</span>
+        </div>`;
+      } else if (block.type === 'category_title') {
+        currentCategory = snapshot.title || 'Uncategorized';
+        const isActive = activeBlockId === block.id;
+        html += `<div class="nav-item nav-item--category ${isActive ? 'nav-item--active' : ''}" data-block-id="${block.id}">
+          <span class="nav-item__icon">${typeInfo.icon}</span>
+          <span class="nav-item__label">${escapeHtml(currentCategory)}</span>
+        </div>`;
+      } else if (block.type === 'form_question') {
+        const label = snapshot.label || 'Question';
+        const isActive = activeBlockId === block.id;
+        html += `<div class="nav-item nav-item--question ${isActive ? 'nav-item--active' : ''}" data-block-id="${block.id}">
+          <span class="nav-item__icon">${typeInfo.icon}</span>
+          <span class="nav-item__label">${escapeHtml(label)}</span>
+        </div>`;
+      } else if (block.type === 'page_break') {
+        html += `<div class="nav-item nav-item--break" data-block-id="${block.id}">
+          <span class="nav-item__icon">${typeInfo.icon}</span>
+          <span class="nav-item__label">Page Break</span>
+        </div>`;
+      }
+    });
+
+    panel.innerHTML = html || '<p class="editor-settings-placeholder">No blocks yet.</p>';
+
+    // Add click handlers to navigation items
+    panel.querySelectorAll('.nav-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const blockId = item.dataset.blockId;
+        if (!blockId) return;
+
+        const block = blocks.find(b => b.id === blockId);
+        if (!block) return;
+
+        const blockIndex = blocks.indexOf(block);
+        let targetPageIndex = 0;
+        for (let i = 0; i <= blockIndex; i++) {
+          if (blocks[i].type === 'page_title' && i > 0) {
+            targetPageIndex++;
+          }
+        }
+
+        window.__currentPageIndex = targetPageIndex;
+        renderCurrentPage();
+        setActiveBlock(blockId);
+        updateNavHighlight();
+      });
+    });
+  }
+
+  function updateNavHighlight() {
+    document.querySelectorAll('.nav-item').forEach(item => {
+      item.classList.remove('nav-item--active');
+      if (item.dataset.blockId === activeBlockId) {
+        item.classList.add('nav-item--active');
+        item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
     });
   }
 
@@ -875,6 +1306,10 @@
           addBlock({ type: 'image_group', snapshot: { images: [], columns: 2 } });
           return;
         }
+        if (type === 'page_break') {
+          addBlock({ type: 'page_break' });
+          return;
+        }
         addBlock({ type });
       });
     });
@@ -894,19 +1329,41 @@
       });
   }
 
-  async function init() {
-    refreshLayoutSelector();
-    initToolbar();
-    initPageNav();
-    initPreviewNav();
-    initGallery();
-    initInsertButtons();
-    initModals();
-    initOutsideClickClose();
-    initContextMenu();
-    updateSettingsPanel();
-    await checkPendingBlocks();
+  function initKeyboardShortcuts() {
+    document.addEventListener('keydown', (e) => {
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const mod = isMac ? e.metaKey : e.ctrlKey;
+
+      if (mod && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      } else if (mod && e.key.toLowerCase() === 'z' && e.shiftKey) {
+        e.preventDefault();
+        redo();
+      } else if (mod && e.key.toLowerCase() === 'y') {
+        e.preventDefault();
+        redo();
+      }
+    });
   }
+
+  async function init() {
+     await checkPendingBlocks();
+     refreshLayoutSelector();
+     initToolbar();
+     initPageNav();
+     initPreviewNav();
+     initGallery();
+     initInsertButtons();
+     initModals();
+     initStylesModal();
+     initOutsideClickClose();
+     initContextMenu();
+     initKeyboardShortcuts();
+     pushHistory();
+     updateNavPanel();
+     updateSettingsPanel();
+   }
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);

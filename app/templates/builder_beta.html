@@ -50,4 +50,5 @@ document.addEventListener('DOMContentLoaded', function () {
     window.builderStateQuestionTypes = {{ builder_state.question_types | default({}) | tojson | safe }};
 </script>
 <script src="{{ url_for('static', filename='js/builder.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/gallery_picker.js') }}" defer></script>
 {% endif %}

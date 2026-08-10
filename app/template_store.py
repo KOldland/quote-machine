@@ -171,6 +171,7 @@ def _create_schema(conn: sqlite3.Connection) -> None:
             name TEXT NOT NULL,
             display_order INTEGER NOT NULL,
             output_group TEXT DEFAULT 'General',
+            image_url TEXT DEFAULT '',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             UNIQUE (page_template_id, name),
             FOREIGN KEY (form_template_version_id) REFERENCES form_template_versions(id) ON DELETE CASCADE,

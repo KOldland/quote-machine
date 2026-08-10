@@ -14,20 +14,24 @@
       <button id="previewBtn" class="btn btn-secondary">Preview</button>
       <button id="saveBtn" class="btn btn-primary">Save</button>
       <button id="loadBtn" class="btn btn-secondary">Load</button>
-      <button id="exportBtn" class="btn btn-accent">Export</button>
+      <button id="stylesBtn" class="btn btn-secondary" title="Document Styles">&#9881; Styles</button>
+          <button id="exportBtn" class="btn btn-accent">Export</button>
     </div>
   </header>
 
   <div class="editor-body">
     <aside class="editor-settings-column" id="settingsColumn">
-      <h3>Block Settings</h3>
-      <div id="settingsPanel">
-        <p class="editor-settings-placeholder">Select a block to edit its settings.</p>
+      <h3>Document Map</h3>
+      <div id="navPanel">
+        <p class="editor-settings-placeholder">No blocks yet.</p>
       </div>
     </aside>
 
     <main class="editor-canvas" id="editorCanvas">
       <div class="editor-toolbar" id="editorToolbar">
+        <button type="button" id="undoBtn" title="Undo (Ctrl+Z)">↶ Undo</button>
+        <button type="button" id="redoBtn" title="Redo (Ctrl+Shift+Z)">↷ Redo</button>
+        <span class="toolbar-separator"></span>
         <select id="textTypeSelect" title="Text type">
           <option value="P">Paragraph</option>
           <option value="H1">Heading 1</option>
@@ -74,6 +78,7 @@
       <button class="insert-btn" data-block-type="calculator">Calculator Block</button>
       <button class="insert-btn" data-block-type="image_group">Image Group</button>
       <button class="insert-btn" data-block-type="image">Image</button>
+      <button class="insert-btn" data-block-type="page_break">Page Break</button>
     </aside>
   </div>
 </div>
@@ -103,6 +108,9 @@
     </div>
     <div id="loadQuotesList" class="tab-content"></div>
     <div id="loadTemplatesList" class="tab-content" style="display:none;"></div>
+    <label style="display:flex; align-items:center; gap:8px; margin-top:12px;">
+      <input type="checkbox" id="loadStylesOnlyCheckbox"> Load styles only (keep current content)
+    </label>
     <button id="closeLoadModal" class="btn btn-secondary" style="margin-top:12px;">Close</button>
   </div>
 </div>
@@ -143,11 +151,145 @@
 <div id="imageGalleryModal" class="modal" style="display:none;">
   <div class="modal-content">
     <h3>Select Image</h3>
+    <div class="gallery-filters">
+      <input type="text" id="gallerySearchInput" placeholder="Search name, tag, category...">
+      <select id="galleryTagFilter"><option value="">All tags</option></select>
+      <select id="galleryCategoryFilter"><option value="">All categories</option></select>
+    </div>
     <div class="gallery-grid" id="galleryGrid"></div>
     <div class="gallery-actions">
+      <input type="text" id="galleryTagsInput" placeholder="Tags (comma separated)" style="flex:1;">
+      <input type="text" id="galleryCategoryInput" placeholder="Category" style="width:140px;">
       <button id="galleryUploadBtn" class="btn btn-primary">Upload New Image</button>
       <input type="file" id="galleryFileInput" accept="image/*" style="display:none;">
       <button id="galleryCloseBtn" class="btn btn-secondary">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Document Styles Modal -->
+<div id="stylesModal" class="modal" style="display:none;">
+  <div class="modal-content" style="max-width:680px;">
+    <h3>Document Styles</h3>
+    <div class="styles-tabs">
+      <button class="tab-btn active" data-styles-tab="fonts">Fonts</button>
+      <button class="tab-btn" data-styles-tab="typography">Typography</button>
+      <button class="tab-btn" data-styles-tab="header">Header</button>
+      <button class="tab-btn" data-styles-tab="footer">Footer</button>
+      <button class="tab-btn" data-styles-tab="tables">Tables</button>
+      <button class="tab-btn" data-styles-tab="images">Images</button>
+      <button class="tab-btn" data-styles-tab="links">Links</button>
+      <button class="tab-btn" data-styles-tab="margins">Margins</button>
+    </div>
+    <div id="stylesFonts" class="styles-panel">
+      <label>Default Font Family
+        <select id="docFontFamily">
+          <option value="Arial, sans-serif">Arial</option>
+          <option value="Helvetica, sans-serif">Helvetica</option>
+          <option value="Times New Roman, serif">Times New Roman</option>
+          <option value="Georgia, serif">Georgia</option>
+          <option value="Courier New, monospace">Courier New</option>
+          <option value="Verdana, sans-serif">Verdana</option>
+          <option value="Roboto, sans-serif">Roboto (Google)</option>
+          <option value="Open Sans, sans-serif">Open Sans (Google)</option>
+          <option value="Lora, serif">Lora (Google)</option>
+          <option value="Merriweather, serif">Merriweather (Google)</option>
+          <option value="Montserrat, sans-serif">Montserrat (Google)</option>
+          <option value="Poppins, sans-serif">Poppins (Google)</option>
+        </select>
+      </label>
+      <label>Base Font Size (px)
+        <input type="number" id="docFontSizeBase" value="16" min="8" max="48">
+      </label>
+    </div>
+    <div id="stylesTypography" class="styles-panel" style="display:none;">
+      <div id="typographyRows"></div>
+    </div>
+    <div id="stylesHeader" class="styles-panel" style="display:none;">
+      <label>Header HTML
+        <textarea id="docHeaderHtml" rows="3" placeholder="&lt;div class=&quot;header&quot;&gt;Quote Ref: {{quote_ref}}&lt;/div&gt;"></textarea>
+      </label>
+      <label>Header Font Size (px)
+        <input type="number" id="docHeaderFontSize" value="10" min="6" max="24">
+      </label>
+      <label class="checkbox-inline">
+        <input type="checkbox" id="docHeaderHideCover"> Hide header on cover page
+      </label>
+    </div>
+    <div id="stylesFooter" class="styles-panel" style="display:none;">
+      <label>Footer HTML
+        <textarea id="docFooterHtml" rows="3" placeholder="&lt;div class=&quot;footer&quot;&gt;Page {{page_num}} | Grand Total: {{grand_total}}&lt;/div&gt;"></textarea>
+      </label>
+      <label>Footer Font Size (px)
+        <input type="number" id="docFooterFontSize" value="8" min="6" max="16">
+      </label>
+      <label class="checkbox-inline">
+        <input type="checkbox" id="docFooterHideCover"> Hide footer on cover page
+      </label>
+    </div>
+    <div id="stylesTables" class="styles-panel" style="display:none;">
+      <label>Table Border
+        <input type="text" id="docTableBorder" value="1px solid #ccc">
+      </label>
+      <label>Header Background
+        <input type="color" id="docTableHeaderBg" value="#f5f5f5">
+      </label>
+      <label>Row Background
+        <input type="color" id="docTableRowBg" value="#ffffff">
+      </label>
+      <label>Alternate Row Background
+        <input type="color" id="docTableAltRowBg" value="#fafafa">
+      </label>
+      <label>Table Font Size (px)
+        <input type="number" id="docTableFontSize" value="14" min="8" max="32">
+      </label>
+    </div>
+    <div id="stylesImages" class="styles-panel" style="display:none;">
+      <label>Image Frame
+        <select id="docImageFrame">
+          <option value="none">None</option>
+          <option value="1px solid #ccc">Thin border</option>
+          <option value="3px solid #333">Thick border</option>
+          <option value="6px double #999">Double border</option>
+        </select>
+      </label>
+      <label class="checkbox-inline">
+        <input type="checkbox" id="docImageShadow"> Drop shadow
+      </label>
+    </div>
+    <div id="stylesLinks" class="styles-panel" style="display:none;">
+      <label>Link Color
+        <input type="color" id="docLinkColor" value="#0d6efd">
+      </label>
+      <label class="checkbox-inline">
+        <input type="checkbox" id="docLinkUnderline"> Underline links
+      </label>
+    </div>
+    <div id="stylesMargins" class="styles-panel" style="display:none;">
+      <label>Page Size
+        <select id="docPageSize">
+          <option value="A4">A4</option>
+          <option value="A3">A3</option>
+          <option value="Letter">Letter</option>
+          <option value="Legal">Legal</option>
+        </select>
+      </label>
+      <label>Margin Top (mm)
+        <input type="number" id="docMarginTop" value="20" min="5" max="50">
+      </label>
+      <label>Margin Bottom (mm)
+        <input type="number" id="docMarginBottom" value="20" min="5" max="50">
+      </label>
+      <label>Margin Left (mm)
+        <input type="number" id="docMarginLeft" value="25" min="5" max="50">
+      </label>
+      <label>Margin Right (mm)
+        <input type="number" id="docMarginRight" value="25" min="5" max="50">
+      </label>
+    </div>
+    <div class="modal-actions">
+      <button id="confirmStylesBtn" class="btn btn-primary">Apply</button>
+      <button id="closeStylesModal" class="btn btn-secondary">Cancel</button>
     </div>
   </div>
 </div>
