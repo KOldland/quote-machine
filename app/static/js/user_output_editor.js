@@ -527,7 +527,11 @@ const IMAGE_FRAMES = [
         li.appendChild(blockEl);
         blockEl.classList.add('editor-block--in-list');
         blockEl.setAttribute('data-list-type', listType);
-        blockEl.setAttribute('data-list-index', String(idx));
+        blockEl.setAttribute('data-list-index', String(idx + 1));
+        const contentEl = blockEl.querySelector('.editor-block__content');
+        if (contentEl) {
+          contentEl.setAttribute('data-list-index', String(idx + 1));
+        }
         listEl.appendChild(li);
       });
 

@@ -233,26 +233,26 @@
   margin-bottom: 2px;
 }
 
-.editor-block--in-list {
+.editor-block--in-list .editor-block__content {
   position: relative;
   padding-left: 24px;
 }
 
-.editor-block--in-list::before {
+.editor-block--in-list .editor-block__content::before {
   content: '';
   position: absolute;
   left: 0;
-  top: 0;
+  top: 0.25em;
   font-size: 1.2em;
   line-height: 1.5;
 }
 
-.editor-block--in-list[data-list-type="ul"]::before {
+.editor-block--in-list[data-list-type="ul"] .editor-block__content::before {
   content: '\2022';
   font-weight: bold;
 }
 
-.editor-block--in-list[data-list-type="ol"]::before {
+.editor-block--in-list[data-list-type="ol"] .editor-block__content::before {
   content: attr(data-list-index);
   font-weight: bold;
 }
