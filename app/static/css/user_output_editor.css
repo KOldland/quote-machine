@@ -223,6 +223,40 @@
   background: #fafafa;
 }
 
+.editor-list-group {
+  margin: 0 0 12px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.editor-list-group li {
+  margin-bottom: 2px;
+}
+
+.editor-block--in-list {
+  position: relative;
+  padding-left: 24px;
+}
+
+.editor-block--in-list::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-size: 1.2em;
+  line-height: 1.5;
+}
+
+.editor-block--in-list[data-list-type="ul"]::before {
+  content: '\2022';
+  font-weight: bold;
+}
+
+.editor-block--in-list[data-list-type="ol"]::before {
+  content: attr(data-list-index);
+  font-weight: bold;
+}
+
 .editor-block[data-block-type="page_title"] {
   margin-bottom: 24px;
 }

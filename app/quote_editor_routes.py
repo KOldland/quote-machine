@@ -77,8 +77,9 @@ def create_layout():
     data = request.get_json(force=True) or {}
     name = data.get('name', 'Default')
     blocks = data.get('blocks_json', [])
+    settings = data.get('settings_json') or {'document_styles': data.get('document_styles', {})}
     is_default = data.get('is_default', True)
-    layout = create_quote_editor_layout(form_key, name=name, blocks_json=blocks, is_default=is_default)
+    layout = create_quote_editor_layout(form_key, name=name, blocks_json=blocks, is_default=is_default, settings=settings)
     if not layout:
         return jsonify({'success': False, 'error': 'Form template not found'}), 404
     return jsonify({'success': True, 'layout': layout}), 201
@@ -100,6 +101,15 @@ def update_layout(layout_id):
     )
     if not ok:
         return jsonify({'success': False, 'error': 'Layout not found or no changes'}), 404
+    return jsonify({'success': True})
+
+
+@quote_editor_bp.route('/quote_editor/layouts/<int:layout_id>/set-default', methods=['POST'])
+def set_layout_default(layout_id):
+    form_key = session.get('template_key', 'builder_beta')
+    ok = set_quote_editor_layout_default(layout_id, form_key)
+    if not ok:
+        return jsonify({'success': False, 'error': 'Layout not found'}), 404
     return jsonify({'success': True})
 
 
@@ -380,10 +390,7 @@ def add_form_block():
 
                 output_title = item.get('output_title', '') or item.get('internal_description', '') or item.get('line_code', '')
                 output_notes = item.get('output_guidance', '') or item.get('output_notes', '')
-                parts = [output_title]
-                if output_notes:
-                    parts.append(output_notes)
-                value_text = ' '.join(parts)
+                value_text = output_notes or ''
 
                 snapshot_blocks.append({
                     'id': f"form__{page_key}__{key}__{item.get('line_code', '')}",

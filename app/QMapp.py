@@ -2311,10 +2311,24 @@ def dynamic_page(page_id):
         try:
             form_data = session.get('data', {})
             existing_pending = session.get('quote_editor_pending_blocks', [])
-            existing_ids = {b.get('id') for b in existing_pending}
             pending = list(existing_pending)
             seen_pages = set()
             seen_categories = set()
+            li_field_names = {
+                (b.get('standard', {}).get('name') or b.get('id'))
+                for b in page.get('blocks', [])
+                if b.get('block_type') == 'line_items_by_category'
+            }
+            if li_field_names:
+                pending = [
+                    b for b in pending
+                    if not (
+                        b.get('source_page') == page_id
+                        and b.get('source_block_id') in li_field_names
+                        and b.get('type') == 'form_question'
+                    )
+                ]
+            existing_ids = {b.get('id') for b in pending}
             for block in page.get('blocks', []):
                 field_name = block.get('standard', {}).get('name') or block.get('id')
                 if not field_name:
@@ -2379,10 +2393,7 @@ def dynamic_page(page_id):
 
                         output_title = item.get('output_title', '') or item.get('internal_description', '') or item.get('line_code', '')
                         output_notes = item.get('output_guidance', '') or item.get('output_notes', '')
-                        parts = [output_title]
-                        if output_notes:
-                            parts.append(output_notes)
-                        value_text = ' '.join(parts)
+                        value_text = output_notes or ''
 
                         question_id = f"form__{page_id}__{field_name}__{item.get('line_code', '')}"
                         if question_id not in existing_ids:
@@ -3581,6 +3592,7 @@ from quote_editor_routes import quote_editor_bp
 from quote_editor_export import quote_editor_export_bp
 from export_routes import export_bp
 
+csrf.exempt(quote_editor_bp)
 app.register_blueprint(quote_editor_bp)
 app.register_blueprint(quote_editor_export_bp)
 app.register_blueprint(export_bp)

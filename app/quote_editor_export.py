@@ -67,6 +67,8 @@ def _typo_css(selector, t):
         decls.append("text-decoration: underline;")
     elif t.get('bold') is False and t.get('italic') is False:
         pass
+    if t.get('color'):
+        decls.append(f"color: {t['color']};")
     if not decls:
         return ''
     return f"{selector} {{ {' '.join(decls)} }}\n"
@@ -142,6 +144,15 @@ def _apply_typo_to_run(run, typo):
     weight = typo.get('weight')
     if weight in ('bold', '700', '600', '500'):
         run.font.bold = True
+    color = typo.get('color')
+    if color and isinstance(color, str) and color.startswith('#'):
+        try:
+            r = int(color[1:3], 16)
+            g = int(color[3:5], 16)
+            b = int(color[5:7], 16)
+            run.font.color.rgb = RGBColor(r, g, b)
+        except Exception:
+            pass
 
 
 def _load_blocks():
@@ -231,6 +242,8 @@ def export_docx():
         alignment = settings.get('alignment', 'left')
         font_size = settings.get('font_size', 16)
         typo = (document_styles.get('typography') or {}) if document_styles else {}
+        list_type = block.get('list_type')
+        list_style = 'List Bullet' if list_type == 'ul' else 'List Number' if list_type == 'ol' else None
 
         # Skip page_break blocks in DOCX (they're handled by page breaks in PDF via CSS)
         if btype == 'page_break':
@@ -259,7 +272,17 @@ def export_docx():
             snapshot = block.get('snapshot', {})
             label = snapshot.get('label', '')
             value = snapshot.get('value', '')
-            p = doc.add_paragraph()
+            override_content = (block.get('editor_overrides') or {}).get('content')
+            if isinstance(override_content, str) and override_content.strip():
+                p = doc.add_paragraph(style=list_style)
+                p.add_run(override_content)
+                p.paragraph_format.space_after = Pt(margin_bottom)
+                if alignment == 'center':
+                    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                elif alignment == 'right':
+                    p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+                continue
+            p = doc.add_paragraph(style=list_style)
             if label:
                 r = p.add_run(f"{label}: ")
                 r.bold = True
@@ -301,7 +324,7 @@ def export_docx():
         elif btype == 'notes':
             content = block.get('snapshot', {}).get('content', '')
             if content:
-                p = doc.add_paragraph(content)
+                p = doc.add_paragraph(content, style=list_style)
                 for run in p.runs:
                     run.font.size = Pt(font_size)
                     _apply_typo_to_run(run, typo.get('notes'))
@@ -314,6 +337,16 @@ def export_docx():
                 url = img.get('url', '')
                 if url:
                     try:
+                        from io import BytesIO
+                        import requests as req
+                        img_resp = req.get(url, timeout=10)
+                        if img_resp.status_code == 200:
+                            img_bytes = BytesIO(img_resp.content)
+                            doc.add_picture(img_bytes, width=Inches(5.5))
+                            last_paragraph = doc.paragraphs[-1]
+                            last_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    except Exception:
+                        pass
                         if url.startswith('http'):
                             resp = requests.get(url, timeout=5)
                             resp.raise_for_status()

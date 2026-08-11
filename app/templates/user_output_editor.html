@@ -25,6 +25,7 @@
       <div id="navPanel">
         <p class="editor-settings-placeholder">No blocks yet.</p>
       </div>
+      <div id="settingsPanel"></div>
     </aside>
 
     <main class="editor-canvas" id="editorCanvas">
@@ -49,8 +50,9 @@
         <button type="button" data-command="justifyCenter" title="Align Center">&#8596;</button>
         <button type="button" data-command="justifyRight" title="Align Right">&#8677;</button>
         <span class="toolbar-separator"></span>
-        <button type="button" id="insertUnorderedList" title="Bullet List">&#8226; List</button>
-        <button type="button" id="insertOrderedList" title="Numbered List">1. List</button>
+        <button type="button" id="insertUnorderedList" title="Bullet List (Ctrl+Click blocks to select)">&#8226; List</button>
+        <button type="button" id="insertOrderedList" title="Numbered List (Ctrl+Click blocks to select)">1. List</button>
+        <button type="button" id="clearListBtn" title="Clear List from selected blocks">Clear List</button>
         <span class="toolbar-separator"></span>
         <button type="button" id="insertImageToolbarBtn" title="Insert Image">&#128247;</button>
       </div>
@@ -90,6 +92,12 @@
     <label>Name <input type="text" id="saveNameInput" placeholder="My Quote"></label>
     <label>
       <input type="checkbox" id="saveAsTemplateCheckbox"> Save as Template
+    </label>
+    <label style="display:flex; align-items:center; gap:8px; margin-top:8px;">
+      <input type="checkbox" id="saveStylesOnlyCheckbox"> Save Styles Only
+    </label>
+    <label style="display:flex; align-items:center; gap:8px;">
+      <input type="checkbox" id="setAsDefaultCheckbox"> Set as Default
     </label>
     <div class="modal-actions">
       <button id="confirmSaveBtn" class="btn btn-primary">Save</button>
@@ -289,6 +297,7 @@
     </div>
     <div class="modal-actions">
       <button id="confirmStylesBtn" class="btn btn-primary">Apply</button>
+      <button id="setAsDefaultBtn" class="btn btn-secondary">Set as Default</button>
       <button id="closeStylesModal" class="btn btn-secondary">Cancel</button>
     </div>
   </div>

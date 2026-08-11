@@ -101,54 +101,114 @@
        .replace('{{page_total}}', '<span class="page-total"></span>') | safe }}
   </div>
   {% endif %}
+  {% set blocks = blocks | list %}
+  {% set rendered_groups = {} %}
   {% for block in blocks %}
-    {% set btype = block.type %}
-    {% set snapshot = block.snapshot %}
-    {% set settings = block.settings %}
-    <div class="block block-{{ btype }}" style="margin-top:{{ settings.margin_top }}px; margin-bottom:{{ settings.margin_bottom }}px; padding:{{ settings.padding }}px; font-size:{{ settings.font_size }}px; text-align:{{ settings.alignment }};">
-      {% if btype == 'page_title' %}
-        <h1>{{ snapshot.title }}</h1>
-      {% elif btype == 'category_title' %}
-        {% if snapshot.category_image %}<img src="{{ snapshot.category_image }}" alt="" class="category-image" />{% endif %}
-        <h2>{{ snapshot.title }}</h2>
-      {% elif btype == 'form_question' %}
-        <p class="qe-para"><strong>{{ snapshot.label }}:</strong> {{ snapshot.value }}</p>
-      {% elif btype == 'calculator' %}
-        {% set groups = snapshot.groups %}
-        {% if groups %}
-          <table class="calc-table">
-            <thead><tr><th>Item</th><th>Description</th><th>Total</th><th>Group</th></tr></thead>
-            <tbody>
-              {% for group in groups %}
-                {% for item in group['items'] %}
-                  <tr>
-                    <td>{{ item.output_title }}</td>
-                    <td>{{ item.internal_description }}</td>
-                    <td>{{ "%.2f"|format(item.line_total) }}</td>
-                    <td>{{ group.name }}</td>
-                  </tr>
-                {% endfor %}
-              {% endfor %}
-            </tbody>
-          </table>
-        {% endif %}
-        <p class="grand-total">Grand Total: {{ "%.2f"|format(snapshot.grand_total) }}</p>
-      {% elif btype == 'notes' %}
-        <div class="qe-notes">{{ snapshot.content | safe }}</div>
-      {% elif btype == 'image' %}
-        <img src="{{ snapshot.url }}" alt="Image" />
-      {% elif btype == 'image_group' %}
-        {% set images = snapshot.images %}
-        {% set cols = snapshot.columns | default(2) %}
-        <div style="display: grid; grid-template-columns: repeat({{ cols }}, 1fr); gap: 8px;">
-          {% for img in images %}
-            <div><img src="{{ img.url }}" alt="Image" style="width:100%; height:auto;" /></div>
-          {% endfor %}
-        </div>
-      {% elif btype == 'page_break' %}
-        <div style="page-break-before: always;"></div>
+    {% set gid = block.list_group_id %}
+    {% if gid %}
+      {% if rendered_groups[gid] %}
+        {% continue %}
       {% endif %}
-    </div>
-  {% endfor %}
-</body>
+      {% set _ = rendered_groups.update({ (gid): true }) %}
+      <{{ block.list_type }} class="qe-list-group">
+        {% for gblock in blocks if gblock.list_group_id == gid %}
+          <li class="block block-{{ gblock.type }}" style="margin-top:{{ gblock.settings.margin_top }}px; margin-bottom:{{ gblock.settings.margin_bottom }}px; padding:{{ gblock.settings.padding }}px; font-size:{{ gblock.settings.font_size }}px; text-align:{{ gblock.settings.alignment }};">
+            {% if gblock.type == 'form_question' %}
+              {% set snapshot = gblock.snapshot %}
+              {% set override_content = (gblock.editor_overrides.content if gblock.editor_overrides and gblock.editor_overrides.content is defined else '') %}
+              {% if override_content and override_content.strip() %}
+                <p class="qe-para">{{ override_content | safe }}</p>
+              {% else %}
+                <p class="qe-para"><strong>{{ snapshot.label }}:</strong> {{ snapshot.value }}</p>
+              {% endif %}
+            {% elif gblock.type == 'notes' %}
+              <div class="qe-notes">{{ gblock.snapshot.content | safe }}</div>
+            {% elif gblock.type == 'calculator' %}
+              {% set snapshot = gblock.snapshot %}
+              {% set groups2 = snapshot.groups %}
+              {% if groups2 %}
+                <table class="calc-table">
+                  <thead><tr><th>Item</th><th>Description</th><th>Total</th><th>Group</th></tr></thead>
+                  <tbody>
+                    {% for group in groups2 %}
+                      {% for item in group['items'] %}
+                        <tr>
+                          <td>{{ item.output_title }}</td>
+                          <td>{{ item.internal_description }}</td>
+                          <td>{{ "%.2f"|format(item.line_total) }}</td>
+                          <td>{{ group.name }}</td>
+                        </tr>
+                      {% endfor %}
+                    {% endfor %}
+                  </tbody>
+                </table>
+              {% endif %}
+              <p class="grand-total">Grand Total: {{ "%.2f"|format(snapshot.grand_total) }}</p>
+            {% elif gblock.type == 'image' %}
+              <img src="{{ gblock.snapshot.url }}" alt="Image" />
+            {% elif gblock.type == 'image_group' %}
+              {% set images = gblock.snapshot.images %}
+              {% set cols = gblock.snapshot.columns | default(2) %}
+              <div style="display: grid; grid-template-columns: repeat({{ cols }}, 1fr); gap: 8px;">
+                {% for img in images %}
+                  <div><img src="{{ img.url }}" alt="Image" style="width:100%; height:auto;" /></div>
+                {% endfor %}
+              </div>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </{{ block.list_type }}>
+    {% else %}
+      <div class="block block-{{ block.type }}" style="margin-top:{{ block.settings.margin_top }}px; margin-bottom:{{ block.settings.margin_bottom }}px; padding:{{ block.settings.padding }}px; font-size:{{ block.settings.font_size }}px; text-align:{{ block.settings.alignment }};">
+        {% if block.type == 'page_title' %}
+          <h1>{{ block.snapshot.title }}</h1>
+        {% elif block.type == 'category_title' %}
+          {% if block.snapshot.category_image %}<img src="{{ block.snapshot.category_image }}" alt="" class="category-image" />{% endif %}
+          <h2>{{ block.snapshot.title }}</h2>
+        {% elif block.type == 'form_question' %}
+          {% set override_content = (block.editor_overrides.content if block.editor_overrides and block.editor_overrides.content is defined else '') %}
+          {% if override_content and override_content.strip() %}
+            <p class="qe-para">{{ override_content | safe }}</p>
+          {% else %}
+            <p class="qe-para"><strong>{{ block.snapshot.label }}:</strong> {{ block.snapshot.value }}</p>
+          {% endif %}
+        {% elif block.type == 'calculator' %}
+          {% set snapshot = block.snapshot %}
+          {% set groups2 = snapshot.groups %}
+          {% if groups2 %}
+            <table class="calc-table">
+              <thead><tr><th>Item</th><th>Description</th><th>Total</th><th>Group</th></tr></thead>
+              <tbody>
+                {% for group in groups2 %}
+                  {% for item in group['items'] %}
+                    <tr>
+                      <td>{{ item.output_title }}</td>
+                      <td>{{ item.internal_description }}</td>
+                      <td>{{ "%.2f"|format(item.line_total) }}</td>
+                      <td>{{ group.name }}</td>
+                    </tr>
+                  {% endfor %}
+                {% endfor %}
+              </tbody>
+            </table>
+          {% endif %}
+          <p class="grand-total">Grand Total: {{ "%.2f"|format(snapshot.grand_total) }}</p>
+        {% elif block.type == 'notes' %}
+          <div class="qe-notes">{{ block.snapshot.content | safe }}</div>
+        {% elif block.type == 'image' %}
+          <img src="{{ block.snapshot.url }}" alt="Image" />
+        {% elif block.type == 'image_group' %}
+          {% set images = block.snapshot.images %}
+          {% set cols = block.snapshot.columns | default(2) %}
+          <div style="display: grid; grid-template-columns: repeat({{ cols }}, 1fr); gap: 8px;">
+            {% for img in images %}
+              <div><img src="{{ img.url }}" alt="Image" style="width:100%; height:auto;" /></div>
+            {% endfor %}
+          </div>
+        {% elif block.type == 'page_break' %}
+          <div style="page-break-before: always;"></div>
+        {% endif %}
+      </div>
+    {% endif %}
+  {% endfor %}</body>
 </html>

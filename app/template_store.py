@@ -1693,6 +1693,7 @@ def create_quote_editor_layout(
     name: str = "Default",
     blocks_json: Optional[list] = None,
     is_default: bool = True,
+    settings: Optional[dict] = None,
     db_path: Optional[Path] = None,
 ) -> Optional[dict]:
     path = db_path or _default_db_path()
@@ -1704,14 +1705,18 @@ def create_quote_editor_layout(
         cur = conn.execute(
             """
             INSERT INTO quote_editor_layouts
-                (form_template_id, name, blocks_json, is_default)
-            VALUES (?, ?, ?, ?)
+                (form_template_id, name, blocks_json, is_default, settings_json)
+            VALUES (?, ?, ?, ?, ?)
             """,
-            (ft_id, name, json.dumps(blocks_json or []), 1 if is_default else 0),
+            (ft_id, name, json.dumps(blocks_json or []), 1 if is_default else 0, json.dumps(settings or {})),
         )
         conn.commit()
         row = conn.execute("SELECT * FROM quote_editor_layouts WHERE id = ?", (cur.lastrowid,)).fetchone()
-        return dict(row) if row else None
+        result = dict(row) if row else None
+        if result:
+            result["blocks_json"] = json.loads(result.get("blocks_json", "[]"))
+            result["settings_json"] = json.loads(result.get("settings_json", "{}"))
+        return result
     finally:
         conn.close()
 
@@ -1760,14 +1765,19 @@ def list_quote_editor_layouts(form_key: str, db_path: Optional[Path] = None) -> 
             return []
         rows = conn.execute(
             """
-            SELECT id, name, is_default, created_at, updated_at
+            SELECT id, name, is_default, created_at, updated_at, settings_json
             FROM quote_editor_layouts
             WHERE form_template_id = ?
             ORDER BY is_default DESC, updated_at DESC
             """,
             (ft_id,),
         ).fetchall()
-        return [dict(r) for r in rows]
+        result = []
+        for r in rows:
+            row = dict(r)
+            row["settings_json"] = json.loads(row.get("settings_json") or "{}")
+            result.append(row)
+        return result
     finally:
         conn.close()
 
@@ -1819,6 +1829,21 @@ def delete_quote_editor_layout(layout_id: int, form_key: str, db_path: Optional[
             "DELETE FROM quote_editor_layouts WHERE id = ? AND form_template_id = ?",
             (layout_id, ft_id),
         )
+        conn.commit()
+        return conn.total_changes > 0
+    finally:
+        conn.close()
+
+
+def set_quote_editor_layout_default(layout_id: int, form_key: str, db_path: Optional[Path] = None) -> bool:
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    try:
+        ft_id = _get_form_template_id(conn, form_key)
+        if not ft_id:
+            return False
+        conn.execute("UPDATE quote_editor_layouts SET is_default = 0 WHERE form_template_id = ?", (ft_id,))
+        conn.execute("UPDATE quote_editor_layouts SET is_default = 1 WHERE id = ? AND form_template_id = ?", (layout_id, ft_id))
         conn.commit()
         return conn.total_changes > 0
     finally:
