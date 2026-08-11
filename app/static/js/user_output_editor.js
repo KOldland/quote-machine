@@ -337,12 +337,24 @@ const IMAGE_FRAMES = [
     if (!el) return;
     const s = block.settings || {};
     const content = el.querySelector('.editor-block__content');
+    const inList = !!block.list_group_id;
     if (content) {
-      content.style.marginTop = (s.margin_top || 0) + 'px';
-      content.style.marginBottom = (s.margin_bottom || 0) + 'px';
-      content.style.padding = (s.padding || 0) + 'px';
+      content.style.marginTop = inList ? '0px' : ((s.margin_top || 0) + 'px');
+      content.style.marginBottom = inList ? '0px' : ((s.margin_bottom || 0) + 'px');
+      if (inList) {
+        content.style.padding = '0px';
+        content.style.paddingLeft = '24px';
+      } else {
+        content.style.padding = (s.padding || 0) + 'px';
+      }
       content.style.textAlign = s.alignment || 'left';
       content.style.fontSize = (s.font_size || 16) + 'px';
+    }
+    if (inList && el) {
+      el.style.marginTop = '0px';
+      el.style.marginBottom = '0px';
+      el.style.paddingTop = '0px';
+      el.style.paddingBottom = '0px';
     }
   }
 
@@ -536,6 +548,21 @@ const IMAGE_FRAMES = [
       });
 
       if (!listEl.children.length) return;
+
+      listEl.querySelectorAll('.editor-block').forEach(blockEl => {
+        blockEl.style.marginTop = '0px';
+        blockEl.style.marginBottom = '0px';
+        blockEl.style.paddingTop = '0px';
+        blockEl.style.paddingBottom = '0px';
+        const contentEl = blockEl.querySelector('.editor-block__content');
+        if (contentEl) {
+          contentEl.style.marginTop = '0px';
+          contentEl.style.marginBottom = '0px';
+          contentEl.style.paddingTop = '0px';
+          contentEl.style.paddingBottom = '0px';
+          contentEl.style.paddingLeft = '24px';
+        }
+      });
 
       const refNode = container.children[insertIndex] || null;
       container.insertBefore(listEl, refNode);
@@ -1128,9 +1155,9 @@ const IMAGE_FRAMES = [
   function renderPreviewListItem(block) {
     const snapshot = block.snapshot || {};
     const settings = block.settings || {};
-    const marginTop = settings.margin_top || 0;
-    const marginBottom = settings.margin_bottom || 0;
-    const padding = settings.padding || 0;
+    const marginTop = 0;
+    const marginBottom = 0;
+    const padding = 0;
     const alignment = settings.alignment || 'left';
 
     if (block.type === 'form_question') {
@@ -1139,21 +1166,21 @@ const IMAGE_FRAMES = [
       const label = escapeHtml(snapshot.label || '');
       const value = escapeHtml(snapshot.value || '');
       const bodyHtml = hasContent ? overrideContent : (label ? `<strong>${label}:</strong> ${value}` : value);
-      return `<li${previewMergedStyle('form_question', `margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:${padding}px; text-align:${alignment};`)}>${bodyHtml}</li>`;
+      return `<li${previewMergedStyle('form_question', `margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:0; padding-left:24px; text-align:${alignment};`)}>${bodyHtml}</li>`;
     } else if (block.type === 'notes') {
-      return `<li${previewMergedStyle('notes', `margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:${padding}px;`)}>${snapshot.content || ''}</li>`;
+      return `<li${previewMergedStyle('notes', `margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:0; padding-left:24px;`)}>${snapshot.content || ''}</li>`;
     } else if (block.type === 'page_title') {
-      return `<li${previewMergedStyle('page_title', `margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:${padding}px; text-align:${alignment};`)}><h1>${escapeHtml(snapshot.title || '')}</h1></li>`;
+      return `<li${previewMergedStyle('page_title', `margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:0; padding-left:24px; text-align:${alignment};`)}><h1>${escapeHtml(snapshot.title || '')}</h1></li>`;
     } else if (block.type === 'category_title') {
       const catImg = snapshot.category_image
         ? `<img src="${escapeHtml(snapshot.category_image)}" alt="" style="max-width:200px;max-height:120px;display:block;margin-bottom:8px;border-radius:4px;">`
         : '';
-      return `<li${previewMergedStyle('category_title', `margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:${padding}px; text-align:${alignment};`)}>${catImg}<h2>${escapeHtml(snapshot.title || '')}</h2></li>`;
+      return `<li${previewMergedStyle('category_title', `margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:0; padding-left:24px; text-align:${alignment};`)}>${catImg}<h2>${escapeHtml(snapshot.title || '')}</h2></li>`;
     } else if (block.type === 'page_break') {
-      return `<li${previewMergedStyle('page_break', `margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:${padding}px;`)}><div style="page-break-before: always;"></div></li>`;
+      return `<li${previewMergedStyle('page_break', `margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:0; padding-left:24px;`)}><div style="page-break-before: always;"></div></li>`;
     } else {
       const bodyHtml = renderBlockContent(block);
-      return `<li style="margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:${padding}px; text-align:${alignment};">${bodyHtml}</li>`;
+      return `<li style="margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:0; padding-left:24px; text-align:${alignment};">${bodyHtml}</li>`;
     }
   }
 
