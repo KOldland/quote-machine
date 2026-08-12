@@ -37,12 +37,12 @@ let documentStyles = {
     margin_right: 25,
   },
   typography: {
-    h1: { family: '', weight: '', size: 24, bold: false, italic: false, underline: false },
-    h2: { family: '', weight: '', size: 20, bold: false, italic: false, underline: false },
-    h3: { family: '', weight: '', size: 18, bold: false, italic: false, underline: false },
-    para: { family: '', weight: '', size: 16, bold: false, italic: false, underline: false },
-    notes: { family: '', weight: '', size: 14, bold: false, italic: false, underline: false },
-    guide: { family: '', weight: '', size: 14, bold: false, italic: false, underline: false },
+    h1: { family: '', weight: '', size: 24, bold: false, italic: false, underline: false, color: '' },
+    h2: { family: '', weight: '', size: 20, bold: false, italic: false, underline: false, color: '' },
+    h3: { family: '', weight: '', size: 18, bold: false, italic: false, underline: false, color: '' },
+    para: { family: '', weight: '', size: 16, bold: false, italic: false, underline: false, color: '' },
+    notes: { family: '', weight: '', size: 14, bold: false, italic: false, underline: false, color: '' },
+    guide: { family: '', weight: '', size: 14, bold: false, italic: false, underline: false, color: '' },
   },
   tables: {
     border: '1px solid #ccc',
@@ -63,7 +63,7 @@ let documentStyles = {
 
 const TYPO_ELEMENTS = ['h1', 'h2', 'h3', 'para', 'notes', 'guide'];
 const TYPO_LABELS = {
-  h1: 'Heading 1', h2: 'Heading 2', h3: 'Heading 3',
+  h1: 'Page Title', h2: 'Category Title', h3: 'Heading 3',
   para: 'Paragraph', notes: 'Notes', guide: 'Guide',
 };
 const FONT_FAMILIES = [
@@ -81,7 +81,6 @@ const FONT_FAMILIES = [
   { value: 'Poppins, sans-serif', label: 'Poppins (Google)' },
 ];
 const FONT_WEIGHTS = [
-  { value: '', label: 'Inherit' },
   { value: '300', label: 'Light (300)' },
   { value: '400', label: 'Regular (400)' },
   { value: '500', label: 'Medium (500)' },
@@ -829,6 +828,7 @@ const IMAGE_FRAMES = [
         bold: document.getElementById(prefix + '_bold')?.checked || false,
         italic: document.getElementById(prefix + '_italic')?.checked || false,
         underline: document.getElementById(prefix + '_underline')?.checked || false,
+        color: document.getElementById(prefix + '_color')?.value || documentStyles.typography[el].color,
       };
     });
     return {
@@ -877,7 +877,6 @@ const IMAGE_FRAMES = [
   async function confirmSave() {
     const name = document.getElementById('saveNameInput').value.trim();
     if (!name) return alert('Name is required');
-    const asTemplate = document.getElementById('saveAsTemplateCheckbox').checked;
     const payload = {
       name,
       blocks_json: collectBlocks(),
@@ -892,7 +891,7 @@ const IMAGE_FRAMES = [
       });
       const data = await res.json();
       if (data.success) {
-        alert(asTemplate ? 'Template saved' : 'Quote saved');
+        alert('Quote saved');
         document.getElementById('saveModal').style.display = 'none';
         refreshLayoutSelector();
       } else {
@@ -907,6 +906,7 @@ const IMAGE_FRAMES = [
     document.getElementById('loadModal').style.display = 'flex';
     loadQuotesList();
     loadTemplatesList();
+    loadThemesList();
   }
 
   async function loadQuotesList() {
@@ -1010,6 +1010,42 @@ const IMAGE_FRAMES = [
     }
   }
 
+  async function loadThemesList() {
+    const container = document.getElementById('loadThemesList');
+    container.innerHTML = '<p>Loading...</p>';
+    try {
+      const res = await fetch('/quote_editor/themes');
+      const data = await res.json();
+      const themes = data.themes || [];
+      if (!themes.length) {
+        container.innerHTML = '<p>No themes saved.</p>';
+        return;
+      }
+      container.innerHTML = themes.map(t => `
+        <div class="quote-list-item">
+          <div><strong>${escapeHtml(t.name)}</strong> ${t.is_default ? '(Default)' : ''}</div>
+          <div><button data-load-theme="${escapeHtml(t.name)}">Load</button></div>
+        </div>
+      `).join('');
+      container.querySelectorAll('[data-load-theme]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const name = btn.dataset.loadTheme;
+          const r = await fetch(`/quote_editor/themes/${encodeURIComponent(name)}`);
+          const d = await r.json();
+          if (d.success && d.theme) {
+            const settings = d.theme.settings || {};
+            if (settings.document_styles) {
+              documentStyles = { ...documentStyles, ...settings.document_styles };
+            }
+            document.getElementById('loadModal').style.display = 'none';
+          }
+        });
+      });
+    } catch (err) {
+      container.innerHTML = '<p>Failed to load themes.</p>';
+    }
+  }
+
   function openExportModal() {
     document.getElementById('exportModal').style.display = 'flex';
   }
@@ -1058,7 +1094,7 @@ const IMAGE_FRAMES = [
 
       const groupBlocks = pageBlocks.filter(b => b.list_group_id === gid);
       const listType = groupBlocks[0].list_type || 'ul';
-      html += `<${listType} class="preview-list-group" style="margin-top:0; margin-bottom:0; padding-left:20px;">`;
+      html += `<${listType} class="preview-list-group">`;
       groupBlocks.forEach(gBlock => {
         html += renderPreviewListItem(gBlock);
       });
@@ -1127,7 +1163,9 @@ const IMAGE_FRAMES = [
       }
       return '';
     } else if (block.type === 'notes') {
-      return `<div class="preview-notes"${previewMergedStyle('notes', `margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:${padding}px;`)}>${snapshot.content || ''}</div>`;
+      const overrideContent = (block.editor_overrides || {}).content;
+      const hasContent = typeof overrideContent === 'string' && overrideContent.trim();
+      return `<div class="preview-notes"${previewMergedStyle('notes', `margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:${padding}px;`)}>${hasContent ? overrideContent : (snapshot.content || '')}</div>`;
     } else if (block.type === 'page_break') {
       return `<div style="page-break-before: always; margin-top:${marginTop}px; margin-bottom:${marginBottom}px;"></div>`;
     } else if (block.type === 'image') {
@@ -1168,19 +1206,21 @@ const IMAGE_FRAMES = [
       const bodyHtml = hasContent ? overrideContent : (label ? `<strong>${label}:</strong> ${value}` : value);
       return `<li${previewMergedStyle('form_question', `margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:0; padding-left:24px; text-align:${alignment};`)}>${bodyHtml}</li>`;
     } else if (block.type === 'notes') {
-      return `<li${previewMergedStyle('notes', `margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:0; padding-left:24px;`)}>${snapshot.content || ''}</li>`;
+      const overrideContent = (block.editor_overrides || {}).content;
+      const hasContent = typeof overrideContent === 'string' && overrideContent.trim();
+      return `<li${previewMergedStyle('notes', `margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:0; padding-left:24px;`)}>${hasContent ? overrideContent : (snapshot.content || '')}</li>`;
     } else if (block.type === 'page_title') {
-      return `<li${previewMergedStyle('page_title', `margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:0; padding-left:24px; text-align:${alignment};`)}><h1>${escapeHtml(snapshot.title || '')}</h1></li>`;
+      return `<li${previewMergedStyle('page_title', `margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:0; text-align:${alignment};`)}><h1>${escapeHtml(snapshot.title || '')}</h1></li>`;
     } else if (block.type === 'category_title') {
       const catImg = snapshot.category_image
         ? `<img src="${escapeHtml(snapshot.category_image)}" alt="" style="max-width:200px;max-height:120px;display:block;margin-bottom:8px;border-radius:4px;">`
         : '';
-      return `<li${previewMergedStyle('category_title', `margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:0; padding-left:24px; text-align:${alignment};`)}>${catImg}<h2>${escapeHtml(snapshot.title || '')}</h2></li>`;
+      return `<li${previewMergedStyle('category_title', `margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:0; text-align:${alignment};`)}>${catImg}<h2>${escapeHtml(snapshot.title || '')}</h2></li>`;
     } else if (block.type === 'page_break') {
-      return `<li${previewMergedStyle('page_break', `margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:0; padding-left:24px;`)}><div style="page-break-before: always;"></div></li>`;
+      return `<li${previewMergedStyle('page_break', `margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:0;`)}><div style="page-break-before: always;"></div></li>`;
     } else {
       const bodyHtml = renderBlockContent(block);
-      return `<li style="margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:0; padding-left:24px; text-align:${alignment};">${bodyHtml}</li>`;
+      return `<li style="margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:0; text-align:${alignment};">${bodyHtml}</li>`;
     }
   }
 
@@ -1224,6 +1264,7 @@ const IMAGE_FRAMES = [
       if (document.getElementById(prefix + '_bold')) document.getElementById(prefix + '_bold').checked = t.bold;
       if (document.getElementById(prefix + '_italic')) document.getElementById(prefix + '_italic').checked = t.italic;
       if (document.getElementById(prefix + '_underline')) document.getElementById(prefix + '_underline').checked = t.underline;
+      if (document.getElementById(prefix + '_color')) document.getElementById(prefix + '_color').value = t.color || '#000000';
     });
     document.getElementById('docTableBorder').value = documentStyles.tables.border;
     document.getElementById('docTableHeaderBg').value = documentStyles.tables.header_bg;
@@ -1263,6 +1304,7 @@ const IMAGE_FRAMES = [
             <label class="chk" title="Bold"><input type="checkbox" id="${prefix}_bold">B</label>
             <label class="chk" title="Italic"><input type="checkbox" id="${prefix}_italic"><em>I</em></label>
             <label class="chk" title="Underline"><input type="checkbox" id="${prefix}_underline"><u>U</u></label>
+            <input type="color" id="${prefix}_color" title="Color" value="#000000" style="width:32px; height:32px; border:1px solid #ccc; border-radius:4px; cursor:pointer; padding:0;">
           </div>
         </div>`;
     });
@@ -1274,9 +1316,20 @@ const IMAGE_FRAMES = [
     document.getElementById('stylesBtn').addEventListener('click', openStylesModal);
     document.getElementById('closeStylesModal').addEventListener('click', closeStylesModal);
     document.getElementById('confirmStylesBtn').addEventListener('click', confirmStyles);
-    document.querySelectorAll('.styles-tab').forEach(btn => {
+    document.getElementById('saveThemeBtn').addEventListener('click', openSaveThemeModal);
+    document.getElementById('closeStylesModal').addEventListener('click', closeStylesModal);
+    document.getElementById('confirmSaveBtn').addEventListener('click', confirmSave);
+    document.getElementById('closeSaveModal').addEventListener('click', () => {
+      document.getElementById('saveModal').style.display = 'none';
+    });
+    document.getElementById('confirmSaveThemeBtn').addEventListener('click', confirmSaveTheme);
+    document.getElementById('browseThemesBtn').addEventListener('click', openSaveAsThemeModal);
+    document.getElementById('closeSaveThemeModal').addEventListener('click', () => {
+      document.getElementById('saveThemeModal').style.display = 'none';
+    });
+    document.querySelectorAll('.tab-btn[data-styles-tab]').forEach(btn => {
       btn.addEventListener('click', () => {
-        document.querySelectorAll('.styles-tab').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-btn[data-styles-tab]').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         const tab = btn.dataset.stylesTab;
         document.querySelectorAll('.styles-panel').forEach(p => p.style.display = 'none');
@@ -1284,6 +1337,110 @@ const IMAGE_FRAMES = [
         if (panel) panel.style.display = 'block';
       });
     });
+  }
+
+  function openSaveThemeModal() {
+    document.getElementById('saveThemeModal').style.display = 'flex';
+    document.getElementById('themeNameInput').value = '';
+    document.getElementById('setAsDefaultCheckbox').checked = false;
+  }
+
+  async function confirmSaveTheme() {
+    const name = document.getElementById('themeNameInput').value.trim();
+    if (!name) return alert('Theme name is required');
+    const isDefault = document.getElementById('setAsDefaultCheckbox').checked;
+    const payload = {
+      name,
+      settings_json: { document_styles: collectDocumentStyles() },
+      is_default: isDefault,
+    };
+    try {
+      const res = await fetch('/quote_editor/themes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('Theme saved');
+        document.getElementById('saveThemeModal').style.display = 'none';
+      } else {
+        alert('Save failed: ' + (data.error || 'unknown'));
+      }
+    } catch (err) {
+      alert('Save failed');
+    }
+  }
+
+  function openSaveAsThemeModal() {
+    const modal = document.getElementById('saveAsThemeModal');
+    modal.style.display = 'flex';
+    document.getElementById('saveAsThemeNameInput').value = '';
+    loadSaveAsThemesList();
+  }
+
+  async function loadSaveAsThemesList() {
+    const container = document.getElementById('saveAsThemesList');
+    container.innerHTML = '<p>Loading...</p>';
+    try {
+      const res = await fetch('/quote_editor/themes');
+      const data = await res.json();
+      const themes = data.themes || [];
+      if (!themes.length) {
+        container.innerHTML = '<p>No themes saved yet. Enter a name below to create a new theme.</p>';
+        return;
+      }
+      container.innerHTML = themes.map(t => `
+        <div class="quote-list-item" style="cursor:pointer;" data-overwrite-theme="${escapeHtml(t.name)}">
+          <div><strong>${escapeHtml(t.name)}</strong> ${t.is_default ? '(Default)' : ''}</div>
+          <div style="font-size:0.85rem; color:#666;">Click to overwrite</div>
+        </div>
+      `).join('');
+      container.querySelectorAll('[data-overwrite-theme]').forEach(item => {
+        item.addEventListener('click', () => {
+          const name = item.dataset.overwriteTheme;
+          document.getElementById('saveAsThemeNameInput').value = name;
+          if (confirm(`Overwrite theme "${name}"?`)) {
+            const isDefault = document.getElementById('setAsDefaultCheckbox').checked;
+            saveTheme(name, isDefault);
+          }
+        });
+      });
+    } catch (err) {
+      container.innerHTML = '<p>Failed to load themes.</p>';
+    }
+  }
+
+  async function confirmSaveAsTheme() {
+    const name = document.getElementById('saveAsThemeNameInput').value.trim();
+    if (!name) return alert('Theme name is required');
+    const isDefault = document.getElementById('setAsDefaultCheckbox').checked;
+    await saveTheme(name, isDefault);
+  }
+
+  async function saveTheme(name, isDefault) {
+    const payload = {
+      name,
+      settings_json: { document_styles: collectDocumentStyles() },
+      is_default: isDefault,
+    };
+    try {
+      const res = await fetch('/quote_editor/themes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('Theme saved');
+        document.getElementById('saveAsThemeModal').style.display = 'none';
+        document.getElementById('saveThemeModal').style.display = 'none';
+      } else {
+        alert('Save failed: ' + (data.error || 'unknown'));
+      }
+    } catch (err) {
+      alert('Save failed');
+    }
   }
 
   function initModals() {
@@ -1304,6 +1461,10 @@ const IMAGE_FRAMES = [
     document.getElementById('exportPdfBtn').addEventListener('click', exportPDF);
     document.getElementById('exportDocxBtn').addEventListener('click', exportDOCX);
     document.getElementById('closePreviewModal').addEventListener('click', closePreviewModal);
+    document.getElementById('confirmSaveAsThemeBtn').addEventListener('click', confirmSaveAsTheme);
+    document.getElementById('closeSaveAsThemeModal').addEventListener('click', () => {
+      document.getElementById('saveAsThemeModal').style.display = 'none';
+    });
 
     document.querySelectorAll('#loadTabs .tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -1312,6 +1473,7 @@ const IMAGE_FRAMES = [
         const tab = btn.dataset.tab;
         document.getElementById('loadQuotesList').style.display = tab === 'quotes' ? 'block' : 'none';
         document.getElementById('loadTemplatesList').style.display = tab === 'templates' ? 'block' : 'none';
+        document.getElementById('loadThemesList').style.display = tab === 'themes' ? 'block' : 'none';
       });
     });
   }

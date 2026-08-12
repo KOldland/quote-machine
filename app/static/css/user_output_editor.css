@@ -99,7 +99,7 @@
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  background: #e9ecef;
+  background: #fff;
 }
 
 .editor-toolbar {
@@ -146,9 +146,10 @@
 .document-viewport {
   flex: 1;
   overflow-y: auto;
-  padding: 24px;
+  padding: 24px 24px 72px 24px;
   display: flex;
   justify-content: center;
+  align-items: flex-start;
 }
 
 .document-pages {
@@ -731,6 +732,22 @@
 .preview-page .preview-question strong {
   font-weight: 600;
   color: #444;
+}
+
+.preview-list-group {
+  margin: 0 0 16px 0;
+  padding-left: 24px;
+}
+
+.preview-list-group li {
+  margin: 0;
+  padding: 0;
+  font-weight: inherit;
+}
+
+.preview-list-group li strong,
+.preview-list-group li b {
+  font-weight: bold !important;
 }
 
 .preview-page .preview-calculator {

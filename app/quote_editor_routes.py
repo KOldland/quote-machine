@@ -13,7 +13,7 @@ import json
 import os
 from pathlib import Path
 from typing import Optional
-from flask import Blueprint, request, session, jsonify, abort, send_file
+from flask import Blueprint, request, session, jsonify, abort, send_file, current_app
 from werkzeug.utils import secure_filename
 from template_store import (
     get_quote_editor_layout,
@@ -506,3 +506,54 @@ def set_pending_block():
         session['quote_editor_pending_block'] = block
         session.modified = True
     return jsonify({'success': True, 'redirect': '/quote_editor'})
+
+
+@quote_editor_bp.route('/quote_editor/themes', methods=['GET'])
+def list_themes():
+    theme_dir = os.path.join(current_app.root_path, 'themes')
+    themes = []
+    if os.path.isdir(theme_dir):
+        for fn in os.listdir(theme_dir):
+            if fn.endswith('.json'):
+                path = os.path.join(theme_dir, fn)
+                try:
+                    with open(path, 'r') as f:
+                        themes.append(json.load(f))
+                except Exception:
+                    pass
+    return jsonify({'success': True, 'themes': themes})
+
+
+@quote_editor_bp.route('/quote_editor/themes/<path:theme_name>', methods=['GET'])
+def get_theme(theme_name):
+    theme_dir = os.path.join(current_app.root_path, 'themes')
+    filename = f"{theme_name.replace(' ', '_').lower()}.json"
+    path = os.path.join(theme_dir, filename)
+    if not os.path.isfile(path):
+        return jsonify({'success': False, 'error': 'Theme not found'}), 404
+    try:
+        with open(path, 'r') as f:
+            theme = json.load(f)
+        return jsonify({'success': True, 'theme': theme})
+    except Exception:
+        return jsonify({'success': False, 'error': 'Failed to load theme'}), 500
+
+
+@quote_editor_bp.route('/quote_editor/themes', methods=['POST'])
+def create_theme():
+    data = request.get_json(force=True) or {}
+    name = data.get('name', 'Default')
+    settings = data.get('settings_json') or {}
+    is_default = data.get('is_default', False)
+    theme_dir = os.path.join(current_app.root_path, 'themes')
+    os.makedirs(theme_dir, exist_ok=True)
+    theme_data = {
+        'name': name,
+        'settings': settings,
+        'is_default': is_default,
+        'created_at': __import__('datetime').datetime.utcnow().isoformat(),
+    }
+    filename = f"{name.replace(' ', '_').lower()}.json"
+    with open(os.path.join(theme_dir, filename), 'w') as f:
+        json.dump(theme_data, f, indent=2)
+    return jsonify({'success': True})
