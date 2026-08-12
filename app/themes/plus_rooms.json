@@ -48,7 +48,7 @@
         "para": {
           "family": "Arial, sans-serif",
           "weight": "300",
-          "size": 14,
+          "size": 12,
           "bold": false,
           "italic": false,
           "underline": false,
@@ -64,13 +64,22 @@
           "color": "#000000"
         },
         "guide": {
-          "family": "",
-          "weight": "",
-          "size": 14,
+          "family": "Arial, sans-serif",
+          "weight": "300",
+          "size": 8,
           "bold": false,
           "italic": false,
           "underline": false,
-          "color": "#000000"
+          "color": "#069b9d"
+        },
+        "guidance": {
+          "family": "Arial, sans-serif",
+          "weight": "300",
+          "size": 8,
+          "bold": false,
+          "italic": true,
+          "underline": false,
+          "color": "#0081b8"
         }
       },
       "tables": {
@@ -91,5 +100,5 @@
     }
   },
   "is_default": false,
-  "created_at": "2026-08-12T12:10:15.781316"
+  "created_at": "2026-08-12T15:26:59.865338"
 }

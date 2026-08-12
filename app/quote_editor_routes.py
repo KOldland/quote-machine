@@ -388,8 +388,9 @@ def add_form_block():
                             'settings': { 'margin_top': 5, 'margin_bottom': 5, 'padding': 12, 'alignment': 'left', 'font_size': 20 },
                         })
 
-                output_title = item.get('output_title', '') or item.get('internal_description', '') or item.get('line_code', '')
-                output_notes = item.get('output_guidance', '') or item.get('output_notes', '')
+                output_title = item.get('output_title', '') or item.get('line_code', '')
+                output_notes = item.get('output_notes', '')
+                output_guidance = item.get('output_guidance', '')
                 value_text = output_notes or ''
 
                 snapshot_blocks.append({
@@ -400,6 +401,8 @@ def add_form_block():
                     'snapshot': {
                         'label': output_title,
                         'value': value_text,
+                        'output_notes': output_notes,
+                        'output_guidance': output_guidance,
                         'line_code': item.get('line_code', ''),
                         'category': category,
                     },

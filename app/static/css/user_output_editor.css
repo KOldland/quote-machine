@@ -758,6 +758,11 @@
   margin: 16px 0;
 }
 
+.preview-page .preview-guidance,
+.editor-block__content .preview-guidance {
+  margin: 16px 0;
+}
+
 .preview-page .preview-image {
   margin: 16px 0;
   text-align: center;

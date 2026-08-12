@@ -43,6 +43,7 @@ let documentStyles = {
     para: { family: '', weight: '', size: 16, bold: false, italic: false, underline: false, color: '' },
     notes: { family: '', weight: '', size: 14, bold: false, italic: false, underline: false, color: '' },
     guide: { family: '', weight: '', size: 14, bold: false, italic: false, underline: false, color: '' },
+    guidance: { family: '', weight: '', size: 14, bold: false, italic: false, underline: false, color: '' },
   },
   tables: {
     border: '1px solid #ccc',
@@ -61,10 +62,10 @@ let documentStyles = {
   },
 };
 
-const TYPO_ELEMENTS = ['h1', 'h2', 'h3', 'para', 'notes', 'guide'];
+const TYPO_ELEMENTS = ['h1', 'h2', 'h3', 'para', 'notes', 'guide', 'guidance'];
 const TYPO_LABELS = {
   h1: 'Page Title', h2: 'Category Title', h3: 'Heading 3',
-  para: 'Paragraph', notes: 'Notes', guide: 'Guide',
+  para: 'Paragraph', notes: 'Notes', guide: 'Guide', guidance: 'Guidance',
 };
 const FONT_FAMILIES = [
   { value: 'Arial, sans-serif', label: 'Arial' },
@@ -248,7 +249,9 @@ const IMAGE_FRAMES = [
     } else if (block.type === 'form_question') {
       const label = escapeHtml(snapshot.label || '');
       const value = escapeHtml(snapshot.value || '');
+      const guidance = escapeHtml(snapshot.output_guidance || '');
       contentHtml = label ? `<strong>${label}:</strong> ${value}` : value;
+      contentHtml += guidance ? `<div class="preview-guidance"${previewMergedStyle('guidance', '')}>${guidance}</div>` : '';
     } else {
       contentHtml = renderBlockContent(block);
     }
@@ -1106,9 +1109,10 @@ const IMAGE_FRAMES = [
 
   function previewTypoStyle(blockType) {
     const typo = documentStyles.typography || {};
-    const typeMap = { page_title: 'h1', category_title: 'h2', form_question: 'para', notes: 'notes', guide: 'guide' };
+    const typeMap = { page_title: 'h1', category_title: 'h2', form_question: 'para', notes: 'notes', guide: 'guide', guidance: 'guidance' };
     const key = typeMap[blockType];
-    const t = key ? typo[key] : null;
+    const defaults = { family: '', weight: '', size: 14, bold: false, italic: false, underline: false, color: '' };
+    const t = key ? { ...defaults, ...(typo[key] || {}) } : null;
     if (!t) return '';
     const ff = documentStyles.font_family || 'Arial, sans-serif';
     const baseSize = documentStyles.font_size_base || 16;
@@ -1147,7 +1151,15 @@ const IMAGE_FRAMES = [
       const hasContent = typeof overrideContent === 'string' && overrideContent.trim();
       const label = escapeHtml(snapshot.label || '');
       const value = escapeHtml(snapshot.value || '');
-      const bodyHtml = hasContent ? overrideContent : (label ? `<strong>${label}:</strong> ${value}` : value);
+      const guidance = escapeHtml(snapshot.output_guidance || '');
+      let bodyHtml;
+      if (hasContent) {
+        bodyHtml = overrideContent;
+      } else {
+        const titlePart = label ? `<strong>${label}:</strong> ${value}` : value;
+        const guidanceBlock = guidance ? `<div class="preview-guidance"${previewMergedStyle('guidance', '')}>${guidance}</div>` : '';
+        bodyHtml = `${titlePart}${guidanceBlock}`;
+      }
       return `<div class="preview-question"${previewMergedStyle('form_question', `margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:${padding}px; text-align:${alignment};`)}>${bodyHtml}</div>`;
     } else if (block.type === 'calculator') {
       const groups = snapshot.groups || [];
@@ -1203,7 +1215,15 @@ const IMAGE_FRAMES = [
       const hasContent = typeof overrideContent === 'string' && overrideContent.trim();
       const label = escapeHtml(snapshot.label || '');
       const value = escapeHtml(snapshot.value || '');
-      const bodyHtml = hasContent ? overrideContent : (label ? `<strong>${label}:</strong> ${value}` : value);
+      const guidance = escapeHtml(snapshot.output_guidance || '');
+      let bodyHtml;
+      if (hasContent) {
+        bodyHtml = overrideContent;
+      } else {
+        const titlePart = label ? `<strong>${label}:</strong> ${value}` : value;
+        const guidanceBlock = guidance ? `<div class="preview-guidance"${previewMergedStyle('guidance', '')}>${guidance}</div>` : '';
+        bodyHtml = `${titlePart}${guidanceBlock}`;
+      }
       return `<li${previewMergedStyle('form_question', `margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:0; padding-left:24px; text-align:${alignment};`)}>${bodyHtml}</li>`;
     } else if (block.type === 'notes') {
       const overrideContent = (block.editor_overrides || {}).content;
