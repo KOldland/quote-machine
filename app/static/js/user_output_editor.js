@@ -44,6 +44,10 @@ let documentStyles = {
     doc_id_alignment: 'center',
     divider_style: 'single',
     divider_thickness: 1,
+    margin_top: 0,
+    margin_bottom: 0,
+    margin_left: 0,
+    margin_right: 0,
     hide_on_cover: false,
   },
   footer: {
@@ -886,6 +890,10 @@ const IMAGE_FRAMES = [
         doc_id_alignment: document.getElementById('docHeaderDocIdAlign')?.value || header.doc_id_alignment || 'center',
         divider_style: document.getElementById('docHeaderDividerStyle')?.value || header.divider_style || 'single',
         divider_thickness: parseFloat(document.getElementById('docHeaderDividerThickness')?.value) || header.divider_thickness || 1,
+        margin_top: parseInt(document.getElementById('docHeaderMarginTop')?.value, 10) || header.margin_top || 0,
+        margin_bottom: parseInt(document.getElementById('docHeaderMarginBottom')?.value, 10) || header.margin_bottom || 0,
+        margin_left: parseInt(document.getElementById('docHeaderMarginLeft')?.value, 10) || header.margin_left || 0,
+        margin_right: parseInt(document.getElementById('docHeaderMarginRight')?.value, 10) || header.margin_right || 0,
         hide_on_cover: document.getElementById('docHeaderHideCover')?.checked || false,
       },
       footer: {
@@ -1251,7 +1259,12 @@ const IMAGE_FRAMES = [
     const docIdAlign = hdr.doc_id_alignment || 'center';
     const logoMarginLeft = logoAlign === 'left' ? '0' : 'auto';
     const logoMarginRight = logoAlign === 'right' ? '0' : 'auto';
-    let html = `<div class="preview-header" style="font-size:${fs}px; padding:0; margin:0;">`;
+    const mt = hdr.margin_top || 0;
+    const mb = hdr.margin_bottom || 0;
+    const ml = hdr.margin_left || 0;
+    const mr = hdr.margin_right || 0;
+    const marginStyle = `${mt}px ${mr}px ${mb}px ${ml}px`;
+    let html = `<div class="preview-header" style="font-size:${fs}px; padding:0; margin:${marginStyle};">`;
 
     if (hdr.logo_url) {
       html += `<img src="${escapeHtml(hdr.logo_url)}" style="max-width:${hdr.logo_width || 120}px; max-height:${hdr.logo_height || 40}px; display:block; margin:0 ${logoMarginRight} 4px ${logoMarginLeft}; object-fit:contain;" />`;
@@ -1542,6 +1555,10 @@ const IMAGE_FRAMES = [
       docHeaderLogoAlign: hdr.logo_alignment || 'center',
       docHeaderDividerStyle: hdr.divider_style || 'single',
       docHeaderDividerThickness: hdr.divider_thickness ?? 1,
+      docHeaderMarginTop: hdr.margin_top ?? 0,
+      docHeaderMarginBottom: hdr.margin_bottom ?? 0,
+      docHeaderMarginLeft: hdr.margin_left ?? 0,
+      docHeaderMarginRight: hdr.margin_right ?? 0,
       docHeaderHideCover: hdr.hide_on_cover ?? false,
     };
     Object.entries(hdrFields).forEach(([id, value]) => {

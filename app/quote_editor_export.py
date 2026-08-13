@@ -97,14 +97,18 @@ def _generate_header_html(document_styles, blocks, css_mode=True):
     divider_style = hdr.get('divider_style', 'single')
     divider_thickness = hdr.get('divider_thickness', 1)
     header_font_size = document_styles.get('header_font_size', 10)
+    margin_top = hdr.get('margin_top', 0)
+    margin_bottom = hdr.get('margin_bottom', 0)
+    margin_left = hdr.get('margin_left', 0)
+    margin_right = hdr.get('margin_right', 0)
 
     parts = []
     if logo_url:
-        margin_left = '0' if logo_alignment == 'left' else 'auto' if logo_alignment == 'center' else 'auto'
-        margin_right = 'auto' if logo_alignment == 'center' else '0' if logo_alignment == 'right' else 'auto'
+        margin_left_css = '0' if logo_alignment == 'left' else 'auto' if logo_alignment == 'center' else 'auto'
+        margin_right_css = 'auto' if logo_alignment == 'center' else '0' if logo_alignment == 'right' else 'auto'
         parts.append(
             f'<img src="{logo_url}" style="max-width:{logo_width}px; max-height:{logo_height}px; '
-            f'display:block; margin:0 {margin_right} 4px {margin_left}; object-fit:contain;" />'
+            f'display:block; margin:0 {margin_right_css} 4px {margin_left_css}; object-fit:contain;" />'
         )
 
     doc_id_text = _build_doc_id_text(doc_id_type, doc_id_manual, quote_ref, client_address)
@@ -112,7 +116,18 @@ def _generate_header_html(document_styles, blocks, css_mode=True):
         parts.append(f'<div class="hf-doc-id" style="text-align:{doc_id_alignment};">{_replace_placeholders(doc_id_text, blocks)}</div>')
 
     parts.append(_build_divider_html(divider_style, divider_thickness, css_mode))
-    return '\n'.join(parts)
+
+    if css_mode:
+        wrapper_style = f'padding:0; margin:0 {margin_right}mm {margin_bottom}mm {margin_left}mm;'
+        if margin_top:
+            wrapper_style = f'margin-top:{margin_top}mm; {wrapper_style}'
+    else:
+        wrapper_style = ''
+
+    inner = '\n'.join(parts)
+    if wrapper_style:
+        return f'<div class="preview-header" style="{wrapper_style} font-size:{header_font_size}px;">{inner}</div>'
+    return inner
 
 
 def _generate_footer_html(document_styles, blocks, css_mode=True):
