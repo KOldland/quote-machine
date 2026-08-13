@@ -1602,6 +1602,40 @@ def create_default_output_template(form_key: str, db_path: Optional[Path] = None
         conn.close()
 
 
+def update_saved_quote(quote_id: int, form_key: str, name: str, blocks_json: list, settings: dict, client_name: str = '', notes: str = '', user_id: Optional[int] = None, db_path: Optional[Path] = None) -> Optional[dict]:
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    try:
+        ft_id = _get_form_template_id(conn, form_key)
+        if not ft_id:
+            return None
+        conn.execute(
+            """
+            UPDATE saved_quotes
+            SET name = ?, client_name = ?, notes = ?, blocks_json = ?, settings_json = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ? AND form_template_id = ?
+            """,
+            (
+                name,
+                client_name,
+                notes,
+                json.dumps(blocks_json),
+                json.dumps(settings or {}),
+                quote_id,
+                ft_id,
+            ),
+        )
+        conn.commit()
+        row = conn.execute("SELECT * FROM saved_quotes WHERE id = ?", (quote_id,)).fetchone()
+        result = dict(row) if row else None
+        if result:
+            result["blocks_json"] = json.loads(result.get("blocks_json", "[]"))
+            result["settings_json"] = json.loads(result.get("settings_json", "{}"))
+        return result
+    finally:
+        conn.close()
+
+
 def get_output_template(form_key: str, db_path: Optional[Path] = None) -> Optional[dict]:
     """Return the default output template dict for a form template key, or None."""
     path = db_path or _default_db_path()

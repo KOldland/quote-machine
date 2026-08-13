@@ -26,6 +26,7 @@ from template_store import (
     get_saved_quote,
     list_saved_quotes,
     delete_saved_quote,
+    update_saved_quote,
     load_template_payload,
     _get_form_template_id,
     get_line_items_by_codes,
@@ -178,6 +179,26 @@ def list_quotes():
     return jsonify({'success': True, 'quotes': quotes})
 
 
+@quote_editor_bp.route('/quote_editor/quotes', methods=['POST'])
+def create_quote():
+    form_key = session.get('template_key', 'builder_beta')
+    user_id = session.get('user_id')
+    data = request.get_json(force=True) or {}
+    name = data.get('name', 'Untitled')
+    blocks = data.get('blocks_json', [])
+    settings = data.get('settings_json') or {}
+    quote = save_quote(
+        form_key=form_key,
+        blocks_json=blocks,
+        name=name,
+        settings=settings,
+        user_id=user_id,
+    )
+    if not quote:
+        return jsonify({'success': False, 'error': 'Failed to save quote'}), 500
+    return jsonify({'success': True, 'quote': quote}), 201
+
+
 @quote_editor_bp.route('/quote_editor/quotes/<int:quote_id>', methods=['DELETE'])
 def delete_quote_route(quote_id):
     form_key = session.get('template_key', 'builder_beta')
@@ -185,6 +206,31 @@ def delete_quote_route(quote_id):
     if not ok:
         return jsonify({'success': False, 'error': 'Quote not found'}), 404
     return jsonify({'success': True})
+
+
+@quote_editor_bp.route('/quote_editor/quotes/<int:quote_id>', methods=['PUT'])
+def update_quote_route(quote_id):
+    form_key = session.get('template_key', 'builder_beta')
+    data = request.get_json(force=True) or {}
+    name = data.get('name')
+    blocks = data.get('blocks_json')
+    settings = data.get('settings_json')
+    client_name = data.get('client_name', '')
+    notes = data.get('notes', '')
+    if not name:
+        return jsonify({'success': False, 'error': 'Name is required'}), 400
+    updated = update_saved_quote(
+        quote_id=quote_id,
+        form_key=form_key,
+        name=name,
+        blocks_json=blocks or [],
+        settings=settings or {},
+        client_name=client_name,
+        notes=notes,
+    )
+    if not updated:
+        return jsonify({'success': False, 'error': 'Quote not found'}), 404
+    return jsonify({'success': True, 'quote': updated})
 
 
 # ── Image Upload ────────────────────────────────────────────────────

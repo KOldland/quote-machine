@@ -20,6 +20,7 @@ let lastClickedBlockId = null;
 let sortableInstance = null;
 let listGroupCounter = 0;
 let copiedSettings = null;
+let currentQuoteId = null;
 let documentStyles = {
   font_family: 'Arial, sans-serif',
   font_size_base: 16,
@@ -365,6 +366,11 @@ const IMAGE_FRAMES = [
     const block = {
       id: blockData.id || generateId(),
       type: blockData.type,
+      source_page: blockData.source_page || '',
+      source_block_id: blockData.source_block_id || '',
+      list_group_id: blockData.list_group_id || null,
+      list_type: blockData.list_type || 'ul',
+      list_index: blockData.list_index || 0,
       snapshot: blockData.snapshot || {},
       editor_overrides: blockData.editor_overrides || {},
       flags: blockData.flags || { source_dirty: false, editor_dirty: false },
@@ -812,7 +818,13 @@ const IMAGE_FRAMES = [
 
   function collectBlocks() {
     return blocks.map(b => ({
-      ...b,
+      id: b.id,
+      type: b.type,
+      source_page: b.source_page || '',
+      source_block_id: b.source_block_id || '',
+      list_group_id: b.list_group_id || null,
+      list_type: b.list_type || 'ul',
+      list_index: b.list_index || 0,
       snapshot: b.snapshot || {},
       editor_overrides: b.editor_overrides || {},
       flags: b.flags || {},
@@ -873,13 +885,8 @@ const IMAGE_FRAMES = [
     documentStyles = { ...documentStyles, ...collectDocumentStyles() };
   }
 
-  function openSaveModal() {
-    document.getElementById('saveModal').style.display = 'flex';
-  }
-
-  async function confirmSave() {
-    const name = document.getElementById('saveNameInput').value.trim();
-    if (!name) return alert('Name is required');
+  async function quickSave() {
+    const name = currentQuoteId ? `Quote ${currentQuoteId}` : 'Untitled Quote';
     const payload = {
       name,
       blocks_json: collectBlocks(),
@@ -887,15 +894,93 @@ const IMAGE_FRAMES = [
       is_default: false,
     };
     try {
-      const res = await fetch('/quote_editor/layouts', {
-        method: 'POST',
+      const isUpdate = !!currentQuoteId;
+      const url = isUpdate ? `/quote_editor/quotes/${currentQuoteId}` : '/quote_editor/quotes';
+      const method = isUpdate ? 'PUT' : 'POST';
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (!isUpdate && data.quote && data.quote.id) {
+          currentQuoteId = data.quote.id;
+        }
+        alert('Quote saved');
+        refreshLayoutSelector();
+      } else {
+        alert('Save failed: ' + (data.error || 'unknown'));
+      }
+    } catch (err) {
+      alert('Save failed');
+    }
+  }
+
+  function openSaveAsQuoteModal() {
+    document.getElementById('saveAsQuoteModal').style.display = 'flex';
+    document.getElementById('saveAsQuoteNameInput').value = '';
+    loadSaveAsQuotesList();
+  }
+
+  async function loadSaveAsQuotesList() {
+    const container = document.getElementById('saveAsQuotesList');
+    container.innerHTML = '<p>Loading...</p>';
+    try {
+      const res = await fetch('/quote_editor/quotes');
+      const data = await res.json();
+      const quotes = data.quotes || [];
+      if (!quotes.length) {
+        container.innerHTML = '<p>No saved quotes yet. Enter a name below to create a new quote.</p>';
+        return;
+      }
+      container.innerHTML = quotes.map(q => `
+        <div class="quote-list-item" style="cursor:pointer;" data-overwrite-quote="${q.id}">
+          <div><strong>${escapeHtml(q.name)}</strong> <small>${escapeHtml(q.client_name || '')}</small></div>
+          <div style="font-size:0.85rem; color:#666;">Click to overwrite</div>
+        </div>
+      `).join('');
+      container.querySelectorAll('[data-overwrite-quote]').forEach(item => {
+        item.addEventListener('click', () => {
+          const id = item.dataset.overwriteQuote;
+          document.getElementById('saveAsQuoteNameInput').value = item.querySelector('strong').textContent;
+          if (confirm('Overwrite this quote?')) {
+            saveQuote(id);
+          }
+        });
+      });
+    } catch (err) {
+      container.innerHTML = '<p>Failed to load quotes.</p>';
+    }
+  }
+
+  async function confirmSaveAsQuote() {
+    const name = document.getElementById('saveAsQuoteNameInput').value.trim();
+    if (!name) return alert('Quote name is required');
+    await saveQuote(null, name);
+  }
+
+  async function saveQuote(existingId, name) {
+    const quoteName = name || document.getElementById('saveAsQuoteNameInput').value.trim();
+    if (!quoteName) return alert('Quote name is required');
+    const payload = {
+      name: quoteName,
+      blocks_json: collectBlocks(),
+      settings_json: { document_styles: collectDocumentStyles() },
+      is_default: false,
+    };
+    try {
+      const url = existingId ? `/quote_editor/quotes/${existingId}` : '/quote_editor/quotes';
+      const method = existingId ? 'PUT' : 'POST';
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (data.success) {
         alert('Quote saved');
-        document.getElementById('saveModal').style.display = 'none';
+        document.getElementById('saveAsQuoteModal').style.display = 'none';
         refreshLayoutSelector();
       } else {
         alert('Save failed: ' + (data.error || 'unknown'));
@@ -908,7 +993,6 @@ const IMAGE_FRAMES = [
   function openLoadModal() {
     document.getElementById('loadModal').style.display = 'flex';
     loadQuotesList();
-    loadTemplatesList();
     loadThemesList();
   }
 
@@ -938,12 +1022,14 @@ const IMAGE_FRAMES = [
           const r = await fetch(`/quote_editor/load-quote/${id}`);
           const d = await r.json();
           if (d.success) {
+            currentQuoteId = id;
             const stylesOnly = document.getElementById('loadStylesOnlyCheckbox')?.checked;
             const quote = d.quote || {};
             const settings = quote.settings_json || {};
             if (settings.document_styles) {
               documentStyles = { ...documentStyles, ...settings.document_styles };
             }
+            updateStylesFormFromDocumentStyles();
             if (!stylesOnly) {
               blocks = [];
               activeBlockId = null;
@@ -997,6 +1083,7 @@ const IMAGE_FRAMES = [
             if (settings.document_styles) {
               documentStyles = { ...documentStyles, ...settings.document_styles };
             }
+            updateStylesFormFromDocumentStyles();
             if (!stylesOnly) {
               blocks = [];
               activeBlockId = null;
@@ -1040,6 +1127,7 @@ const IMAGE_FRAMES = [
             if (settings.document_styles) {
               documentStyles = { ...documentStyles, ...settings.document_styles };
             }
+            updateStylesFormFromDocumentStyles();
             document.getElementById('loadModal').style.display = 'none';
           }
         });
@@ -1260,41 +1348,72 @@ const IMAGE_FRAMES = [
     });
   }
 
-  function openStylesModal() {
-    document.getElementById('stylesModal').style.display = 'flex';
-    document.getElementById('docFontFamily').value = documentStyles.font_family;
-    document.getElementById('docFontSizeBase').value = documentStyles.font_size_base;
-    document.getElementById('docHeaderHtml').value = documentStyles.header_html;
-    document.getElementById('docFooterHtml').value = documentStyles.footer_html;
-    document.getElementById('docHeaderFontSize').value = documentStyles.header_font_size;
-    document.getElementById('docFooterFontSize').value = documentStyles.footer_font_size;
-    document.getElementById('docPageSize').value = documentStyles.page_size;
-    document.getElementById('docHeaderHideCover').checked = documentStyles.header_hide_on_cover;
-    document.getElementById('docFooterHideCover').checked = documentStyles.footer_hide_on_cover;
-    document.getElementById('docMarginTop').value = documentStyles.margins.margin_top;
-    document.getElementById('docMarginBottom').value = documentStyles.margins.margin_bottom;
-    document.getElementById('docMarginLeft').value = documentStyles.margins.margin_left;
-    document.getElementById('docMarginRight').value = documentStyles.margins.margin_right;
+  function updateStylesFormFromDocumentStyles() {
+    const fields = {
+      docFontFamily: documentStyles.font_family,
+      docFontSizeBase: documentStyles.font_size_base,
+      docHeaderHtml: documentStyles.header_html,
+      docFooterHtml: documentStyles.footer_html,
+      docHeaderFontSize: documentStyles.header_font_size,
+      docFooterFontSize: documentStyles.footer_font_size,
+      docPageSize: documentStyles.page_size,
+      docTableBorder: documentStyles.tables.border,
+      docTableHeaderBg: documentStyles.tables.header_bg,
+      docTableRowBg: documentStyles.tables.row_bg,
+      docTableAltRowBg: documentStyles.tables.alt_row_bg,
+      docTableFontSize: documentStyles.tables.font_size,
+      docImageFrame: documentStyles.images.frame,
+      docLinkColor: documentStyles.links.color,
+    };
+    Object.entries(fields).forEach(([id, value]) => {
+      const el = document.getElementById(id);
+      if (el) el.value = value;
+    });
+    const checkboxes = {
+      docHeaderHideCover: documentStyles.header_hide_on_cover,
+      docFooterHideCover: documentStyles.footer_hide_on_cover,
+      docImageShadow: documentStyles.images.shadow,
+      docLinkUnderline: documentStyles.links.underline,
+    };
+    Object.entries(checkboxes).forEach(([id, checked]) => {
+      const el = document.getElementById(id);
+      if (el) el.checked = checked;
+    });
+    const margins = documentStyles.margins || {};
+    const marginFields = {
+      docMarginTop: margins.margin_top,
+      docMarginBottom: margins.margin_bottom,
+      docMarginLeft: margins.margin_left,
+      docMarginRight: margins.margin_right,
+    };
+    Object.entries(marginFields).forEach(([id, value]) => {
+      const el = document.getElementById(id);
+      if (el) el.value = value;
+    });
     TYPO_ELEMENTS.forEach(el => {
       const prefix = 'docTypo_' + el;
-      const t = documentStyles.typography[el];
-      if (document.getElementById(prefix + '_family')) document.getElementById(prefix + '_family').value = t.family;
-      if (document.getElementById(prefix + '_weight')) document.getElementById(prefix + '_weight').value = t.weight;
-      if (document.getElementById(prefix + '_size')) document.getElementById(prefix + '_size').value = t.size;
-      if (document.getElementById(prefix + '_bold')) document.getElementById(prefix + '_bold').checked = t.bold;
-      if (document.getElementById(prefix + '_italic')) document.getElementById(prefix + '_italic').checked = t.italic;
-      if (document.getElementById(prefix + '_underline')) document.getElementById(prefix + '_underline').checked = t.underline;
-      if (document.getElementById(prefix + '_color')) document.getElementById(prefix + '_color').value = t.color || '#000000';
+      const t = documentStyles.typography[el] || {};
+      const map = {
+        family: t.family || '',
+        weight: t.weight || '',
+        size: t.size || 16,
+        bold: t.bold || false,
+        italic: t.italic || false,
+        underline: t.underline || false,
+        color: t.color || '#000000',
+      };
+      Object.entries(map).forEach(([suffix, value]) => {
+        const field = document.getElementById(prefix + '_' + suffix);
+        if (!field) return;
+        if (field.type === 'checkbox') field.checked = value;
+        else field.value = value;
+      });
     });
-    document.getElementById('docTableBorder').value = documentStyles.tables.border;
-    document.getElementById('docTableHeaderBg').value = documentStyles.tables.header_bg;
-    document.getElementById('docTableRowBg').value = documentStyles.tables.row_bg;
-    document.getElementById('docTableAltRowBg').value = documentStyles.tables.alt_row_bg;
-    document.getElementById('docTableFontSize').value = documentStyles.tables.font_size;
-    document.getElementById('docImageFrame').value = documentStyles.images.frame;
-    document.getElementById('docImageShadow').checked = documentStyles.images.shadow;
-    document.getElementById('docLinkColor').value = documentStyles.links.color;
-    document.getElementById('docLinkUnderline').checked = documentStyles.links.underline;
+  }
+
+  function openStylesModal() {
+    document.getElementById('stylesModal').style.display = 'flex';
+    updateStylesFormFromDocumentStyles();
   }
 
   function closeStylesModal() {
@@ -1337,11 +1456,6 @@ const IMAGE_FRAMES = [
     document.getElementById('closeStylesModal').addEventListener('click', closeStylesModal);
     document.getElementById('confirmStylesBtn').addEventListener('click', confirmStyles);
     document.getElementById('saveThemeBtn').addEventListener('click', openSaveThemeModal);
-    document.getElementById('closeStylesModal').addEventListener('click', closeStylesModal);
-    document.getElementById('confirmSaveBtn').addEventListener('click', confirmSave);
-    document.getElementById('closeSaveModal').addEventListener('click', () => {
-      document.getElementById('saveModal').style.display = 'none';
-    });
     document.getElementById('confirmSaveThemeBtn').addEventListener('click', confirmSaveTheme);
     document.getElementById('browseThemesBtn').addEventListener('click', openSaveAsThemeModal);
     document.getElementById('closeSaveThemeModal').addEventListener('click', () => {
@@ -1465,13 +1579,14 @@ const IMAGE_FRAMES = [
 
   function initModals() {
     document.getElementById('previewBtn').addEventListener('click', openPreviewModal);
-    document.getElementById('saveBtn').addEventListener('click', openSaveModal);
+    document.getElementById('saveBtn').addEventListener('click', quickSave);
+    document.getElementById('saveAsBtn').addEventListener('click', openSaveAsQuoteModal);
     document.getElementById('loadBtn').addEventListener('click', openLoadModal);
     document.getElementById('exportBtn').addEventListener('click', openExportModal);
-    document.getElementById('closeSaveModal').addEventListener('click', () => {
-      document.getElementById('saveModal').style.display = 'none';
+    document.getElementById('confirmSaveAsQuoteBtn').addEventListener('click', confirmSaveAsQuote);
+    document.getElementById('closeSaveAsQuoteModal').addEventListener('click', () => {
+      document.getElementById('saveAsQuoteModal').style.display = 'none';
     });
-    document.getElementById('confirmSaveBtn').addEventListener('click', confirmSave);
     document.getElementById('closeLoadModal').addEventListener('click', () => {
       document.getElementById('loadModal').style.display = 'none';
     });
@@ -1492,7 +1607,6 @@ const IMAGE_FRAMES = [
         btn.classList.add('active');
         const tab = btn.dataset.tab;
         document.getElementById('loadQuotesList').style.display = tab === 'quotes' ? 'block' : 'none';
-        document.getElementById('loadTemplatesList').style.display = tab === 'templates' ? 'block' : 'none';
         document.getElementById('loadThemesList').style.display = tab === 'themes' ? 'block' : 'none';
       });
     });
