@@ -1209,10 +1209,23 @@ const IMAGE_FRAMES = [
     previewPageIndex = Math.max(0, Math.min(window.__currentPageIndex || 0, pages.length - 1));
     renderPreviewPage();
     document.getElementById('previewModal').style.display = 'flex';
+    updatePreviewResizeBanner();
   }
 
   function closePreviewModal() {
     document.getElementById('previewModal').style.display = 'none';
+  }
+
+  function updatePreviewResizeBanner() {
+    const banner = document.getElementById('previewResizeBanner');
+    if (!banner) return;
+    const viewport = document.getElementById('previewViewport');
+    const page = document.getElementById('previewPage');
+    if (!viewport || !page) return;
+    const pageStyle = window.getComputedStyle(page);
+    const maxWidth = parseFloat(pageStyle.maxWidth);
+    const isSqueezed = viewport.clientWidth < maxWidth - 1;
+    banner.style.display = isSqueezed ? 'block' : 'none';
   }
 
   function renderPreviewPage() {
@@ -2200,6 +2213,7 @@ const IMAGE_FRAMES = [
         redo();
       }
     });
+    window.addEventListener('resize', updatePreviewResizeBanner);
   }
 
   async function init() {
@@ -2218,6 +2232,14 @@ const IMAGE_FRAMES = [
      pushHistory();
      updateNavPanel();
      updateSettingsPanel();
+     const sidebar = document.getElementById('sidebar');
+     const mainContent = document.querySelector('.main-content');
+     if (sidebar && !sidebar.classList.contains('collapsed')) {
+       sidebar.classList.add('collapsed');
+     }
+     if (mainContent && !mainContent.classList.contains('expanded')) {
+       mainContent.classList.add('expanded');
+     }
    }
 
   if (document.readyState === 'loading') {

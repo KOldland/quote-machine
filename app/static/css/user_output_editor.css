@@ -683,9 +683,25 @@
   padding: 10px;
   background: #f8f9fa;
   border-bottom: 1px solid #e0e0e0;
-}
+ }
 
-.preview-viewport {
+  .preview-resize-banner {
+    background: #fff3cd;
+    color: #856404;
+    border-bottom: 1px solid #ffc107;
+    padding: 10px 16px;
+    font-size: 0.85rem;
+    text-align: center;
+    line-height: 1.4;
+  }
+
+  @media (max-width: 850px) {
+    .preview-resize-banner {
+      display: block !important;
+    }
+  }
+
+  .preview-viewport {
   flex: 1;
   overflow-y: auto;
   padding: 24px;
