@@ -37,6 +37,8 @@
                                                      style="display:flex;align-items:center;border-bottom:1px solid #dee2e6;">
                                                     <a href="/{{ page.page_key }}?edit=1"
                                                        class="page-selector-item">{{ page.title }}</a>
+                                                    <button class="page-reorder-btn" data-page="{{ page.page_key }}" data-dir="up" title="Move up">▲</button>
+                                                    <button class="page-reorder-btn" data-page="{{ page.page_key }}" data-dir="down" title="Move down">▼</button>
                                                 </div>
                                             {% endif %}
                                         {% endfor %}
@@ -210,6 +212,32 @@
                                     }
                                 })
                                 .catch(e => showQmToast('Network error: ' + e.message, false));
+                            });
+
+                            // --- page reorder ------------------------------------------------
+                            document.querySelectorAll('.page-reorder-btn').forEach(btn => {
+                                btn.addEventListener('click', () => {
+                                    const pageKey = btn.dataset.page;
+                                    const dir = btn.dataset.dir;
+                                    fetch('/builder_beta/page/reorder', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'X-CSRFToken': getCsrfToken()
+                                        },
+                                        body: JSON.stringify({page_key: pageKey, direction: dir})
+                                    })
+                                    .then(r => r.json())
+                                    .then(d => {
+                                        if (d.success) {
+                                            showQmToast('Page reordered successfully!', true);
+                                            setTimeout(() => location.reload(), 300);
+                                        } else {
+                                            showQmToast('Failed: ' + d.error, false);
+                                        }
+                                    })
+                                    .catch(e => showQmToast('Network error: ' + e.message, false));
+                                });
                             });
                         });
                         </script>

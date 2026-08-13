@@ -606,6 +606,16 @@ def get_builder_beta_state():
         if not isinstance(pg.get('blocks'), list):
             pg['blocks'] = []   # make sure a list exists
 
+    # Inject display_order from SQLite so navigation can use it as single source of truth
+    try:
+        ordered_pages = get_all_pages(template_key=TEMPLATE_STORE_KEY)
+        for pg in ordered_pages:
+            pid = pg['page_key']
+            if pid in pages:
+                pages[pid]['display_order'] = pg['display_order']
+    except Exception:
+        pass
+
     # 7️⃣  Finally return the fully‑populated state.
     return state
 
@@ -995,19 +1005,24 @@ def build_builder_beta_runtime_context(page_id, sheet_data, page_answers):
 def resolve_builder_beta_navigation_targets(page_id, runtime_page):
     state = get_builder_beta_state()
     pages = state.get('pages', {})
-    navigation = runtime_page.get(
-        'navigation',
-        {}) if isinstance(
-        runtime_page,
-        dict) else {}
-    previous_endpoint = str(
-        navigation.get(
-            'previous_endpoint',
-            '') or '').strip()
-    next_endpoint = str(navigation.get('next_endpoint', '') or '').strip()
 
-    previous_page_id = previous_endpoint if previous_endpoint in pages else None
-    next_page_id = next_endpoint if next_endpoint in pages else None
+    # Build ordered page list from display_order (single source of truth)
+    page_order = []
+    for pid, pg in pages.items():
+        order = pg.get('display_order')
+        if order is not None:
+            page_order.append((order, pid))
+    page_order.sort()
+
+    page_ids = [pid for _, pid in page_order]
+
+    if page_id in page_ids:
+        idx = page_ids.index(page_id)
+        previous_page_id = page_ids[idx - 1] if idx > 0 else None
+        next_page_id = page_ids[idx + 1] if idx < len(page_ids) - 1 else None
+    else:
+        previous_page_id = None
+        next_page_id = None
 
     return {
         'current_page_id': page_id,
@@ -1870,6 +1885,37 @@ def builder_page_delete(page_key):
         conn.close()
 
 
+@app.route('/builder_beta/page/add', methods=['POST'])
+@require_role('admin')
+def builder_page_add():
+    import template_store as _ts
+    data = request.get_json(force=True) or {}
+    title = data.get('title', '')
+    page_key = data.get('page_key', '')
+    if not title or not page_key:
+        return jsonify({'success': False, 'error': 'title and page_key are required'}), 400
+    res = _ts.add_page(page_key, title, template_key=TEMPLATE_STORE_KEY)
+    if res.get('success'):
+        return jsonify({'success': True, 'page_key': page_key})
+    return jsonify(res), 500
+
+
+@app.route('/builder_beta/page/duplicate', methods=['POST'])
+@require_role('admin')
+def builder_page_duplicate():
+    import template_store as _ts
+    data = request.get_json(force=True) or {}
+    source_page_key = data.get('source_page_key', '')
+    new_page_key = data.get('new_page_key', '')
+    new_title = data.get('new_title', '')
+    if not source_page_key or not new_page_key or not new_title:
+        return jsonify({'success': False, 'error': 'source_page_key, new_page_key, and new_title are required'}), 400
+    res = _ts.duplicate_page(source_page_key, new_page_key, new_title, template_key=TEMPLATE_STORE_KEY)
+    if res.get('success'):
+        return jsonify({'success': True, 'page_key': new_page_key})
+    return jsonify(res), 500
+
+
 @app.route('/builder_beta/save_as_template', methods=['POST'])
 @require_role('admin')
 def builder_save_as_template():
@@ -2105,6 +2151,105 @@ def builder_swap_order():
         return jsonify({'error': str(e)}), 400
     finally:
         conn.close()
+
+
+@app.route('/builder_beta/page/reorder', methods=['POST'])
+@require_role('admin')
+def builder_page_reorder():
+    """Swap display_order of two adjacent pages."""
+    import sqlite3
+    from pathlib import Path
+    db = str(Path(__file__).parent / 'template_store.sqlite3')
+    data = request.get_json(force=True) or {}
+    page_key = data.get('page_key')
+    direction = data.get('direction', 'up')
+
+    if not page_key:
+        return jsonify({'error': 'page_key is required'}), 400
+
+    conn = sqlite3.connect(db)
+    conn.row_factory = sqlite3.Row
+    try:
+        cur = conn.execute(
+            "SELECT id, display_order FROM page_templates WHERE page_key = ?",
+            [page_key]
+        ).fetchone()
+        if not cur:
+            return jsonify({'error': 'Page not found'}), 404
+        cur_order = cur['display_order']
+
+        op = '<' if direction == 'up' else '>'
+        order = 'DESC' if direction == 'up' else 'ASC'
+        adj = conn.execute(
+            f"SELECT id, display_order FROM page_templates WHERE display_order {op} ? ORDER BY display_order {order} LIMIT 1",
+            [cur_order]
+        ).fetchone()
+        if not adj:
+            return jsonify({'error': 'No adjacent page'}), 400
+
+        conn.execute(
+            "UPDATE page_templates SET display_order = ? WHERE id = ?",
+            [adj['display_order'], cur['id']]
+        )
+        conn.execute(
+            "UPDATE page_templates SET display_order = ? WHERE id = ?",
+            [cur_order, adj['id']]
+        )
+        conn.commit()
+
+        # Auto-sync navigation metadata in page_schemas
+        try:
+            _sync_page_schemas_navigation_after_reorder(page_key, direction)
+        except Exception:
+            pass
+
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+    finally:
+        conn.close()
+
+
+def _sync_page_schemas_navigation_after_reorder(moved_page_key, direction):
+    """Update page_schemas navigation metadata after a page reorder."""
+    global page_schemas
+    ordered_pages = get_all_pages(template_key=TEMPLATE_STORE_KEY)
+    page_keys = [pg['page_key'] for pg in ordered_pages]
+
+    if moved_page_key not in page_keys:
+        return
+
+    idx = page_keys.index(moved_page_key)
+    prev_key = page_keys[idx - 1] if idx > 0 else None
+    next_key = page_keys[idx + 1] if idx < len(page_keys) - 1 else None
+
+    for pid in [moved_page_key, prev_key, next_key]:
+        if pid and pid in page_schemas.get('pages', {}):
+            page_schemas['pages'][pid].setdefault('navigation', {})
+            nav = page_schemas['pages'][pid]['navigation']
+            if pid == moved_page_key:
+                nav['previous_endpoint'] = prev_key or ''
+                nav['next_endpoint'] = next_key or 'review'
+            elif pid == prev_key:
+                nav['next_endpoint'] = moved_page_key
+            elif pid == next_key:
+                nav['previous_endpoint'] = moved_page_key
+
+    # Also sync in builder_beta.pages if present
+    builder_pages = page_schemas.get('builder_beta', {}).get('pages', {})
+    for pid in [moved_page_key, prev_key, next_key]:
+        if pid and pid in builder_pages:
+            builder_pages[pid].setdefault('navigation', {})
+            nav = builder_pages[pid]['navigation']
+            if pid == moved_page_key:
+                nav['previous_endpoint'] = prev_key or ''
+                nav['next_endpoint'] = next_key or 'review'
+            elif pid == prev_key:
+                nav['next_endpoint'] = moved_page_key
+            elif pid == next_key:
+                nav['previous_endpoint'] = moved_page_key
+
+    save_page_schemas()
 
 
 ##########################################################################
@@ -2543,11 +2688,9 @@ def dynamic_page(page_id):
 def index():
     session['last_visited'] = 'index'
 
-    # Get the first DYNAMIC page from builder beta state (skip redundant index page)
-    state = get_builder_beta_state()
-    pages = state.get('pages', {})
-    # Exclude 'index' (project details) from dynamic pages - start with next page
-    dynamic_page_ids = [pid for pid in sorted(pages.keys()) if pid != 'index']
+    # Get the first DYNAMIC page by display_order (skip redundant index page)
+    ordered_pages = get_all_pages(template_key=TEMPLATE_STORE_KEY)
+    dynamic_page_ids = [pg['page_key'] for pg in ordered_pages if pg['page_key'] != 'index']
     first_dynamic_page = dynamic_page_ids[0] if dynamic_page_ids else None
 
     if request.method == 'POST':
@@ -3001,20 +3144,13 @@ def image_upload_page():
         selected_block = next(
             (b for b in current_page_blocks if b['id'] == selected_block_id), None)
 
+        nav = resolve_builder_beta_navigation_targets('image_upload_page', builder_state.get('pages', {}).get('image_upload_page', {}))
         return render_template(
             'form.html',
             page_schema=page_schema,
             schema_render_mode='full',
-            previous_page=page_schema.get(
-                'navigation',
-                {}).get(
-                'previous_endpoint',
-                'optional_extras_page') if page_schema else 'optional_extras_page',
-            next_page=page_schema.get(
-                'navigation',
-                {}).get(
-                'next_endpoint',
-                'review') if page_schema else 'review',
+            previous_page=nav.get('previous_page_id') or 'optional_extras_page',
+            next_page=nav.get('next_page_id') or 'review',
             title=page_schema.get(
                 'title', 'Image Upload') if page_schema else 'Image Upload',
             builder_state=builder_state,
@@ -3037,11 +3173,13 @@ def image_upload_page():
         safe_title = secure_filename(project_title)
         preview_path = os.path.join(app.config['UPLOAD_FOLDER'], safe_title, 'final_output_1.jpg')
         preview_url = url_for('static', filename=f'uploads/{safe_title}/final_output_1.jpg') if session.get('dynamic_layout') and os.path.exists(preview_path) else None
+        builder_state = get_builder_beta_state()
+        nav = resolve_builder_beta_navigation_targets('image_upload_page', builder_state.get('pages', {}).get('image_upload_page', {}))
         return render_template(
             'image_upload.html',
             image_upload_page=True,
-            previous_page='optional_extras_page',
-            next_page='review',
+            previous_page=nav.get('previous_page_id') or 'optional_extras_page',
+            next_page=nav.get('next_page_id') or 'review',
             open_accordion=open_accordion,
             title="Upload Quote-Specific Images",
             uploaded_images=uploaded_images,

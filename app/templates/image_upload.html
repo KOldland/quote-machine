@@ -179,7 +179,11 @@ function showToast(message, type) {
         <button type="button" class="btn" onclick="window.location.href='{{ url_for('dynamic_page', page_id=previous_page) }}'">Previous</button>
         {% endif %}
         {% if next_page %}
-        <button type="button" class="btn" onclick="window.location.href='{{ url_for(next_page) }}'">Next</button>
+            {% if next_page == 'review' %}
+        <button type="button" class="btn" onclick="window.location.href='{{ url_for('review') }}'">Next</button>
+            {% else %}
+        <button type="button" class="btn" onclick="window.location.href='{{ url_for('dynamic_page', page_id=next_page) }}'">Next</button>
+            {% endif %}
         {% endif %}
     </div>
 </div>
