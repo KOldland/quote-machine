@@ -48,6 +48,95 @@ def _get_grand_total(blocks):
     return 0
 
 
+def _build_divider_html(style, thickness, css_mode=True):
+    t = float(thickness) if thickness else 1
+    if not style or style == 'none':
+        return ''
+    border_style_map = {
+        'single': 'solid',
+        'japanese_dots': 'dotted',
+        'double': 'double',
+        'circles': 'dotted',
+    }
+    border_style = border_style_map.get(style, 'solid')
+    if css_mode:
+        extra = 'border-top-style: round;' if style == 'circles' else ''
+        return (
+            f'<hr class="hf-divider" style="border:none; '
+            f'border-top-width:{t}px; border-top-style:{border_style}; '
+            f'{extra} border-top-color:#000; margin:4px 0;" />'
+        )
+    else:
+        return f'<div style="border-top:{t}px {border_style} #000; margin:4px 0;"></div>'
+
+
+def _build_doc_id_text(doc_id_type, doc_id_manual, quote_ref, client_address):
+    if doc_id_type == 'customer_address':
+        return client_address or ''
+    elif doc_id_type == 'quote_number':
+        return quote_ref or ''
+    elif doc_id_type == 'manual':
+        return doc_id_manual or ''
+    return ''
+
+
+def _generate_header_html(document_styles, blocks, css_mode=True):
+    hdr = document_styles.get('header') or {}
+    if not hdr.get('enabled', True):
+        return ''
+
+    logo_url = hdr.get('logo_url', '')
+    logo_width = hdr.get('logo_width', 120)
+    logo_height = hdr.get('logo_height', 40)
+    logo_alignment = hdr.get('logo_alignment', 'center')
+    doc_id_type = hdr.get('document_id_type', 'quote_number')
+    doc_id_manual = hdr.get('document_id_manual', '')
+    doc_id_alignment = hdr.get('doc_id_alignment', 'center')
+    quote_ref = session.get('quote_ref', '')
+    client_address = session.get('client_address', '')
+    divider_style = hdr.get('divider_style', 'single')
+    divider_thickness = hdr.get('divider_thickness', 1)
+    header_font_size = document_styles.get('header_font_size', 10)
+
+    parts = []
+    if logo_url:
+        margin_left = '0' if logo_alignment == 'left' else 'auto' if logo_alignment == 'center' else 'auto'
+        margin_right = 'auto' if logo_alignment == 'center' else '0' if logo_alignment == 'right' else 'auto'
+        parts.append(
+            f'<img src="{logo_url}" style="max-width:{logo_width}px; max-height:{logo_height}px; '
+            f'display:block; margin:0 {margin_right} 4px {margin_left}; object-fit:contain;" />'
+        )
+
+    doc_id_text = _build_doc_id_text(doc_id_type, doc_id_manual, quote_ref, client_address)
+    if doc_id_text:
+        parts.append(f'<div class="hf-doc-id" style="text-align:{doc_id_alignment};">{_replace_placeholders(doc_id_text, blocks)}</div>')
+
+    parts.append(_build_divider_html(divider_style, divider_thickness, css_mode))
+    return '\n'.join(parts)
+
+
+def _generate_footer_html(document_styles, blocks, css_mode=True):
+    ftr = document_styles.get('footer') or {}
+    if not ftr.get('enabled', True):
+        return ''
+
+    divider_style = ftr.get('divider_style', 'single')
+    divider_thickness = ftr.get('divider_thickness', 1)
+    page_number_mode = ftr.get('page_number_mode', 'on')
+    page_number_alignment = ftr.get('page_number_alignment', 'center')
+    footer_font_size = document_styles.get('footer_font_size', 8)
+
+    parts = []
+    parts.append(_build_divider_html(divider_style, divider_thickness, css_mode))
+
+    if page_number_mode != 'off':
+        page_num_html = '<span class="page-number"></span>'
+        page_total_html = '<span class="page-total"></span>'
+        parts.append(f'<div class="hf-page-num" style="text-align:{page_number_alignment};">Page {page_num_html} of {page_total_html}</div>')
+
+    return '\n'.join(parts)
+
+
 def _typo_css(selector, t):
     """Build a CSS declaration block for one typography element."""
     if not t:
@@ -172,6 +261,13 @@ def export_pdf():
     blocks, document_styles = _load_blocks()
     grand_total = _get_grand_total(blocks)
     theme_css = _theme_css(document_styles)
+
+    hdr = (document_styles or {}).get('header') or {}
+    ftr = (document_styles or {}).get('footer') or {}
+
+    header_html = _generate_header_html(document_styles, blocks) if hdr.get('enabled', True) else ''
+    footer_html = _generate_footer_html(document_styles, blocks) if ftr.get('enabled', True) else ''
+
     rendered_html = render_template(
         'quote_editor_export.html',
         blocks=blocks,
@@ -182,6 +278,10 @@ def export_pdf():
         client_address=session.get('client_address', ''),
         proposal_date=session.get('proposal_date', ''),
         grand_total=grand_total,
+        header_html=header_html,
+        footer_html=footer_html,
+        header_hide_on_cover=hdr.get('hide_on_cover', False),
+        footer_hide_on_cover=ftr.get('hide_on_cover', False),
     )
     pdf_bytes = HTML(string=rendered_html).write_pdf()
     return send_file(
@@ -217,20 +317,23 @@ def export_docx():
         section.left_margin = Pt(margins.get('margin_left', 25))
         section.right_margin = Pt(margins.get('margin_right', 25))
 
-    header_html = document_styles.get('header_html', '')
-    footer_html = document_styles.get('footer_html', '')
+    hdr = (document_styles or {}).get('header') or {}
+    ftr = (document_styles or {}).get('footer') or {}
+
+    header_html = _generate_header_html(document_styles, blocks, css_mode=False) if hdr.get('enabled', True) else ''
+    footer_html = _generate_footer_html(document_styles, blocks, css_mode=False) if ftr.get('enabled', True) else ''
 
     if header_html or footer_html:
         for sec in doc.sections:
             if header_html:
-                hdr = sec.header
-                hdr.is_linked_to_previous = False
-                hp = hdr.paragraphs[0] if hdr.paragraphs else hdr.add_paragraph()
+                hdr_sec = sec.header
+                hdr_sec.is_linked_to_previous = False
+                hp = hdr_sec.paragraphs[0] if hdr_sec.paragraphs else hdr_sec.add_paragraph()
                 hp.text = _replace_placeholders(header_html, blocks)
             if footer_html:
-                ftr = sec.footer
-                ftr.is_linked_to_previous = False
-                fp = ftr.paragraphs[0] if ftr.paragraphs else ftr.add_paragraph()
+                ftr_sec = sec.footer
+                ftr_sec.is_linked_to_previous = False
+                fp = ftr_sec.paragraphs[0] if ftr_sec.paragraphs else ftr_sec.add_paragraph()
                 fp.text = _replace_placeholders(footer_html, blocks)
 
     for block in blocks:

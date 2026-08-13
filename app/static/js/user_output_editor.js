@@ -24,18 +24,39 @@ let currentQuoteId = null;
 let documentStyles = {
   font_family: 'Arial, sans-serif',
   font_size_base: 16,
-  header_html: '',
-  footer_html: '',
   header_font_size: 10,
   footer_font_size: 8,
   page_size: 'A4',
-  header_hide_on_cover: false,
-  footer_hide_on_cover: false,
   margins: {
     margin_top: 20,
     margin_bottom: 20,
     margin_left: 25,
     margin_right: 25,
+  },
+  header: {
+    enabled: true,
+    document_id_type: 'quote_number',
+    document_id_manual: '',
+    logo_url: '',
+    logo_width: 120,
+    logo_height: 40,
+    logo_alignment: 'center',
+    doc_id_alignment: 'center',
+    divider_style: 'single',
+    divider_thickness: 1,
+    hide_on_cover: false,
+  },
+  footer: {
+    enabled: true,
+    divider_style: 'single',
+    divider_thickness: 1,
+    page_number_mode: 'on',
+    page_number_alignment: 'center',
+    margin_top: 10,
+    margin_left: 0,
+    margin_right: 0,
+    margin_bottom: 10,
+    hide_on_cover: false,
   },
   typography: {
     h1: { family: '', weight: '', size: 24, bold: false, italic: false, underline: false, color: '' },
@@ -846,16 +867,39 @@ const IMAGE_FRAMES = [
         color: document.getElementById(prefix + '_color')?.value || documentStyles.typography[el].color,
       };
     });
+    const header = documentStyles.header || {};
+    const footer = documentStyles.footer || {};
     return {
       font_family: document.getElementById('docFontFamily')?.value || documentStyles.font_family,
       font_size_base: parseInt(document.getElementById('docFontSizeBase')?.value, 10) || documentStyles.font_size_base,
-      header_html: document.getElementById('docHeaderHtml')?.value || documentStyles.header_html,
-      footer_html: document.getElementById('docFooterHtml')?.value || documentStyles.footer_html,
       header_font_size: parseInt(document.getElementById('docHeaderFontSize')?.value, 10) || documentStyles.header_font_size,
       footer_font_size: parseInt(document.getElementById('docFooterFontSize')?.value, 10) || documentStyles.footer_font_size,
       page_size: document.getElementById('docPageSize')?.value || documentStyles.page_size,
-      header_hide_on_cover: document.getElementById('docHeaderHideCover')?.checked || false,
-      footer_hide_on_cover: document.getElementById('docFooterHideCover')?.checked || false,
+      header: {
+        enabled: document.getElementById('docHeaderEnabled')?.checked ?? header.enabled ?? true,
+        document_id_type: document.getElementById('docHeaderDocIdType')?.value || header.document_id_type || 'quote_number',
+        document_id_manual: document.getElementById('docHeaderDocIdManual')?.value || header.document_id_manual || '',
+        logo_url: document.getElementById('docHeaderLogoUrl')?.value || header.logo_url || '',
+        logo_width: parseInt(document.getElementById('docHeaderLogoWidth')?.value, 10) || header.logo_width || 120,
+        logo_height: parseInt(document.getElementById('docHeaderLogoHeight')?.value, 10) || header.logo_height || 40,
+        logo_alignment: document.getElementById('docHeaderLogoAlign')?.value || header.logo_alignment || 'center',
+        doc_id_alignment: document.getElementById('docHeaderDocIdAlign')?.value || header.doc_id_alignment || 'center',
+        divider_style: document.getElementById('docHeaderDividerStyle')?.value || header.divider_style || 'single',
+        divider_thickness: parseFloat(document.getElementById('docHeaderDividerThickness')?.value) || header.divider_thickness || 1,
+        hide_on_cover: document.getElementById('docHeaderHideCover')?.checked || false,
+      },
+      footer: {
+        enabled: document.getElementById('docFooterEnabled')?.checked ?? footer.enabled ?? true,
+        divider_style: document.getElementById('docFooterDividerStyle')?.value || footer.divider_style || 'single',
+        divider_thickness: parseFloat(document.getElementById('docFooterDividerThickness')?.value) || footer.divider_thickness || 1,
+        page_number_mode: document.getElementById('docFooterPageNumber')?.value || footer.page_number_mode || 'on',
+        page_number_alignment: document.getElementById('docFooterPageNumberAlign')?.value || footer.page_number_alignment || 'center',
+        margin_top: parseInt(document.getElementById('docFooterMarginTop')?.value, 10) || footer.margin_top || 10,
+        margin_left: parseInt(document.getElementById('docFooterMarginLeft')?.value, 10) || footer.margin_left || 0,
+        margin_right: parseInt(document.getElementById('docFooterMarginRight')?.value, 10) || footer.margin_right || 0,
+        margin_bottom: parseInt(document.getElementById('docFooterMarginBottom')?.value, 10) || footer.margin_bottom || 10,
+        hide_on_cover: document.getElementById('docFooterHideCover')?.checked || false,
+      },
       margins: {
         margin_top: parseInt(document.getElementById('docMarginTop')?.value, 10) || documentStyles.margins.margin_top,
         margin_bottom: parseInt(document.getElementById('docMarginBottom')?.value, 10) || documentStyles.margins.margin_bottom,
@@ -1173,6 +1217,8 @@ const IMAGE_FRAMES = [
     const baseSize = documentStyles.font_size_base || 16;
     let html = `<style>.preview-page { font-family: ${ff}; font-size: ${baseSize}px; }</style>`;
 
+    html += renderPreviewHeader();
+
     const renderedGroups = new Set();
     pageBlocks.forEach(block => {
       const gid = block.list_group_id;
@@ -1192,7 +1238,84 @@ const IMAGE_FRAMES = [
       html += `</${listType}>`;
     });
 
+    html += renderPreviewFooter();
+
     document.getElementById('previewPage').innerHTML = html || '<p style="text-align:center; color:#999; padding:40px;">This page is empty.</p>';
+  }
+
+  function renderPreviewHeader() {
+    const hdr = documentStyles.header || {};
+    if (!hdr.enabled) return '';
+    const fs = documentStyles.header_font_size || 10;
+    const logoAlign = hdr.logo_alignment || 'center';
+    const docIdAlign = hdr.doc_id_alignment || 'center';
+    const logoMarginLeft = logoAlign === 'left' ? '0' : 'auto';
+    const logoMarginRight = logoAlign === 'right' ? '0' : 'auto';
+    let html = `<div class="preview-header" style="font-size:${fs}px; padding:0; margin:0;">`;
+
+    if (hdr.logo_url) {
+      html += `<img src="${escapeHtml(hdr.logo_url)}" style="max-width:${hdr.logo_width || 120}px; max-height:${hdr.logo_height || 40}px; display:block; margin:0 ${logoMarginRight} 4px ${logoMarginLeft}; object-fit:contain;" />`;
+    }
+
+    const docIdType = hdr.document_id_type || 'quote_number';
+    let docIdText = '';
+    if (docIdType === 'customer_address') {
+      docIdText = '{{client_address}}';
+    } else if (docIdType === 'quote_number') {
+      docIdText = '{{quote_ref}}';
+    } else if (docIdType === 'manual') {
+      docIdText = escapeHtml(hdr.document_id_manual || '');
+    }
+    if (docIdText) {
+      html += `<div class="preview-doc-id" style="text-align:${docIdAlign};">${docIdText}</div>`;
+    }
+
+    html += renderPreviewDivider(hdr.divider_style, hdr.divider_thickness);
+    html += `</div>`;
+    return html;
+  }
+
+  function renderPreviewFooter() {
+    const ftr = documentStyles.footer || {};
+    if (!ftr.enabled) return '';
+    const fs = documentStyles.footer_font_size || 8;
+    const pageNumAlign = ftr.page_number_alignment || 'center';
+    let html = `<div class="preview-footer" style="font-size:${fs}px; padding:4px 0; margin-top:8px;">`;
+
+    html += renderPreviewDivider(ftr.divider_style, ftr.divider_thickness);
+
+    if (ftr.page_number_mode && ftr.page_number_mode !== 'off') {
+      const pageLabel = previewPageIndex === 0 && ftr.page_number_mode === 'skip_first'
+        ? 'Page (hidden on first)'
+        : `Page ${previewPageIndex + 1}`;
+      html += `<div class="preview-page-num" style="text-align:${pageNumAlign};">${pageLabel}</div>`;
+    }
+
+    html += `</div>`;
+    return html;
+  }
+
+  function renderPreviewDivider(style, thickness) {
+    const t = parseFloat(thickness) || 1;
+    if (!style || style === 'none') return '';
+    const borderTop = `${t}px`;
+    let borderStyle = 'solid';
+    let extra = '';
+    switch (style) {
+      case 'japanese_dots':
+        borderStyle = 'dotted';
+        break;
+      case 'double':
+        borderStyle = 'double';
+        break;
+      case 'circles':
+        borderStyle = 'dotted';
+        extra = 'border-top-style: round;';
+        break;
+      default:
+        borderStyle = 'solid';
+    }
+    return `<hr class="preview-divider" style="border:none; border-top-width:${borderTop}; border-top-style:${borderStyle}; ${extra} border-top-color:#000; margin:4px 0;" />`;
   }
 
   function previewTypoStyle(blockType) {
@@ -1352,8 +1475,6 @@ const IMAGE_FRAMES = [
     const fields = {
       docFontFamily: documentStyles.font_family,
       docFontSizeBase: documentStyles.font_size_base,
-      docHeaderHtml: documentStyles.header_html,
-      docFooterHtml: documentStyles.footer_html,
       docHeaderFontSize: documentStyles.header_font_size,
       docFooterFontSize: documentStyles.footer_font_size,
       docPageSize: documentStyles.page_size,
@@ -1370,8 +1491,6 @@ const IMAGE_FRAMES = [
       if (el) el.value = value;
     });
     const checkboxes = {
-      docHeaderHideCover: documentStyles.header_hide_on_cover,
-      docFooterHideCover: documentStyles.footer_hide_on_cover,
       docImageShadow: documentStyles.images.shadow,
       docLinkUnderline: documentStyles.links.underline,
     };
@@ -1408,6 +1527,70 @@ const IMAGE_FRAMES = [
         if (field.type === 'checkbox') field.checked = value;
         else field.value = value;
       });
+    });
+
+    const hdr = documentStyles.header || {};
+    const ftr = documentStyles.footer || {};
+    const hdrFields = {
+      docHeaderEnabled: hdr.enabled ?? true,
+      docHeaderDocIdType: hdr.document_id_type || 'quote_number',
+      docHeaderDocIdManual: hdr.document_id_manual || '',
+      docHeaderDocIdAlign: hdr.doc_id_alignment || 'center',
+      docHeaderLogoUrl: hdr.logo_url || '',
+      docHeaderLogoWidth: hdr.logo_width || 120,
+      docHeaderLogoHeight: hdr.logo_height || 40,
+      docHeaderLogoAlign: hdr.logo_alignment || 'center',
+      docHeaderDividerStyle: hdr.divider_style || 'single',
+      docHeaderDividerThickness: hdr.divider_thickness ?? 1,
+      docHeaderHideCover: hdr.hide_on_cover ?? false,
+    };
+    Object.entries(hdrFields).forEach(([id, value]) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (el.type === 'checkbox') el.checked = value;
+      else el.value = value;
+    });
+
+    const existingLogoUrl = (hdr.logo_url || '').trim();
+    const logoPreviewImg = document.getElementById('docHeaderLogoPreviewImg');
+    const logoPreviewPlaceholder = document.getElementById('docHeaderLogoPreviewPlaceholder');
+    const docIdTypeEl = document.getElementById('docHeaderDocIdType');
+    const manualIdLabel = document.getElementById('docHeaderDocIdManualLabel');
+    if (logoPreviewImg) {
+      if (existingLogoUrl) {
+        logoPreviewImg.src = existingLogoUrl;
+        logoPreviewImg.style.display = 'block';
+      } else {
+        logoPreviewImg.src = '';
+        logoPreviewImg.style.display = 'none';
+      }
+    }
+    if (logoPreviewPlaceholder) {
+      logoPreviewPlaceholder.style.display = existingLogoUrl ? 'none' : 'inline';
+    }
+
+    if (docIdTypeEl) {
+      const showManual = docIdTypeEl.value === 'manual';
+      if (manualIdLabel) manualIdLabel.style.display = showManual ? 'flex' : 'none';
+    }
+
+    const ftrFields = {
+      docFooterEnabled: ftr.enabled ?? true,
+      docFooterDividerStyle: ftr.divider_style || 'single',
+      docFooterDividerThickness: ftr.divider_thickness ?? 1,
+      docFooterPageNumber: ftr.page_number_mode || 'on',
+      docFooterPageNumberAlign: ftr.page_number_alignment || 'center',
+      docFooterMarginTop: ftr.margin_top || 10,
+      docFooterMarginLeft: ftr.margin_left || 0,
+      docFooterMarginRight: ftr.margin_right || 0,
+      docFooterMarginBottom: ftr.margin_bottom || 10,
+      docFooterHideCover: ftr.hide_on_cover ?? false,
+    };
+    Object.entries(ftrFields).forEach(([id, value]) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (el.type === 'checkbox') el.checked = value;
+      else el.value = value;
     });
   }
 
@@ -1461,6 +1644,78 @@ const IMAGE_FRAMES = [
     document.getElementById('closeSaveThemeModal').addEventListener('click', () => {
       document.getElementById('saveThemeModal').style.display = 'none';
     });
+
+    const logoWidthEl = document.getElementById('docHeaderLogoWidth');
+    const logoHeightEl = document.getElementById('docHeaderLogoHeight');
+    const docIdTypeEl = document.getElementById('docHeaderDocIdType');
+    const manualIdLabel = document.getElementById('docHeaderDocIdManualLabel');
+    let logoBaseRatio = 120 / 40;
+
+    function updateLogoRatio(fromWidth) {
+      const w = parseInt(logoWidthEl?.value, 10) || 120;
+      const h = parseInt(logoHeightEl?.value, 10) || 40;
+      if (fromWidth) {
+        logoHeightEl.value = Math.max(10, Math.round(w / logoBaseRatio));
+      } else {
+        logoWidthEl.value = Math.max(20, Math.round(h * logoBaseRatio));
+      }
+    }
+    function captureLogoRatio() {
+      const w = parseInt(logoWidthEl?.value, 10) || 120;
+      const h = parseInt(logoHeightEl?.value, 10) || 40;
+      logoBaseRatio = w / (h || 1);
+    }
+
+    docIdTypeEl?.addEventListener('change', () => {
+      const showManual = docIdTypeEl.value === 'manual';
+      if (manualIdLabel) manualIdLabel.style.display = showManual ? 'flex' : 'none';
+    });
+
+    logoWidthEl?.addEventListener('focus', captureLogoRatio);
+    logoWidthEl?.addEventListener('input', () => updateLogoRatio(true));
+    logoHeightEl?.addEventListener('focus', captureLogoRatio);
+    logoHeightEl?.addEventListener('input', () => updateLogoRatio(false));
+
+    const logoFileEl = document.getElementById('docHeaderLogoFile');
+    const logoUrlEl = document.getElementById('docHeaderLogoUrl');
+    const logoUploadBtn = document.getElementById('docHeaderLogoUploadBtn');
+    const logoPreviewImg = document.getElementById('docHeaderLogoPreviewImg');
+    const logoPreviewPlaceholder = document.getElementById('docHeaderLogoPreviewPlaceholder');
+
+    logoUploadBtn?.addEventListener('click', () => logoFileEl?.click());
+
+    logoFileEl?.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('tags', 'header-logo');
+      formData.append('category', 'logos');
+      try {
+        const res = await fetch('/quote_editor/upload-image', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (data.success && data.url) {
+          logoUrlEl.value = data.url;
+          if (data.width && data.height) {
+            logoBaseRatio = data.width / data.height;
+            logoWidthEl.value = Math.min(400, Math.max(20, data.width));
+            logoHeightEl.value = Math.min(200, Math.max(10, data.height));
+          }
+          if (logoPreviewImg) {
+            logoPreviewImg.src = data.url;
+            logoPreviewImg.style.display = 'block';
+          }
+          if (logoPreviewPlaceholder) {
+            logoPreviewPlaceholder.style.display = 'none';
+          }
+        }
+      } catch (err) {
+        alert('Logo upload failed');
+      } finally {
+        logoFileEl.value = '';
+      }
+    });
+
     document.querySelectorAll('.tab-btn[data-styles-tab]').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('.tab-btn[data-styles-tab]').forEach(b => b.classList.remove('active'));

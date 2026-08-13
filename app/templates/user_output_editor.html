@@ -207,8 +207,65 @@
       <div id="typographyRows"></div>
     </div>
     <div id="stylesHeader" class="styles-panel" style="display:none;">
-      <label>Header HTML
-        <textarea id="docHeaderHtml" rows="3" placeholder="&lt;div class=&quot;header&quot;&gt;Quote Ref: {{quote_ref}}&lt;/div&gt;"></textarea>
+      <label class="checkbox-inline">
+        <input type="checkbox" id="docHeaderEnabled" checked> Enable header
+      </label>
+      <label>Document ID
+        <select id="docHeaderDocIdType">
+          <option value="none">None</option>
+          <option value="customer_address">Customer Address</option>
+          <option value="quote_number">Quote Number</option>
+          <option value="manual">Manual Input</option>
+        </select>
+      </label>
+      <label>Document ID Alignment
+        <select id="docHeaderDocIdAlign">
+          <option value="left">Left</option>
+          <option value="center" selected>Center</option>
+          <option value="right">Right</option>
+        </select>
+      </label>
+      <label id="docHeaderDocIdManualLabel" style="display:none;">Manual Document ID
+        <input type="text" id="docHeaderDocIdManual" placeholder="Enter custom ID">
+      </label>
+      <label>Logo
+        <input type="file" id="docHeaderLogoFile" accept="image/*" style="display:none;">
+        <button type="button" id="docHeaderLogoUploadBtn" class="btn btn-secondary" style="width:auto;">Upload Logo</button>
+        <input type="hidden" id="docHeaderLogoUrl">
+        <div id="docHeaderLogoPreview" style="margin-top:8px; text-align:center; min-height:40px;">
+          <img id="docHeaderLogoPreviewImg" src="" alt="Logo preview" style="max-width:100%; max-height:80px; display:none;">
+          <span id="docHeaderLogoPreviewPlaceholder" style="color:#999; font-size:0.85rem;">No logo uploaded</span>
+        </div>
+      </label>
+      <label>Logo Alignment
+        <select id="docHeaderLogoAlign">
+          <option value="left">Left</option>
+          <option value="center" selected>Center</option>
+          <option value="right">Right</option>
+        </select>
+      </label>
+      <label>Logo Width (px)
+        <input type="number" id="docHeaderLogoWidth" value="120" min="20" max="400">
+      </label>
+      <label>Logo Height (px)
+        <input type="number" id="docHeaderLogoHeight" value="40" min="10" max="200">
+      </label>
+      <label>Divider Style
+        <select id="docHeaderDividerStyle">
+          <option value="none">None</option>
+          <option value="single" selected>Single Line</option>
+          <option value="japanese_dots">Japanese Dots</option>
+          <option value="double">Double Line</option>
+          <option value="circles">Circles</option>
+        </select>
+      </label>
+      <label>Divider Thickness
+        <select id="docHeaderDividerThickness">
+          <option value="0.5">0.5</option>
+          <option value="1" selected>1</option>
+          <option value="1.5">1.5</option>
+          <option value="2">2</option>
+        </select>
       </label>
       <label>Header Font Size (px)
         <input type="number" id="docHeaderFontSize" value="10" min="6" max="24">
@@ -218,8 +275,51 @@
       </label>
     </div>
     <div id="stylesFooter" class="styles-panel" style="display:none;">
-      <label>Footer HTML
-        <textarea id="docFooterHtml" rows="3" placeholder="&lt;div class=&quot;footer&quot;&gt;Page {{page_num}} | Grand Total: {{grand_total}}&lt;/div&gt;"></textarea>
+      <label class="checkbox-inline">
+        <input type="checkbox" id="docFooterEnabled" checked> Enable footer
+      </label>
+      <label>Divider Style
+        <select id="docFooterDividerStyle">
+          <option value="none">None</option>
+          <option value="single" selected>Single Line</option>
+          <option value="japanese_dots">Japanese Dots</option>
+          <option value="double">Double Line</option>
+          <option value="circles">Circles</option>
+        </select>
+      </label>
+      <label>Divider Thickness
+        <select id="docFooterDividerThickness">
+          <option value="0.5">0.5</option>
+          <option value="1" selected>1</option>
+          <option value="1.5">1.5</option>
+          <option value="2">2</option>
+        </select>
+      </label>
+      <label>Page Number
+        <select id="docFooterPageNumber">
+          <option value="off">Off</option>
+          <option value="on" selected>On</option>
+          <option value="skip_first">On (Skip First Page)</option>
+        </select>
+      </label>
+      <label>Page Number Alignment
+        <select id="docFooterPageNumberAlign">
+          <option value="left">Left</option>
+          <option value="center" selected>Center</option>
+          <option value="right">Right</option>
+        </select>
+      </label>
+      <label>Footer Margin Top (mm)
+        <input type="number" id="docFooterMarginTop" value="10" min="0" max="30">
+      </label>
+      <label>Footer Margin Left (mm)
+        <input type="number" id="docFooterMarginLeft" value="0" min="0" max="30">
+      </label>
+      <label>Footer Margin Right (mm)
+        <input type="number" id="docFooterMarginRight" value="0" min="0" max="30">
+      </label>
+      <label>Footer Margin Bottom (mm)
+        <input type="number" id="docFooterMarginBottom" value="10" min="0" max="30">
       </label>
       <label>Footer Font Size (px)
         <input type="number" id="docFooterFontSize" value="8" min="6" max="16">

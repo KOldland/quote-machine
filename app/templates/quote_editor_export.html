@@ -23,10 +23,15 @@
       @bottom-center {
         content: element(footer);
       }
-      {% if document_styles and (document_styles.get('header_hide_on_cover') or document_styles.get('footer_hide_on_cover')) %}
+      {% if header_hide_on_cover or footer_hide_on_cover %}
       @page :first {
-        {% if document_styles.get('header_hide_on_cover') %}@top-center { content: ""; }{% endif %}
-        {% if document_styles.get('footer_hide_on_cover') %}@bottom-center { content: ""; }{% endif %}
+        {% if header_hide_on_cover %}@top-center { content: ""; }{% endif %}
+        {% if footer_hide_on_cover %}@bottom-center { content: ""; }{% endif %}
+      }
+      {% endif %}
+      {% if (document_styles.get('footer') or {}).get('page_number_mode') == 'skip_first' %}
+      @page :first {
+        @bottom-center { content: ""; }
       }
       {% endif %}
     }
@@ -42,16 +47,22 @@
     .pdf-header {
       position: running(header);
       font-size: {{ document_styles.get('header_font_size', 10) if document_styles else 10 }}px;
-      padding: 4px 0;
-      border-bottom: 1px solid #ccc;
+      padding: 0;
+      margin: 0;
       text-align: center;
     }
     .pdf-footer {
       position: running(footer);
       font-size: {{ document_styles.get('footer_font_size', 8) if document_styles else 8 }}px;
-      padding: 4px 0;
-      border-top: 1px solid #ccc;
+      padding: {{ (document_styles.get('footer') or {}).get('margin_top', 10) }}px
+               {{ (document_styles.get('footer') or {}).get('margin_right', 0) }}px
+               {{ (document_styles.get('footer') or {}).get('margin_bottom', 10) }}px
+               {{ (document_styles.get('footer') or {}).get('margin_left', 0) }}px;
       text-align: center;
+    }
+    .hf-divider {
+      border: none;
+      margin: 4px 0;
     }
     .page-number::after {
       content: counter(page);
@@ -77,28 +88,14 @@
   </style>
 </head>
 <body>
-  {% if document_styles and document_styles.get('header_html') %}
+  {% if header_html %}
   <div class="pdf-header">
-    {{ document_styles.get('header_html')
-       .replace('{{quote_ref}}', quote_ref)
-       .replace('{{client_name}}', client_name)
-       .replace('{{client_address}}', client_address)
-       .replace('{{proposal_date}}', proposal_date)
-       .replace('{{grand_total}}', '%.2f' | format(grand_total))
-       .replace('{{page_num}}', '<span class="page-number"></span>')
-       .replace('{{page_total}}', '<span class="page-total"></span>') | safe }}
+    {{ header_html | safe }}
   </div>
   {% endif %}
-  {% if document_styles and document_styles.get('footer_html') %}
+  {% if footer_html %}
   <div class="pdf-footer">
-    {{ document_styles.get('footer_html')
-       .replace('{{quote_ref}}', quote_ref)
-       .replace('{{client_name}}', client_name)
-       .replace('{{client_address}}', client_address)
-       .replace('{{proposal_date}}', proposal_date)
-       .replace('{{grand_total}}', '%.2f' | format(grand_total))
-       .replace('{{page_num}}', '<span class="page-number"></span>')
-       .replace('{{page_total}}', '<span class="page-total"></span>') | safe }}
+    {{ footer_html | safe }}
   </div>
   {% endif %}
   {% set blocks = blocks | list %}
