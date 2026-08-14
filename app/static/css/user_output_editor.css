@@ -370,7 +370,7 @@
 }
 
 .editor-block__source-dot--dirty {
-  background: #dc3545;
+  background: #6d0b0b;
 }
 
 .editor-block__source-dot--editor {
@@ -389,7 +389,7 @@
 }
 
 .editor-block__remove:hover {
-  color: #dc3545;
+  color: #6d0b0b;
   background: #fee;
 }
 
@@ -627,12 +627,12 @@
 }
 
 .quote-list-item button.delete {
-  color: #dc3545;
-  border-color: #dc3545;
+  color: #6d0b0b;
+  border-color: #6d0b0b;
 }
 
 .quote-list-item button.delete:hover {
-  background: #dc3545;
+  background: #6d0b0b;
   color: #fff;
 }
 

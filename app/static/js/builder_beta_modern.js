@@ -368,7 +368,7 @@ class ModernBuilderBeta {
             color: white;
             font-size: 14px;
             z-index: 1000;
-            background: ${type === 'error' ? '#dc3545' : type === 'success' ? '#28a745' : '#007bff'};
+            background: ${type === 'error' ? '#6d0b0b' : type === 'success' ? '#28a745' : '#007bff'};
             box-shadow: 0 2px 8px rgba(0,0,0,0.2);
             opacity: 0;
             transition: opacity 0.3s;

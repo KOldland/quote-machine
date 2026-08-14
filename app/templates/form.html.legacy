@@ -505,10 +505,10 @@
         .li-save-btn:hover { background:#264d8e; }
         .li-delete-btn {
             width:100%; padding:.45rem; margin-top:.5rem;
-            background:#fff; color:#dc3545; border:1px solid #dc3545; border-radius:5px;
+            background:#fff; color:#6d0b0b; border:1px solid #6d0b0b; border-radius:5px;
             font-size:.82rem; font-weight:700; cursor:pointer; letter-spacing:.04em; transition:all .1s;
         }
-        .li-delete-btn:hover { background:#dc3545; color:#fff; }
+        .li-delete-btn:hover { background:#6d0b0b; color:#fff; }
         .li-qlist-row {
             display:grid; grid-template-columns:24px 1fr auto;
             gap:.4rem; align-items:center;
@@ -573,7 +573,7 @@
                             data-field-id="{{ field.id or field.name }}"
                             data-page-id="{{ page_schema.id | default('') }}"
                             data-hidden="{{ 'true' if field.hidden else 'false' }}"
-                            style="font-size:.75rem;padding:.2rem .5rem;border:1px solid {% if field.hidden %}#28a745{% else %}#dc3545{% endif %};color:{% if field.hidden %}#28a745{% else %}#dc3545{% endif %};background:#fff;border-radius:3px;cursor:pointer;">
+                            style="font-size:.75rem;padding:.2rem .5rem;border:1px solid {% if field.hidden %}#28a745{% else %}#6d0b0b{% endif %};color:{% if field.hidden %}#28a745{% else %}#6d0b0b{% endif %};background:#fff;border-radius:3px;cursor:pointer;">
                         {% if field.hidden %}Show{% else %}Hide{% endif %}
                     </button>
                 </div>
@@ -626,7 +626,7 @@
                                 data-option-value="{{ option.value }}"
                                 data-page-id="{{ page_schema.id | default('') }}"
                                 data-hidden="{{ 'true' if opt_hidden else 'false' }}"
-                                style="font-size:.72rem;padding:.15rem .4rem;border:1px solid {% if opt_hidden %}#28a745{% else %}#dc3545{% endif %};color:{% if opt_hidden %}#28a745{% else %}#dc3545{% endif %};background:#fff;border-radius:3px;cursor:pointer;">
+                                style="font-size:.72rem;padding:.15rem .4rem;border:1px solid {% if opt_hidden %}#28a745{% else %}#6d0b0b{% endif %};color:{% if opt_hidden %}#28a745{% else %}#6d0b0b{% endif %};background:#fff;border-radius:3px;cursor:pointer;">
                             {% if opt_hidden %}Show{% else %}Hide{% endif %}
                         </button>
                         <button type="button" class="btn-option-delete"
