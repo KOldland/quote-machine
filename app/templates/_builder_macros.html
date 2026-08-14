@@ -1035,8 +1035,8 @@ document.addEventListener('DOMContentLoaded', function() {
         html += _section('Costs', false, [
             _field('unit_cost', 'Unit Cost (£)', 'number', item.unit_cost != null ? item.unit_cost : ''),
             _field('units',     'Units',         'number', item.units     != null ? item.units     : ''),
-            _checkField('price_override_enabled', 'Price Override Enabled', item.pricing_visibility === 'user_edit', 'lich_price_override'),
-            _checkField('allow_user_override', 'Allow Cost Override by User', item.allow_user_override === 1 || item.allow_user_override === '1'),
+            _checkField('price_override_enabled', 'User Can Edit Price', item.pricing_visibility === 'user_edit', 'lich_price_override'),
+            _checkField('allow_user_override', 'Apply User Price in Quote', item.allow_user_override === 1 || item.allow_user_override === '1'),
         ]);
 
         // Generate category options
@@ -1258,7 +1258,7 @@ document.addEventListener('DOMContentLoaded', function() {
         'cost': function(cfg) {
             return _field('fu_default_cost', 'Default Unit Cost (£)', 'number', cfg.default_cost || '') +
                    _field('fu_default_units', 'Default Unit Amount', 'number', cfg.default_units || '') +
-                   _checkField('fu_allow_override', 'Allow Cost Override', cfg.allow_override === true);
+                   _checkField('fu_allow_override', 'Apply User Cost Override', cfg.allow_override === true);
         },
         'dimension': function(cfg) {
             return _field('fu_default_dim1', 'Default Dimension 1', 'number', cfg.default_dim1 || '') +
