@@ -173,6 +173,7 @@ def _get_line_items_for_page(page_id: str):
 # from get_line_items_for_page().
 
 
+
 def _get_li_categories_from_schema(page_id: str):
     """Return list of category names for a page from the schema.
     Falls back to keys from get_line_items_for_page()."""
@@ -1961,7 +1962,7 @@ def builder_line_item_save(item_id):
             'unit_cost', 'units', 'pricing_visibility',
             'form_visible', 'category',
             'is_follow_up', 'follow_up_type', 'follow_up_config',
-            'output_group', 'allow_user_override',
+            'output_group',
         ]
         sets = []
         params = []
@@ -2121,28 +2122,33 @@ def builder_swap_order():
             conn.commit()
             return jsonify({'success': True})
         elif scope == 'category':
-            # Swap display_order in category_templates
+            # Swap display_order in category_templates by category name
+            if not page_key:
+                return jsonify({'error': 'page_key is required for category scope'}), 400
             cur = conn.execute(
-                "SELECT display_order FROM category_templates WHERE id = ?",
-                [identifier]
+                "SELECT id, display_order FROM category_templates WHERE page_template_id = (SELECT id FROM page_templates WHERE page_key = ?) AND name = ?",
+                [page_key, identifier]
             ).fetchone()
             if not cur:
                 return jsonify({'error': 'Category not found'}), 404
             cur_order = cur['display_order']
+            cat_id = cur['id']
             op = '<' if direction == 'up' else '>'
             order = 'DESC' if direction == 'up' else 'ASC'
             adj = conn.execute(
-                f"SELECT id, display_order FROM category_templates WHERE page_template_id = (SELECT page_template_id FROM category_templates WHERE id = ?) AND display_order {op} ? ORDER BY display_order {order} LIMIT 1",
-                [identifier, cur_order]
+                f"SELECT id, display_order FROM category_templates WHERE page_template_id = (SELECT id FROM page_templates WHERE page_key = ?) AND display_order {op} ? ORDER BY display_order {order} LIMIT 1",
+                [page_key, cur_order]
             ).fetchone()
             if not adj:
                 return jsonify({'error': 'No adjacent category'}), 400
             conn.execute(
-                "UPDATE category_templates SET display_order = ? WHERE id = ?", [
-                    adj['display_order'], identifier])
+                "UPDATE category_templates SET display_order = ? WHERE id = ?",
+                [adj['display_order'], cat_id]
+            )
             conn.execute(
-                "UPDATE category_templates SET display_order = ? WHERE id = ?", [
-                    cur_order, adj['id']])
+                "UPDATE category_templates SET display_order = ? WHERE id = ?",
+                [cur_order, adj['id']]
+            )
             conn.commit()
             return jsonify({'success': True})
         else:
@@ -2492,6 +2498,7 @@ def dynamic_page(page_id):
                     if not items:
                         continue
 
+                    merge_tags = get_merge_tag_values(page_id)
 
                     page_title = page.get('title') or page_id.replace('_', ' ').title()
                     if page_title not in seen_pages:
@@ -2537,8 +2544,8 @@ def dynamic_page(page_id):
                                     })
 
                         output_title = item.get('output_title', '') or item.get('line_code', '')
-                        output_notes = item.get('output_notes', '')
-                        output_guidance = item.get('output_guidance', '')
+                        output_notes = replace_merge_tags(item.get('output_notes', ''), merge_tags)
+                        output_guidance = replace_merge_tags(item.get('output_guidance', ''), merge_tags)
                         value_text = output_notes or ''
 
                         question_id = f"form__{page_id}__{field_name}__{item.get('line_code', '')}"
@@ -3729,6 +3736,7 @@ def save_load():
     )
 
 
+from merge_tags import get_merge_tag_values, replace_merge_tags
 from quote_editor_routes import quote_editor_bp
 from quote_editor_export import quote_editor_export_bp
 from export_routes import export_bp

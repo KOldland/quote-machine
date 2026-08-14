@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Optional
 from flask import Blueprint, request, session, jsonify, abort, send_file, current_app
 from werkzeug.utils import secure_filename
+from merge_tags import get_merge_tag_values, replace_merge_tags
 from template_store import (
     get_quote_editor_layout,
     list_quote_editor_layouts,
@@ -394,6 +395,8 @@ def add_form_block():
             if not items:
                 continue
 
+            merge_tags = get_merge_tag_values(page_key, session, get_line_items_for_page)
+
             page_title = page.get('title') or page_key.replace('_', ' ').title()
             if page_title not in seen_pages:
                 seen_pages.add(page_title)
@@ -435,8 +438,8 @@ def add_form_block():
                         })
 
                 output_title = item.get('output_title', '') or item.get('line_code', '')
-                output_notes = item.get('output_notes', '')
-                output_guidance = item.get('output_guidance', '')
+                output_notes = replace_merge_tags(item.get('output_notes', ''), merge_tags)
+                output_guidance = replace_merge_tags(item.get('output_guidance', ''), merge_tags)
                 value_text = output_notes or ''
 
                 snapshot_blocks.append({

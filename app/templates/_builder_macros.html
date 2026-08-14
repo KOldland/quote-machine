@@ -255,7 +255,7 @@
     <div class="li-sections-list" id="li-sections-list">
         <div class="li-section-item" style="border-bottom:2px solid #dee2e6; margin-bottom:4px; padding-bottom:4px;">
             <button type="button" class="li-section-btn" id="btn-page-details" data-page="{{ form_page_key }}" style="font-weight:700; width:100%;">
-                ⚙ Page Details
+                Page Details
             </button>
         </div>
         {% if li_categories %}
@@ -272,6 +272,8 @@
                     {{ cat_name }}
                 </button>
                 <div class="li-reorder-controls" style="display:flex;flex-direction:column;margin-right:4px;">
+                    <button type="button" class="li-move-btn" data-scope="category" data-id="{{ cat_id }}" data-page="{{ form_page_key }}" data-dir="up" style="border:none;background:none;font-size:10px;cursor:pointer;padding:0 4px;color:#888;line-height:1;">▲</button>
+                    <button type="button" class="li-move-btn" data-scope="category" data-id="{{ cat_id }}" data-page="{{ form_page_key }}" data-dir="down" style="border:none;background:none;font-size:10px;cursor:pointer;padding:0 4px;color:#888;line-height:1;">▼</button>
                 </div>
             </div>
             {% endfor %}
@@ -743,12 +745,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
         var scope = btn.dataset.scope;
         var dir = btn.dataset.dir;
-        var identifier = parseInt(btn.dataset.id, 10);
+        var identifier = scope === 'category' ? btn.dataset.id : parseInt(btn.dataset.id, 10);
         var pageKey = btn.dataset.page || _pageKey;
 
         fetch('/builder_beta/swap_order', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''
+            },
             body: JSON.stringify({
                 scope: scope,
                 identifier: identifier,
