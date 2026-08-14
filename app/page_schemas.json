@@ -81,7 +81,8 @@
               "value_mode": "show_value"
             }
           }
-        ]
+        ],
+        "display_order": 0
       },
       "special_notes_page": {
         "id": "special_notes_page",
@@ -103,13 +104,14 @@
             "sort_order": 0,
             "output_group": "General"
           }
-        ]
+        ],
+        "display_order": 2
       },
       "summary_page": {
         "id": "summary_page",
         "title": "Summary Page",
         "navigation": {
-          "next_endpoint": "materials_page",
+          "next_endpoint": "special_notes_page",
           "previous_endpoint": "special_notes_page"
         },
         "blocks": [
@@ -155,14 +157,15 @@
             "sort_order": 6,
             "output_group": "General"
           }
-        ]
+        ],
+        "display_order": 1
       },
       "materials_page": {
         "id": "materials_page",
         "title": "Materials and Details",
         "navigation": {
           "next_endpoint": "further_requirements_page",
-          "previous_endpoint": "summary_page"
+          "previous_endpoint": "special_notes_page"
         },
         "blocks": [
           {
@@ -596,13 +599,14 @@
             "sort_order": 7,
             "output_group": "General"
           }
-        ]
+        ],
+        "display_order": 3
       },
       "further_requirements_page": {
         "id": "further_requirements_page",
         "title": "Further Requirements and Considerations",
         "navigation": {
-          "next_endpoint": "additional_building_work_page",
+          "next_endpoint": "optional_extras_page",
           "previous_endpoint": "materials_page"
         },
         "blocks": [
@@ -807,14 +811,15 @@
             "sort_order": 1,
             "output_group": "General"
           }
-        ]
+        ],
+        "display_order": 4
       },
       "additional_building_work_page": {
         "id": "additional_building_work_page",
         "title": "Additional Building Works",
         "navigation": {
-          "next_endpoint": "additional_costs_page",
-          "previous_endpoint": "further_requirements_page"
+          "next_endpoint": "image_upload_page",
+          "previous_endpoint": "additional_costs_page"
         },
         "blocks": [
           {
@@ -829,14 +834,15 @@
             "sort_order": 0,
             "output_group": "General"
           }
-        ]
+        ],
+        "display_order": 7
       },
       "additional_costs_page": {
         "id": "additional_costs_page",
         "title": "Additional Costs",
         "navigation": {
-          "next_endpoint": "optional_extras_page",
-          "previous_endpoint": "additional_building_work_page"
+          "next_endpoint": "additional_building_work_page",
+          "previous_endpoint": "optional_extras_page"
         },
         "blocks": [
           {
@@ -948,14 +954,15 @@
             "sort_order": 5,
             "output_group": "General"
           }
-        ]
+        ],
+        "display_order": 6
       },
       "optional_extras_page": {
         "id": "optional_extras_page",
         "title": "Optional Extras",
         "navigation": {
-          "next_endpoint": "image_upload_page",
-          "previous_endpoint": "additional_costs_page"
+          "next_endpoint": "additional_building_work_page",
+          "previous_endpoint": "further_requirements_page"
         },
         "blocks": [
           {
@@ -980,14 +987,15 @@
             "sort_order": 2,
             "output_group": "General"
           }
-        ]
+        ],
+        "display_order": 5
       },
       "image_upload_page": {
         "id": "image_upload_page",
         "title": "Image Upload",
         "navigation": {
           "next_endpoint": "review",
-          "previous_endpoint": "optional_extras_page"
+          "previous_endpoint": "additional_building_work_page"
         },
         "blocks": [
           {
@@ -1062,7 +1070,8 @@
               "value_mode": "show_value"
             }
           }
-        ]
+        ],
+        "display_order": 8
       }
     },
     "question_types": {
@@ -1134,7 +1143,11 @@
             ]
           }
         }
-      ]
+      ],
+      "navigation": {
+        "previous_endpoint": "special_notes_page",
+        "next_endpoint": "further_requirements_page"
+      }
     },
     "further_requirements_page": {
       "id": "further_requirements_page",
@@ -1149,7 +1162,11 @@
             ]
           }
         }
-      ]
+      ],
+      "navigation": {
+        "next_endpoint": "optional_extras_page",
+        "previous_endpoint": "materials_page"
+      }
     }
   },
   "settings": {
