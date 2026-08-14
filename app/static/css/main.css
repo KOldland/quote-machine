@@ -70,6 +70,8 @@
     padding: .3rem .5rem;
     border-radius: 3px;
     transition: background .15s, color .15s;
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
 .builder-edit-mode .page-selector-item:hover {
@@ -81,6 +83,22 @@
     background: #1b3a6b;
     color: #fff;
     font-weight: 600;
+}
+
+.builder-edit-mode .page-reorder-btn {
+    background: transparent;
+    border: none;
+    color: rgba(255,255,255,.85);
+    font-size: .7rem;
+    line-height: 1;
+    padding: .15rem .35rem;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: background .15s, color .15s;
+}
+.builder-edit-mode .page-reorder-btn:hover {
+    background: rgba(255,255,255,.15);
+    color: #fff;
 }
 
 /* Collapsible page list — details/summary styled as sidebar button */
