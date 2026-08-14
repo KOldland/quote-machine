@@ -230,8 +230,7 @@
                                     .then(r => r.json())
                                     .then(d => {
                                         if (d.success) {
-                                            showQmToast('Page reordered successfully!', true);
-                                            setTimeout(() => location.reload(), 300);
+                                            location.reload();
                                         } else {
                                             showQmToast('Failed: ' + d.error, false);
                                         }
