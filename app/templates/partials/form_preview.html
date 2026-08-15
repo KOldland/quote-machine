@@ -54,22 +54,40 @@
             data-follow-up-config="{{ item.follow_up_config | e }}">
      <span class="preview-li-item-label">{{ item.label }}</span>
  </label>
- {% if item.is_follow_up %}
- <div class="preview-follow-up" data-follow-up-for="{{ item.value }}" style="display:none; margin-left:2rem; margin-bottom:0.5rem;">
-     {% set fu_type = item.follow_up_type or 'Dropdown (text)' %}
-     {% if fu_type.startswith('Dropdown') %}
-     <input type="text" class="form-input preview-follow-up-input"
-            name="follow_up_{{ item.value }}"
-            placeholder="Enter selection..."
-            style="width:100%; max-width:400px;">
-     {% elif fu_type.startswith('Single Entry') %}
-     <input type="text" class="form-input preview-follow-up-input"
-            name="follow_up_{{ item.value }}"
-            placeholder="Enter value..."
-            style="width:100%; max-width:400px;">
-     {% endif %}
- </div>
- {% endif %}
+  {% if item.is_follow_up %}
+  <div class="preview-follow-up" data-follow-up-for="{{ item.value }}" style="display:none; margin-left:2rem; margin-bottom:0.5rem;">
+      {% set fu_configs = [] %}
+      {% if item.follow_up_config %}
+          {% if item.follow_up_config is string %}
+              {% set _parsed = item.follow_up_config | from_json %}
+              {% if _parsed is iterable and not _parsed is string %}{% set fu_configs = _parsed %}{% else %}{% set fu_configs = [_parsed] %}{% endif %}
+          {% else %}
+              {% set fu_configs = item.follow_up_config %}
+          {% endif %}
+      {% endif %}
+      {% if fu_configs | length == 0 %}
+          {% set fu_type = item.follow_up_type or 'Dropdown (text)' %}
+          {% set _ = fu_configs.append({'type': fu_type}) %}
+      {% endif %}
+      {% for cfg in fu_configs %}
+          {% set fu_type = cfg.get('type', item.follow_up_type or 'Dropdown (text)') %}
+          {% set fu_idx = loop.index0 %}
+          <div class="form-input" style="margin-bottom:0.4rem; width:100%; max-width:400px;">
+          {% if fu_type.startswith('Dropdown') %}
+              <input type="text" class="form-input preview-follow-up-input"
+                     name="follow_up_{{ item.value }}_{{ fu_idx }}"
+                     placeholder="Enter selection..."
+                     style="width:100%; max-width:400px;">
+          {% elif fu_type.startswith('Single Entry') %}
+              <input type="text" class="form-input preview-follow-up-input"
+                     name="follow_up_{{ item.value }}_{{ fu_idx }}"
+                     placeholder="Enter value..."
+                     style="width:100%; max-width:400px;">
+          {% endif %}
+          </div>
+      {% endfor %}
+  </div>
+  {% endif %}
  {% endfor %}
                                         </div>
                                     </details>

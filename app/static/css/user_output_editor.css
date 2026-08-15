@@ -870,6 +870,53 @@
   font-style: italic;
 }
 
+.nav-page-group {
+  margin-bottom: 8px;
+}
+
+.nav-page-group:last-child {
+  margin-bottom: 16px;
+}
+
+.nav-page-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #333;
+  user-select: none;
+}
+
+.nav-page-header:hover {
+  background: #e9ecef;
+}
+
+.nav-page-header.nav-item--active {
+  background: #e7f1ff;
+  border-color: #0d6efd;
+  color: #0d6efd;
+}
+
+.nav-page-toggle {
+  width: 16px;
+  text-align: center;
+  font-size: 0.75rem;
+  color: #888;
+  flex-shrink: 0;
+}
+
+.nav-page-items {
+  overflow: hidden;
+}
+
+.nav-page-items--collapsed {
+  display: none;
+}
+
 .nav-item__icon {
   font-size: 0.9rem;
   width: 20px;

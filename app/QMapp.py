@@ -60,6 +60,14 @@ from config import (
 app = Flask(__name__)
 csrf = CSRFProtect(app)
 
+@app.template_filter('from_json')
+def from_json_filter(s):
+    import json
+    try:
+        return json.loads(s)
+    except Exception:
+        return {}
+
 # Helper: parse builder form floats with bounds
 
 
@@ -128,6 +136,7 @@ app.config['SESSION_TYPE'] = 'filesystem'  # Store sessions in the filesystem
 app.config['SESSION_FILE_DIR'] = str(Path(__file__).parent / 'flask_session')
 app.config['SECRET_KEY'] = os.getenv(
     'QM_SECRET_KEY', 'dev-insecure-key-change-me')
+app.config['WTF_CSRF_TIME_LIMIT'] = 86400
 
 # Ensure the upload folder exists
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
@@ -1946,6 +1955,79 @@ def builder_line_item_delete():
         conn.close()
 
 
+@app.route('/builder_beta/line_item_duplicate', methods=['POST'])
+@require_role('admin')
+def builder_line_item_duplicate():
+    import sqlite3
+    import time
+    from pathlib import Path
+    db = str(Path(__file__).parent / 'template_store.sqlite3')
+    data = request.get_json(force=True) or {}
+    line_code = data.get('line_code')
+    page_key = data.get('page_key')
+    category = data.get('category')
+
+    if not line_code:
+        return jsonify({'error': 'No line code provided'}), 400
+
+    conn = sqlite3.connect(db)
+    conn.row_factory = sqlite3.Row
+    try:
+        row = conn.execute(
+            "SELECT * FROM line_items WHERE line_code = ?",
+            [line_code]
+        ).fetchone()
+        if not row:
+            return jsonify({'error': 'Line item not found'}), 404
+
+        max_sort = conn.execute(
+            "SELECT MAX(sort_order) FROM line_items WHERE form_page = ? AND category = ?",
+            [row['form_page'], row['category']]
+        ).fetchone()[0]
+        next_sort = 0 if max_sort is None else max_sort + 1
+        new_code = f"{row['line_code']}_copy_{int(time.time())}"
+
+        cur = conn.cursor()
+        cur.execute('''
+            INSERT INTO line_items (
+                form_page, category, line_code, internal_description,
+                item_role, form_visible, sort_order, output_group,
+                output_title, output_notes, output_guidance,
+                unit_cost, units, pricing_visibility,
+                is_follow_up, follow_up_type, follow_up_config,
+                source_field, include_default
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', [
+            row['form_page'],
+            row['category'],
+            new_code,
+            row['internal_description'] + ' (copy)',
+            row['item_role'],
+            row['form_visible'],
+            next_sort,
+            row['output_group'],
+            row['output_title'],
+            row['output_notes'],
+            row['output_guidance'],
+            row['unit_cost'],
+            row['units'],
+            row['pricing_visibility'],
+            row['is_follow_up'],
+            row['follow_up_type'],
+            row['follow_up_config'],
+            row['source_field'],
+            row['include_default']
+        ])
+        conn.commit()
+        new_id = cur.lastrowid
+        new_row = conn.execute("SELECT * FROM line_items WHERE id = ?", [new_id]).fetchone()
+        return jsonify({'success': True, 'item': dict(new_row)})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+    finally:
+        conn.close()
+
+
 @app.route('/builder_beta/line_item_save/<int:item_id>', methods=['POST'])
 @require_role('admin')
 def builder_line_item_save(item_id):
@@ -2459,153 +2541,6 @@ def dynamic_page(page_id):
         session['checkbox_data'] = checkbox_data
         session.modified = True
 
-        try:
-            form_data = session.get('data', {})
-            existing_pending = session.get('quote_editor_pending_blocks', [])
-            pending = list(existing_pending)
-            seen_pages = set()
-            seen_categories = set()
-            li_field_names = {
-                (b.get('standard', {}).get('name') or b.get('id'))
-                for b in page.get('blocks', [])
-                if b.get('block_type') == 'line_items_by_category'
-            }
-            if li_field_names:
-                pending = [
-                    b for b in pending
-                    if not (
-                        b.get('source_page') == page_id
-                        and b.get('source_block_id') in li_field_names
-                        and b.get('type') == 'form_question'
-                    )
-                ]
-            existing_ids = {b.get('id') for b in pending}
-            for block in page.get('blocks', []):
-                field_name = block.get('standard', {}).get('name') or block.get('id')
-                if not field_name:
-                    continue
-                raw_value = checkbox_data.get(field_name) or form_data.get(field_name) or ''
-                if isinstance(raw_value, dict):
-                    raw_value = raw_value.get('preselected', [])
-                if not raw_value:
-                    continue
-
-                if block['block_type'] == 'line_items_by_category' and isinstance(raw_value, list):
-                    selected_codes = [v for v in raw_value if isinstance(v, str) and v.strip()]
-                    if not selected_codes:
-                        continue
-                    items = get_line_items_by_codes(selected_codes)
-                    if not items:
-                        continue
-
-                    merge_tags = get_merge_tag_values(page_id)
-
-                    page_title = page.get('title') or page_id.replace('_', ' ').title()
-                    if page_title not in seen_pages:
-                        seen_pages.add(page_title)
-                        page_title_id = f"form__{page_id}__page_title"
-                        if page_title_id not in existing_ids:
-                            pending.append({
-                                'id': page_title_id,
-                                'type': 'page_title',
-                                'source_page': page_id,
-                                'source_block_id': '__page_title__',
-                                'snapshot': {'title': page_title},
-                                'editor_overrides': {},
-                                'flags': { 'source_dirty': False, 'editor_dirty': False },
-                                'settings': { 'margin_top': 10, 'margin_bottom': 10, 'padding': 12, 'alignment': 'left' },
-                            })
-
-                    page_categories = {c['name']: c.get('sort_order', 0) for c in page.get('categories', [])}
-                    items.sort(key=lambda x: (
-                        page_categories.get(x.get('category', ''), 999),
-                        x.get('sort_order', 0),
-                        x.get('line_code', '')
-                    ))
-
-                    current_category = None
-                    for item in items:
-                        category = item.get('category', '')
-                        if category and category != current_category:
-                            current_category = category
-                            if category not in seen_categories:
-                                seen_categories.add(category)
-                                category_id = f"form__{page_id}__category__{category}"
-                                if category_id not in existing_ids:
-                                    pending.append({
-                                        'id': category_id,
-                                        'type': 'category_title',
-                                        'source_page': page_id,
-                                        'source_block_id': '__category_title__',
-                                        'snapshot': {'title': category},
-                                        'editor_overrides': {},
-                                        'flags': { 'source_dirty': False, 'editor_dirty': False },
-                                        'settings': { 'margin_top': 5, 'margin_bottom': 5, 'padding': 12, 'alignment': 'left', 'font_size': 20 },
-                                    })
-
-                        output_title = item.get('output_title', '') or item.get('line_code', '')
-                        output_notes = replace_merge_tags(item.get('output_notes', ''), merge_tags)
-                        output_guidance = replace_merge_tags(item.get('output_guidance', ''), merge_tags)
-                        value_text = output_notes or ''
-
-                        question_id = f"form__{page_id}__{field_name}__{item.get('line_code', '')}"
-                        if question_id not in existing_ids:
-                            pending.append({
-                                'id': question_id,
-                                'type': 'form_question',
-                                'source_page': page_id,
-                                'source_block_id': str(field_name),
-                                'snapshot': {
-                                    'label': output_title,
-                                    'value': value_text,
-                                    'output_notes': output_notes,
-                                    'output_guidance': output_guidance,
-                                    'line_code': item.get('line_code', ''),
-                                    'category': category,
-                                },
-                                'editor_overrides': {},
-                                'flags': { 'source_dirty': False, 'editor_dirty': False },
-                                'settings': { 'margin_top': 2, 'margin_bottom': 2, 'padding': 12, 'alignment': 'left', 'font_size': 16 },
-                            })
-                    continue
-
-                if block['block_type'] in ('checkbox_group', 'text_input', 'number_currency_input', 'dropdown_select'):
-                    page_title = page.get('title') or page_id.replace('_', ' ').title()
-                    if page_title not in seen_pages:
-                        seen_pages.add(page_title)
-                        page_title_id = f"form__{page_id}__page_title"
-                        if page_title_id not in existing_ids:
-                            pending.append({
-                                'id': page_title_id,
-                                'type': 'page_title',
-                                'source_page': page_id,
-                                'source_block_id': '__page_title__',
-                                'snapshot': {'title': page_title},
-                                'editor_overrides': {},
-                                'flags': { 'source_dirty': False, 'editor_dirty': False },
-                                'settings': { 'margin_top': 10, 'margin_bottom': 10, 'padding': 12, 'alignment': 'left', 'font_size': 24 },
-                            })
-
-                    question_id = f"form__{page_id}__{field_name}"
-                    if question_id not in existing_ids:
-                        pending.append({
-                            'id': question_id,
-                            'type': 'form_question',
-                            'source_page': page_id,
-                            'source_block_id': str(field_name),
-                            'snapshot': {
-                                'label': block.get('standard', {}).get('label', field_name),
-                                'value': raw_value if isinstance(raw_value, str) else ', '.join(raw_value),
-                            },
-                            'editor_overrides': {},
-                            'flags': { 'source_dirty': False, 'editor_dirty': False },
-                            'settings': { 'margin_top': 2, 'margin_bottom': 2, 'padding': 12, 'alignment': 'left', 'font_size': 16 },
-                        })
-            session['quote_editor_pending_blocks'] = pending
-            session.modified = True
-        except Exception:
-            pass
-
         nav = resolve_builder_beta_navigation_targets(page_id, page_schema)
         next_page = nav.get('next_page_id')
         if next_page and next_page in all_pages:
@@ -2957,21 +2892,38 @@ def builder_beta_page_editor(page_id):
                 save_page_schemas()
                 flash(f'Added {block_type} block.', 'success')
 
-        elif action == 'delete_block':
-            delete_id = request.form.get('block_id', '').strip()
-            delete_index, _ = _find_block(page, delete_id)
-            if delete_index is not None:
-                del page['blocks'][delete_index]
-                # Fix: properly handle empty list and first item deletion
-                if page['blocks']:
-                    # Clamp index to valid range after deletion
-                    if delete_index >= len(page['blocks']):
-                        delete_index = len(page['blocks']) - 1
-                    selected_block_id = page['blocks'][delete_index]['id']
-                else:
-                    selected_block_id = ''
-                save_page_schemas()
-                flash('Block deleted.', 'success')
+    elif action == 'duplicate_block':
+        duplicate_id = (form_data.get('block_id') or '').strip()
+        duplicate_index, source_block = _find_block(page, duplicate_id)
+        if source_block is None:
+            warnings.append('Block to duplicate was not found.')
+        else:
+            import copy
+            new_block = copy.deepcopy(source_block)
+            timestamp = int(time.time() * 1000)
+            new_block['id'] = f'{page_id}__{new_block["block_type"]}_{timestamp}'
+            if 'standard' in new_block:
+                new_block['standard']['label'] = new_block['standard'].get('label', '') + ' (copy)'
+                new_block['standard']['name'] = new_block['id']
+            insert_index = duplicate_index + 1
+            page['blocks'].insert(insert_index, new_block)
+            selected_block_id = new_block['id']
+
+    elif action == 'delete_block':
+        delete_id = request.form.get('block_id', '').strip()
+        delete_index, _ = _find_block(page, delete_id)
+        if delete_index is not None:
+            del page['blocks'][delete_index]
+            # Fix: properly handle empty list and first item deletion
+            if page['blocks']:
+                # Clamp index to valid range after deletion
+                if delete_index >= len(page['blocks']):
+                    delete_index = len(page['blocks']) - 1
+                selected_block_id = page['blocks'][delete_index]['id']
+            else:
+                selected_block_id = ''
+            save_page_schemas()
+            flash('Block deleted.', 'success')
 
         elif action == 'save_block':
             warnings, new_selected_id = update_builder_beta_page_from_form(page_id, request.form)
@@ -3648,7 +3600,7 @@ def quote_editor():
         layouts = list_quote_editor_layouts(form_key)
     except Exception:
         pass
-    pending_blocks = session.get('quote_editor_pending_blocks', [])
+    pending_blocks = get_quote_editor_blocks()
     pending_block = session.get('quote_editor_pending_block', None)
     return render_template(
         'user_output_editor.html',
@@ -3737,7 +3689,7 @@ def save_load():
 
 
 from merge_tags import get_merge_tag_values, replace_merge_tags
-from quote_editor_routes import quote_editor_bp
+from quote_editor_routes import quote_editor_bp, build_quote_editor_blocks_for_all_pages, get_quote_editor_blocks
 from quote_editor_export import quote_editor_export_bp
 from export_routes import export_bp
 

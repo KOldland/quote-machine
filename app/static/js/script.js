@@ -388,8 +388,8 @@ function updateDrainageInputs() {
 			checkbox.addEventListener('change', function() {
 				followUpContainer.style.display = checkbox.checked ? 'block' : 'none';
 				if (!checkbox.checked) {
-					var input = followUpContainer.querySelector('.preview-follow-up-input');
-					if (input) input.value = '';
+					var inputs = followUpContainer.querySelectorAll('.preview-follow-up-input');
+					inputs.forEach(function(input) { input.value = ''; });
 				}
 			});
 			// Set initial state

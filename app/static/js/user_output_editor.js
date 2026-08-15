@@ -1983,7 +1983,7 @@ const IMAGE_FRAMES = [
     let html = `
       <div class="settings-block">
         <div class="settings-block__header">
-          <span>${typeInfo.icon} ${typeInfo.label}</span>
+          <span>Advanced Controls</span>
         </div>
         <div class="settings-block__body">
           <label>Margin Top
@@ -2023,6 +2023,21 @@ const IMAGE_FRAMES = [
       `;
     }
 
+    const content = block.editor_overrides?.content || block.snapshot?.content;
+    if (content !== undefined && content !== null && block.type !== 'page_title' && block.type !== 'category_title') {
+      const contentHtml = escapeHtml(content);
+      html += `
+        <div class="settings-block">
+          <div class="settings-block__header">Content</div>
+          <div class="settings-block__body">
+            <label>Content
+              <textarea data-setting="content" rows="4">${contentHtml}</textarea>
+            </label>
+          </div>
+        </div>
+      `;
+    }
+
     panel.innerHTML = html;
 
     panel.querySelectorAll('[data-setting]').forEach(input => {
@@ -2040,6 +2055,20 @@ const IMAGE_FRAMES = [
           }
           return;
         }
+        if (key === 'content') {
+          pushHistory();
+          block.editor_overrides = block.editor_overrides || {};
+          block.editor_overrides.content = input.value;
+          const contentEl = getBlockEl(block.id)?.querySelector('.editor-block__content');
+          if (contentEl) {
+            contentEl.innerHTML = input.value;
+            block.flags = block.flags || {};
+            block.flags.editor_dirty = true;
+            const dot = getBlockEl(block.id)?.querySelector('.editor-block__source-dot');
+            if (dot) dot.classList.add('editor-block__source-dot--editor');
+          }
+          return;
+        }
         pushHistory();
         block.settings = block.settings || {};
         block.settings[key] = input.type === 'number' ? parseInt(input.value, 10) || 0 : input.value;
@@ -2052,63 +2081,96 @@ const IMAGE_FRAMES = [
     const panel = document.getElementById('navPanel');
     if (!panel) return;
 
+    const pageGroups = [];
+    let currentPage = null;
+
+    blocks.forEach((block, index) => {
+      const isPageSeparator = block.type === 'page_title' || block.type === 'page_break';
+
+      if (isPageSeparator && currentPage !== null) {
+        pageGroups.push(currentPage);
+        currentPage = null;
+      }
+
+      if (!currentPage) {
+        let title = 'Page ' + (pageGroups.length + 1);
+        if (block.type === 'page_title') {
+          title = block.snapshot.title || 'Untitled Page';
+        }
+        currentPage = { title, items: [] };
+      }
+
+      currentPage.items.push({ block, index });
+    });
+
+    if (currentPage) {
+      pageGroups.push(currentPage);
+    }
+
+    if (pageGroups.length === 0) {
+      panel.innerHTML = '<p class="editor-settings-placeholder">No blocks yet.</p>';
+      return;
+    }
+
     let html = '';
-    let currentPageIndex = 0;
-    let pageBlocks = [];
-    let pageStartIndex = 0;
 
-    blocks.forEach((block, index) => {
-      if (block.type === 'page_title') {
-        currentPageIndex++;
-        pageBlocks = [];
-        pageStartIndex = index;
-      }
-      pageBlocks.push(block);
+    pageGroups.forEach((page, pageIndex) => {
+      const isActive = page.items.some(item => item.block.id === activeBlockId);
+
+      html += `<div class="nav-page-group" data-page-index="${pageIndex}">`;
+      html += `<div class="nav-page-header ${isActive ? 'nav-item--active' : ''}">`;
+      html += `  <span class="nav-page-toggle">▾</span>`;
+      html += `  <span class="nav-item__icon">${getTypeInfo('page_title').icon}</span>`;
+      html += `  <span class="nav-item__label">${escapeHtml(page.title)}</span>`;
+      html += `</div>`;
+
+      html += `<div class="nav-page-items">`;
+
+      page.items.forEach(({ block }) => {
+        const typeInfo = getTypeInfo(block.type);
+        const snapshot = block.snapshot || {};
+
+        if (block.type === 'page_title') {
+          // Page title is the header, skip as nav item
+        } else if (block.type === 'category_title') {
+          const isActive = activeBlockId === block.id;
+          html += `<div class="nav-item nav-item--category ${isActive ? 'nav-item--active' : ''}" data-block-id="${block.id}">
+            <span class="nav-item__icon">${typeInfo.icon}</span>
+            <span class="nav-item__label">${escapeHtml(snapshot.title || 'Uncategorized')}</span>
+          </div>`;
+        } else if (block.type === 'form_question') {
+          const label = snapshot.label || 'Question';
+          const isActive = activeBlockId === block.id;
+          html += `<div class="nav-item nav-item--question ${isActive ? 'nav-item--active' : ''}" data-block-id="${block.id}">
+            <span class="nav-item__icon">${typeInfo.icon}</span>
+            <span class="nav-item__label">${escapeHtml(label)}</span>
+          </div>`;
+        } else if (block.type === 'page_break') {
+          html += `<div class="nav-item nav-item--break" data-block-id="${block.id}">
+            <span class="nav-item__icon">${typeInfo.icon}</span>
+            <span class="nav-item__label">Page Break</span>
+          </div>`;
+        }
+      });
+
+      html += `</div></div>`;
     });
 
-    // Rebuild pages for accurate page counts
-    rebuildPages();
+    panel.innerHTML = html;
 
-    let currentFormPage = null;
-    let currentCategory = null;
+    // Page collapse/expand handlers
+    panel.querySelectorAll('.nav-page-header').forEach(header => {
+      header.addEventListener('click', () => {
+        const group = header.closest('.nav-page-group');
+        const items = group.querySelector('.nav-page-items');
+        const toggle = header.querySelector('.nav-page-toggle');
 
-    blocks.forEach((block, index) => {
-      const typeInfo = getTypeInfo(block.type);
-      const snapshot = block.snapshot || {};
-
-      if (block.type === 'page_title') {
-        currentFormPage = snapshot.title || 'Untitled Page';
-        currentCategory = null;
-        const isActive = activeBlockId === block.id;
-        html += `<div class="nav-item nav-item--page ${isActive ? 'nav-item--active' : ''}" data-block-id="${block.id}">
-          <span class="nav-item__icon">${typeInfo.icon}</span>
-          <span class="nav-item__label">${escapeHtml(currentFormPage)}</span>
-        </div>`;
-      } else if (block.type === 'category_title') {
-        currentCategory = snapshot.title || 'Uncategorized';
-        const isActive = activeBlockId === block.id;
-        html += `<div class="nav-item nav-item--category ${isActive ? 'nav-item--active' : ''}" data-block-id="${block.id}">
-          <span class="nav-item__icon">${typeInfo.icon}</span>
-          <span class="nav-item__label">${escapeHtml(currentCategory)}</span>
-        </div>`;
-      } else if (block.type === 'form_question') {
-        const label = snapshot.label || 'Question';
-        const isActive = activeBlockId === block.id;
-        html += `<div class="nav-item nav-item--question ${isActive ? 'nav-item--active' : ''}" data-block-id="${block.id}">
-          <span class="nav-item__icon">${typeInfo.icon}</span>
-          <span class="nav-item__label">${escapeHtml(label)}</span>
-        </div>`;
-      } else if (block.type === 'page_break') {
-        html += `<div class="nav-item nav-item--break" data-block-id="${block.id}">
-          <span class="nav-item__icon">${typeInfo.icon}</span>
-          <span class="nav-item__label">Page Break</span>
-        </div>`;
-      }
+        items.classList.toggle('nav-page-items--collapsed');
+        toggle.textContent = items.classList.contains('nav-page-items--collapsed') ? '▸' : '▾';
+      });
     });
 
-    panel.innerHTML = html || '<p class="editor-settings-placeholder">No blocks yet.</p>';
-
-    // Add click handlers to navigation items
+    // Nav item click handlers
     panel.querySelectorAll('.nav-item').forEach(item => {
       item.addEventListener('click', () => {
         const blockId = item.dataset.blockId;
@@ -2120,7 +2182,7 @@ const IMAGE_FRAMES = [
         const blockIndex = blocks.indexOf(block);
         let targetPageIndex = 0;
         for (let i = 0; i <= blockIndex; i++) {
-          if (blocks[i].type === 'page_title' && i > 0) {
+          if ((blocks[i].type === 'page_title' || blocks[i].type === 'page_break') && i > 0) {
             targetPageIndex++;
           }
         }

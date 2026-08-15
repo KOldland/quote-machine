@@ -281,7 +281,7 @@
             <p style="font-size:.8rem;color:#999;padding:.5rem .75rem;">No categories configured for this page.</p>
         {% endif %}
         <div style="padding:.5rem .75rem; border-top:1px solid #dee2e6; background:#f0f4ff; margin-top:.5rem;">
-            <button type="button" id="btn-add-category" class="li-save-btn" style="margin-top:0;" data-page="{{ form_page_key }}">+ Add Category</button>
+            <button type="button" id="btn-add-category" class="li-save-btn" style="margin-top:0;" data-page="{{ form_page_key }}">Add Category</button>
             <div id="add-cat-inline" style="display:none; margin-top:.4rem;">
                 <input type="text" id="add-cat-name-input" placeholder="Category name…"
                        style="width:100%; font-size:.82rem; padding:.25rem .4rem; border:1px solid #ccc; border-radius:3px; box-sizing:border-box;">
@@ -427,7 +427,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <div id="li-view-one" style="display:none;flex-direction:column;height:100%;">
             <div class="li-qp-header" style="display:flex;align-items:center;gap:.5rem;padding:0 .75rem;height:48px;box-sizing:border-box;border-bottom:1px solid #dee2e6;background:#f0f4ff;">
                 <span class="breadcrumb-trail" style="font-weight:600;font-size:.85rem;color:#6c757d;flex:1;">
-                    <span id="li-view-one-title" style="color:#333;">Category Details</span>
+                    <span id="li-view-one-title" style="color:#1b3a6b;">Category Details</span>
                 </span>
             </div>
             <div id="li-category-content-wrap" style="flex:1; overflow-y:auto; overflow-x:hidden; padding:0;">
@@ -454,7 +454,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <p style="color:#aaa; font-size:0.85rem; text-align:center; margin-top:2rem;">Select a category to see questions</p>
             </div>
             <div id="add-question-wrap" style="padding: 0.5rem; background: #fff; border-top: 1px solid #eee; display: none;">
-                <button type="button" id="btn-add-question" style="width: 100%; padding: 0.4rem; background: #1b3a6b; color: #fff; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">+ Add Question to Category</button>
+                <button type="button" id="btn-add-question" style="width: 100%; padding: 0.4rem; background: #1b3a6b; color: #fff; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">Add Question</button>
             </div>
         </div>
 
@@ -647,7 +647,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 body: JSON.stringify(payload)
             }).then(r => r.json()).then(d => {
                 btnAddQuestion.disabled = false;
-                btnAddQuestion.textContent = '+ Add Question to Category';
+                btnAddQuestion.textContent = 'Add Question';
                 if (d.success) {
                     var activeBtn = document.querySelector('.li-section-btn[data-category="'+_activeCategory+'"]');
                     if (activeBtn) activeBtn.click();
@@ -656,7 +656,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }).catch(e => {
                 btnAddQuestion.disabled = false;
-                btnAddQuestion.textContent = '+ Add Question to Category';
+                btnAddQuestion.textContent = 'Add Question';
                 alert('Network error adding question');
             });
         });
@@ -1028,21 +1028,14 @@ document.addEventListener('DOMContentLoaded', function() {
             _field('output_title',         'Output Title',          'text', item.output_title || ''),
             _field('output_notes',         'Output Notes',         'textarea', item.output_notes || ''),
             _field('output_guidance',      'Output Guidance',      'textarea', item.output_guidance || ''),
+            '<div style="font-size:.72rem;color:#888;margin-top:.15rem;">Use {selected} to insert the chosen answer, or {ChoiceName} for a specific option. Choices defined in Secondary Questions.</div>'
         ]);
 
-        html += _section('Secondary Questions', false, [
+        html += _section('Secondary Questions', true, [
             _checkField('is_follow_up', 'Include follow-up question', item.is_follow_up === 1 || item.is_follow_up === '1'),
             '<div id="group_follow_up_type" style="display:' + (item.is_follow_up === 1 || item.is_follow_up === '1' ? 'block' : 'none') + ';">' +
-                _selectField('follow_up_type', 'Follow-up Type', item.follow_up_type || 'Dropdown (text)',
-                    [
-                        'Dropdown (text)', 
-                        'Dropdown (cost)', 
-                        'Dropdown (dimension)', 
-                        'Single Entry (text)', 
-                        'Single Entry (cost)', 
-                        'Single Entry (dimension)'
-                    ]) +
-                '<div id="follow-up-config-fields" style="margin-top:0.5rem; padding-top:0.5rem; border-top:1px dashed #ddd;"></div>' +
+                '<div id="follow-ups-list"></div>' +
+                '<button type="button" id="btn-add-follow-up" style="margin-top:.5rem; padding:.35rem .75rem; background:#fff; color:#1b3a6b; border:1px solid #1b3a6b; border-radius:4px; cursor:pointer; font-size:.8rem; font-weight:600;">+ Add Follow-up</button>' +
                 '<input type="hidden" name="follow_up_config" id="li_follow_up_config_hidden">' +
             '</div>',
         ]);
@@ -1078,7 +1071,8 @@ document.addEventListener('DOMContentLoaded', function() {
         html += '  <label style="font-size:.85rem; font-weight:600; color:#1b3a6b; cursor:pointer;"><input type="checkbox" name="form_visible" ' + (item.form_visible === 1 || item.form_visible === '1' || item.form_visible === true ? 'checked' : '') + ' style="margin-right:.4rem;">Question Visible in Form</label>';
         html += '</div>';
         html += '<div style="display:flex; justify-content:flex-end; align-items:center; gap: 10px;">';
-        html += '  <button type="submit" class="li-save-btn" style="padding:0.45rem; width:auto; margin-top:0;" title="Save Question"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>';
+        html += '  <button type="button" id="btn-duplicate-question" class="li-save-btn" style="padding:0.45rem; width:auto; margin-top:0; background:#6c757d;" title="Duplicate Question"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>';
+        html += '  <button type="submit" class="li-save-btn" style="padding:0.45rem; width:auto; margin-top:0;" title="Save Question"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1 2-2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>';
         html += '  <button type="button" id="btn-delete-question" class="li-delete-btn" style="padding:0.45rem; background:#6d0b0b; color:#fff; border:none; border-radius:5px; font-weight:700; cursor:pointer;" title="Delete Question"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>';
         html += '</div>';
         html += '</div>';
@@ -1088,23 +1082,22 @@ document.addEventListener('DOMContentLoaded', function() {
         // Follow-up toggle logic
         var isFollowUpCheck = $id('lich_is_follow_up');
         var followUpTypeGroup = $id('group_follow_up_type');
-        var editForm = $id('li-edit-form');
-        var followUpTypeSelect = editForm ? editForm.querySelector('[name="follow_up_type"]') : null;
-        var configContainer = $id('follow-up-config-fields');
         var configHidden = $id('li_follow_up_config_hidden');
 
         if (isFollowUpCheck && followUpTypeGroup) {
             isFollowUpCheck.addEventListener('change', function() {
                 followUpTypeGroup.style.display = isFollowUpCheck.checked ? 'block' : 'none';
                 if (isFollowUpCheck.checked) {
-                    _renderFollowUpConfig(followUpTypeSelect.value, {});
+                    if ($id('follow-ups-list').children.length === 0) {
+                        _renderFollowUpConfig('Dropdown (text)', {});
+                    }
                 }
             });
         }
 
-        if (followUpTypeSelect) {
-            followUpTypeSelect.addEventListener('change', function() {
-                _renderFollowUpConfig(followUpTypeSelect.value, {});
+        if ($id('btn-add-follow-up')) {
+            $id('btn-add-follow-up').addEventListener('click', function() {
+                _renderFollowUpConfig('Dropdown (text)', {});
             });
         }
 
@@ -1112,15 +1105,45 @@ document.addEventListener('DOMContentLoaded', function() {
         if (item.is_follow_up === 1 || item.is_follow_up === '1') {
             var cfg = {};
             try { 
-                cfg = JSON.parse(item.follow_up_config || '{}'); 
+                cfg = JSON.parse(item.follow_up_config || '[]'); 
             } catch(e) {
                 console.error("Failed to parse follow_up_config JSON for item ID " + item.id + ":", e, item.follow_up_config);
+                cfg = [];
             }
-            _renderFollowUpConfig(item.follow_up_type || 'Dropdown (text)', cfg);
+            if (!Array.isArray(cfg)) cfg = [cfg];
+            if (cfg.length === 0) cfg = [{ type: item.follow_up_type || 'Dropdown (text)' }];
+            cfg.forEach(function(c) {
+                _renderFollowUpConfig(c.type || 'Dropdown (text)', c);
+            });
         }
 
         // Collapsible section headers
         _attachAccordion($id('li-editor-content'));
+
+        // Duplicate question
+        var dupBtn = $id('btn-duplicate-question');
+        if (dupBtn) {
+            dupBtn.addEventListener('click', function() {
+                fetch('/builder_beta/line_item_duplicate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''
+                    },
+                    body: JSON.stringify({ line_code: item.line_code, page_key: _pageKey, category: item.category })
+                }).then(function(r) { return r.json(); }).then(function(d) {
+                    if (d.ok || d.success) {
+                        _activeItem = null;
+                        _saveSelectionState();
+                        var activeBtn = document.querySelector('.li-section-btn[data-category="'+_activeCategory+'"]');
+                        if (activeBtn) activeBtn.click();
+                        showViewOne(_activeCategory);
+                    } else {
+                        alert('Failed to duplicate question: ' + (d.error || 'Unknown error'));
+                    }
+                }).catch(e => alert('Network Error duplicating question.'));
+            });
+        }
 
         // Delete question
         var delBtn = $id('btn-delete-question');
@@ -1180,6 +1203,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // Remove readonly line_code from payload
                 delete payload['line_code'];
+
+                // Backward compatibility: set follow_up_type from first follow-up entry
+                var fuEntries = document.querySelectorAll('.fu-entry');
+                if (fuEntries.length > 0) {
+                    var firstTypeSelect = fuEntries[0].querySelector('.fu-type-select');
+                    if (firstTypeSelect) {
+                        payload['follow_up_type'] = firstTypeSelect.value;
+                    }
+                }
 
                 var saveBtn = form.querySelector('.li-save-btn');
                 if (saveBtn) {
@@ -1277,59 +1309,88 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // ── Follow-up Config Rendering ─────────────────────────────────────────
     var _followUpTemplates = {
-        'text': function(cfg) {
-            return _field('fu_helper_text', 'Helper Text', 'text', cfg.helper_text || '');
+        'text': function(cfg, fuId) {
+            return _field('fu_helper_text', 'Helper Text', 'text', cfg.helper_text || '', false, 'fu_helper_text_' + fuId);
         },
-        'cost': function(cfg) {
-            return _field('fu_default_cost', 'Default Unit Cost (£)', 'number', cfg.default_cost || '') +
-                   _field('fu_default_units', 'Default Unit Amount', 'number', cfg.default_units || '') +
-                   _checkField('fu_allow_override', 'Apply User Cost Override', cfg.allow_override === true);
+        'cost': function(cfg, fuId) {
+            return _field('fu_default_cost', 'Default Unit Cost (£)', 'number', cfg.default_cost || '', false, 'fu_default_cost_' + fuId) +
+                   _field('fu_default_units', 'Default Unit Amount', 'number', cfg.default_units || '', false, 'fu_default_units_' + fuId) +
+                   _checkField('fu_allow_override', 'Apply User Cost Override', cfg.allow_override === true, 'fu_allow_override_' + fuId);
         },
-        'dimension': function(cfg) {
-            return _field('fu_default_dim1', 'Default Dimension 1', 'number', cfg.default_dim1 || '') +
-                   _checkField('fu_enable_dim2', 'Enable Dimension 2', cfg.enable_dim2 === true, 'fu_enable_dim2_cb') +
-                   _field('fu_default_dim2', 'Default Dimension 2', 'number', cfg.default_dim2 || '', !cfg.enable_dim2, 'fu_default_dim2') +
-                   _checkField('fu_enable_dim3', 'Enable Dimension 3', cfg.enable_dim3 === true, 'fu_enable_dim3_cb') +
-                   _field('fu_default_dim3', 'Default Dimension 3', 'number', cfg.default_dim3 || '', !cfg.enable_dim3, 'fu_default_dim3') +
-                   _field('fu_unit', 'Measurement Unit (e.g. m, sqm)', 'text', cfg.unit || '');
+        'dimension': function(cfg, fuId) {
+            return _field('fu_default_dim1', 'Default Dimension 1', 'number', cfg.default_dim1 || '', false, 'fu_default_dim1_' + fuId) +
+                   _checkField('fu_enable_dim2', 'Enable Dimension 2', cfg.enable_dim2 === true, 'fu_enable_dim2_cb_' + fuId) +
+                   _field('fu_default_dim2', 'Default Dimension 2', 'number', cfg.default_dim2 || '', !cfg.enable_dim2, 'fu_default_dim2_' + fuId) +
+                   _checkField('fu_enable_dim3', 'Enable Dimension 3', cfg.enable_dim3 === true, 'fu_enable_dim3_cb_' + fuId) +
+                   _field('fu_default_dim3', 'Default Dimension 3', 'number', cfg.default_dim3 || '', !cfg.enable_dim3, 'fu_default_dim3_' + fuId) +
+                   _field('fu_unit', 'Measurement Unit (e.g. m, sqm)', 'text', cfg.unit || '', false, 'fu_unit_' + fuId);
         },
-        'dropdown': function(cfg, subType) {
-            var html = _field('fu_choices', 'Choices (one per line)', 'textarea', (cfg.choices || []).join('\n')) +
-                       _checkField('fu_include_other', 'Include "Other" field', cfg.include_other === true);
-            html += '<div id="fu_other_config" style="display:' + (cfg.include_other ? 'block' : 'none') + '; margin-left:1rem; border-left:2px solid #eee; padding-left:0.5rem;">';
-            if (subType === 'text') html += _followUpTemplates.text(cfg.other_config || {});
-            if (subType === 'cost') html += _followUpTemplates.cost(cfg.other_config || {});
-            if (subType === 'dimension') html += _followUpTemplates.dimension(cfg.other_config || {});
+        'dropdown': function(cfg, subType, fuId) {
+            var html = _field('fu_choices', 'Choices (one per line)', 'textarea', (cfg.choices || []).join('\n'), false, 'fu_choices_' + fuId) +
+                       _checkField('fu_include_other', 'Include "Other" field', cfg.include_other === true, 'fu_include_other_' + fuId);
+            html += '<div id="fu_other_config_' + fuId + '" style="display:' + (cfg.include_other ? 'block' : 'none') + '; margin-left:1rem; border-left:2px solid #eee; padding-left:0.5rem;">';
+            if (subType === 'text') html += _followUpTemplates.text(cfg.other_config || {}, fuId + '_other');
+            if (subType === 'cost') html += _followUpTemplates.cost(cfg.other_config || {}, fuId + '_other');
+            if (subType === 'dimension') html += _followUpTemplates.dimension(cfg.other_config || {}, fuId + '_other');
             html += '</div>';
             return html;
         }
     };
 
     function _renderFollowUpConfig(type, cfg) {
-        var container = $id('follow-up-config-fields');
+        var container = $id('follow-ups-list');
         if (!container) return;
         var html = '';
-        if (type === 'Dropdown (text)') html = _followUpTemplates.dropdown(cfg, 'text');
-        else if (type === 'Dropdown (cost)') html = _followUpTemplates.dropdown(cfg, 'cost');
-        else if (type === 'Dropdown (dimension)') html = _followUpTemplates.dropdown(cfg, 'dimension');
-        else if (type === 'Single Entry (text)') html = _followUpTemplates.text(cfg);
-        else if (type === 'Single Entry (cost)') html = _followUpTemplates.cost(cfg);
-        else if (type === 'Single Entry (dimension)') html = _followUpTemplates.dimension(cfg);
+        var fuId = 'fu_' + Date.now() + '_' + Math.floor(Math.random()*1000);
+        if (type === 'Dropdown (text)') html = _followUpTemplates.dropdown(cfg, 'text', fuId);
+        else if (type === 'Dropdown (cost)') html = _followUpTemplates.dropdown(cfg, 'cost', fuId);
+        else if (type === 'Dropdown (dimension)') html = _followUpTemplates.dropdown(cfg, 'dimension', fuId);
+        else if (type === 'Single Entry (text)') html = _followUpTemplates.text(cfg, fuId);
+        else if (type === 'Single Entry (cost)') html = _followUpTemplates.cost(cfg, fuId);
+        else if (type === 'Single Entry (dimension)') html = _followUpTemplates.dimension(cfg, fuId);
         
-        container.innerHTML = html;
+        html = '<div class="fu-entry" data-fu-id="' + fuId + '" style="border:1px solid #e2e8f0; border-radius:6px; padding:.6rem; margin-bottom:.5rem; background:#fafafa;">' +
+               '<select class="fu-type-select" data-fu-id="' + fuId + '" style="padding:.25rem .5rem; border:1px solid #ccc; border-radius:4px; font-size:.8rem; margin-bottom:.4rem;">' +
+               ['Dropdown (text)','Dropdown (cost)','Dropdown (dimension)','Single Entry (text)','Single Entry (cost)','Single Entry (dimension)'].map(function(t) {
+                   return '<option value="' + t + '"' + (t === type ? ' selected' : '') + '>' + t + '</option>';
+               }).join('') +
+               '</select>' +
+               '<div class="fu-config" data-fu-id="' + fuId + '">' + html + '</div>' +
+               '<div style="display:flex; justify-content:space-between; align-items:center; margin-top:.4rem;">' +
+               '<span></span>' +
+               '<button type="button" class="fu-remove-btn" data-fu-id="' + fuId + '" style="background:none; border:none; color:#dc3545; cursor:pointer; font-size:.85rem; font-weight:700;">Remove</button>' +
+               '</div>' +
+               '</div>';
+        
+        container.insertAdjacentHTML('beforeend', html);
 
-        // Attach sub-toggle for 'Other' in dropdowns
-        var otherCheck = container.querySelector('[id="lich_fu_include_other"]');
-        var otherDiv = $id('fu_other_config');
+        var entry = container.querySelector('[data-fu-id="' + fuId + '"]');
+        var typeSelect = entry.querySelector('.fu-type-select');
+        var configDiv = entry.querySelector('.fu-config');
+        var removeBtn = entry.querySelector('.fu-remove-btn');
+
+        typeSelect.addEventListener('change', function() {
+            _renderFollowUpConfig(typeSelect.value, {}, fuId);
+        });
+
+        removeBtn.addEventListener('click', function() {
+            entry.remove();
+        });
+
+        _attachFollowUpListeners(entry);
+    }
+
+    function _attachFollowUpListeners(entry) {
+        var otherCheck = entry.querySelector('[id="lich_fu_include_other"]');
+        var otherDiv = entry.querySelector('[id="fu_other_config"]');
         if (otherCheck && otherDiv) {
             otherCheck.addEventListener('change', function() {
                 otherDiv.style.display = otherCheck.checked ? 'block' : 'none';
             });
         }
 
-        // Attach listeners for dynamic field enabling/disabling
-        var cbDim2 = container.querySelector('#fu_enable_dim2_cb');
-        var inputDim2 = container.querySelector('#fu_default_dim2');
+        var cbDim2 = entry.querySelector('#fu_enable_dim2_cb');
+        var inputDim2 = entry.querySelector('#fu_default_dim2');
         if (cbDim2 && inputDim2) {
             cbDim2.addEventListener('change', function() {
                 inputDim2.readOnly = !cbDim2.checked;
@@ -1337,8 +1398,8 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
-        var cbDim3 = container.querySelector('#fu_enable_dim3_cb');
-        var inputDim3 = container.querySelector('#fu_default_dim3');
+        var cbDim3 = entry.querySelector('#fu_enable_dim3_cb');
+        var inputDim3 = entry.querySelector('#fu_default_dim3');
         if (cbDim3 && inputDim3) {
             cbDim3.addEventListener('change', function() {
                 inputDim3.readOnly = !cbDim3.checked;
@@ -1348,57 +1409,66 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function _collectFollowUpConfig() {
-        var container = $id('follow-up-config-fields');
-        if (!container) return '{}';
-        var type = document.querySelector('[name="follow_up_type"]').value;
-        var cfg = {};
+        var container = $id('follow-ups-list');
+        if (!container) return '[]';
+        var entries = container.querySelectorAll('.fu-entry');
+        var configs = [];
         
-        var getVal = function(name) {
-            var el = container.querySelector('[name="' + name + '"]');
-            if (!el) return undefined;
-            if (el.type === 'checkbox') {
-                return el.checked;
-            }
-            return el.value;
-        };
+        entries.forEach(function(entry) {
+            var fuId = entry.dataset.fuId;
+            var typeSelect = entry.querySelector('.fu-type-select');
+            var type = typeSelect ? typeSelect.value : 'Dropdown (text)';
+            var cfg = {};
+            
+            var getVal = function(name) {
+                var el = entry.querySelector('[name="' + name + '"]');
+                if (!el) return undefined;
+                if (el.type === 'checkbox') return el.checked;
+                return el.value;
+            };
 
-        if (type.startsWith('Dropdown')) {
-            cfg.choices = (getVal('fu_choices') || '').split('\n').filter(Boolean);
-            cfg.include_other = getVal('fu_include_other');
-            if (cfg.include_other) {
-                cfg.other_config = {};
-                if (type.includes('text')) cfg.other_config.helper_text = getVal('fu_helper_text');
+            cfg.type = type;
+
+            if (type.startsWith('Dropdown')) {
+                cfg.choices = (getVal('fu_choices') || '').split('\n').filter(Boolean);
+                cfg.include_other = getVal('fu_include_other');
+                if (cfg.include_other) {
+                    cfg.other_config = {};
+                    if (type.includes('text')) cfg.other_config.helper_text = getVal('fu_helper_text');
+                    if (type.includes('cost')) {
+                        cfg.other_config.default_cost = getVal('fu_default_cost');
+                        cfg.other_config.default_units = getVal('fu_default_units');
+                        cfg.other_config.allow_override = getVal('fu_allow_override');
+                    }
+                    if (type.includes('dimension')) {
+                        cfg.other_config.default_dim1 = getVal('fu_default_dim1');
+                        cfg.other_config.enable_dim2 = getVal('fu_enable_dim2');
+                        cfg.other_config.default_dim2 = getVal('fu_default_dim2');
+                        cfg.other_config.enable_dim3 = getVal('fu_enable_dim3');
+                        cfg.other_config.default_dim3 = getVal('fu_default_dim3');
+                        cfg.other_config.unit = getVal('fu_unit');
+                    }
+                }
+            } else {
+                if (type.includes('text')) cfg.helper_text = getVal('fu_helper_text');
                 if (type.includes('cost')) {
-                    cfg.other_config.default_cost = getVal('fu_default_cost');
-                    cfg.other_config.default_units = getVal('fu_default_units');
-                    cfg.other_config.allow_override = getVal('fu_allow_override');
+                    cfg.default_cost = getVal('fu_default_cost');
+                    cfg.default_units = getVal('fu_default_units');
+                    cfg.allow_override = getVal('fu_allow_override');
                 }
                 if (type.includes('dimension')) {
-                    cfg.other_config.default_dim1 = getVal('fu_default_dim1');
-                    cfg.other_config.enable_dim2 = getVal('fu_enable_dim2');
-                    cfg.other_config.default_dim2 = getVal('fu_default_dim2');
-                    cfg.other_config.enable_dim3 = getVal('fu_enable_dim3');
-                    cfg.other_config.default_dim3 = getVal('fu_default_dim3');
-                    cfg.other_config.unit = getVal('fu_unit');
+                    cfg.default_dim1 = getVal('fu_default_dim1');
+                    cfg.enable_dim2 = getVal('fu_enable_dim2');
+                    cfg.default_dim2 = getVal('fu_default_dim2');
+                    cfg.enable_dim3 = getVal('fu_enable_dim3');
+                    cfg.default_dim3 = getVal('fu_default_dim3');
+                    cfg.unit = getVal('fu_unit');
                 }
             }
-        } else {
-            if (type.includes('text')) cfg.helper_text = getVal('fu_helper_text');
-            if (type.includes('cost')) {
-                cfg.default_cost = getVal('fu_default_cost');
-                cfg.default_units = getVal('fu_default_units');
-                cfg.allow_override = getVal('fu_allow_override');
-            }
-            if (type.includes('dimension')) {
-                cfg.default_dim1 = getVal('fu_default_dim1');
-                cfg.enable_dim2 = getVal('fu_enable_dim2');
-                cfg.default_dim2 = getVal('fu_default_dim2');
-                cfg.enable_dim3 = getVal('fu_enable_dim3');
-                cfg.default_dim3 = getVal('fu_default_dim3');
-                cfg.unit = getVal('fu_unit');
-            }
-        }
-        return JSON.stringify(cfg);
+            configs.push(cfg);
+        });
+        
+        return JSON.stringify(configs);
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────
@@ -1605,6 +1675,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         {% if block.hidden %}<span style="background:#6d0b0b;color:#fff;font-size:.65rem;font-weight:700;padding:.15rem .4rem;border-radius:3px;margin-left:.3rem;letter-spacing:.04em;">HIDDEN</span>{% endif %}
                         <span class="block-title">{% if block.hidden %}<s>{{ block.standard.label }}</s>{% else %}{{ block.standard.label }}{% endif %}</span>
                         <div class="block-actions">
+                            <button type="button" class="block-action-btn" data-action="duplicate" title="Duplicate"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
                             <button type="button" class="block-action-btn" data-action="edit" title="Edit"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
                             <button type="button" class="block-action-btn delete" data-action="delete" title="Delete"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>
                         </div>

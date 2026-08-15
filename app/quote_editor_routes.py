@@ -31,6 +31,7 @@ from template_store import (
     load_template_payload,
     _get_form_template_id,
     get_line_items_by_codes,
+    get_line_items_for_page,
 )
 
 quote_editor_bp = Blueprint('quote_editor', __name__)
@@ -385,7 +386,7 @@ def add_form_block():
         if isinstance(raw_value, dict):
             raw_value = raw_value.get('preselected', [])
         if not raw_value:
-            continue
+            raw_value = ''
 
         if block_type == 'line_items_by_category' and isinstance(raw_value, list):
             selected_codes = [v for v in raw_value if isinstance(v, str) and v.strip()]
@@ -395,7 +396,7 @@ def add_form_block():
             if not items:
                 continue
 
-            merge_tags = get_merge_tag_values(page_key, session, get_line_items_for_page)
+            merge_tags = get_merge_tag_values(page_key, session, get_line_items_for_page, page_blocks=page.get('blocks', []))
 
             page_title = page.get('title') or page_key.replace('_', ' ').title()
             if page_title not in seen_pages:
@@ -482,14 +483,19 @@ def add_form_block():
                 'source_page': page_key,
                 'source_block_id': str(b.get('id', key)),
                 'snapshot': {
-                    'label': b.get('label', ''),
+                    'label': b.get('standard', {}).get('label', b.get('label', key)),
                     'value': raw_value if isinstance(raw_value, str) else ', '.join(raw_value),
                 },
                 'editor_overrides': {},
                 'flags': { 'source_dirty': False, 'editor_dirty': False },
                 'settings': { 'margin_top': 2, 'margin_bottom': 2, 'padding': 12, 'alignment': 'left', 'font_size': 16 },
             })
-    return jsonify({'success': True, 'blocks': snapshot_blocks})
+    
+    if snapshot_blocks:
+        session['quote_editor_pending_blocks'] = snapshot_blocks
+        session.modified = True
+    
+    return jsonify({'success': True, 'blocks': snapshot_blocks, 'redirect': '/quote_editor'})
 
 
 @quote_editor_bp.route('/quote_editor/add-calc-block', methods=['GET'])
@@ -609,3 +615,145 @@ def create_theme():
     with open(os.path.join(theme_dir, filename), 'w') as f:
         json.dump(theme_data, f, indent=2)
     return jsonify({'success': True})
+
+
+def _build_page_blocks(page_key, page, form_data, checkbox_data):
+    """Generate quote-editor blocks for a single form page."""
+    blocks = page.get('blocks', page.get('fields', []))
+    snapshot_blocks = []
+    seen_pages = set()
+    seen_categories = set()
+
+    page_title = page.get('title') or page_key.replace('_', ' ').title()
+    if page_title not in seen_pages:
+        seen_pages.add(page_title)
+        snapshot_blocks.append({
+            'id': f"form__{page_key}__page_title",
+            'type': 'page_title',
+            'source_page': page_key,
+            'source_block_id': '__page_title__',
+            'snapshot': {'title': page_title},
+            'editor_overrides': {},
+            'flags': { 'source_dirty': False, 'editor_dirty': False },
+            'settings': { 'margin_top': 10, 'margin_bottom': 10, 'padding': 12, 'alignment': 'left' },
+        })
+
+    for b in blocks:
+        block_type = b.get('block_type', b.get('type', ''))
+        storage = b.get('storage', {})
+        key = storage.get('key', str(b.get('id', '')))
+        raw_value = checkbox_data.get(key) or form_data.get(key) or ''
+        if isinstance(raw_value, dict):
+            raw_value = raw_value.get('preselected', [])
+        if not raw_value:
+            raw_value = ''
+
+        if block_type == 'line_items_by_category' and isinstance(raw_value, list):
+            selected_codes = [v for v in raw_value if isinstance(v, str) and v.strip()]
+            if not selected_codes:
+                continue
+            items = get_line_items_by_codes(selected_codes)
+            if not items:
+                continue
+
+            merge_tags = get_merge_tag_values(page_key, session, get_line_items_for_page, page_blocks=page.get('blocks', []))
+            page_categories = {c['name']: c.get('sort_order', 0) for c in page.get('categories', [])}
+            items.sort(key=lambda x: (
+                page_categories.get(x.get('category', ''), 999),
+                x.get('sort_order', 0),
+                x.get('line_code', '')
+            ))
+
+            current_category = None
+            for item in items:
+                category = item.get('category', '')
+                if category and category != current_category:
+                    current_category = category
+                    if category not in seen_categories:
+                        seen_categories.add(category)
+                        category_image = _get_category_image(page_key, category)
+                        snapshot_blocks.append({
+                            'id': f"form__{page_key}__category__{category}",
+                            'type': 'category_title',
+                            'source_page': page_key,
+                            'source_block_id': '__category_title__',
+                            'snapshot': {'title': category, 'category_image': category_image},
+                            'editor_overrides': {},
+                            'flags': { 'source_dirty': False, 'editor_dirty': False },
+                            'settings': { 'margin_top': 5, 'margin_bottom': 5, 'padding': 12, 'alignment': 'left', 'font_size': 20 },
+                        })
+
+                output_title = item.get('output_title', '') or item.get('line_code', '')
+                output_notes = replace_merge_tags(item.get('output_notes', ''), merge_tags)
+                output_guidance = replace_merge_tags(item.get('output_guidance', ''), merge_tags)
+                value_text = output_notes or ''
+
+                snapshot_blocks.append({
+                    'id': f"form__{page_key}__{key}__{item.get('line_code', '')}",
+                    'type': 'form_question',
+                    'source_page': page_key,
+                    'source_block_id': str(key),
+                    'snapshot': {
+                        'label': output_title,
+                        'value': value_text,
+                        'output_notes': output_notes,
+                        'output_guidance': output_guidance,
+                        'line_code': item.get('line_code', ''),
+                        'category': category,
+                    },
+                    'editor_overrides': {},
+                    'flags': { 'source_dirty': False, 'editor_dirty': False },
+                    'settings': { 'margin_top': 2, 'margin_bottom': 2, 'padding': 12, 'alignment': 'left' },
+                })
+            continue
+
+        if block_type in ('checkbox_group', 'text_input', 'number_currency_input', 'dropdown_select'):
+            snapshot_blocks.append({
+                'id': f"form__{page_key}__{b.get('id', key)}",
+                'type': 'form_question',
+                'source_page': page_key,
+                'source_block_id': str(b.get('id', key)),
+                'snapshot': {
+                    'label': b.get('standard', {}).get('label', b.get('label', key)),
+                    'value': raw_value if isinstance(raw_value, str) else ', '.join(raw_value),
+                },
+                'editor_overrides': {},
+                'flags': { 'source_dirty': False, 'editor_dirty': False },
+                'settings': { 'margin_top': 2, 'margin_bottom': 2, 'padding': 12, 'alignment': 'left', 'font_size': 16 },
+            })
+
+    return snapshot_blocks
+
+
+def build_quote_editor_blocks_for_all_pages():
+    """Build blocks for every page in the current form template."""
+    form_key = session.get('template_key', 'builder_beta')
+    payload = load_template_payload(form_key)
+    if not payload:
+        return []
+    pages = payload.get('builder_beta', {}).get('pages', payload.get('pages', {}))
+    if not pages:
+        return []
+
+    form_data = session.get('data', {})
+    checkbox_data = session.get('checkbox_data', {})
+    all_blocks = []
+    for page_key, page in pages.items():
+        page_blocks = _build_page_blocks(page_key, page, form_data, checkbox_data)
+        all_blocks.extend(page_blocks)
+    return all_blocks
+
+
+def get_quote_editor_blocks():
+    """Return the full set of blocks for the quote editor.
+
+    This always includes every page from the form template, plus any
+    manually-added blocks the user has created in the quote editor itself
+    (calculator, image groups, etc.).
+    """
+    form_blocks = build_quote_editor_blocks_for_all_pages()
+    manual_blocks = [
+        b for b in session.get('quote_editor_pending_blocks', [])
+        if b.get('type') not in ('page_title', 'category_title', 'form_question')
+    ]
+    return form_blocks + manual_blocks
