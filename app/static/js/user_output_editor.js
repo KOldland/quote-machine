@@ -2,7 +2,8 @@
   'use strict';
 
   const BLOCK_TYPES = {
-    page_title: { label: 'Page Title', icon: 'H1' },
+    page_title: { label: 'Page Title', icon: '' },
+    page_heading: { label: 'Page Heading', icon: '' },
     category_title: { label: 'Category Title', icon: 'H2' },
     form_question: { label: 'Question', icon: '📋' },
     notes: { label: 'Notes', icon: '📝' },
@@ -144,9 +145,11 @@ const IMAGE_FRAMES = [
     return BLOCK_TYPES[type] || { label: type, icon: '📄' };
   }
 
-  function getDefaultSettings(type) {
+   function getDefaultSettings(type) {
     switch (type) {
       case 'page_title':
+        return { margin_top: 0, margin_bottom: 0, padding: 0, alignment: 'left', font_size: 16, hidden: false };
+      case 'page_heading':
         return { margin_top: 10, margin_bottom: 10, padding: 12, alignment: 'left', font_size: 24 };
       case 'category_title':
         return { margin_top: 5, margin_bottom: 5, padding: 12, alignment: 'left', font_size: 20 };
@@ -203,9 +206,40 @@ const IMAGE_FRAMES = [
     const container = document.getElementById('blocksContainer');
     container.innerHTML = '';
 
-    const pageIndex = Math.max(0, Math.min(window.__currentPageIndex || 0, pages.length - 1));
+    let pageIndex = Math.max(0, Math.min(window.__currentPageIndex || 0, pages.length - 1));
     window.__currentPageIndex = pageIndex;
-    const pageBlocks = pages[pageIndex] || [];
+    let pageBlocks = pages[pageIndex] || [];
+
+    if (pageBlocks.length) {
+      const separator = pageBlocks.find(b => b.type === 'page_title' || b.type === 'page_break');
+      if (separator && separator.flags && separator.flags.hidden) {
+        let nextIndex = pageIndex + 1;
+        while (nextIndex < pages.length) {
+          const nextPage = pages[nextIndex] || [];
+          const nextSep = nextPage.find(b => b.type === 'page_title' || b.type === 'page_break');
+          if (nextSep && nextSep.flags && nextSep.hidden) {
+            nextIndex++;
+          } else {
+            break;
+          }
+        }
+        if (nextIndex >= pages.length) {
+          nextIndex = 0;
+          while (nextIndex < pageIndex) {
+            const prevPage = pages[nextIndex] || [];
+            const prevSep = prevPage.find(b => b.type === 'page_title' || b.type === 'page_break');
+            if (prevSep && prevSep.flags && prevSep.flags.hidden) {
+              nextIndex++;
+            } else {
+              break;
+            }
+          }
+        }
+        pageIndex = nextIndex;
+        window.__currentPageIndex = pageIndex;
+        pageBlocks = pages[pageIndex] || [];
+      }
+    }
 
     document.getElementById('currentPageNum').textContent = pageIndex + 1;
     document.getElementById('prevPageBtn').disabled = pageIndex === 0;
@@ -261,8 +295,14 @@ const IMAGE_FRAMES = [
     let isEditable = 'true';
 
     if (block.type === 'page_title') {
-      contentHtml = `<h1>${escapeHtml(snapshot.title || '')}</h1>`;
+      contentHtml = '';
       isEditable = 'false';
+      if (flags.hidden) {
+        wrapper.style.display = 'none';
+      }
+    } else if (block.type === 'page_heading') {
+      contentHtml = `<h1>${escapeHtml(snapshot.title || '')}</h1>`;
+      isEditable = 'true';
     } else if (block.type === 'category_title') {
       const catImg = snapshot.category_image
         ? `<img src="${escapeHtml(snapshot.category_image)}" alt="" class="category-image" style="max-width:200px;max-height:120px;display:block;margin-bottom:8px;border-radius:4px;">`
@@ -1346,7 +1386,7 @@ const IMAGE_FRAMES = [
 
   function previewTypoStyle(blockType) {
     const typo = documentStyles.typography || {};
-    const typeMap = { page_title: 'h1', category_title: 'h2', form_question: 'para', notes: 'notes', guide: 'guide', guidance: 'guidance' };
+    const typeMap = { page_title: 'h1', page_heading: 'h1', category_title: 'h2', form_question: 'para', notes: 'notes', guide: 'guide', guidance: 'guidance' };
     const key = typeMap[blockType];
     const defaults = { family: '', weight: '', size: 14, bold: false, italic: false, underline: false, color: '' };
     const t = key ? { ...defaults, ...(typo[key] || {}) } : null;
@@ -1379,8 +1419,10 @@ const IMAGE_FRAMES = [
     const padding = settings.padding || 0;
     const alignment = settings.alignment || 'left';
 
-    if (block.type === 'page_title') {
-      return `<h1${previewMergedStyle('page_title', `margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:${padding}px; text-align:${alignment};`)}>${escapeHtml(snapshot.title || '')}</h1>`;
+    if (block.type === 'page_heading') {
+      return `<h1${previewMergedStyle('page_heading', `margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:${padding}px; text-align:${alignment};`)}>${escapeHtml(snapshot.title || '')}</h1>`;
+    } else if (block.type === 'page_title') {
+      return '';
     } else if (block.type === 'category_title') {
       return `<h2${previewMergedStyle('category_title', `margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:${padding}px; text-align:${alignment};`)}>${escapeHtml(snapshot.title || '')}</h2>`;
     } else if (block.type === 'form_question') {
@@ -1466,8 +1508,10 @@ const IMAGE_FRAMES = [
       const overrideContent = (block.editor_overrides || {}).content;
       const hasContent = typeof overrideContent === 'string' && overrideContent.trim();
       return `<li${previewMergedStyle('notes', `margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:0; padding-left:24px;`)}>${hasContent ? overrideContent : (snapshot.content || '')}</li>`;
+    } else if (block.type === 'page_heading') {
+      return `<li${previewMergedStyle('page_heading', `margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:0; text-align:${alignment};`)}><h1>${escapeHtml(snapshot.title || '')}</h1></li>`;
     } else if (block.type === 'page_title') {
-      return `<li${previewMergedStyle('page_title', `margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:0; text-align:${alignment};`)}><h1>${escapeHtml(snapshot.title || '')}</h1></li>`;
+      return '';
     } else if (block.type === 'category_title') {
       const catImg = snapshot.category_image
         ? `<img src="${escapeHtml(snapshot.category_image)}" alt="" style="max-width:200px;max-height:120px;display:block;margin-bottom:8px;border-radius:4px;">`
@@ -2009,7 +2053,7 @@ const IMAGE_FRAMES = [
       </div>
     `;
 
-    if (block.type === 'page_title' || block.type === 'category_title') {
+    if (block.type === 'page_title' || block.type === 'page_heading' || block.type === 'category_title') {
       const title = escapeHtml(block.snapshot?.title || '');
       html += `
         <div class="settings-block">
@@ -2017,6 +2061,21 @@ const IMAGE_FRAMES = [
           <div class="settings-block__body">
             <label>Title Text
               <input type="text" data-setting="title" value="${title}">
+            </label>
+          </div>
+        </div>
+      `;
+    }
+
+    if (block.type === 'page_title') {
+      const isHidden = !!block.flags?.hidden;
+      html += `
+        <div class="settings-block">
+          <div class="settings-block__header">Page Visibility</div>
+          <div class="settings-block__body">
+            <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
+              <input type="checkbox" data-setting="hidden" ${isHidden ? 'checked' : ''}>
+              <span>Hide this page from output</span>
             </label>
           </div>
         </div>
@@ -2048,8 +2107,10 @@ const IMAGE_FRAMES = [
           block.snapshot = block.snapshot || {};
           block.snapshot.title = input.value;
           const contentEl = getBlockEl(block.id)?.querySelector('.editor-block__content');
-          if (contentEl && block.type === 'page_title') {
+          if (contentEl && block.type === 'page_heading') {
             contentEl.innerHTML = `<h1>${escapeHtml(input.value)}</h1>`;
+          } else if (contentEl && block.type === 'page_title') {
+            contentEl.innerHTML = '';
           } else if (contentEl && block.type === 'category_title') {
             contentEl.innerHTML = `<h2>${escapeHtml(input.value)}</h2>`;
           }
@@ -2067,6 +2128,28 @@ const IMAGE_FRAMES = [
             const dot = getBlockEl(block.id)?.querySelector('.editor-block__source-dot');
             if (dot) dot.classList.add('editor-block__source-dot--editor');
           }
+          return;
+        }
+        if (key === 'hidden') {
+          pushHistory();
+          block.flags = block.flags || {};
+          block.flags.hidden = input.checked;
+          const pageKey = block.source_page || block.id;
+          blocks.forEach(b => {
+            if (b.source_page === pageKey || b.id === pageKey) {
+              if (b.type === 'page_title') {
+                b.flags = b.flags || {};
+                b.flags.hidden = input.checked;
+                b.style = b.style || {};
+                b.style.display = input.checked ? 'none' : '';
+              } else if (b.type === 'page_heading') {
+                b.style = b.style || {};
+                b.style.display = input.checked ? 'none' : '';
+              }
+            }
+          });
+          renderCurrentPage();
+          updateNavPanel();
           return;
         }
         pushHistory();
@@ -2116,10 +2199,23 @@ const IMAGE_FRAMES = [
 
     pageGroups.forEach((page, pageIndex) => {
       const isActive = page.items.some(item => item.block.id === activeBlockId);
+      const separator = page.items.find(item => item.block.type === 'page_title' || item.block.type === 'page_break');
+      const isHidden = separator && separator.block.flags && separator.block.flags.hidden;
 
       html += `<div class="nav-page-group" data-page-index="${pageIndex}">`;
       html += `<div class="nav-page-header ${isActive ? 'nav-item--active' : ''}">`;
       html += `  <span class="nav-page-toggle">▸</span>`;
+      html += `  <button class="nav-page-visibility" data-page-index="${pageIndex}" title="${isHidden ? 'Show page' : 'Hide page'}">`;
+      html += `    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">`;
+      if (isHidden) {
+        html += `      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>`;
+        html += `      <line x1="1" y1="1" x2="23" y2="23"/>`;
+      } else {
+        html += `      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>`;
+        html += `      <circle cx="12" cy="12" r="3"/>`;
+      }
+      html += `    </svg>`;
+      html += `  </button>`;
       html += `  <span class="nav-item__label">${escapeHtml(page.title)}</span>`;
       html += `</div>`;
 
@@ -2155,13 +2251,41 @@ const IMAGE_FRAMES = [
 
     // Page collapse/expand handlers
     panel.querySelectorAll('.nav-page-header').forEach(header => {
-      header.addEventListener('click', () => {
+      header.addEventListener('click', (e) => {
+        if (e.target.closest('.nav-page-visibility')) return;
         const group = header.closest('.nav-page-group');
         const items = group.querySelector('.nav-page-items');
         const toggle = header.querySelector('.nav-page-toggle');
 
         items.classList.toggle('nav-page-items--collapsed');
         toggle.textContent = items.classList.contains('nav-page-items--collapsed') ? '▸' : '▾';
+      });
+    });
+
+    panel.querySelectorAll('.nav-page-visibility').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const pageIndex = parseInt(btn.dataset.pageIndex, 10);
+        const page = pageGroups[pageIndex];
+        if (!page) return;
+        const separator = page.items.find(item => item.block.type === 'page_title' || item.block.type === 'page_break');
+        if (!separator) return;
+        const pageKey = separator.block.source_page || separator.block.id;
+        const newHidden = !(separator.block.flags && separator.block.flags.hidden);
+        blocks.forEach(b => {
+          if (b.source_page === pageKey || b.id === pageKey) {
+            if (b.type === 'page_title') {
+              b.flags = b.flags || {};
+              b.flags.hidden = newHidden;
+              b.style = b.style || {};
+              b.style.display = newHidden ? 'none' : '';
+            } else if (b.type === 'page_heading') {
+              b.style = b.style || {};
+              b.style.display = newHidden ? 'none' : '';
+            }
+          }
+        });
+        renderCurrentPage();
+        updateNavPanel();
       });
     });
 
