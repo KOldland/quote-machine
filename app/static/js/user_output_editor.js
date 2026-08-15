@@ -2119,15 +2119,13 @@ const IMAGE_FRAMES = [
 
       html += `<div class="nav-page-group" data-page-index="${pageIndex}">`;
       html += `<div class="nav-page-header ${isActive ? 'nav-item--active' : ''}">`;
-      html += `  <span class="nav-page-toggle">▾</span>`;
-      html += `  <span class="nav-item__icon">${getTypeInfo('page_title').icon}</span>`;
+      html += `  <span class="nav-page-toggle">▸</span>`;
       html += `  <span class="nav-item__label">${escapeHtml(page.title)}</span>`;
       html += `</div>`;
 
-      html += `<div class="nav-page-items">`;
+      html += `<div class="nav-page-items nav-page-items--collapsed">`;
 
       page.items.forEach(({ block }) => {
-        const typeInfo = getTypeInfo(block.type);
         const snapshot = block.snapshot || {};
 
         if (block.type === 'page_title') {
@@ -2135,19 +2133,16 @@ const IMAGE_FRAMES = [
         } else if (block.type === 'category_title') {
           const isActive = activeBlockId === block.id;
           html += `<div class="nav-item nav-item--category ${isActive ? 'nav-item--active' : ''}" data-block-id="${block.id}">
-            <span class="nav-item__icon">${typeInfo.icon}</span>
             <span class="nav-item__label">${escapeHtml(snapshot.title || 'Uncategorized')}</span>
           </div>`;
         } else if (block.type === 'form_question') {
           const label = snapshot.label || 'Question';
           const isActive = activeBlockId === block.id;
           html += `<div class="nav-item nav-item--question ${isActive ? 'nav-item--active' : ''}" data-block-id="${block.id}">
-            <span class="nav-item__icon">${typeInfo.icon}</span>
             <span class="nav-item__label">${escapeHtml(label)}</span>
           </div>`;
         } else if (block.type === 'page_break') {
           html += `<div class="nav-item nav-item--break" data-block-id="${block.id}">
-            <span class="nav-item__icon">${typeInfo.icon}</span>
             <span class="nav-item__label">Page Break</span>
           </div>`;
         }
