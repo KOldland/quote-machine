@@ -28,3 +28,6 @@ tmp/
 
 # Archive (test scripts, patches, stale files)
 archive/
+
+# Kilo config with secrets
+.kilo/kilo.jsonc
