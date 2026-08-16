@@ -712,6 +712,15 @@ const IMAGE_FRAMES = [
     document.getElementById('redoBtn')?.addEventListener('click', redo);
   }
 
+  function initRibbon() {
+    const toggle = document.getElementById('ribbonToggle');
+    const ribbon = document.getElementById('advancedRibbon');
+    if (!toggle || !ribbon) return;
+    toggle.addEventListener('click', () => {
+      ribbon.classList.toggle('collapsed');
+    });
+  }
+
   function initPageNav() {
     document.getElementById('prevPageBtn').addEventListener('click', () => {
       const current = window.__currentPageIndex || 0;
@@ -993,6 +1002,7 @@ const IMAGE_FRAMES = [
         if (!isUpdate && data.quote && data.quote.id) {
           currentQuoteId = data.quote.id;
         }
+        localStorage.setItem('lastQuoteId', currentQuoteId);
         alert('Quote saved');
         refreshLayoutSelector();
       } else {
@@ -1065,6 +1075,8 @@ const IMAGE_FRAMES = [
       });
       const data = await res.json();
       if (data.success) {
+        currentQuoteId = data.id || existingId;
+        localStorage.setItem('lastQuoteId', currentQuoteId);
         alert('Quote saved');
         document.getElementById('saveAsQuoteModal').style.display = 'none';
         refreshLayoutSelector();
@@ -1109,6 +1121,7 @@ const IMAGE_FRAMES = [
           const d = await r.json();
           if (d.success) {
             currentQuoteId = id;
+            localStorage.setItem('lastQuoteId', id);
             const stylesOnly = document.getElementById('loadStylesOnlyCheckbox')?.checked;
             const quote = d.quote || {};
             const settings = quote.settings_json || {};
@@ -2012,75 +2025,58 @@ const IMAGE_FRAMES = [
   }
 
   function updateSettingsPanel() {
-    const panel = document.getElementById('settingsPanel');
+    const ribbonControls = document.getElementById('ribbonControls');
+    if (!ribbonControls) return;
     if (!activeBlockId) {
-      panel.innerHTML = '<p class="editor-settings-placeholder">Select a block to edit its settings.</p>';
+      ribbonControls.innerHTML = '<p class="editor-settings-placeholder">Select a block to edit its settings.</p>';
       return;
     }
     const block = blocks.find(b => b.id === activeBlockId);
     if (!block) {
-      panel.innerHTML = '<p class="editor-settings-placeholder">Select a block to edit its settings.</p>';
+      ribbonControls.innerHTML = '<p class="editor-settings-placeholder">Select a block to edit its settings.</p>';
       return;
     }
 
     const settings = block.settings || getDefaultSettings(block.type);
-    const typeInfo = getTypeInfo(block.type);
 
     let html = `
-      <div class="settings-block">
-        <div class="settings-block__header">
-          <span>Advanced Controls</span>
-        </div>
-        <div class="settings-block__body">
-          <label>Margin Top
-            <input type="number" data-setting="margin_top" value="${settings.margin_top || 8}" min="0" max="40">
-          </label>
-          <label>Margin Bottom
-            <input type="number" data-setting="margin_bottom" value="${settings.margin_bottom || 8}" min="0" max="40">
-          </label>
-          <label>Padding
-            <input type="number" data-setting="padding" value="${settings.padding || 12}" min="0" max="40">
-          </label>
-          <label>Font Size
-            <input type="number" data-setting="font_size" value="${settings.font_size || 16}" min="8" max="72">
-          </label>
-          <label>Alignment
-            <select data-setting="alignment">
-              <option value="left" ${settings.alignment === 'left' ? 'selected' : ''}>Left</option>
-              <option value="center" ${settings.alignment === 'center' ? 'selected' : ''}>Center</option>
-              <option value="right" ${settings.alignment === 'right' ? 'selected' : ''}>Right</option>
-            </select>
-          </label>
-        </div>
-      </div>
+      <label>Margin Top
+        <input type="number" data-setting="margin_top" value="${settings.margin_top || 8}" min="0" max="40">
+      </label>
+      <label>Margin Bottom
+        <input type="number" data-setting="margin_bottom" value="${settings.margin_bottom || 8}" min="0" max="40">
+      </label>
+      <label>Padding
+        <input type="number" data-setting="padding" value="${settings.padding || 12}" min="0" max="40">
+      </label>
+      <label>Font Size
+        <input type="number" data-setting="font_size" value="${settings.font_size || 16}" min="8" max="72">
+      </label>
+      <label>Alignment
+        <select data-setting="alignment">
+          <option value="left" ${settings.alignment === 'left' ? 'selected' : ''}>Left</option>
+          <option value="center" ${settings.alignment === 'center' ? 'selected' : ''}>Center</option>
+          <option value="right" ${settings.alignment === 'right' ? 'selected' : ''}>Right</option>
+        </select>
+      </label>
     `;
 
     if (block.type === 'page_title' || block.type === 'page_heading' || block.type === 'category_title') {
       const title = escapeHtml(block.snapshot?.title || '');
       html += `
-        <div class="settings-block">
-          <div class="settings-block__header">Content</div>
-          <div class="settings-block__body">
-            <label>Title Text
-              <input type="text" data-setting="title" value="${title}">
-            </label>
-          </div>
-        </div>
+        <label>Title Text
+          <input type="text" data-setting="title" value="${title}">
+        </label>
       `;
     }
 
     if (block.type === 'page_title') {
       const isHidden = !!block.flags?.hidden;
       html += `
-        <div class="settings-block">
-          <div class="settings-block__header">Page Visibility</div>
-          <div class="settings-block__body">
-            <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
-              <input type="checkbox" data-setting="hidden" ${isHidden ? 'checked' : ''}>
-              <span>Hide this page from output</span>
-            </label>
-          </div>
-        </div>
+        <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
+          <input type="checkbox" data-setting="hidden" ${isHidden ? 'checked' : ''}>
+          <span>Hide this page from output</span>
+        </label>
       `;
     }
 
@@ -2088,20 +2084,15 @@ const IMAGE_FRAMES = [
     if (content !== undefined && content !== null && block.type !== 'page_title' && block.type !== 'category_title') {
       const contentHtml = escapeHtml(content);
       html += `
-        <div class="settings-block">
-          <div class="settings-block__header">Content</div>
-          <div class="settings-block__body">
-            <label>Content
-              <textarea data-setting="content" rows="4">${contentHtml}</textarea>
-            </label>
-          </div>
-        </div>
+        <label>Content
+          <textarea data-setting="content" rows="3">${contentHtml}</textarea>
+        </label>
       `;
     }
 
-    panel.innerHTML = html;
+    ribbonControls.innerHTML = html;
 
-    panel.querySelectorAll('[data-setting]').forEach(input => {
+    ribbonControls.querySelectorAll('[data-setting]').forEach(input => {
       input.addEventListener('input', () => {
         const key = input.dataset.setting;
         if (key === 'title') {
@@ -2399,31 +2390,61 @@ const IMAGE_FRAMES = [
     window.addEventListener('resize', updatePreviewResizeBanner);
   }
 
-  async function init() {
-     await checkPendingBlocks();
-     refreshLayoutSelector();
-     initToolbar();
-     initPageNav();
-     initPreviewNav();
-     initGallery();
-     initInsertButtons();
-     initModals();
-     initStylesModal();
-     initOutsideClickClose();
-     initContextMenu();
-     initKeyboardShortcuts();
-     pushHistory();
-     updateNavPanel();
-     updateSettingsPanel();
-     const sidebar = document.getElementById('sidebar');
-     const mainContent = document.querySelector('.main-content');
-     if (sidebar && !sidebar.classList.contains('collapsed')) {
-       sidebar.classList.add('collapsed');
-     }
-     if (mainContent && !mainContent.classList.contains('expanded')) {
-       mainContent.classList.add('expanded');
+   async function autoLoadLastSession() {
+     const urlParams = new URLSearchParams(window.location.search);
+     const quoteId = urlParams.get('quote') || localStorage.getItem('lastQuoteId');
+     if (!quoteId) return;
+     try {
+       const r = await fetch(`/quote_editor/load-quote/${quoteId}`);
+       const d = await r.json();
+       if (d.success) {
+         currentQuoteId = parseInt(quoteId);
+         const quote = d.quote || {};
+         const settings = quote.settings_json || {};
+         if (settings.document_styles) {
+           documentStyles = { ...documentStyles, ...settings.document_styles };
+         }
+         updateStylesFormFromDocumentStyles();
+         blocks = [];
+         activeBlockId = null;
+         updateSettingsPanel();
+         const blist = quote.blocks_json || [];
+         blist.forEach(b => addBlock(b));
+         updateNavPanel();
+         renderCurrentPage();
+       }
+     } catch (e) {
+       console.warn('Auto-load failed:', e);
      }
    }
+
+   async function init() {
+      await checkPendingBlocks();
+      refreshLayoutSelector();
+      initToolbar();
+      initRibbon();
+      initPageNav();
+      initPreviewNav();
+      initGallery();
+      initInsertButtons();
+      initModals();
+      initStylesModal();
+      initOutsideClickClose();
+      initContextMenu();
+      initKeyboardShortcuts();
+      pushHistory();
+      updateNavPanel();
+      updateSettingsPanel();
+      const sidebar = document.getElementById('sidebar');
+      const mainContent = document.querySelector('.main-content');
+      if (sidebar && !sidebar.classList.contains('collapsed')) {
+        sidebar.classList.add('collapsed');
+      }
+      if (mainContent && !mainContent.classList.contains('expanded')) {
+        mainContent.classList.add('expanded');
+      }
+      await autoLoadLastSession();
+    }
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);

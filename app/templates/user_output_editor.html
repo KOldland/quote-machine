@@ -26,15 +26,22 @@
       <div id="navPanel">
         <p class="editor-settings-placeholder">No blocks yet.</p>
       </div>
-      <div id="settingsPanel"></div>
     </aside>
 
     <main class="editor-canvas" id="editorCanvas">
       <div class="editor-toolbar" id="editorToolbar">
-        <button type="button" id="undoBtn" title="Undo (Ctrl+Z)">↶ Undo</button>
-        <button type="button" id="redoBtn" title="Redo (Ctrl+Shift+Z)">↷ Redo</button>
+        <button type="button" id="undoBtn" title="Undo (Ctrl+Z)" class="toolbar-btn toolbar-btn--icon">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 6h6a3 3 0 0 1 0 6H7"/><path d="M3 6l2-2"/><path d="M3 6l2 2"/></svg>
+        </button>
+        <button type="button" id="redoBtn" title="Redo (Ctrl+Shift+Z)" class="toolbar-btn toolbar-btn--icon">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 6H7a3 3 0 0 0 0 6h2"/><path d="M13 6l-2-2"/><path d="M13 6l-2 2"/></svg>
+        </button>
         <span class="toolbar-separator"></span>
-        <select id="textTypeSelect" title="Text type">
+        <button type="button" data-command="bold" title="Bold" class="toolbar-btn toolbar-btn--text"><strong>B</strong></button>
+        <button type="button" data-command="italic" title="Italic" class="toolbar-btn toolbar-btn--text"><em>I</em></button>
+        <button type="button" data-command="underline" title="Underline" class="toolbar-btn toolbar-btn--text"><u>U</u></button>
+        <span class="toolbar-separator"></span>
+        <select id="textTypeSelect" title="Text type" class="toolbar-select">
           <option value="P">Paragraph</option>
           <option value="H1">Heading 1</option>
           <option value="H2">Heading 2</option>
@@ -42,20 +49,41 @@
           <option value="NOTE">Note</option>
           <option value="GUIDE">Guide</option>
         </select>
-        <button type="button" data-command="bold" title="Bold"><strong>B</strong></button>
-        <button type="button" data-command="italic" title="Italic"><em>I</em></button>
-        <button type="button" data-command="underline" title="Underline"><u>U</u></button>
-        <button type="button" data-command="strikeThrough" title="Strikethrough"><s>S</s></button>
         <span class="toolbar-separator"></span>
-        <button type="button" data-command="justifyLeft" title="Align Left">&#8676;</button>
-        <button type="button" data-command="justifyCenter" title="Align Center">&#8596;</button>
-        <button type="button" data-command="justifyRight" title="Align Right">&#8677;</button>
+        <button type="button" data-command="justifyLeft" title="Align Left" class="toolbar-btn toolbar-btn--icon">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="2" y1="3" x2="14" y2="3"/><line x1="2" y1="6" x2="10" y2="6"/><line x1="2" y1="9" x2="14" y2="9"/><line x1="2" y1="12" x2="10" y2="12"/></svg>
+        </button>
+        <button type="button" data-command="justifyCenter" title="Align Center" class="toolbar-btn toolbar-btn--icon">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="3" y1="3" x2="13" y2="3"/><line x1="5" y1="6" x2="11" y2="6"/><line x1="3" y1="9" x2="13" y2="9"/><line x1="5" y1="12" x2="11" y2="12"/></svg>
+        </button>
+        <button type="button" data-command="justifyRight" title="Align Right" class="toolbar-btn toolbar-btn--icon">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="2" y1="3" x2="14" y2="3"/><line x1="6" y1="6" x2="14" y2="6"/><line x1="2" y1="9" x2="14" y2="9"/><line x1="6" y1="12" x2="14" y2="12"/></svg>
+        </button>
         <span class="toolbar-separator"></span>
-        <button type="button" id="insertUnorderedList" title="Bullet List (Ctrl+Click blocks to select)">&#8226; List</button>
-        <button type="button" id="insertOrderedList" title="Numbered List (Ctrl+Click blocks to select)">1. List</button>
-        <button type="button" id="clearListBtn" title="Clear List from selected blocks">Clear List</button>
+        <button type="button" id="insertUnorderedList" title="Bullet List" class="toolbar-btn toolbar-btn--icon">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="4" cy="3" r="1.5" fill="currentColor"/><line x1="7" y1="3" x2="14" y2="3"/><circle cx="4" cy="8" r="1.5" fill="currentColor"/><line x1="7" y1="8" x2="14" y2="8"/><circle cx="4" cy="13" r="1.5" fill="currentColor"/><line x1="7" y1="13" x2="14" y2="13"/></svg>
+        </button>
+        <button type="button" id="insertOrderedList" title="Numbered List" class="toolbar-btn toolbar-btn--icon">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><text x="2" y="5" font-size="5" fill="currentColor" stroke="none">1</text><line x1="7" y1="3" x2="14" y2="3"/><text x="2" y="10" font-size="5" fill="currentColor" stroke="none">2</text><line x1="7" y1="8" x2="14" y2="8"/><text x="2" y="15" font-size="5" fill="currentColor" stroke="none">3</text><line x1="7" y1="13" x2="14" y2="13"/></svg>
+        </button>
+        <button type="button" id="clearListBtn" title="Clear List" class="toolbar-btn toolbar-btn--text">Clear</button>
         <span class="toolbar-separator"></span>
-        <button type="button" id="insertImageToolbarBtn" title="Insert Image">&#128247;</button>
+        <button type="button" id="insertImageToolbarBtn" title="Insert Image" class="toolbar-btn toolbar-btn--icon">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="1" y="2" width="14" height="12" rx="1.5"/><circle cx="5.5" cy="6" r="1.8"/><path d="M1 12l4-4 3 3 2-2 5 5"/></svg>
+        </button>
+        <button type="button" class="ribbon-toggle toolbar-btn" id="ribbonToggle" title="Toggle Advanced Controls">
+          Advanced
+        </button>
+      </div>
+
+      <div class="advanced-ribbon collapsed" id="advancedRibbon">
+        <div class="ribbon-body" id="ribbonBody">
+          <div class="settings-block">
+            <div class="settings-block__body ribbon-controls" id="ribbonControls">
+              <p class="editor-settings-placeholder">Select a block to edit its settings.</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="document-viewport" id="documentViewport">
