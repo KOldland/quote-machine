@@ -11,6 +11,7 @@ Handles:
 
 import json
 import os
+import sqlite3
 from pathlib import Path
 from typing import Optional
 from flask import Blueprint, request, session, jsonify, abort, send_file, current_app
@@ -170,6 +171,8 @@ def load_quote_route(quote_id):
     quote = get_saved_quote(quote_id, form_key)
     if not quote:
         return jsonify({'success': False, 'error': 'Quote not found'}), 404
+    session['active_quote_id'] = quote_id
+    session.modified = True
     return jsonify({'success': True, 'quote': quote})
 
 
@@ -767,3 +770,198 @@ def get_quote_editor_blocks():
         if b.get('type') not in ('page_title', 'category_title', 'form_question')
     ]
     return form_blocks + manual_blocks
+
+
+# ── Active Quote Tracking ────────────────────────────────────────────
+
+@quote_editor_bp.route('/quote_editor/active-quote', methods=['POST'])
+def set_active_quote():
+    data = request.get_json(force=True) or {}
+    quote_id = data.get('quote_id')
+    if quote_id:
+        session['active_quote_id'] = int(quote_id)
+        session.modified = True
+        return jsonify({'success': True})
+    return jsonify({'success': False, 'error': 'quote_id required'}), 400
+
+
+@quote_editor_bp.route('/quote_editor/active-quote', methods=['GET'])
+def get_active_quote():
+    quote_id = session.get('active_quote_id')
+    if quote_id:
+        return jsonify({'success': True, 'quote_id': quote_id})
+    return jsonify({'success': False, 'error': 'No active quote'}), 404
+
+
+# ── Form Drafts ──────────────────────────────────────────────────────
+
+@quote_editor_bp.route('/quote_editor/drafts', methods=['GET'])
+def list_drafts():
+    user_id = session.get('user_id')
+    db_path = DB_PATH
+    rows = []
+    if db_path.exists():
+        try:
+            conn = db_path.connect(str(db_path))
+            conn.row_factory = sqlite3.Row
+            sql = 'SELECT id, name, created_at FROM form_drafts WHERE user_id = ? ORDER BY created_at DESC'
+            if user_id is None:
+                sql = 'SELECT id, name, created_at FROM form_drafts WHERE user_id IS NULL ORDER BY created_at DESC'
+            rows = conn.execute(sql, (user_id,)).fetchall()
+            conn.close()
+        except Exception:
+            pass
+    drafts = [{'id': r['id'], 'name': r['name'], 'created_at': r['created_at']} for r in rows]
+    return jsonify({'success': True, 'drafts': drafts})
+
+
+@quote_editor_bp.route('/quote_editor/drafts', methods=['POST'])
+def save_draft():
+    name = (request.get_json(force=True) or {}).get('name', '').strip() or f"Draft {int(__import__('time').time())}"
+    data_to_save = {
+        'data': session.get('data', {}),
+        'checkbox_data': session.get('checkbox_data', {}),
+        'session_overrides': session.get('session_overrides', {}),
+        'template_key': session.get('template_key'),
+    }
+    db_path = DB_PATH
+    if not db_path.exists():
+        return jsonify({'success': False, 'error': 'Database not found'}), 500
+    try:
+        conn = sqlite3.connect(str(db_path))
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS form_drafts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                draft_data TEXT NOT NULL,
+                user_id INTEGER,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        conn.execute(
+            'INSERT INTO form_drafts (name, draft_data, user_id) VALUES (?, ?, ?)',
+            (name, json.dumps(data_to_save), session.get('user_id'))
+        )
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 500
+
+
+@quote_editor_bp.route('/quote_editor/drafts/<int:draft_id>/load', methods=['POST'])
+def load_draft(draft_id):
+    db_path = DB_PATH
+    if not db_path.exists():
+        return jsonify({'success': False, 'error': 'Database not found'}), 500
+    try:
+        conn = sqlite3.connect(str(db_path))
+        conn.row_factory = sqlite3.Row
+        row = conn.execute('SELECT id, draft_data FROM form_drafts WHERE id = ?', (draft_id,)).fetchone()
+        conn.close()
+        if row:
+            loaded = json.loads(row['draft_data'])
+            session['data'] = loaded.get('data', {})
+            session['checkbox_data'] = loaded.get('checkbox_data', {})
+            session['session_overrides'] = loaded.get('session_overrides', {})
+            if loaded.get('template_key'):
+                session['template_key'] = loaded['template_key']
+            session.modified = True
+            return jsonify({'success': True})
+        return jsonify({'success': False, 'error': 'Draft not found'}), 404
+    except Exception as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 500
+
+
+@quote_editor_bp.route('/quote_editor/drafts/<int:draft_id>', methods=['DELETE'])
+def delete_draft(draft_id):
+    db_path = DB_PATH
+    if not db_path.exists():
+        return jsonify({'success': False, 'error': 'Database not found'}), 500
+    try:
+        conn = sqlite3.connect(str(db_path))
+        conn.execute('DELETE FROM form_drafts WHERE id = ?', (draft_id,))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 500
+
+
+# ── Form → Quote Live Sync ───────────────────────────────────────────
+
+@quote_editor_bp.route('/quote_editor/sync-form-to-quote', methods=['POST'])
+def sync_form_to_quote():
+    data = request.get_json(force=True) or {}
+    quote_id = data.get('quote_id') or session.get('active_quote_id')
+    if not quote_id:
+        return jsonify({'success': False, 'error': 'No active quote'}), 400
+
+    form_data = data.get('form_data', {})
+    checkbox_data = data.get('checkbox_data', {})
+    form_key = session.get('template_key', 'builder_beta')
+
+    quote = get_saved_quote(int(quote_id), form_key)
+    if not quote:
+        return jsonify({'success': False, 'error': 'Quote not found'}), 404
+
+    blocks = quote.get('blocks_json', [])
+    updated = 0
+
+    for block in blocks:
+        if not block.get('source_page') or not block.get('source_block_id'):
+            continue
+        if block.get('flags', {}).get('editor_dirty'):
+            continue
+
+        source_page = block['source_page']
+        source_block_id = block['source_block_id']
+        block_type = block.get('type')
+
+        if block_type == 'page_title':
+            title = form_data.get('client_address') or block.get('snapshot', {}).get('title', '')
+            if title:
+                block['snapshot'] = block.get('snapshot', {})
+                block['snapshot']['title'] = title
+                block['flags'] = block.get('flags', {})
+                block['flags']['source_dirty'] = True
+                updated += 1
+
+        elif block_type == 'page_heading':
+            title = form_data.get('client_address') or block.get('snapshot', {}).get('title', '')
+            if title:
+                block['snapshot'] = block.get('snapshot', {})
+                block['snapshot']['title'] = title
+                block['flags'] = block.get('flags', {})
+                block['flags']['source_dirty'] = True
+                updated += 1
+
+        elif block_type == 'category_title':
+            continue
+
+        elif block_type == 'form_question':
+            value = ''
+            cb = checkbox_data.get(source_block_id)
+            if isinstance(cb, dict):
+                value = cb.get('preselected', [])
+            elif cb:
+                value = cb
+            else:
+                value = form_data.get(source_block_id, '')
+
+            block['snapshot'] = block.get('snapshot', {})
+            block['snapshot']['value'] = value if isinstance(value, str) else ', '.join(value)
+            block['flags'] = block.get('flags', {})
+            block['flags']['source_dirty'] = True
+            updated += 1
+
+    if updated > 0:
+        update_saved_quote(
+            quote_id=int(quote_id),
+            form_key=form_key,
+            name=quote.get('name', 'Quote'),
+            blocks_json=blocks,
+            settings=quote.get('settings_json', {}),
+        )
+
+    return jsonify({'success': True, 'updated': updated})

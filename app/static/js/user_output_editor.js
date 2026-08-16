@@ -1024,6 +1024,18 @@ const IMAGE_FRAMES = [
     documentStyles = { ...documentStyles, ...collectDocumentStyles() };
   }
 
+  async function setActiveQuoteId(quoteId) {
+    try {
+      await fetch('/quote_editor/active-quote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ quote_id: quoteId }),
+      });
+    } catch (e) {
+      // non-blocking
+    }
+  }
+
   async function quickSave(silent = false) {
     const name = currentQuoteId ? `Quote ${currentQuoteId}` : 'Untitled Quote';
     const payload = {
@@ -1047,6 +1059,7 @@ const IMAGE_FRAMES = [
           currentQuoteId = data.quote.id;
         }
         localStorage.setItem('lastQuoteId', currentQuoteId);
+        setActiveQuoteId(currentQuoteId);
         if (!silent) {
           setSaveStatus('Saved', 'success');
         }
@@ -1129,6 +1142,7 @@ const IMAGE_FRAMES = [
       if (data.success) {
         currentQuoteId = data.id || existingId;
         localStorage.setItem('lastQuoteId', currentQuoteId);
+        setActiveQuoteId(currentQuoteId);
         setSaveStatus('Saved', 'success');
         document.getElementById('saveAsQuoteModal').style.display = 'none';
         refreshLayoutSelector();

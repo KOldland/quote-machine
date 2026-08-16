@@ -2541,6 +2541,59 @@ def dynamic_page(page_id):
         session['checkbox_data'] = checkbox_data
         session.modified = True
 
+        # ── Form → Quote live sync ──────────────────────────────────────
+        active_quote_id = session.get('active_quote_id')
+        if active_quote_id:
+            try:
+                from quote_editor_routes import get_saved_quote, update_saved_quote
+                quote = get_saved_quote(int(active_quote_id), session.get('template_key', 'builder_beta'))
+                if quote:
+                    blocks = quote.get('blocks_json', [])
+                    for block in blocks:
+                        if not block.get('source_page') or not block.get('source_block_id'):
+                            continue
+                        if block.get('flags', {}).get('editor_dirty'):
+                            continue
+                        source_block_id = block['source_block_id']
+                        block_type = block.get('type')
+                        if block_type == 'page_title':
+                            title = session.get('data', {}).get('client_address', '')
+                            if title:
+                                block['snapshot'] = block.get('snapshot', {})
+                                block['snapshot']['title'] = title
+                                block['flags'] = block.get('flags', {})
+                                block['flags']['source_dirty'] = True
+                        elif block_type == 'page_heading':
+                            title = session.get('data', {}).get('client_address', '')
+                            if title:
+                                block['snapshot'] = block.get('snapshot', {})
+                                block['snapshot']['title'] = title
+                                block['flags'] = block.get('flags', {})
+                                block['flags']['source_dirty'] = True
+                        elif block_type == 'form_question':
+                            value = ''
+                            cb = checkbox_data.get(source_block_id)
+                            if isinstance(cb, dict):
+                                value = cb.get('preselected', [])
+                            elif cb:
+                                value = cb
+                            else:
+                                value = session.get('data', {}).get(source_block_id, '')
+                            block['snapshot'] = block.get('snapshot', {})
+                            block['snapshot']['value'] = value if isinstance(value, str) else ', '.join(value)
+                            block['flags'] = block.get('flags', {})
+                            block['flags']['source_dirty'] = True
+                    update_saved_quote(
+                        quote_id=int(active_quote_id),
+                        form_key=session.get('template_key', 'builder_beta'),
+                        name=quote.get('name', 'Quote'),
+                        blocks_json=blocks,
+                        settings=quote.get('settings_json', {}),
+                    )
+            except Exception:
+                pass
+        # ── End Form → Quote sync ───────────────────────────────────────
+
         nav = resolve_builder_beta_navigation_targets(page_id, page_schema)
         next_page = nav.get('next_page_id')
         if next_page and next_page in all_pages:
