@@ -22,6 +22,8 @@ let sortableInstance = null;
 let listGroupCounter = 0;
 let copiedSettings = null;
 let currentQuoteId = null;
+let autoSaveTimer = null;
+let saveStatusEl = null;
 let documentStyles = {
   font_family: 'Arial, sans-serif',
   font_size_base: 16,
@@ -167,6 +169,47 @@ const IMAGE_FRAMES = [
     historyStack.push(state);
     if (historyStack.length > MAX_HISTORY) historyStack.shift();
     historyIndex = historyStack.length - 1;
+    triggerAutoSave();
+  }
+
+  function triggerAutoSave() {
+    setSaveStatus('Editing...', '');
+    if (autoSaveTimer) clearTimeout(autoSaveTimer);
+    autoSaveTimer = setTimeout(() => {
+      performAutoSave();
+    }, 3000);
+  }
+
+  async function performAutoSave() {
+    if (!currentQuoteId) return;
+    setSaveStatus('Saving...', '');
+    try {
+      const payload = {
+        name: `Quote ${currentQuoteId}`,
+        blocks_json: collectBlocks(),
+        settings_json: { document_styles: collectDocumentStyles() },
+        is_default: false,
+      };
+      const r = await fetch(`/quote_editor/quotes/${currentQuoteId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const d = await r.json();
+      if (d.success) {
+        setSaveStatus('Saved', 'success');
+      } else {
+        setSaveStatus('Save failed', 'error');
+      }
+    } catch (e) {
+      setSaveStatus('Save failed', 'error');
+    }
+  }
+
+  function setSaveStatus(text, type) {
+    if (!saveStatusEl) return;
+    saveStatusEl.textContent = text;
+    saveStatusEl.className = 'save-status' + (type ? ' ' + type : '');
   }
 
   function undo() {
@@ -460,6 +503,7 @@ const IMAGE_FRAMES = [
     }
     renderCurrentPage();
     updateNavPanel();
+    triggerAutoSave();
   }
 
   function setActiveBlock(blockId) {
@@ -980,7 +1024,7 @@ const IMAGE_FRAMES = [
     documentStyles = { ...documentStyles, ...collectDocumentStyles() };
   }
 
-  async function quickSave() {
+  async function quickSave(silent = false) {
     const name = currentQuoteId ? `Quote ${currentQuoteId}` : 'Untitled Quote';
     const payload = {
       name,
@@ -1003,13 +1047,21 @@ const IMAGE_FRAMES = [
           currentQuoteId = data.quote.id;
         }
         localStorage.setItem('lastQuoteId', currentQuoteId);
-        alert('Quote saved');
+        if (!silent) {
+          setSaveStatus('Saved', 'success');
+        }
         refreshLayoutSelector();
       } else {
-        alert('Save failed: ' + (data.error || 'unknown'));
+        if (!silent) {
+          alert('Save failed: ' + (data.error || 'unknown'));
+        }
+        setSaveStatus('Save failed', 'error');
       }
     } catch (err) {
-      alert('Save failed');
+      if (!silent) {
+        alert('Save failed');
+      }
+      setSaveStatus('Save failed', 'error');
     }
   }
 
@@ -1077,10 +1129,11 @@ const IMAGE_FRAMES = [
       if (data.success) {
         currentQuoteId = data.id || existingId;
         localStorage.setItem('lastQuoteId', currentQuoteId);
-        alert('Quote saved');
+        setSaveStatus('Saved', 'success');
         document.getElementById('saveAsQuoteModal').style.display = 'none';
         refreshLayoutSelector();
       } else {
+        setSaveStatus('Save failed', 'error');
         alert('Save failed: ' + (data.error || 'unknown'));
       }
     } catch (err) {
@@ -1683,9 +1736,12 @@ const IMAGE_FRAMES = [
     document.getElementById('stylesModal').style.display = 'none';
   }
 
-  function confirmStyles() {
+  async function confirmStyles() {
     documentStyles = collectDocumentStyles();
     closeStylesModal();
+    if (currentQuoteId) {
+      await quickSave(true);
+    }
   }
 
   function buildTypographyRows() {
@@ -2444,6 +2500,7 @@ const IMAGE_FRAMES = [
         mainContent.classList.add('expanded');
       }
       await autoLoadLastSession();
+      saveStatusEl = document.getElementById('saveStatus');
     }
 
   if (document.readyState === 'loading') {

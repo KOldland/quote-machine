@@ -34,6 +34,21 @@
   justify-content: center;
 }
 
+.save-status {
+  font-size: 0.8rem;
+  color: #888;
+  min-width: 60px;
+  text-align: center;
+}
+
+.save-status.success {
+  color: #28a745;
+}
+
+.save-status.error {
+  color: #dc3545;
+}
+
 .editor-body {
   display: flex;
   flex: 1;
