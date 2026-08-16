@@ -18,6 +18,7 @@
         "doc_id_alignment": "left",
         "divider_style": "japanese_dots",
         "divider_thickness": 0.5,
+        "preset_padding": 15,
         "hide_on_cover": false
       },
       "footer": {
@@ -26,10 +27,7 @@
         "divider_thickness": 0.5,
         "page_number_mode": "skip_first",
         "page_number_alignment": "right",
-        "margin_top": 10,
-        "margin_left": 0,
-        "margin_right": 0,
-        "margin_bottom": 10,
+        "preset_padding": 80,
         "hide_on_cover": false
       },
       "margins": {
@@ -121,5 +119,5 @@
     }
   },
   "is_default": false,
-  "created_at": "2026-08-13T14:12:41.268654"
+  "created_at": "2026-08-16T13:09:27.141805"
 }

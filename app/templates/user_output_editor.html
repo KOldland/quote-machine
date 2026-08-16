@@ -273,18 +273,14 @@
       <label>Header Font Size (px)
         <input type="number" id="docHeaderFontSize" value="10" min="6" max="24">
       </label>
-      <label>Header Margin Top (mm)
-        <input type="number" id="docHeaderMarginTop" value="0" min="0" max="30">
+      <label>Header Position
+        <select id="docHeaderPreset">
+          <option value="15">Narrow (close to top)</option>
+          <option value="40" selected>Standard</option>
+          <option value="80">Wide (far from top)</option>
+        </select>
       </label>
-      <label>Header Margin Bottom (mm)
-        <input type="number" id="docHeaderMarginBottom" value="0" min="0" max="30">
-      </label>
-      <label>Header Margin Left (mm)
-        <input type="number" id="docHeaderMarginLeft" value="0" min="0" max="30">
-      </label>
-      <label>Header Margin Right (mm)
-        <input type="number" id="docHeaderMarginRight" value="0" min="0" max="30">
-      </label>
+
       <label class="checkbox-inline">
         <input type="checkbox" id="docHeaderHideCover"> Hide header on cover page
       </label>
@@ -324,18 +320,14 @@
           <option value="right">Right</option>
         </select>
       </label>
-      <label>Footer Margin Top (mm)
-        <input type="number" id="docFooterMarginTop" value="10" min="0" max="30">
+      <label>Footer Position
+        <select id="docFooterPreset">
+          <option value="15">Narrow (close to bottom)</option>
+          <option value="40" selected>Standard</option>
+          <option value="80">Wide (far from bottom)</option>
+        </select>
       </label>
-      <label>Footer Margin Left (mm)
-        <input type="number" id="docFooterMarginLeft" value="0" min="0" max="30">
-      </label>
-      <label>Footer Margin Right (mm)
-        <input type="number" id="docFooterMarginRight" value="0" min="0" max="30">
-      </label>
-      <label>Footer Margin Bottom (mm)
-        <input type="number" id="docFooterMarginBottom" value="10" min="0" max="30">
-      </label>
+
       <label>Footer Font Size (px)
         <input type="number" id="docFooterFontSize" value="8" min="6" max="16">
       </label>

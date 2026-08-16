@@ -930,10 +930,7 @@ const IMAGE_FRAMES = [
         doc_id_alignment: document.getElementById('docHeaderDocIdAlign')?.value || header.doc_id_alignment || 'center',
         divider_style: document.getElementById('docHeaderDividerStyle')?.value || header.divider_style || 'single',
         divider_thickness: parseFloat(document.getElementById('docHeaderDividerThickness')?.value) || header.divider_thickness || 1,
-        margin_top: parseInt(document.getElementById('docHeaderMarginTop')?.value, 10) || header.margin_top || 0,
-        margin_bottom: parseInt(document.getElementById('docHeaderMarginBottom')?.value, 10) || header.margin_bottom || 0,
-        margin_left: parseInt(document.getElementById('docHeaderMarginLeft')?.value, 10) || header.margin_left || 0,
-        margin_right: parseInt(document.getElementById('docHeaderMarginRight')?.value, 10) || header.margin_right || 0,
+        preset_padding: parseInt(document.getElementById('docHeaderPreset')?.value, 10) || header.preset_padding || 15,
         hide_on_cover: document.getElementById('docHeaderHideCover')?.checked || false,
       },
       footer: {
@@ -942,10 +939,7 @@ const IMAGE_FRAMES = [
         divider_thickness: parseFloat(document.getElementById('docFooterDividerThickness')?.value) || footer.divider_thickness || 1,
         page_number_mode: document.getElementById('docFooterPageNumber')?.value || footer.page_number_mode || 'on',
         page_number_alignment: document.getElementById('docFooterPageNumberAlign')?.value || footer.page_number_alignment || 'center',
-        margin_top: parseInt(document.getElementById('docFooterMarginTop')?.value, 10) || footer.margin_top || 10,
-        margin_left: parseInt(document.getElementById('docFooterMarginLeft')?.value, 10) || footer.margin_left || 0,
-        margin_right: parseInt(document.getElementById('docFooterMarginRight')?.value, 10) || footer.margin_right || 0,
-        margin_bottom: parseInt(document.getElementById('docFooterMarginBottom')?.value, 10) || footer.margin_bottom || 10,
+        preset_padding: parseInt(document.getElementById('docFooterPreset')?.value, 10) || footer.preset_padding || 40,
         hide_on_cover: document.getElementById('docFooterHideCover')?.checked || false,
       },
       margins: {
@@ -1280,6 +1274,7 @@ const IMAGE_FRAMES = [
 
     html += renderPreviewHeader();
 
+    html += '<div class="preview-page__body">';
     const renderedGroups = new Set();
     pageBlocks.forEach(block => {
       const gid = block.list_group_id;
@@ -1298,6 +1293,7 @@ const IMAGE_FRAMES = [
       });
       html += `</${listType}>`;
     });
+    html += '</div>';
 
     html += renderPreviewFooter();
 
@@ -1312,12 +1308,11 @@ const IMAGE_FRAMES = [
     const docIdAlign = hdr.doc_id_alignment || 'center';
     const logoMarginLeft = logoAlign === 'left' ? '0' : 'auto';
     const logoMarginRight = logoAlign === 'right' ? '0' : 'auto';
-    const mt = hdr.margin_top || 0;
-    const mb = hdr.margin_bottom || 0;
-    const ml = hdr.margin_left || 0;
-    const mr = hdr.margin_right || 0;
-    const marginStyle = `${mt}px ${mr}px ${mb}px ${ml}px`;
-    let html = `<div class="preview-header" style="font-size:${fs}px; padding:0; margin:${marginStyle};">`;
+    const padding = hdr.preset_padding || 15;
+    const pageMargins = documentStyles.margins || {};
+    const ml = pageMargins.margin_left || 0;
+    const mr = pageMargins.margin_right || 0;
+    let html = `<div class="preview-header" style="font-size:${fs}px; top:${padding}px; left:${ml}px; right:${mr}px;">`;
 
     if (hdr.logo_url) {
       html += `<img src="${escapeHtml(hdr.logo_url)}" style="max-width:${hdr.logo_width || 120}px; max-height:${hdr.logo_height || 40}px; display:block; margin:0 ${logoMarginRight} 4px ${logoMarginLeft}; object-fit:contain;" />`;
@@ -1346,7 +1341,11 @@ const IMAGE_FRAMES = [
     if (!ftr.enabled) return '';
     const fs = documentStyles.footer_font_size || 8;
     const pageNumAlign = ftr.page_number_alignment || 'center';
-    let html = `<div class="preview-footer" style="font-size:${fs}px; padding:4px 0; margin-top:8px;">`;
+    const padding = ftr.preset_padding || 40;
+    const pageMargins = documentStyles.margins || {};
+    const marginLeft = pageMargins.margin_left || 0;
+    const marginRight = pageMargins.margin_right || 0;
+    let html = `<div class="preview-footer" style="font-size:${fs}px; bottom:${padding}px; left:${marginLeft}px; right:${marginRight}px;">`;
 
     html += renderPreviewDivider(ftr.divider_style, ftr.divider_thickness);
 
@@ -1612,10 +1611,7 @@ const IMAGE_FRAMES = [
       docHeaderLogoAlign: hdr.logo_alignment || 'center',
       docHeaderDividerStyle: hdr.divider_style || 'single',
       docHeaderDividerThickness: hdr.divider_thickness ?? 1,
-      docHeaderMarginTop: hdr.margin_top ?? 0,
-      docHeaderMarginBottom: hdr.margin_bottom ?? 0,
-      docHeaderMarginLeft: hdr.margin_left ?? 0,
-      docHeaderMarginRight: hdr.margin_right ?? 0,
+      docHeaderPreset: hdr.preset_padding ?? 15,
       docHeaderHideCover: hdr.hide_on_cover ?? false,
     };
     Object.entries(hdrFields).forEach(([id, value]) => {
@@ -1654,10 +1650,7 @@ const IMAGE_FRAMES = [
       docFooterDividerThickness: ftr.divider_thickness ?? 1,
       docFooterPageNumber: ftr.page_number_mode || 'on',
       docFooterPageNumberAlign: ftr.page_number_alignment || 'center',
-      docFooterMarginTop: ftr.margin_top || 10,
-      docFooterMarginLeft: ftr.margin_left || 0,
-      docFooterMarginRight: ftr.margin_right || 0,
-      docFooterMarginBottom: ftr.margin_bottom || 10,
+      docFooterPreset: ftr.preset_padding || 40,
       docFooterHideCover: ftr.hide_on_cover ?? false,
     };
     Object.entries(ftrFields).forEach(([id, value]) => {
@@ -1800,6 +1793,15 @@ const IMAGE_FRAMES = [
         if (panel) panel.style.display = 'block';
       });
     });
+
+    const headerPreset = document.getElementById('docHeaderPreset');
+    const footerPreset = document.getElementById('docFooterPreset');
+    const updatePreviewFromStyles = () => {
+      documentStyles = collectDocumentStyles();
+      renderPreviewPage();
+    };
+    headerPreset?.addEventListener('change', updatePreviewFromStyles);
+    footerPreset?.addEventListener('change', updatePreviewFromStyles);
   }
 
   function openSaveThemeModal() {
