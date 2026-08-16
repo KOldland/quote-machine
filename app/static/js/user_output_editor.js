@@ -2505,14 +2505,15 @@ const IMAGE_FRAMES = [
       pushHistory();
       updateNavPanel();
       updateSettingsPanel();
-      const sidebar = document.getElementById('sidebar');
-      const mainContent = document.querySelector('.main-content');
-      if (sidebar && !sidebar.classList.contains('collapsed')) {
-        sidebar.classList.add('collapsed');
-      }
-      if (mainContent && !mainContent.classList.contains('expanded')) {
-        mainContent.classList.add('expanded');
-      }
+      // Disabled automatic sidebar collapse in Quote Mode
+      // const sidebar = document.getElementById('sidebar');
+      // const mainContent = document.querySelector('.main-content');
+      // if (sidebar && !sidebar.classList.contains('collapsed')) {
+      //   sidebar.classList.add('collapsed');
+      // }
+      // if (mainContent && !mainContent.classList.contains('expanded')) {
+      //   mainContent.classList.add('expanded');
+      // }
       await autoLoadLastSession();
       saveStatusEl = document.getElementById('saveStatus');
     }

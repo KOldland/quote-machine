@@ -20,7 +20,15 @@
 
     <div class="wrapper">
         <div id="sidebar" class="sidebar{% if edit_mode %} builder-edit-mode{% endif %}">
+            {% block sidebar_content %}
             {% if session.get('username') %}
+                <!-- Mode Switcher -->
+                <div class="mode-switcher">
+                    <a href="/form_editor?edit=1" class="mode-btn {% if edit_mode %}active{% endif %}" title="Build Mode">Build Mode</a>
+                    <a href="/" class="mode-btn {% if not edit_mode and request.endpoint != 'quote_editor' %}active{% endif %}" title="Form Mode">Form Mode</a>
+                    <a href="/quote_editor" class="mode-btn {% if request.endpoint == 'quote_editor' %}active{% endif %}" title="Quote Mode">Quote Mode</a>
+                </div>
+
                 {% if edit_mode %}
                     {% import '_builder_macros.html' as builder with context %}
                     <div class="sidebar-edit-controls">
@@ -81,7 +89,7 @@
                                     </button>
                                 </div>
 
-                                <!-- template‑selection state (hidden until user clicks “template”) -->
+                                <!-- template‑selection state (hidden until user clicks "template") -->
                                 <div id="add-page-template-select-state" style="display:none;margin-top:1.5rem;">
                                     <label for="add-page-source-select"
                                            style="display:block;margin-bottom:0.25rem;
@@ -372,7 +380,6 @@
                         </form>
                     </div>
                 {% else %}
-                    <!-- *** Normal (non‑edit) sidebar *** -->
                     <nav class="nav flex-column">
                         <a href="{{ url_for('index') }}" class="nav-link {% if request.endpoint == 'index' %}active{% endif %}">
                             Project Details
@@ -421,19 +428,20 @@
                         </form>
                     </div>
                 {% endif %}
-            {% else %}
-                <div class="nav-guest" style="padding:1rem;text-align:center;">
-                    <p style="margin:0 0 .75rem 0;font-size:.85rem;color:rgba(255,255,255,.7);">
-                        Please log in to access the form
-                    </p>
-                    <a href="{{ url_for('login') }}" class="nav-link"
-                       style="display:inline-block;background:#1b3a6b;color:#fff;padding:.5rem 1rem;
-                              border-radius:4px;text-decoration:none;font-size:.9rem;margin-top:.5rem;">
-                        Log In
-                    </a>
-                </div>
-            {% endif %}
-        </div>
+                            {% else %}
+                    <div class="nav-guest" style="padding:1rem;text-align:center;">
+                        <p style="margin:0 0 .75rem 0;font-size:.85rem;color:rgba(255,255,255,.7);">
+                            Please log in to access the form
+                        </p>
+                        <a href="{{ url_for('login') }}" class="nav-link"
+                           style="display:inline-block;background:#1b3a6b;color:#fff;padding:.5rem 1rem;
+                                  border-radius:4px;text-decoration:none;font-size:.9rem;margin-top:.5rem;">
+                            Log In
+                        </a>
+                    </div>
+                {% endif %}
+            {% endblock sidebar_content %}
+</div>
 
         <div class="main-content">
             {% block styles %}{% endblock %}

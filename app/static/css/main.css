@@ -1585,3 +1585,169 @@ input[type="text"], input[type="date"], textarea, select {
 .resize-handle-vertical.active::after {
     background: #fff;
 }
+
+/* Mode Switcher */
+.mode-switcher {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 1rem;
+  padding: 6px;
+  background: rgba(0,0,0,0.2);
+  border-radius: 6px;
+}
+
+.mode-btn {
+  flex: 1;
+  text-align: center;
+  padding: 8px 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: rgba(255,255,255,0.75);
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 4px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.mode-btn:hover {
+  color: #fff;
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.35);
+}
+
+.mode-btn.active {
+  color: #fff;
+  background: #3b5b8c;
+  border-color: #3b5b8c;
+}
+
+/* Sidebar sections in Quote Mode */
+.sidebar-quote-mode .sidebar-section {
+  margin-bottom: 1.25rem;
+}
+
+.sidebar-quote-mode .sidebar-section h3 {
+  color: rgba(255,255,255,0.9);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 0.5rem 0;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid rgba(255,255,255,0.12);
+}
+
+.sidebar-quote-mode .insert-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  font-size: 0.85rem;
+  color: rgba(255,255,255,0.85);
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sidebar-quote-mode .insert-btn:hover {
+  background: rgba(255,255,255,0.12);
+  border-color: rgba(255,255,255,0.3);
+  color: #fff;
+}
+
+.sidebar-quote-mode #navPanel {
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
+/* Sidebar sections in Form Mode */
+.sidebar-form-mode .sidebar-section {
+  margin-bottom: 1.25rem;
+}
+
+.sidebar-form-mode .sidebar-section h3 {
+  color: rgba(255,255,255,0.9);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 0.5rem 0;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid rgba(255,255,255,0.12);
+}
+
+.sidebar-form-mode .page-selector-item {
+  display: block;
+  padding: 8px 10px;
+  margin-bottom: 4px;
+  color: rgba(255,255,255,0.85);
+  text-decoration: none;
+  font-size: 0.85rem;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.sidebar-form-mode .page-selector-item:hover {
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+}
+
+.sidebar-form-mode .page-selector-item.active {
+  background: #3b5b8c;
+  color: #fff;
+}
+
+/* Quote Mode sidebar text */
+.sidebar-quote-mode .sidebar-quote-title h2 {
+  color: #ffffff;
+  font-size: 1.1rem;
+  margin: 0 0 0.75rem 0;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.sidebar-quote-mode .sidebar-section h3 {
+  color: rgba(255,255,255,0.9);
+}
+
+.sidebar-quote-mode #navPanel,
+.sidebar-quote-mode #navPanel p {
+  color: rgba(255,255,255,0.8);
+}
+
+.sidebar-quote-mode .nav-item,
+.sidebar-quote-mode .nav-item a {
+  color: rgba(255,255,255,0.85);
+}
+
+/* Quote Mode sidebar nav items */
+.sidebar-quote-mode .nav-page-header,
+.sidebar-quote-mode .nav-item {
+  color: rgba(255,255,255,0.85);
+}
+
+.sidebar-quote-mode .nav-item__label {
+  color: rgba(255,255,255,0.85);
+}
+
+.sidebar-quote-mode .nav-item--active {
+  background: rgba(255,255,255,0.12);
+}
+
+.sidebar-quote-mode .nav-item--active .nav-item__label {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.sidebar-quote-mode .nav-item:hover {
+  background: rgba(255,255,255,0.08);
+}
+
+.sidebar-quote-mode .nav-item--category .nav-item__label {
+  color: rgba(255,255,255,0.9);
+  font-weight: 600;
+}

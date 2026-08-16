@@ -1,6 +1,28 @@
 {% extends "index.html" %}
 {% block title %}Quote Editor{% endblock %}
 
+{% block sidebar_content %}
+<div class="sidebar-quote-mode">
+  <div class="sidebar-section sidebar-quote-title">
+    <h2>Quote Editor</h2>
+  </div>
+  <div class="sidebar-section">
+    <h3>Document Map</h3>
+    <div id="navPanel">
+      <p class="editor-settings-placeholder">No blocks yet.</p>
+    </div>
+  </div>
+  <div class="sidebar-section">
+    <h3>Insert Block</h3>
+    <button class="insert-btn" data-block-type="notes">Notes Block</button>
+    <button class="insert-btn" data-block-type="calculator">Calculator Block</button>
+    <button class="insert-btn" data-block-type="image_group">Image Group</button>
+    <button class="insert-btn" data-block-type="image">Image</button>
+    <button class="insert-btn" data-block-type="page_break">Page Break</button>
+  </div>
+</div>
+{% endblock %}
+
 {% block styles %}
 {{ super() }}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/user_output_editor.css') }}">
@@ -9,7 +31,6 @@
 {% block content %}
 <div class="quote-editor">
   <header class="editor-header">
-    <h1>Quote Editor</h1>
     <div class="editor-header__controls">
       <button id="previewBtn" class="btn btn-secondary">Preview</button>
       <button id="saveBtn" class="btn btn-primary">Save</button>
@@ -22,13 +43,6 @@
   </header>
 
   <div class="editor-body">
-    <aside class="editor-settings-column" id="settingsColumn">
-      <h3>Document Map</h3>
-      <div id="navPanel">
-        <p class="editor-settings-placeholder">No blocks yet.</p>
-      </div>
-    </aside>
-
     <main class="editor-canvas" id="editorCanvas">
       <div class="editor-toolbar" id="editorToolbar">
         <button type="button" id="undoBtn" title="Undo (Ctrl+Z)" class="toolbar-btn toolbar-btn--icon">
@@ -91,7 +105,7 @@
         <div class="document-pages" id="documentPages">
           <div class="document-page" id="documentPage">
             <div id="blocksContainer">
-              <p class="editor-canvas__empty">Add blocks from the right panel to get started.</p>
+              <p class="editor-canvas__empty">Add blocks from the sidebar to get started.</p>
             </div>
           </div>
         </div>
@@ -103,15 +117,6 @@
         <button type="button" class="doc-nav-btn" id="nextPageBtn" title="Next page">Next &#8594;</button>
       </div>
     </main>
-
-    <aside class="editor-insert-panel" id="insertPanel">
-      <h3>Insert Block</h3>
-      <button class="insert-btn" data-block-type="notes">Notes Block</button>
-      <button class="insert-btn" data-block-type="calculator">Calculator Block</button>
-      <button class="insert-btn" data-block-type="image_group">Image Group</button>
-      <button class="insert-btn" data-block-type="image">Image</button>
-      <button class="insert-btn" data-block-type="page_break">Page Break</button>
-    </aside>
   </div>
 </div>
 
