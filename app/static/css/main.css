@@ -1160,11 +1160,11 @@ body {
         display: true; 
     }
     
-    .sidebar {
-        width: 20%; /* Show sidebar by default */
-        padding: 150px 30px 20px 50px; /* Add padding back */
-        overflow-y: auto; /* Allow scrolling */
-    }
+      .sidebar {
+         width: 20%; /* Show sidebar by default */
+         padding: 100px 30px 20px 20px; /* Match top and left padding to builder-edit-mode */
+         overflow-y: auto; /* Allow scrolling */
+     }
     
     .main-content {
         margin-left: 25%; /* Restore margin for sidebar */
