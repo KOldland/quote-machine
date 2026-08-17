@@ -1,5 +1,76 @@
 {% extends "index.html" %}
 
+{% block sidebar_content %}
+    {% if edit_mode %}
+        <div class="sidebar-section-title" style="margin-bottom:.5rem;">Select page</div>
+
+        <div class="page-selector-list" style="margin-bottom:.5rem;">
+            <a href="/" class="page-selector-item {% if request.path == '/' %}active{% endif %}">Project Details</a>
+            {% if db_pages %}
+                {% for page in db_pages %}
+                    {% if page.page_key != 'index' %}
+                        <a href="/{{ page.page_key }}"
+                           class="page-selector-item {% if request.path == '/' + page.page_key %}active{% endif %}">
+                            {{ page.title }}
+                        </a>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+        </div>
+
+        <div style="border-top: 1px solid rgba(255,255,255,0.12); margin: 0.75rem 0;"></div>
+
+        <div class="edit-mode-actions"
+             style="margin-top:.5rem;display:flex;flex-direction:column;gap:.35rem;">
+            <button type="button" id="btn-add-page" class="btn btn-sidebar"
+                    style="width:100%;text-align:left;">Add Page</button>
+            <button type="button" class="btn btn-sidebar"
+                    style="width:100%;text-align:left;"
+                    onclick="window.location.href='{{ url_for('admin_payment_schedule') }}'">Payment Schedule Config</button>
+            <button type="button" class="btn btn-sidebar"
+                    style="width:100%;text-align:left;"
+                    onclick="window.location.href='{{ url_for('save_load') }}'">Save/Load</button>
+        </div>
+
+    {% else %}
+        <nav class="nav flex-column" style="display:flex;flex-direction:column;gap:.35rem;">
+            <a href="{{ url_for('index') }}" class="nav-link {% if request.endpoint == 'index' %}active{% endif %}">
+                Project Details
+            </a>
+
+            {% if db_pages %}
+                {% for page in db_pages %}
+                    {% if page.page_key != 'index' and page.page_key != 'image_upload_page' %}
+                        <a href="/{{ page.page_key }}"
+                           class="nav-link {% if request.path == '/' + page.page_key %}active{% endif %}">
+                            {{ page.title }}
+                        </a>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+
+            <button type="button" class="btn btn-sidebar"
+                    onclick="window.open('{{ url_for('image_upload_page') }}', '_blank')">Image Upload</button>
+            <button type="button" class="btn btn-sidebar"
+                    onclick="window.open('{{ url_for('review') }}', '_blank')">Review</button>
+            <button type="button" class="btn btn-sidebar"
+                    onclick="window.open('{{ url_for('calculator') }}', '_blank')">Calculator</button>
+            <button type="button" class="btn btn-sidebar"
+                    onclick="window.open('{{ url_for('save_load') }}', '_blank')">Save/Load</button>
+        </nav>
+    {% endif %}
+
+    <div class="nav-user">
+        <div class="nav-user-identity">
+            user: {{ session['username'] }} ({{ session.get('role','user') }})
+        </div>
+        <form method="POST" action="{{ url_for('logout') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-sidebar" style="width:100%;">Log out</button>
+        </form>
+    </div>
+{% endblock sidebar_content %}
+
 {% block content %}
 <div class="form-builder-container" data-page-key="{{ current_page_id }}">
     {% if edit_mode %}
