@@ -33,10 +33,10 @@
                     {% import '_builder_macros.html' as builder with context %}
                     <div class="sidebar-edit-controls">
                         <div class="sidebar-section">
-                            <details class="page-list-details" open>
-                                <summary class="btn-sidebar page-list-summary">
-                                    <span>Select Page</span><span class="page-list-arrow">▼</span>
-                                </summary>
+                            <div class="page-list-details">
+                                <div class="btn-sidebar page-list-summary">
+                                    <span>Select Page</span>
+                                </div>
                                 <div class="page-selector-list">
                                     {% if db_pages %}
                                         {% for page in db_pages %}
@@ -53,8 +53,8 @@
                                             {% endif %}
                                         {% endfor %}
                                     {% endif %}
-                                </div>
-                            </details>
+                                 </div>
+                            </div>
                         </div>
 
                         <div style="border-top: 1px solid rgba(255,255,255,0.12); margin: 0.75rem 0;"></div>

@@ -103,14 +103,14 @@
     color: #fff;
 }
 
-/* Collapsible page list — details/summary styled as sidebar button */
+/* Page list — styled as sidebar section */
 .builder-edit-mode .page-list-details {
     margin-top: .75rem;
     margin-bottom: .35rem;
 }
 
-/* Override .btn base class to make summary identical to btn-sidebar */
-.builder-edit-mode summary.page-list-summary {
+/* Page list header — styled as sidebar button */
+.builder-edit-mode .page-list-summary {
     list-style: none;
     display: flex !important;
     align-items: center !important;
@@ -121,24 +121,14 @@
     user-select: none;
     width: 100% !important;
     box-sizing: border-box !important;
+    color: #fff;
 }
-
-.builder-edit-mode .page-list-summary::-webkit-details-marker { display: none; }
 
 .builder-edit-mode .page-list-arrow {
     font-size: .7rem;
     opacity: .7;
-    transition: transform .2s;
     flex-shrink: 0;
     margin-left: auto;
-}
-
-.builder-edit-mode .page-list-details[open] .page-list-arrow {
-    transform: rotate(180deg);
-}
-
-.builder-edit-mode .page-list-details:not([open]) .page-list-arrow {
-    transform: rotate(0deg);
 }
 
 /* nav-user block — flex-pushed to bottom of sidebar */
