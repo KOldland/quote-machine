@@ -1725,6 +1725,11 @@ input[type="text"], input[type="date"], textarea, select {
   font-weight: 600;
 }
 
+.sidebar-quote-mode .nav-page-header.nav-item--active {
+  background: #3b5b8c;
+  color: #fff;
+}
+
 .sidebar-quote-mode .nav-item--active .nav-item__label {
   color: #ffffff;
   font-weight: 600;

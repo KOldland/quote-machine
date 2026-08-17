@@ -2231,6 +2231,8 @@ const IMAGE_FRAMES = [
     let currentPage = null;
 
     blocks.forEach((block, index) => {
+      if (block.source_page === 'image_upload_page') return;
+
       const isPageSeparator = block.type === 'page_title' || block.type === 'page_break';
 
       if (isPageSeparator && currentPage !== null) {
@@ -2475,13 +2477,15 @@ const IMAGE_FRAMES = [
            documentStyles = { ...documentStyles, ...settings.document_styles };
          }
          updateStylesFormFromDocumentStyles();
-         blocks = [];
-         activeBlockId = null;
-         updateSettingsPanel();
-         const blist = quote.blocks_json || [];
-         blist.forEach(b => addBlock(b));
-         updateNavPanel();
-         renderCurrentPage();
+          blocks = [];
+          activeBlockId = null;
+          updateSettingsPanel();
+          const blist = quote.blocks_json || [];
+          blist.forEach(b => addBlock(b));
+          window.__currentPageIndex = 0;
+          if (blocks.length > 0) activeBlockId = blocks[0].id;
+          updateNavPanel();
+          renderCurrentPage();
        }
      } catch (e) {
        console.warn('Auto-load failed:', e);

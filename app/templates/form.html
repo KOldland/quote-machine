@@ -2,34 +2,47 @@
 
 {% block sidebar_content %}
     {% if edit_mode %}
-        <div class="sidebar-section-title" style="margin-bottom:.5rem;">Select page</div>
+        {% import '_builder_macros.html' as builder with context %}
+        <div class="sidebar-edit-controls">
+            <div class="sidebar-section">
+                <div class="page-list-details">
+                    <div class="btn-sidebar page-list-summary">
+                        <span>Select Page</span>
+                    </div>
+                    <div class="page-selector-list">
+                        {% if db_pages %}
+                            {% for page in db_pages %}
+                                {% if page.page_key not in ['index', 'image_upload_page'] %}
+                                    <div class="page-selector-item-wrapper"
+                                         style="display:flex;align-items:center;">
+                                        <a href="/{{ page.page_key }}?edit=1"
+                                           class="page-selector-item">{{ page.title }}</a>
+                                        <span style="margin-left:auto;display:flex;gap:2px;">
+                                            <button class="page-reorder-btn" data-page="{{ page.page_key }}" data-dir="up" title="Move up">▲</button>
+                                            <button class="page-reorder-btn" data-page="{{ page.page_key }}" data-dir="down" title="Move down">▼</button>
+                                        </span>
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        {% endif %}
+                     </div>
+                </div>
+            </div>
 
-        <div class="page-selector-list" style="margin-bottom:.5rem;">
-            <a href="/" class="page-selector-item {% if request.path == '/' %}active{% endif %}">Project Details</a>
-            {% if db_pages %}
-                {% for page in db_pages %}
-                    {% if page.page_key != 'index' %}
-                        <a href="/{{ page.page_key }}"
-                           class="page-selector-item {% if request.path == '/' + page.page_key %}active{% endif %}">
-                            {{ page.title }}
-                        </a>
-                    {% endif %}
-                {% endfor %}
-            {% endif %}
-        </div>
+            <div style="border-top: 1px solid rgba(255,255,255,0.12); margin: 0.75rem 0;"></div>
 
-        <div style="border-top: 1px solid rgba(255,255,255,0.12); margin: 0.75rem 0;"></div>
+            <div class="edit-mode-actions"
+                 style="margin-top:.5rem;display:flex;flex-direction:column;gap:.35rem;">
+                <button type="button" id="btn-add-page" class="btn btn-sidebar"
+                        style="width:100%;text-align:left;">Add Page</button>
+                <button type="button" class="btn btn-sidebar"
+                        style="width:100%;text-align:left;"
+                        onclick="window.location.href='{{ url_for('admin_payment_schedule') }}'">Payment Schedule Config</button>
+                <button type="button" class="btn btn-sidebar"
+                        style="width:100%;text-align:left;"
+                        onclick="window.location.href='{{ url_for('save_load') }}'">Save/Load</button>
+            </div>
 
-        <div class="edit-mode-actions"
-             style="margin-top:.5rem;display:flex;flex-direction:column;gap:.35rem;">
-            <button type="button" id="btn-add-page" class="btn btn-sidebar"
-                    style="width:100%;text-align:left;">Add Page</button>
-            <button type="button" class="btn btn-sidebar"
-                    style="width:100%;text-align:left;"
-                    onclick="window.location.href='{{ url_for('admin_payment_schedule') }}'">Payment Schedule Config</button>
-            <button type="button" class="btn btn-sidebar"
-                    style="width:100%;text-align:left;"
-                    onclick="window.location.href='{{ url_for('save_load') }}'">Save/Load</button>
         </div>
 
     {% else %}
