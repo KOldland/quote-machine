@@ -1021,7 +1021,7 @@
   width: 16px;
   text-align: center;
   font-size: 0.75rem;
-  color: #888;
+  color: #ffffff;
   flex-shrink: 0;
 }
 
@@ -1030,17 +1030,18 @@
   border: none;
   padding: 2px;
   cursor: pointer;
-  color: #666;
+  color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 4px;
   flex-shrink: 0;
+  transform: scale(0.75);
 }
 
 .nav-page-visibility:hover {
-  background: #e9ecef;
-  color: #333;
+  background: #2D3A4B;
+  color: #ffffff;
 }
 
 .nav-page-items {

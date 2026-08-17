@@ -2557,19 +2557,9 @@ def dynamic_page(page_id):
                         source_block_id = block['source_block_id']
                         block_type = block.get('type')
                         if block_type == 'page_title':
-                            title = session.get('data', {}).get('client_address', '')
-                            if title:
-                                block['snapshot'] = block.get('snapshot', {})
-                                block['snapshot']['title'] = title
-                                block['flags'] = block.get('flags', {})
-                                block['flags']['source_dirty'] = True
+                            pass
                         elif block_type == 'page_heading':
-                            title = session.get('data', {}).get('client_address', '')
-                            if title:
-                                block['snapshot'] = block.get('snapshot', {})
-                                block['snapshot']['title'] = title
-                                block['flags'] = block.get('flags', {})
-                                block['flags']['source_dirty'] = True
+                            pass
                         elif block_type == 'form_question':
                             value = ''
                             cb = checkbox_data.get(source_block_id)

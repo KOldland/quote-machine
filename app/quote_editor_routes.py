@@ -919,22 +919,10 @@ def sync_form_to_quote():
         block_type = block.get('type')
 
         if block_type == 'page_title':
-            title = form_data.get('client_address') or block.get('snapshot', {}).get('title', '')
-            if title:
-                block['snapshot'] = block.get('snapshot', {})
-                block['snapshot']['title'] = title
-                block['flags'] = block.get('flags', {})
-                block['flags']['source_dirty'] = True
-                updated += 1
+            pass
 
         elif block_type == 'page_heading':
-            title = form_data.get('client_address') or block.get('snapshot', {}).get('title', '')
-            if title:
-                block['snapshot'] = block.get('snapshot', {})
-                block['snapshot']['title'] = title
-                block['flags'] = block.get('flags', {})
-                block['flags']['source_dirty'] = True
-                updated += 1
+            pass
 
         elif block_type == 'category_title':
             continue
