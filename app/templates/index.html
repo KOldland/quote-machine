@@ -20,15 +20,15 @@
 
     <div class="wrapper">
         <div id="sidebar" class="sidebar{% if edit_mode %} builder-edit-mode{% endif %}">
+            <!-- Mode Switcher -->
+            <div class="mode-switcher">
+                <a href="/form_editor?edit=1" class="mode-btn {% if edit_mode %}active{% endif %}" title="Build Mode">Build Mode</a>
+                <a href="/" class="mode-btn {% if not edit_mode and request.endpoint != 'quote_editor' %}active{% endif %}" title="Form Mode">Form Mode</a>
+                <a href="/quote_editor" class="mode-btn {% if request.endpoint == 'quote_editor' %}active{% endif %}" title="Quote Mode">Quote Mode</a>
+            </div>
+
             {% block sidebar_content %}
             {% if session.get('username') %}
-                <!-- Mode Switcher -->
-                <div class="mode-switcher">
-                    <a href="/form_editor?edit=1" class="mode-btn {% if edit_mode %}active{% endif %}" title="Build Mode">Build Mode</a>
-                    <a href="/" class="mode-btn {% if not edit_mode and request.endpoint != 'quote_editor' %}active{% endif %}" title="Form Mode">Form Mode</a>
-                    <a href="/quote_editor" class="mode-btn {% if request.endpoint == 'quote_editor' %}active{% endif %}" title="Quote Mode">Quote Mode</a>
-                </div>
-
                 {% if edit_mode %}
                     {% import '_builder_macros.html' as builder with context %}
                     <div class="sidebar-edit-controls">
@@ -40,13 +40,15 @@
                                 <div class="page-selector-list">
                                     {% if db_pages %}
                                         {% for page in db_pages %}
-                                            {% if page.page_key != 'index' %}
+                                            {% if page.page_key not in ['index', 'image_upload_page'] %}
                                                 <div class="page-selector-item-wrapper"
-                                                     style="display:flex;align-items:center;border-bottom:1px solid #dee2e6;">
+                                                     style="display:flex;align-items:center;">
                                                     <a href="/{{ page.page_key }}?edit=1"
                                                        class="page-selector-item">{{ page.title }}</a>
-                                                    <button class="page-reorder-btn" data-page="{{ page.page_key }}" data-dir="up" title="Move up">▲</button>
-                                                    <button class="page-reorder-btn" data-page="{{ page.page_key }}" data-dir="down" title="Move down">▼</button>
+                                                    <span style="margin-left:auto;display:flex;gap:2px;">
+                                                        <button class="page-reorder-btn" data-page="{{ page.page_key }}" data-dir="up" title="Move up">▲</button>
+                                                        <button class="page-reorder-btn" data-page="{{ page.page_key }}" data-dir="down" title="Move down">▼</button>
+                                                    </span>
                                                 </div>
                                             {% endif %}
                                         {% endfor %}
@@ -55,320 +57,21 @@
                             </details>
                         </div>
 
-                        <!-- *** Add‑Page UI *** -->
-                        <button type="button" id="btn-add-page" class="btn btn-sidebar"
-                                style="margin-top:1rem; width:100%;">Add Page</button>
-
-                        <div id="add-page-overlay"
-                             style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;
-                                    background:rgba(0,0,0,0.5);z-index:9999;
-                                    align-items:center;justify-content:center;">
-                            <div style="background:#fff;padding:2rem;border-radius:8px;width:400px;
-                                        max-width:90%;color:#333;font-family:sans-serif;">
-                                <h3 style="margin-top:0;margin-bottom:1rem;font-size:1.2rem;color:#1b3a6b;">
-                                    Add New Page
-                                </h3>
-
-                                <!-- initial two‑button state -->
-                                <div id="add-page-initial-state">
-                                    <button type="button" id="btn-add-blank" class="btn"
-                                            style="width:100%;background:#1b3a6b;color:#fff;
-                                                   border:none;padding:0.6rem;border-radius:4px;
-                                                   cursor:pointer;margin-bottom:0.5rem;">
-                                        Create Blank Page
-                                    </button>
-                                    <button type="button" id="btn-add-template" class="btn"
-                                            style="background:#f0f0f0;color:#333;border:1px solid #ccc;
-                                                   padding:0.6rem;border-radius:4px;cursor:pointer;">
-                                        Use Existing Page as Template
-                                    </button>
-                                    <button type="button" id="btn-add-cancel" class="btn"
-                                            style="background:transparent;color:#888;border:none;
-                                                   padding:0.6rem;cursor:pointer;margin-top:0.5rem;">
-                                        Cancel
-                                    </button>
-                                </div>
-
-                                <!-- template‑selection state (hidden until user clicks "template") -->
-                                <div id="add-page-template-select-state" style="display:none;margin-top:1.5rem;">
-                                    <label for="add-page-source-select"
-                                           style="display:block;margin-bottom:0.25rem;
-                                                  font-size:0.85rem;font-weight:bold;">
-                                        Select Page to Copy:
-                                    </label>
-                                    <select id="add-page-source-select"
-                                            style="width:100%;padding:0.5rem;margin-bottom:1rem;
-                                                   border:1px solid #ccc;border-radius:4px;">
-                                        <option value="">-- Choose a Page --</option>
-                                    </select>
-                                    <button type="button" id="btn-add-template-confirm" class="btn"
-                                            style="width:100%;background:#1b3a6b;color:#fff;
-                                                   border:none;padding:0.6rem;border-radius:4px;cursor:pointer;">
-                                        Continue
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <script>
-                        document.addEventListener('DOMContentLoaded', function () {
-                            const btnAddPage = document.getElementById('btn-add-page');
-                            const overlay = document.getElementById('add-page-overlay');
-                            const btnBlank = document.getElementById('btn-add-blank');
-                            const btnTemplate = document.getElementById('btn-add-template');
-                            const btnCancel = document.getElementById('btn-add-cancel');
-                            const templateState = document.getElementById('add-page-template-select-state');
-                            const sourceSelect = document.getElementById('add-page-source-select');
-                            const btnTemplateConfirm = document.getElementById('btn-add-template-confirm');
-
-                            function resetOverlay() {
-                                overlay.style.display = 'none';
-                                templateState.style.display = 'none';
-                                btnBlank.style.display = 'block';
-                                btnTemplate.style.display = 'block';
-                                sourceSelect.innerHTML = '<option value="">-- Choose a Page --</option>';
-                            }
-
-                            if (!btnAddPage) return;
-
-                            btnAddPage.addEventListener('click', () => {
-                                resetOverlay();
-                                overlay.style.display = 'flex';
-                            });
-                            btnCancel.addEventListener('click', resetOverlay);
-
-                            const getCsrfToken = () => {
-                                const el = document.querySelector('input[name="csrf_token"]');
-                                return el ? el.value : '';
-                            };
-                            const generateSlug = txt => txt.toLowerCase()
-                                                          .replace(/[^a-z0-9]+/g, '_')
-                                                          .replace(/(^_|_$)/g, '');
-
-                            // --- blank page -------------------------------------------------
-                            btnBlank.addEventListener('click', () => {
-                                resetOverlay();
-                                const title = prompt('Enter new Page Title:');
-                                if (!title) return;
-                                const page_key = `${generateSlug(title)}_${Math.floor(Math.random()*10000)}`;
-
-                                fetch('/builder_beta/page/add', {
-                                    method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/json',
-                                        'X-CSRFToken': getCsrfToken()
-                                    },
-                                    body: JSON.stringify({title, page_key})
-                                })
-                                .then(r => r.json())
-                                .then(d => {
-                                    if (d.success) {
-                                        showQmToast('Page created successfully!', true);
-                                        setTimeout(() => location.href = `/${page_key}?edit=1`, 1000);
-                                    } else {
-                                        showQmToast('Failed: ' + d.error, false);
-                                    }
-                                })
-                                .catch(e => showQmToast('Network error: ' + e.message, false));
-                            });
-
-                            // --- template choice ---------------------------------------------
-                            btnTemplate.addEventListener('click', () => {
-                                btnBlank.style.display = 'none';
-                                btnTemplate.style.display = 'none';
-                                templateState.style.display = 'block';
-
-                                // fill the select from the list we just rendered
-                                const items = document.querySelectorAll('.page-selector-item');
-                                items.forEach(el => {
-                                    const url = new URL(el.href);
-                                    const pKey = url.pathname.replace('/', '');
-                                    const opt = document.createElement('option');
-                                    opt.value = pKey;
-                                    opt.textContent = el.textContent.trim();
-                                    sourceSelect.appendChild(opt);
-                                });
-                            });
-
-                            // --- confirm template ---------------------------------------------
-                            btnTemplateConfirm.addEventListener('click', () => {
-                                const source_page_key = sourceSelect.value;
-                                if (!source_page_key) {
-                                    showQmToast('Please select a page to use as a template.', false);
-                                    return;
-                                }
-                                resetOverlay();
-                                const title = prompt('Enter new Page Title:');
-                                if (!title) return;
-                                const page_key = `${generateSlug(title)}_${Math.floor(Math.random()*10000)}`;
-
-                                fetch('/builder_beta/page/duplicate', {
-                                    method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/json',
-                                        'X-CSRFToken': getCsrfToken()
-                                    },
-                                    body: JSON.stringify({ source_page_key, new_page_key: page_key, new_title: title })
-                                })
-                                .then(r => r.json())
-                                .then(d => {
-                                    if (d.success) {
-                                        showQmToast('Page duplicated successfully!', true);
-                                        setTimeout(() => location.href = `/${page_key}?edit=1`, 1000);
-                                    } else {
-                                        showQmToast('Failed: ' + d.error, false);
-                                    }
-                                })
-                                .catch(e => showQmToast('Network error: ' + e.message, false));
-                            });
-
-                            // --- page reorder ------------------------------------------------
-                            document.querySelectorAll('.page-reorder-btn').forEach(btn => {
-                                btn.addEventListener('click', () => {
-                                    const pageKey = btn.dataset.page;
-                                    const dir = btn.dataset.dir;
-                                    fetch('/builder_beta/page/reorder', {
-                                        method: 'POST',
-                                        headers: {
-                                            'Content-Type': 'application/json',
-                                            'X-CSRFToken': getCsrfToken()
-                                        },
-                                        body: JSON.stringify({page_key: pageKey, direction: dir})
-                                    })
-                                    .then(r => r.json())
-                                    .then(d => {
-                                        if (d.success) {
-                                            location.reload();
-                                        } else {
-                                            showQmToast('Failed: ' + d.error, false);
-                                        }
-                                    })
-                                    .catch(e => showQmToast('Network error: ' + e.message, false));
-                                });
-                            });
-                        });
-                        </script>
+                        <div style="border-top: 1px solid rgba(255,255,255,0.12); margin: 0.75rem 0;"></div>
 
                         <div class="edit-mode-actions"
                              style="margin-top:.5rem;display:flex;flex-direction:column;gap:.35rem;">
-                            <a href="/form_editor?edit=1" class="btn btn-sidebar"
-                               style="width:100%;text-align:left;">Form Editor</a>
-                            <a href="{{ url_for('admin_payment_schedule') }}" class="btn btn-sidebar"
-                               style="width:100%;text-align:left;">Payment Schedule Config</a>
-                            <button type="button" id="btn-load-form" class="btn btn-sidebar"
-                                    style="width:100%;">Load Form</button>
-                            <form method="GET" action="{{ url_for('index') }}" style="width:100%;">
-                                <button type="submit" class="btn btn-sidebar"
-                                        style="width:100%;">Exit Edit Mode</button>
-                            </form>
+                            <button type="button" id="btn-add-page" class="btn btn-sidebar"
+                                    style="width:100%;text-align:left;">Add Page</button>
+                            <button type="button" class="btn btn-sidebar"
+                                    style="width:100%;text-align:left;"
+                                    onclick="window.location.href='{{ url_for('admin_payment_schedule') }}'">Payment Schedule Config</button>
+                            <button type="button" class="btn btn-sidebar"
+                                    style="width:100%;text-align:left;"
+                                    onclick="window.location.href='{{ url_for('save_load') }}'">Save/Load</button>
                         </div>
+
                     </div>
-
-                    <!-- *** Load‑Form Overlay *** -->
-                    <div id="load-form-overlay"
-                         style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;
-                                background:rgba(0,0,0,0.5);z-index:9999;
-                                align-items:center;justify-content:center;">
-                        <div style="background:#fff;padding:2rem;border-radius:8px;width:450px;
-                                    max-width:90%;color:#333;font-family:sans-serif;">
-                            <h3 style="margin-top:0;margin-bottom:1rem;font-size:1.2rem;color:#1b3a6b;">
-                                Load Form
-                            </h3>
-                            <p style="margin-bottom:1rem;font-size:0.95rem;color:#666;">
-                                Select a form to load into the builder.
-                            </p>
-                            <select id="load-form-select"
-                                    style="width:100%;padding:0.6rem;margin-bottom:1.5rem;
-                                           border:1px solid #ccc;border-radius:4px;font-size:0.9rem;">
-                                <option value="">Loading forms...</option>
-                            </select>
-                            <div style="display:flex;justify-content:flex-end;gap:10px;">
-                                <button type="button" id="btn-load-form-cancel" class="btn"
-                                        style="background:#f0f0f0;color:#333;border:1px solid #ccc;
-                                               padding:0.5rem 1rem;border-radius:4px;cursor:pointer;">
-                                    Cancel
-                                </button>
-                                <button type="button" id="btn-load-form-confirm" class="btn"
-                                        style="background:#1b3a6b;color:#fff;border:none;
-                                               padding:0.5rem 1rem;border-radius:4px;cursor:pointer;">
-                                    Load Form
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <script>
-                    document.addEventListener('DOMContentLoaded', function () {
-                        const btnLoadForm = document.getElementById('btn-load-form');
-                        const overlay = document.getElementById('load-form-overlay');
-                        const btnCancel = document.getElementById('btn-load-form-cancel');
-                        const btnConfirm = document.getElementById('btn-load-form-confirm');
-                        const select = document.getElementById('load-form-select');
-
-                        if (!btnLoadForm) return;
-
-                        btnLoadForm.addEventListener('click', () => {
-                            overlay.style.display = 'flex';
-                            select.innerHTML = '<option value="">Loading forms...</option>';
-                            btnConfirm.disabled = true;
-
-                            fetch('/builder_beta/list_forms')
-                                .then(r => r.json())
-                                .then(d => {
-                                    if (d.success && d.forms) {
-                                        select.innerHTML = '<option value="">-- Choose a Form --</option>';
-                                        d.forms.forEach(f => {
-                                            const opt = document.createElement('option');
-                                            opt.value = f.key;
-                                            opt.textContent = f.name + (f.description ? ` - ${f.description}` : '');
-                                            select.appendChild(opt);
-                                        });
-                                        btnConfirm.disabled = false;
-                                    } else {
-                                        select.innerHTML = '<option value="">Failed to load forms</option>';
-                                    }
-                                })
-                                .catch(() => {
-                                    select.innerHTML = '<option value="">Error loading forms</option>';
-                                });
-                        });
-
-                        btnCancel.addEventListener('click', () => overlay.style.display = 'none');
-
-                        btnConfirm.addEventListener('click', () => {
-                            const formKey = select.value;
-                            if (!formKey) return;
-                            btnConfirm.disabled = true;
-                            btnConfirm.textContent = 'Loading...';
-
-                            const csrf = document.querySelector('input[name="csrf_token"]')?.value ?? '';
-
-                            fetch('/builder_beta/switch_form', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'X-CSRFToken': csrf
-                                },
-                                body: JSON.stringify({ form_key: formKey })
-                            })
-                            .then(r => r.json())
-                            .then(d => {
-                                if (d.success) {
-                                    location.href = '/form_editor?edit=1';
-                                } else {
-                                    alert('Failed to switch form: ' + d.error);
-                                    btnConfirm.disabled = false;
-                                    btnConfirm.textContent = 'Load Form';
-                                }
-                            })
-                            .catch(() => {
-                                alert('Network error.');
-                                btnConfirm.disabled = false;
-                                btnConfirm.textContent = 'Load Form';
-                            });
-                        });
-                    });
-                    </script>
 
                     <div class="nav-user">
                         <div class="nav-user-identity">
@@ -398,26 +101,9 @@
 
                         <a href="{{ url_for('review') }}" class="nav-link {% if request.endpoint == 'review' %}active{% endif %}">Review</a>
                         <a href="{{ url_for('calculator') }}" class="nav-link {% if request.endpoint == 'calculator' %}active{% endif %}">Calculator</a>
-                        <a href="{{ url_for('image_upload_page') }}" class="nav-link {% if request.endpoint == 'image_upload_page' %}active{% endif %}">Image Upload</a>
-                        <a href="{{ url_for('quote_editor') }}" class="nav-link {% if request.endpoint == 'quote_editor' %}active{% endif %}">Quote Editor</a>
                         <a href="{{ url_for('save_load') }}" class="nav-link {% if request.endpoint == 'save_load' %}active{% endif %}">Save/Load</a>
                     </nav>
 
-                    {% if session.get('role') == 'admin' %}
-                        <div style="padding:0.5rem 0.75rem;border-top:1px solid rgba(255,255,255,0.15);">
-                            <a href="{{ request.path }}?edit=1"
-                               style="color:#4da6ff;text-decoration:none;font-size:0.85rem;font-weight:600;">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:4px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Edit Mode
-                            </a>
-                        </div>
-                    {% else %}
-                        <div style="padding:0.5rem 0.75rem;border-top:1px solid rgba(255,255,255,0.15);">
-                            <a href="{{ url_for('login') }}"
-                               style="color:#aaa;text-decoration:none;font-size:0.85rem;font-weight:600;">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:4px;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Admin Login
-                            </a>
-                        </div>
-                    {% endif %}
                     <div class="nav-user">
                         <div class="nav-user-identity">
                             user: {{ session['username'] }} ({{ session.get('role','user') }})
@@ -441,6 +127,58 @@
                     </div>
                 {% endif %}
             {% endblock sidebar_content %}
+</div>
+
+<!-- *** Add‑Page Overlay (moved outside sidebar to avoid clipping) *** -->
+<div id="add-page-overlay"
+     style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;
+            background:rgba(0,0,0,0.5);z-index:9999;
+            align-items:center;justify-content:center;">
+    <div style="background:#fff;padding:2rem;border-radius:8px;width:400px;
+                max-width:90%;color:#333;font-family:sans-serif;">
+        <h3 style="margin-top:0;margin-bottom:1rem;font-size:1.2rem;color:#1b3a6b;">
+            Add New Page
+        </h3>
+
+        <!-- initial two‑button state -->
+        <div id="add-page-initial-state">
+            <button type="button" id="btn-add-blank" class="btn"
+                    style="width:100%;background:#1b3a6b;color:#fff;
+                           border:none;padding:0.6rem;border-radius:4px;
+                           cursor:pointer;margin-bottom:0.5rem;">
+                Create Blank Page
+            </button>
+            <button type="button" id="btn-add-template" class="btn"
+                    style="background:#f0f0f0;color:#333;border:1px solid #ccc;
+                           padding:0.6rem;border-radius:4px;cursor:pointer;">
+                Use Existing Page as Template
+            </button>
+            <button type="button" id="btn-add-cancel" class="btn"
+                    style="background:transparent;color:#888;border:none;
+                           padding:0.6rem;cursor:pointer;margin-top:0.5rem;">
+                Cancel
+            </button>
+        </div>
+
+        <!-- template‑selection state (hidden until user clicks "template") -->
+        <div id="add-page-template-select-state" style="display:none;margin-top:1.5rem;">
+            <label for="add-page-source-select"
+                    style="display:block;margin-bottom:.25rem;
+                           font-size:.85rem;font-weight:bold;">
+                Select Page to Copy:
+            </label>
+            <select id="add-page-source-select"
+                    style="width:100%;padding:.5rem;margin-bottom:1rem;
+                           border:1px solid #ccc;border-radius:4px;">
+                <option value="">-- Choose a Page --</option>
+            </select>
+            <button type="button" id="btn-add-template-confirm" class="btn"
+                    style="width:100%;background:#1b3a6b;color:#fff;
+                           border:none;padding:.6rem;border-radius:4px;cursor:pointer;">
+                Continue
+            </button>
+        </div>
+    </div>
 </div>
 
         <div class="main-content">

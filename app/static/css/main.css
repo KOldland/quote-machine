@@ -4,7 +4,7 @@
     justify-content: flex-start; /* Align content to start of available space */
     align-items: flex-start;
     min-height: 100vh;
-    padding-top: 150px; /* Added padding to create space from the header */
+    padding-top: 50px; /* Added padding to create space from the header */
 }
 
 /* Sidebar */
@@ -39,10 +39,9 @@
 
 /* Highlight the active sidebar link */
 .sidebar .nav-link.active {
-    background-color: #007BFF;  /* Highlight background color */
-    color: white;  /* Text color */
-    font-weight: bold;  /* Make text bold to emphasize */
-    border-left: 5px solid #0056b3; /* Optional border indicator */
+    background-color: #3b5b8c;
+    color: #fff;
+    font-weight: 600;
 }
 
 
@@ -64,18 +63,20 @@
 
 .builder-edit-mode .page-selector-item {
     display: block;
-    color: rgba(255,255,255,.75);
+    color: #ffffff;
     text-decoration: none;
-    font-size: .82rem;
-    padding: .3rem .5rem;
-    border-radius: 3px;
-    transition: background .15s, color .15s;
+    font-size: .85rem;
+    font-weight: 400;
+    padding: 6px 10px;
+    margin-bottom: 0;
+    border-radius: 0;
+    transition: background .15s;
     flex: 1 1 auto;
     min-width: 0;
 }
 
 .builder-edit-mode .page-selector-item:hover {
-    background: rgba(255,255,255,.1);
+    background: #2D3A4B;
     color: #fff;
 }
 
@@ -95,6 +96,7 @@
     cursor: pointer;
     border-radius: 3px;
     transition: background .15s, color .15s;
+    margin-left: auto;
 }
 .builder-edit-mode .page-reorder-btn:hover {
     background: rgba(255,255,255,.15);
@@ -694,30 +696,7 @@
     color: #fff;
 }
 
-/* Uniform sidebar control buttons */
-.builder-edit-mode .btn-sidebar {
-    display: block;
-    width: 100%;
-    background: #1b3a6b;
-    color: #fff;
-    border: 1px solid #1b3a6b;
-    padding: .45rem .65rem;
-    text-align: left;
-    font-size: .82rem;
-    font-weight: 600;
-    letter-spacing: .08em;
-    text-transform: uppercase;
-    border-radius: 3px;
-    cursor: pointer;
-    transition: background .15s;
-    font-family: inherit;
-}
 
-.builder-edit-mode .btn-sidebar:hover {
-    background: #254e8a;
-    border-color: #254e8a;
-    color: #fff;
-}
 
 /* ── 7f. Type Picker Modal (from builder.js showTypePicker) ── */
 
@@ -831,6 +810,7 @@
     justify-content: center;
     align-items: center;
     padding: 20px !important; /* Ensure padding is consistent */
+    margin-top: 15px;
     transition: margin-left 0.3s ease, width 0.3s ease;
 }
 
@@ -981,6 +961,36 @@ input, label {
 .btn:focus {
     background-color: #ffffff;
     color: #1F2D3D;
+}
+
+/* Uniform sidebar control buttons */
+.btn.btn-sidebar {
+    display: block;
+    width: 100%;
+    background: #1b3a6b;
+    color: #fff;
+    border: 1px solid #1b3a6b;
+    padding: .45rem .65rem;
+    text-align: left;
+    font-size: .82rem;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background .15s;
+    font-family: inherit;
+    text-decoration: none;
+}
+
+.btn.btn-sidebar:hover {
+    background: #254e8a;
+    border-color: #254e8a;
+    color: #fff;
+}
+
+.builder-edit-mode .btn-sidebar {
+    /* keep for specificity if needed */
 }
 
 /* Disabled state */
@@ -1591,8 +1601,8 @@ input[type="text"], input[type="date"], textarea, select {
   display: flex;
   gap: 6px;
   margin-bottom: 1rem;
-  padding: 6px;
-  background: rgba(0,0,0,0.2);
+  padding: 0;
+  background: transparent;
   border-radius: 6px;
 }
 
@@ -1620,8 +1630,8 @@ input[type="text"], input[type="date"], textarea, select {
 
 .mode-btn.active {
   color: #fff;
-  background: #3b5b8c;
-  border-color: #3b5b8c;
+  background: #1b3a6b;
+  border-color: #1b3a6b;
 }
 
 /* Sidebar sections in Quote Mode */
@@ -1637,27 +1647,6 @@ input[type="text"], input[type="date"], textarea, select {
   margin: 0 0 0.5rem 0;
   padding-bottom: 0.35rem;
   border-bottom: 1px solid rgba(255,255,255,0.12);
-}
-
-.sidebar-quote-mode .insert-btn {
-  display: block;
-  width: 100%;
-  text-align: left;
-  padding: 8px 10px;
-  margin-bottom: 6px;
-  font-size: 0.85rem;
-  color: rgba(255,255,255,0.85);
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.sidebar-quote-mode .insert-btn:hover {
-  background: rgba(255,255,255,0.12);
-  border-color: rgba(255,255,255,0.3);
-  color: #fff;
 }
 
 .sidebar-quote-mode #navPanel {
@@ -1682,23 +1671,25 @@ input[type="text"], input[type="date"], textarea, select {
 
 .sidebar-form-mode .page-selector-item {
   display: block;
-  padding: 8px 10px;
-  margin-bottom: 4px;
-  color: rgba(255,255,255,0.85);
+  color: #ffffff;
   text-decoration: none;
-  font-size: 0.85rem;
+  font-size: .85rem;
+  padding: 6px 10px;
+  margin-bottom: 4px;
   border-radius: 4px;
-  transition: all 0.15s ease;
+  transition: background .15s;
 }
 
 .sidebar-form-mode .page-selector-item:hover {
-  background: rgba(255,255,255,0.08);
+  background: #2D3A4B;
   color: #fff;
 }
 
 .sidebar-form-mode .page-selector-item.active {
   background: #3b5b8c;
   color: #fff;
+  font-weight: 600;
+}
 }
 
 /* Quote Mode sidebar text */
@@ -1719,32 +1710,34 @@ input[type="text"], input[type="date"], textarea, select {
   color: rgba(255,255,255,0.8);
 }
 
-.sidebar-quote-mode .nav-item,
-.sidebar-quote-mode .nav-item a {
-  color: rgba(255,255,255,0.85);
-}
-
-/* Quote Mode sidebar nav items */
+/* Quote Mode sidebar nav items — unify with .nav-link style */
 .sidebar-quote-mode .nav-page-header,
 .sidebar-quote-mode .nav-item {
-  color: rgba(255,255,255,0.85);
+  display: block;
+  color: #ffffff;
+  text-decoration: none;
+  font-size: .85rem;
+  padding: 6px 10px;
+  margin-bottom: 4px;
+  border-radius: 4px;
+  transition: background .15s;
 }
 
-.sidebar-quote-mode .nav-item__label {
-  color: rgba(255,255,255,0.85);
+.sidebar-quote-mode .nav-page-header:hover,
+.sidebar-quote-mode .nav-item:hover {
+  background: #2D3A4B;
+  color: #fff;
 }
 
 .sidebar-quote-mode .nav-item--active {
-  background: rgba(255,255,255,0.12);
+  background: #3b5b8c;
+  color: #fff;
+  font-weight: 600;
 }
 
 .sidebar-quote-mode .nav-item--active .nav-item__label {
   color: #ffffff;
   font-weight: 600;
-}
-
-.sidebar-quote-mode .nav-item:hover {
-  background: rgba(255,255,255,0.08);
 }
 
 .sidebar-quote-mode .nav-item--category .nav-item__label {

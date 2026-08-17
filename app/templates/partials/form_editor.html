@@ -19,7 +19,7 @@
 
 {# ── Inject builder state for the JS editor ── #}
 <script>
-window.blocks = {{ page_config.get('blocks', []) | tojson | safe }};
+window.blocks = {{ (page_config | default({})).get('blocks', []) | tojson | safe }};
 window.pageId = {{ current_page_id | default('') | tojson | safe }};
 window.selectedBlockId = {{ selected_block_id | default('null') | tojson | safe }};
 window.builderStateQuestionTypes = {{ builder_state.question_types | default({}) | tojson | safe }};
