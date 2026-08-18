@@ -234,10 +234,13 @@ const IMAGE_FRAMES = [
     pages = [];
     let currentPage = [];
     blocks.forEach(block => {
+      if (block.source_page === 'image_upload_page') return;
+
       if ((block.type === 'page_title' || block.type === 'page_break') && currentPage.length > 0) {
         pages.push(currentPage);
         currentPage = [];
       }
+
       currentPage.push(block);
     });
     if (currentPage.length || pages.length === 0) {

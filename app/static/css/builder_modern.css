@@ -27,16 +27,22 @@
 }
 
 .btn-primary {
-    background: #007bff;
+    background: #1b3a6b;
     color: white;
-    padding: 8px 16px;
+    padding: 12px 24px;
     border: none;
-    border-radius: 4px;
+    border-radius: 6px;
     text-decoration: none;
     cursor: pointer;
     font-size: 14px;
-    font-weight: 500;
+    font-weight: 600;
     display: inline-block;
+    transition: all 0.2s;
+}
+
+.btn-primary:hover {
+    background: #254e8a;
+    transform: translateY(-1px);
 }
 
 .builder-workspace {

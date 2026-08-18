@@ -923,34 +923,63 @@ input, label {
 /* Buttons - Merging Client's Style with Your Setup */
 .btn {
     display: inline-block;
-    width: auto; /* Removed full-width from your button setup to match client's */
+    width: auto;
     margin: 5px;
-    padding: 11px 35px;
-    background-color: #1F2D3D;
+    padding: 12px 24px;
+    background-color: #1b3a6b;
     color: #ffffff;
-    font-family: 'CynthoNextBold', sans-serif; /* Keeping your custom font */
-    font-size: 15px;
-    line-height: 16px;
-    letter-spacing: 3px; /* Client's uppercase styling */
+    font-family: inherit;
+    font-size: 14px;
     font-weight: 600;
-    text-transform: uppercase; /* Matches client’s design */
-    border: 1px solid #1F2D3D;
-    border-radius: 0px; /* No rounding */
+    text-transform: none;
+    letter-spacing: normal;
+    border: none;
+    border-radius: 6px;
     text-align: center;
     text-decoration: none;
     cursor: pointer;
     vertical-align: middle;
-    transition: background-color 0.5s ease, color 0.5s ease;
+    transition: all 0.2s;
     outline: none;
     box-shadow: none;
     overflow: hidden;
 }
 
+/* Form controls */
+.form-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: #212529;
+}
+
+.form-control {
+    display: block;
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: #212529;
+    background-color: #fff;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    box-sizing: border-box;
+    transition: border-color 0.2s;
+}
+
+.form-control:focus {
+    border-color: #1b3a6b;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(27, 58, 107, 0.15);
+}
+
 /* Hover effect */
 .btn:hover,
 .btn:focus {
-    background-color: #ffffff;
-    color: #1F2D3D;
+    background-color: #254e8a;
+    color: #ffffff;
+    transform: translateY(-1px);
 }
 
 /* Uniform sidebar control buttons */
@@ -981,6 +1010,73 @@ input, label {
 
 .builder-edit-mode .btn-sidebar {
     /* keep for specificity if needed */
+}
+
+/* Non-sidebar button variants */
+.btn-primary,
+.btn-secondary,
+.btn-warning,
+.btn-danger,
+.btn-outline-secondary {
+    margin: 0;
+}
+
+.btn-primary {
+    background: #1b3a6b;
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background: #254e8a;
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: #fff;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+    transform: translateY(-1px);
+}
+
+.btn-warning {
+    background: #ffc107;
+    color: #212529;
+}
+
+.btn-warning:hover {
+    background: #e0a800;
+    transform: translateY(-1px);
+}
+
+.btn-danger {
+    background: #dc3545;
+    color: #fff;
+}
+
+.btn-danger:hover {
+    background: #c82333;
+    transform: translateY(-1px);
+}
+
+.btn-outline-secondary {
+    background: transparent;
+    color: #6c757d;
+    border: 1px solid #6c757d;
+}
+
+.btn-outline-secondary:hover {
+    background: #6c757d;
+    color: #fff;
+    transform: translateY(-1px);
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+    border-radius: 4px;
 }
 
 /* Disabled state */

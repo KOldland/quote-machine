@@ -172,20 +172,6 @@ function showToast(message, type) {
     <div style="text-align: right; margin-bottom: 1rem;">
         <button type="button" class="btn btn-primary" id="addImagesToQuoteBtn">Add Uploaded Images to Quote</button>
     </div>
-
-    <!-- Nav Buttons -->
-    <div class="button-container">
-        {% if previous_page and previous_page != '/' %}
-        <button type="button" class="btn" onclick="window.location.href='{{ url_for('dynamic_page', page_id=previous_page) }}'">Previous</button>
-        {% endif %}
-        {% if next_page %}
-            {% if next_page == 'review' %}
-        <button type="button" class="btn" onclick="window.location.href='{{ url_for('review') }}'">Next</button>
-            {% else %}
-        <button type="button" class="btn" onclick="window.location.href='{{ url_for('dynamic_page', page_id=next_page) }}'">Next</button>
-            {% endif %}
-        {% endif %}
-    </div>
 </div>
 
 {% endblock %}

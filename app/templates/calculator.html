@@ -71,12 +71,8 @@
         </div>
     </div>
 
-    <div style="display:flex;justify-content:space-between;align-items:center;margin:1rem 0;">
+    <div style="margin:1rem 0;">
         <h2>Line Items</h2>
-        <div>
-            <button type="button" class="btn btn-secondary" id="btn-edit-mode" onclick="toggleEditMode()">Edit Mode</button>
-            <button type="button" class="btn btn-primary" id="btn-save-changes" style="display:none;" onclick="saveAllChanges()">Save Changes</button>
-        </div>
     </div>
 
     <div id="line-items-container">
@@ -162,37 +158,10 @@
         </div>
         {% endfor %}
     </div>
-
-    <div class="button-container">
-        <button type="button" class="btn" onclick="window.history.back()">Previous</button>
-        <button type="button" class="btn btn-primary" onclick="window.location.href='{{ url_for('image_upload_page') }}'">Continue</button>
-    </div>
 </div>
 {% endif %}
 
 <script>
-let editMode = false;
-
-function toggleEditMode() {
-    editMode = !editMode;
-    const btnEdit = document.getElementById('btn-edit-mode');
-    const btnSave = document.getElementById('btn-save-changes');
-    const inputs = document.querySelectorAll('.line-unit-cost, .line-units, .section-override-input, .category-override-input');
-    if (editMode) {
-        btnEdit.textContent = 'Cancel Edit';
-        btnEdit.classList.remove('btn-secondary');
-        btnEdit.classList.add('btn-danger');
-        btnSave.style.display = 'inline-block';
-        inputs.forEach(el => el.removeAttribute('readonly'));
-    } else {
-        btnEdit.textContent = 'Edit Mode';
-        btnEdit.classList.remove('btn-danger');
-        btnEdit.classList.add('btn-secondary');
-        btnSave.style.display = 'none';
-        inputs.forEach(el => el.setAttribute('readonly', 'readonly'));
-    }
-}
-
 function updateLineTotal(row) {
     const unitCost = parseFloat(row.querySelector('.line-unit-cost').value) || 0;
     const units = parseFloat(row.querySelector('.line-units').value) || 0;
@@ -203,7 +172,6 @@ function updateLineTotal(row) {
 document.addEventListener('DOMContentLoaded', function() {
     const unitInputs = document.querySelectorAll('.line-unit-cost, .line-units');
     unitInputs.forEach(input => {
-        input.setAttribute('readonly', 'readonly');
         input.addEventListener('change', function() {
             const row = this.closest('.line-item-row');
             if (row) updateLineTotal(row);
@@ -214,42 +182,6 @@ document.addEventListener('DOMContentLoaded', function() {
 function getCsrfToken() {
     const el = document.querySelector('input[name="csrf_token"]');
     return el ? el.value : '';
-}
-
-async function saveAllChanges() {
-    const rows = document.querySelectorAll('.line-item-row');
-    const promises = [];
-    rows.forEach(row => {
-        const lineCode = row.dataset.lineCode;
-        const unitCostInput = row.querySelector('.line-unit-cost');
-        const unitsInput = row.querySelector('.line-units');
-        const unitCost = parseFloat(unitCostInput.value);
-        const units = parseFloat(unitsInput.value);
-        if (!isNaN(unitCost) && unitCost >= 0) {
-            promises.push(
-                fetch('/api/line-item/override', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': getCsrfToken(),
-                    },
-                    body: JSON.stringify({ line_code: lineCode, unit_cost: unitCost, scope: 'project' }),
-                }).then(r => r.json())
-            );
-        }
-        updateLineTotal(row);
-    });
-    try {
-        const results = await Promise.all(promises);
-        const failed = results.filter(r => !r.success);
-        if (failed.length > 0) {
-            alert('Some changes failed to save: ' + failed.map(f => f.error).join(', '));
-        } else {
-            alert('All changes saved successfully.');
-        }
-    } catch (err) {
-        alert('Error saving changes: ' + err.message);
-    }
 }
 
 function applySectionOverride(groupName, btn) {
