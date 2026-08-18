@@ -150,6 +150,11 @@ def save_quote_route():
     settings = data.get('settings_json', {})
     layout_id = data.get('layout_id')
     user_id = session.get('user_id')
+    form_data = data.get('form_data') or {
+        'data': session.get('data', {}),
+        'checkbox_data': session.get('checkbox_data', {}),
+        'template_key': form_key,
+    }
     quote = save_quote(
         form_key,
         blocks_json=blocks,
@@ -159,6 +164,7 @@ def save_quote_route():
         layout_id=layout_id,
         user_id=user_id,
         settings=settings,
+        form_data=form_data,
     )
     if not quote:
         return jsonify({'success': False, 'error': 'Form template not found'}), 404
@@ -172,6 +178,13 @@ def load_quote_route(quote_id):
     if not quote:
         return jsonify({'success': False, 'error': 'Quote not found'}), 404
     session['active_quote_id'] = quote_id
+    form_data = quote.get('form_data') or {}
+    session['data'] = form_data.get('data', {})
+    session['checkbox_data'] = form_data.get('checkbox_data', {})
+    if form_data.get('template_key'):
+        session['template_key'] = form_data['template_key']
+    session.pop('legacy_spreadsheet_data', None)
+    session.pop('old_form_answers', None)
     session.modified = True
     return jsonify({'success': True, 'quote': quote})
 
@@ -192,12 +205,18 @@ def create_quote():
     name = data.get('name', 'Untitled')
     blocks = data.get('blocks_json', [])
     settings = data.get('settings_json') or {}
+    form_data = data.get('form_data') or {
+        'data': session.get('data', {}),
+        'checkbox_data': session.get('checkbox_data', {}),
+        'template_key': form_key,
+    }
     quote = save_quote(
         form_key=form_key,
         blocks_json=blocks,
         name=name,
         settings=settings,
         user_id=user_id,
+        form_data=form_data,
     )
     if not quote:
         return jsonify({'success': False, 'error': 'Failed to save quote'}), 500
@@ -224,6 +243,11 @@ def update_quote_route(quote_id):
     notes = data.get('notes', '')
     if not name:
         return jsonify({'success': False, 'error': 'Name is required'}), 400
+    form_data = data.get('form_data') or {
+        'data': session.get('data', {}),
+        'checkbox_data': session.get('checkbox_data', {}),
+        'template_key': form_key,
+    }
     updated = update_saved_quote(
         quote_id=quote_id,
         form_key=form_key,
@@ -232,6 +256,7 @@ def update_quote_route(quote_id):
         settings=settings or {},
         client_name=client_name,
         notes=notes,
+        form_data=form_data,
     )
     if not updated:
         return jsonify({'success': False, 'error': 'Quote not found'}), 404

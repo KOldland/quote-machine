@@ -1575,6 +1575,38 @@ def delete_form_route():
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
+
+@app.route('/builder_beta/load_form', methods=['POST'])
+@require_role('admin')
+def load_form_route():
+    import template_store as ts
+    data = request.json
+    form_key = data.get('form_key')
+
+    if not form_key:
+        return jsonify({'success': False, 'error': 'Form key is required'}), 400
+
+    if form_key not in page_schemas:
+        return jsonify({'success': False, 'error': 'Template not found'}), 404
+
+    try:
+        page_schemas['builder_beta'] = copy.deepcopy(page_schemas[form_key])
+        save_page_schemas()
+        return jsonify({'success': True})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/builder_beta/templates')
+@require_role('admin')
+def builder_templates():
+    if request.args.get('edit', '0') != '1':
+        return redirect(url_for('form_editor', edit=1))
+    return render_template('builder_templates.html')
+
+
 # ── Quote Calculator: session override endpoint ──────────────────────────
 
 

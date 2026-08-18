@@ -1,0 +1,173 @@
+{% extends "index.html" %}
+
+{% block content %}
+<div class="form-container">
+    <h1>Build Mode - Templates</h1>
+    <p style="color:#666; margin-bottom:1.5rem;">Save, load, and manage your form templates.</p>
+
+    <div class="accordion-section">
+        <button type="button" class="accordion-header" onclick="toggleAccordion('saveSection');">
+            Save Current Form as Template
+        </button>
+        <div id="saveSection" class="accordion-body">
+            <form id="saveFormAsForm">
+                <div class="mb-3">
+                    <label for="newTemplateName" class="form-label">Template Name</label>
+                    <input type="text" class="form-control" id="newTemplateName" placeholder="My Template" required>
+                </div>
+                <div class="mb-3">
+                    <label for="newTemplateDescription" class="form-label">Description (optional)</label>
+                    <input type="text" class="form-control" id="newTemplateDescription" placeholder="Template description">
+                </div>
+                <button type="submit" class="btn btn-primary">Save as Template</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="accordion-section">
+        <button type="button" class="accordion-header" onclick="toggleAccordion('loadSection');">
+            Load Template
+        </button>
+        <div id="loadSection" class="accordion-body">
+            <div id="templatesList">
+                <p>Loading templates...</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="button-container">
+        <button type="button" class="btn" onclick="window.history.back()">Back</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function toggleAccordion(id) {
+    const el = document.getElementById(id);
+    if (el) {
+        el.style.display = el.style.display === 'none' ? 'block' : 'none';
+    }
+}
+
+function loadTemplates() {
+    const container = document.getElementById('templatesList');
+    container.innerHTML = '<p>Loading...</p>';
+
+    fetch('/builder_beta/list_forms')
+        .then(r => r.json())
+        .then(data => {
+            const forms = data.forms || [];
+            if (!forms.length) {
+                container.innerHTML = '<p>No templates found.</p>';
+                return;
+            }
+            let html = '<table class="table table-hover"><thead><tr><th>Name</th><th>Key</th><th class="text-end">Actions</th></tr></thead><tbody>';
+            forms.forEach(f => {
+                html += `<tr>
+                    <td>${escapeHtml(f.name)}</td>
+                    <td><code>${escapeHtml(f.key)}</code></td>
+                    <td class="text-end">
+                        <button class="btn btn-primary btn-sm" onclick="loadTemplate('${f.key}')">Load</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteTemplate('${f.key}')">Delete</button>
+                    </td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        })
+        .catch(err => {
+            container.innerHTML = '<p style="color:red;">Error loading templates: ' + err.message + '</p>';
+        });
+}
+
+function saveTemplate() {
+    const name = document.getElementById('newTemplateName').value.trim();
+    const description = document.getElementById('newTemplateDescription').value.trim();
+    if (!name) {
+        alert('Template name is required.');
+        return;
+    }
+    fetch('/builder_beta/save_form_as', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            old_key: 'builder_beta',
+            new_title: name,
+            new_description: description
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            alert('Template saved successfully!');
+            document.getElementById('newTemplateName').value = '';
+            document.getElementById('newTemplateDescription').value = '';
+            loadTemplates();
+        } else {
+            alert('Save failed: ' + (data.error || 'unknown'));
+        }
+    })
+    .catch(err => {
+        alert('Error saving template: ' + err.message);
+    });
+}
+
+function loadTemplate(formKey) {
+    if (!confirm('Load this template? Current unsaved changes will be lost.')) return;
+    fetch('/builder_beta/load_form', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ form_key: formKey })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            alert('Template loaded successfully!');
+            window.location.href = '{{ url_for("form_editor") }}';
+        } else {
+            alert('Load failed: ' + (data.error || 'unknown'));
+        }
+    })
+    .catch(err => {
+        alert('Error loading template: ' + err.message);
+    });
+}
+
+function deleteTemplate(formKey) {
+    if (!confirm('Delete this template? This cannot be undone.')) return;
+    fetch('/builder_beta/delete_form', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ form_key: formKey })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            alert('Template deleted.');
+            loadTemplates();
+        } else {
+            alert('Delete failed: ' + (data.error || 'unknown'));
+        }
+    })
+    .catch(err => {
+        alert('Error deleting template: ' + err.message);
+    });
+}
+
+document.getElementById('saveFormAsForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    saveTemplate();
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadTemplates();
+});
+</script>
+{% endblock %}

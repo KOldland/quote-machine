@@ -1199,6 +1199,9 @@ const IMAGE_FRAMES = [
               documentStyles = { ...documentStyles, ...settings.document_styles };
             }
             updateStylesFormFromDocumentStyles();
+            if (quote.form_data && Object.keys(quote.form_data).length) {
+              setSaveStatus('Form data restored', 'success');
+            }
             if (!stylesOnly) {
               blocks = [];
               activeBlockId = null;
@@ -2001,6 +2004,7 @@ const IMAGE_FRAMES = [
     document.getElementById('loadBtn').addEventListener('click', openLoadModal);
     document.getElementById('exportBtn').addEventListener('click', openExportModal);
     document.getElementById('confirmSaveAsQuoteBtn').addEventListener('click', confirmSaveAsQuote);
+    document.getElementById('saveAsThemeBtn').addEventListener('click', openSaveAsThemeModal);
     document.getElementById('closeSaveAsQuoteModal').addEventListener('click', () => {
       document.getElementById('saveAsQuoteModal').style.display = 'none';
     });
@@ -2465,35 +2469,35 @@ const IMAGE_FRAMES = [
     window.addEventListener('resize', updatePreviewResizeBanner);
   }
 
-   async function autoLoadLastSession() {
-     const urlParams = new URLSearchParams(window.location.search);
-     const quoteId = urlParams.get('quote') || localStorage.getItem('lastQuoteId');
-     if (!quoteId) return;
-     try {
-       const r = await fetch(`/quote_editor/load-quote/${quoteId}`);
-       const d = await r.json();
-       if (d.success) {
-         currentQuoteId = parseInt(quoteId);
-         const quote = d.quote || {};
-         const settings = quote.settings_json || {};
-         if (settings.document_styles) {
-           documentStyles = { ...documentStyles, ...settings.document_styles };
-         }
-         updateStylesFormFromDocumentStyles();
-          blocks = [];
-          activeBlockId = null;
-          updateSettingsPanel();
-          const blist = quote.blocks_json || [];
-          blist.forEach(b => addBlock(b));
-          window.__currentPageIndex = 0;
-          if (blocks.length > 0) activeBlockId = blocks[0].id;
-          updateNavPanel();
-          renderCurrentPage();
-       }
-     } catch (e) {
-       console.warn('Auto-load failed:', e);
-     }
-   }
+    async function autoLoadLastSession() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const quoteId = urlParams.get('quote');
+      if (!quoteId) return;
+      try {
+        const r = await fetch(`/quote_editor/load-quote/${quoteId}`);
+        const d = await r.json();
+        if (d.success) {
+          currentQuoteId = parseInt(quoteId);
+          const quote = d.quote || {};
+          const settings = quote.settings_json || {};
+          if (settings.document_styles) {
+            documentStyles = { ...documentStyles, ...settings.document_styles };
+          }
+          updateStylesFormFromDocumentStyles();
+           blocks = [];
+           activeBlockId = null;
+           updateSettingsPanel();
+           const blist = quote.blocks_json || [];
+           blist.forEach(b => addBlock(b));
+           window.__currentPageIndex = 0;
+           if (blocks.length > 0) activeBlockId = blocks[0].id;
+           updateNavPanel();
+           renderCurrentPage();
+        }
+      } catch (e) {
+        console.warn('Auto-load failed:', e);
+      }
+    }
 
    async function init() {
       await checkPendingBlocks();

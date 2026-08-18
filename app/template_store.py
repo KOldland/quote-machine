@@ -1602,7 +1602,7 @@ def create_default_output_template(form_key: str, db_path: Optional[Path] = None
         conn.close()
 
 
-def update_saved_quote(quote_id: int, form_key: str, name: str, blocks_json: list, settings: dict, client_name: str = '', notes: str = '', user_id: Optional[int] = None, db_path: Optional[Path] = None) -> Optional[dict]:
+def update_saved_quote(quote_id: int, form_key: str, name: str, blocks_json: list, settings: dict, client_name: str = '', notes: str = '', user_id: Optional[int] = None, db_path: Optional[Path] = None, form_data: Optional[dict] = None) -> Optional[dict]:
     path = db_path or _default_db_path()
     conn = _connect(path)
     try:
@@ -1612,7 +1612,7 @@ def update_saved_quote(quote_id: int, form_key: str, name: str, blocks_json: lis
         conn.execute(
             """
             UPDATE saved_quotes
-            SET name = ?, client_name = ?, notes = ?, blocks_json = ?, settings_json = ?, updated_at = CURRENT_TIMESTAMP
+            SET name = ?, client_name = ?, notes = ?, blocks_json = ?, settings_json = ?, form_data = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ? AND form_template_id = ?
             """,
             (
@@ -1621,6 +1621,7 @@ def update_saved_quote(quote_id: int, form_key: str, name: str, blocks_json: lis
                 notes,
                 json.dumps(blocks_json),
                 json.dumps(settings or {}),
+                json.dumps(form_data or {}),
                 quote_id,
                 ft_id,
             ),
@@ -1631,6 +1632,7 @@ def update_saved_quote(quote_id: int, form_key: str, name: str, blocks_json: lis
         if result:
             result["blocks_json"] = json.loads(result.get("blocks_json", "[]"))
             result["settings_json"] = json.loads(result.get("settings_json", "{}"))
+            result["form_data"] = json.loads(result.get("form_data", "{}"))
         return result
     finally:
         conn.close()
@@ -1929,6 +1931,7 @@ def save_quote(
     layout_id: Optional[int] = None,
     user_id: Optional[int] = None,
     settings: Optional[dict] = None,
+    form_data: Optional[dict] = None,
     db_path: Optional[Path] = None,
 ) -> Optional[dict]:
     path = db_path or _default_db_path()
@@ -1940,8 +1943,8 @@ def save_quote(
         cur = conn.execute(
             """
             INSERT INTO saved_quotes
-                (form_template_id, layout_id, name, client_name, notes, blocks_json, settings_json, user_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                (form_template_id, layout_id, name, client_name, notes, blocks_json, settings_json, form_data, user_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 ft_id,
@@ -1951,6 +1954,7 @@ def save_quote(
                 notes,
                 json.dumps(blocks_json),
                 json.dumps(settings or {}),
+                json.dumps(form_data or {}),
                 user_id,
             ),
         )
@@ -1960,6 +1964,7 @@ def save_quote(
         if result:
             result["blocks_json"] = json.loads(result.get("blocks_json", "[]"))
             result["settings_json"] = json.loads(result.get("settings_json", "{}"))
+            result["form_data"] = json.loads(result.get("form_data", "{}"))
         return result
     finally:
         conn.close()
@@ -1981,6 +1986,7 @@ def get_saved_quote(quote_id: int, form_key: str, db_path: Optional[Path] = None
         result = dict(row)
         result["blocks_json"] = json.loads(result.get("blocks_json", "[]"))
         result["settings_json"] = json.loads(result.get("settings_json", "{}"))
+        result["form_data"] = json.loads(result.get("form_data", "{}"))
         return result
     finally:
         conn.close()
