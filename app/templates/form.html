@@ -62,14 +62,14 @@
                 {% endfor %}
             {% endif %}
 
-            <button type="button" class="btn btn-sidebar"
-                    onclick="window.open('{{ url_for('image_upload_page') }}', '_blank')">Image Upload</button>
-            <button type="button" class="btn btn-sidebar"
-                    onclick="window.open('{{ url_for('review') }}', '_blank')">Review</button>
-            <button type="button" class="btn btn-sidebar"
-                    onclick="window.open('{{ url_for('calculator') }}', '_blank')">Calculator</button>
-            <button type="button" class="btn btn-sidebar"
-                    onclick="window.open('{{ url_for('save_load') }}', '_blank')">Save/Load</button>
+                    <button type="button" class="btn btn-sidebar"
+                            onclick="window.location.href='{{ url_for('image_upload_page') }}'">Image Upload</button>
+                    <button type="button" class="btn btn-sidebar"
+                            onclick="window.location.href='{{ url_for('review') }}'">Review</button>
+                    <button type="button" class="btn btn-sidebar"
+                            onclick="window.location.href='{{ url_for('calculator') }}'">Calculator</button>
+                    <button type="button" class="btn btn-sidebar"
+                            onclick="window.location.href='{{ url_for('save_load') }}'">Save/Load</button>
         </nav>
     {% endif %}
 
