@@ -486,6 +486,7 @@ const IMAGE_FRAMES = [
       editor_overrides: blockData.editor_overrides || {},
       flags: blockData.flags || { source_dirty: false, editor_dirty: false },
       settings: blockData.settings || getDefaultSettings(blockData.type),
+      category_sort_order: blockData.category_sort_order != null ? blockData.category_sort_order : 999,
     };
     blocks.push(block);
     rebuildPages();
@@ -1030,6 +1031,7 @@ const IMAGE_FRAMES = [
       editor_overrides: b.editor_overrides || {},
       flags: b.flags || {},
       settings: b.settings || {},
+      category_sort_order: b.category_sort_order != null ? b.category_sort_order : 999,
     }));
   }
 
@@ -1286,8 +1288,8 @@ const IMAGE_FRAMES = [
               blocks = [];
               activeBlockId = null;
               updateSettingsPanel();
-              const blist = quote.blocks_json || [];
-              blist.forEach(b => addBlock(b));
+               const blist = (d.fresh_blocks || []).length > 0 ? d.fresh_blocks : (quote.blocks_json || []);
+               blist.forEach(b => addBlock(b));
             }
             document.getElementById('loadModal').style.display = 'none';
           }
@@ -2371,30 +2373,59 @@ const IMAGE_FRAMES = [
       html += `  <span class="nav-item__label">${escapeHtml(page.title)}</span>`;
       html += `</div>`;
 
+      const sortedItems = page.items.slice().sort((a, b) => {
+        const aOrder = a.block.category_sort_order != null ? a.block.category_sort_order : 999;
+        const bOrder = b.block.category_sort_order != null ? b.block.category_sort_order : 999;
+        if (aOrder !== bOrder) return aOrder - bOrder;
+        return a.index - b.index;
+      });
+
       html += `<div class="nav-page-items nav-page-items--collapsed">`;
 
-      page.items.forEach(({ block }) => {
+      let categoryItemsOpen = null;
+      sortedItems.forEach(({ block }) => {
         const snapshot = block.snapshot || {};
 
         if (block.type === 'page_title') {
           // Page title is the header, skip as nav item
         } else if (block.type === 'category_title') {
+          if (categoryItemsOpen) {
+            html += `</div>`;
+            categoryItemsOpen = null;
+          }
           const isActive = activeBlockId === block.id;
-          html += `<div class="nav-item nav-item--category ${isActive ? 'nav-item--active' : ''}" data-block-id="${block.id}">
+          html += `<div class="nav-item nav-item--category ${isActive ? 'nav-item--active' : ''}" data-block-id="${block.id}" data-category="${escapeHtml(snapshot.title || '')}">
             <span class="nav-item__label">${escapeHtml(snapshot.title || 'Uncategorized')}</span>
+            <span class="nav-category-toggle">▸</span>
           </div>`;
+          html += `<div class="nav-category-items nav-category-items--collapsed">`;
+          categoryItemsOpen = snapshot.title || '';
         } else if (block.type === 'form_question') {
           const label = snapshot.label || 'Question';
           const isActive = activeBlockId === block.id;
-          html += `<div class="nav-item nav-item--question ${isActive ? 'nav-item--active' : ''}" data-block-id="${block.id}">
-            <span class="nav-item__label">${escapeHtml(label)}</span>
-          </div>`;
+          if (categoryItemsOpen && snapshot.category === categoryItemsOpen) {
+            html += `<div class="nav-item nav-item--question ${isActive ? 'nav-item--active' : ''}" data-block-id="${block.id}">
+              <span class="nav-item__label">${escapeHtml(label)}</span>
+            </div>`;
+          } else {
+            html += `<div class="nav-item nav-item--question ${isActive ? 'nav-item--active' : ''}" data-block-id="${block.id}">
+              <span class="nav-item__label">${escapeHtml(label)}</span>
+            </div>`;
+          }
         } else if (block.type === 'page_break') {
+          if (categoryItemsOpen) {
+            html += `</div>`;
+            categoryItemsOpen = null;
+          }
           html += `<div class="nav-item nav-item--break" data-block-id="${block.id}">
             <span class="nav-item__label">Page Break</span>
           </div>`;
         }
       });
+
+      if (categoryItemsOpen) {
+        html += `</div>`;
+      }
 
       html += `</div></div>`;
     });
@@ -2438,6 +2469,21 @@ const IMAGE_FRAMES = [
         });
         renderCurrentPage();
         updateNavPanel();
+      });
+    });
+
+    panel.querySelectorAll('.nav-item--category').forEach(cat => {
+      cat.addEventListener('click', () => {
+        const group = cat.closest('.nav-page-group');
+        const itemsContainer = group.querySelector('.nav-page-items');
+        const nextSibling = cat.nextElementSibling;
+        if (nextSibling && nextSibling.classList.contains('nav-category-items')) {
+          const isCollapsed = nextSibling.classList.toggle('nav-category-items--collapsed');
+          const toggle = cat.querySelector('.nav-category-toggle');
+          if (toggle) {
+            toggle.textContent = isCollapsed ? '▸' : '▾';
+          }
+        }
       });
     });
 

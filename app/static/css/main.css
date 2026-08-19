@@ -1836,6 +1836,33 @@ input[type="text"], input[type="date"], textarea, select {
   font-weight: 600;
 }
 
+.sidebar-quote-mode .nav-item--category {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sidebar-quote-mode .nav-category-toggle {
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.6);
+  margin-left: 6px;
+}
+
+.sidebar-quote-mode .nav-category-items {
+  overflow: hidden;
+}
+
+.sidebar-quote-mode .nav-category-items--collapsed {
+  display: none;
+}
+
+.sidebar-quote-mode .nav-item--question {
+  padding-left: 1.5rem;
+  font-size: 0.8rem;
+  color: rgba(255,255,255,0.75);
+}
+
 .merge-tag-pick {
   display: inline-block;
   background: #e9ecef;

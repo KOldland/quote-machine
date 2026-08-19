@@ -33,6 +33,7 @@ from template_store import (
     _get_form_template_id,
     get_line_items_by_codes,
     get_line_items_for_page,
+    get_all_pages,
 )
 
 quote_editor_bp = Blueprint('quote_editor', __name__)
@@ -59,6 +60,27 @@ def _get_category_image(page_key, category_name):
     except Exception:
         pass
     return ''
+
+
+def _get_page_category_order(page_key):
+    """Return dict of category_name -> display_order from category_templates."""
+    try:
+        conn = sqlite3.connect(str(DB_PATH))
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            '''
+            SELECT ct.name, ct.display_order
+            FROM category_templates ct
+            JOIN page_templates pt ON pt.id = ct.page_template_id
+            WHERE pt.page_key = ?
+            ORDER BY ct.display_order ASC
+            ''',
+            (page_key,),
+        ).fetchall()
+        conn.close()
+        return {r['name']: r['display_order'] for r in rows}
+    except Exception:
+        return {}
 
 
 DB_PATH = Path(__file__).parent / "template_store.sqlite3"
@@ -189,7 +211,98 @@ def load_quote_route(quote_id):
     session.pop('old_form_answers', None)
     session.modified = True
     fresh_blocks = get_quote_editor_blocks()
+    fresh_blocks = _resort_blocks_by_db_category_order(fresh_blocks)
+    quote = _resort_quote_blocks_json_by_db_category_order(quote)
     return jsonify({'success': True, 'quote': quote, 'fresh_blocks': fresh_blocks})
+
+
+def _resort_quote_blocks_json_by_db_category_order(quote):
+    """Re-sort a saved quote's stored blocks_json by DB category display_order.
+
+    Used as a fallback when fresh_blocks cannot be regenerated (e.g. the saved
+    quote has no form_data). Keeps the stored structure but fixes category order
+    to match BUILD MODE.
+    """
+    if not isinstance(quote, dict):
+        return quote
+    raw = quote.get('blocks_json')
+    if isinstance(raw, str):
+        try:
+            blocks = json.loads(raw)
+        except (TypeError, ValueError):
+            return quote
+    elif isinstance(raw, list):
+        blocks = raw
+    else:
+        return quote
+    if not isinstance(blocks, list):
+        return quote
+    quote = dict(quote)
+    quote['blocks_json'] = json.dumps(_resort_blocks_by_db_category_order(blocks))
+    return quote
+
+
+def _resort_blocks_by_db_category_order(blocks):
+    """Re-order category groups within each page using DB category_templates.display_order.
+
+    This guarantees the rendered order matches BUILD MODE regardless of how the
+    blocks were originally stored (e.g. stale saved quotes generated before the
+    DB-order fix). Blocks are grouped per page (split on page_title/page_break)
+    and categories are sorted by their DB display_order; blocks without a known
+    category keep their insertion order.
+    """
+    if not blocks:
+        return blocks
+
+    page_groups = []
+    current = []
+    for b in blocks:
+        if b.get('type') in ('page_title', 'page_break') and current:
+            page_groups.append(current)
+            current = []
+        current.append(b)
+    if current:
+        page_groups.append(current)
+
+    ordered = []
+    for group in page_groups:
+        page_key = None
+        for b in group:
+            if b.get('source_page'):
+                page_key = b['source_page']
+                break
+        db_order = _get_page_category_order(page_key) if page_key else {}
+
+        # Group blocks by category, preserving intra-category order.
+        category_buckets = {}
+        bucket_order = []
+        loose = []
+        for b in group:
+            cat = None
+            if b.get('type') == 'category_title':
+                cat = b.get('snapshot', {}).get('title')
+            elif b.get('type') == 'form_question':
+                cat = b.get('snapshot', {}).get('category')
+            if cat:
+                if cat not in category_buckets:
+                    category_buckets[cat] = []
+                    bucket_order.append(cat)
+                category_buckets[cat].append(b)
+            else:
+                loose.append(b)
+
+        def _cat_rank(c):
+            if c in db_order:
+                return db_order[c]
+            return 999
+
+        sorted_cats = sorted(bucket_order, key=_cat_rank)
+        for b in loose:
+            ordered.append(b)
+        for cat in sorted_cats:
+            ordered.extend(category_buckets[cat])
+
+    return ordered
 
 
 @quote_editor_bp.route('/quote_editor/quotes', methods=['GET'])
@@ -409,6 +522,7 @@ def add_form_block():
     snapshot_blocks = []
     seen_pages = set()
     seen_categories = set()
+    db_category_order = _get_page_category_order(page_key)
     for b in blocks:
         block_type = b.get('block_type', b.get('type', ''))
         storage = b.get('storage', {})
@@ -441,11 +555,11 @@ def add_form_block():
                     'editor_overrides': {},
                     'flags': { 'source_dirty': False, 'editor_dirty': False },
                     'settings': { 'margin_top': 10, 'margin_bottom': 10, 'padding': 12, 'alignment': 'left' },
+                    'category_sort_order': -1,
                 })
 
-            page_categories = {c['name']: c.get('sort_order', 0) for c in page.get('categories', [])}
             items.sort(key=lambda x: (
-                page_categories.get(x.get('category', ''), 999),
+                db_category_order.get(x.get('category', ''), 999),
                 x.get('sort_order', 0),
                 x.get('line_code', '')
             ))
@@ -467,6 +581,7 @@ def add_form_block():
                             'editor_overrides': {},
                             'flags': { 'source_dirty': False, 'editor_dirty': False },
                             'settings': { 'margin_top': 5, 'margin_bottom': 5, 'padding': 12, 'alignment': 'left', 'font_size': 20 },
+                            'category_sort_order': db_category_order.get(category, 999),
                         })
 
                 output_title = item.get('output_title', '') or item.get('line_code', '')
@@ -517,6 +632,7 @@ def add_form_block():
                     'editor_overrides': {},
                     'flags': { 'source_dirty': False, 'editor_dirty': False },
                     'settings': { 'margin_top': 2, 'margin_bottom': 2, 'padding': 12, 'alignment': 'left' },
+                    'category_sort_order': db_category_order.get(category, 999),
                 })
             continue
 
@@ -681,6 +797,7 @@ def _build_page_blocks(page_key, page, form_data, checkbox_data):
     snapshot_blocks = []
     seen_pages = set()
     seen_categories = set()
+    db_category_order = _get_page_category_order(page_key)
 
     page_title = page.get('title') or page_key.replace('_', ' ').title()
     if page_title not in seen_pages:
@@ -694,6 +811,7 @@ def _build_page_blocks(page_key, page, form_data, checkbox_data):
             'editor_overrides': {},
             'flags': { 'source_dirty': False, 'editor_dirty': False, 'hidden': False },
             'settings': { 'margin_top': 0, 'margin_bottom': 0, 'padding': 0, 'alignment': 'left' },
+            'category_sort_order': -1,
         })
         snapshot_blocks.append({
             'id': f"form__{page_key}__page_heading",
@@ -704,6 +822,7 @@ def _build_page_blocks(page_key, page, form_data, checkbox_data):
             'editor_overrides': {},
             'flags': { 'source_dirty': False, 'editor_dirty': False },
             'settings': { 'margin_top': 10, 'margin_bottom': 10, 'padding': 12, 'alignment': 'left', 'font_size': 24 },
+            'category_sort_order': -1,
         })
 
     page_merge_tags = get_merge_tag_values(page_key, session, get_line_items_for_page, page_blocks=page.get('blocks', []))
@@ -726,9 +845,8 @@ def _build_page_blocks(page_key, page, form_data, checkbox_data):
             if not items:
                  continue
 
-            page_categories = {c['name']: c.get('sort_order', 0) for c in page.get('categories', [])}
             items.sort(key=lambda x: (
-                page_categories.get(x.get('category', ''), 999),
+                db_category_order.get(x.get('category', ''), 999),
                 x.get('sort_order', 0),
                 x.get('line_code', '')
             ))
@@ -750,6 +868,7 @@ def _build_page_blocks(page_key, page, form_data, checkbox_data):
                             'editor_overrides': {},
                             'flags': { 'source_dirty': False, 'editor_dirty': False },
                             'settings': { 'margin_top': 5, 'margin_bottom': 5, 'padding': 12, 'alignment': 'left', 'font_size': 20 },
+                            'category_sort_order': db_category_order.get(category, 999),
                         })
 
                 output_title = item.get('output_title', '') or item.get('line_code', '')
@@ -800,6 +919,7 @@ def _build_page_blocks(page_key, page, form_data, checkbox_data):
                     'editor_overrides': {},
                     'flags': { 'source_dirty': False, 'editor_dirty': False },
                     'settings': { 'margin_top': 2, 'margin_bottom': 2, 'padding': 12, 'alignment': 'left' },
+                    'category_sort_order': db_category_order.get(category, 999),
                 })
             continue
 
@@ -818,6 +938,7 @@ def _build_page_blocks(page_key, page, form_data, checkbox_data):
                 'editor_overrides': {},
                 'flags': { 'source_dirty': False, 'editor_dirty': False },
                 'settings': { 'margin_top': 2, 'margin_bottom': 2, 'padding': 12, 'alignment': 'left', 'font_size': 16 },
+                'category_sort_order': 999,
             })
 
     return snapshot_blocks
@@ -832,6 +953,13 @@ def build_quote_editor_blocks_for_all_pages():
     pages = payload.get('builder_beta', {}).get('pages', payload.get('pages', {}))
     if not pages:
         return []
+
+    try:
+        ordered_pages = get_all_pages(template_key=form_key)
+        page_display_orders = {pg['page_key']: pg['display_order'] for pg in ordered_pages}
+        pages = dict(sorted(pages.items(), key=lambda x: page_display_orders.get(x[0], 999)))
+    except Exception:
+        pass
 
     form_data = session.get('data', {})
     checkbox_data = session.get('checkbox_data', {})
