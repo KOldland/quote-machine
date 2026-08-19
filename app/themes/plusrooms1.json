@@ -1,0 +1,123 @@
+{
+  "name": "PlusRooms1",
+  "settings": {
+    "document_styles": {
+      "font_family": "Arial, sans-serif",
+      "font_size_base": 16,
+      "header_font_size": 8,
+      "footer_font_size": 8,
+      "page_size": "A4",
+      "header": {
+        "enabled": true,
+        "document_id_type": "customer_address",
+        "document_id_manual": "",
+        "logo_url": "/static/uploads/quote_editor/fff24be5_headerlogo.jpg",
+        "logo_width": 50,
+        "logo_height": 29,
+        "logo_alignment": "right",
+        "doc_id_alignment": "left",
+        "divider_style": "single",
+        "divider_thickness": 0.5,
+        "preset_padding": 40,
+        "hide_on_cover": false
+      },
+      "footer": {
+        "enabled": true,
+        "divider_style": "single",
+        "divider_thickness": 0.5,
+        "page_number_mode": "skip_first",
+        "page_number_alignment": "right",
+        "preset_padding": 80,
+        "hide_on_cover": true
+      },
+      "margins": {
+        "margin_top": 20,
+        "margin_bottom": 20,
+        "margin_left": 25,
+        "margin_right": 25
+      },
+      "typography": {
+        "h1": {
+          "family": "",
+          "weight": "",
+          "size": 24,
+          "bold": false,
+          "italic": false,
+          "underline": false,
+          "color": "#000000"
+        },
+        "h2": {
+          "family": "Arial, sans-serif",
+          "weight": "600",
+          "size": 20,
+          "bold": false,
+          "italic": false,
+          "underline": false,
+          "color": "#990000"
+        },
+        "h3": {
+          "family": "",
+          "weight": "",
+          "size": 18,
+          "bold": false,
+          "italic": false,
+          "underline": false,
+          "color": "#000000"
+        },
+        "para": {
+          "family": "Arial, sans-serif",
+          "weight": "",
+          "size": 12,
+          "bold": false,
+          "italic": false,
+          "underline": false,
+          "color": "#424242"
+        },
+        "notes": {
+          "family": "",
+          "weight": "",
+          "size": 14,
+          "bold": false,
+          "italic": false,
+          "underline": false,
+          "color": "#000000"
+        },
+        "guide": {
+          "family": "Arial, sans-serif",
+          "weight": "300",
+          "size": 10,
+          "bold": false,
+          "italic": false,
+          "underline": false,
+          "color": "#187e8c"
+        },
+        "guidance": {
+          "family": "Arial, sans-serif",
+          "weight": "300",
+          "size": 10,
+          "bold": false,
+          "italic": true,
+          "underline": false,
+          "color": "#04575d"
+        }
+      },
+      "tables": {
+        "border": "1px solid #ccc",
+        "header_bg": "#f5f5f5",
+        "row_bg": "#ffffff",
+        "alt_row_bg": "#fafafa",
+        "font_size": 14
+      },
+      "images": {
+        "frame": "none",
+        "shadow": false
+      },
+      "links": {
+        "color": "#0d6efd",
+        "underline": true
+      }
+    }
+  },
+  "is_default": false,
+  "created_at": "2026-08-19T17:58:36.193465"
+}

@@ -794,6 +794,41 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // ── Page Reorder AJAX Handler ──────────────────────────────────────────
+    document.addEventListener('click', function(e) {
+        var btn = e.target.closest('.page-reorder-btn');
+        if (!btn) return;
+        e.preventDefault();
+        e.stopPropagation();
+
+        var pageKey = btn.dataset.page;
+        var dir = btn.dataset.dir;
+        if (!pageKey) return;
+
+        fetch('/builder_beta/page/reorder', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''
+            },
+            body: JSON.stringify({
+                page_key: pageKey,
+                direction: dir
+            })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert('Page reorder failed: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(function(e) {
+            alert('Page reorder request failed.');
+        });
+    });
+
     // ── Render editors ────────────────────────────────────────────────────
     
     function renderPageEditor() {

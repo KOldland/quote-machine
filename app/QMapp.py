@@ -624,6 +624,7 @@ def get_builder_beta_state():
             if pid in pages:
                 pages[pid]['display_order'] = pg['display_order']
         pages = dict(sorted(pages.items(), key=lambda x: x[1].get('display_order', 999)))
+        state['pages'] = pages
     except Exception:
         pass
 

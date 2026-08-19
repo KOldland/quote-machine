@@ -243,41 +243,181 @@ def _resort_quote_blocks_json_by_db_category_order(quote):
 
 
 def _resort_blocks_by_db_category_order(blocks):
-    """Re-order category groups within each page using DB category_templates.display_order.
+    """Re-order both pages and categories using DB display_order.
 
-    This guarantees the rendered order matches BUILD MODE regardless of how the
-    blocks were originally stored (e.g. stale saved quotes generated before the
-    DB-order fix). Blocks are grouped per page (split on page_title/page_break)
-    and categories are sorted by their DB display_order; blocks without a known
-    category keep their insertion order.
+    Repairs stale saved-quote blocks_json that may have:
+      - pages in the wrong order
+      - categories in the wrong order within a page
+      - blocks assigned to the wrong page group (e.g. after a category rename)
+
+    Each block's source_page is validated against the DB: if a block's category
+    does not exist on its assigned page, it is moved to the page that actually
+    owns that category. Blocks without a known source_page (manual editor blocks
+    like calculator/image_group) are appended at the end in their original order.
     """
     if not blocks:
         return blocks
 
-    page_groups = []
-    current = []
+    # Build category -> page_key mapping from DB (used to reassign misplaced blocks).
+    # Also build a rename map for known stale category names that were changed
+    # in BUILD MODE but still appear in old saved quotes.
+    try:
+        conn = sqlite3.connect(str(DB_PATH))
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            """
+            SELECT pt.page_key, ct.name
+            FROM category_templates ct
+            JOIN page_templates pt ON pt.id = ct.page_template_id
+            ORDER BY pt.display_order ASC, ct.display_order ASC
+            """
+        ).fetchall()
+        cat_to_page = {r['name']: r['page_key'] for r in rows}
+        conn.close()
+    except Exception:
+        cat_to_page = {}
+
+    # Known stale -> current name mappings (from BUILD MODE renames).
+    # These let us repair old blocks_json without dropping data.
+    rename_map = {
+        'Building Works': 'Work Summary',
+    }
+
+    # Build line_code -> output_title mapping from DB for ALL pages.
+    # Used to repair stale blocks whose snapshot.label was saved as the raw
+    # line_code (spreadsheet artifact) instead of the proper output_title.
+    line_code_to_title = {}
+    try:
+        conn = sqlite3.connect(str(DB_PATH))
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            """
+            SELECT line_code, output_title
+            FROM line_items
+            WHERE output_title IS NOT NULL AND TRIM(output_title) != ''
+            """
+        ).fetchall()
+        for r in rows:
+            line_code_to_title[r['line_code']] = r['output_title']
+        conn.close()
+    except Exception:
+        pass
+
+    # Separate form blocks (have source_page) from manual blocks (no source_page).
+    form_blocks = []
+    manual_blocks = []
     for b in blocks:
-        if b.get('type') in ('page_title', 'page_break') and current:
-            page_groups.append(current)
-            current = []
-        current.append(b)
-    if current:
-        page_groups.append(current)
+        if b.get('source_page'):
+            form_blocks.append(b)
+        else:
+            manual_blocks.append(b)
 
+    # Apply known renames to stale blocks before reassignment.
+    renamed = 0
+    for b in form_blocks:
+        sp = b['source_page']
+        cat = None
+        if b.get('type') == 'category_title':
+            cat = b.get('snapshot', {}).get('title')
+        elif b.get('type') == 'form_question':
+            cat = b.get('snapshot', {}).get('category')
+        if cat and cat in rename_map:
+            b = dict(b)
+            if b.get('type') == 'category_title':
+                b.setdefault('snapshot', {})['title'] = rename_map[cat]
+            elif b.get('type') == 'form_question':
+                b.setdefault('snapshot', {})['category'] = rename_map[cat]
+            renamed += 1
+    if renamed:
+        print(f"[_resort_blocks] Renamed {renamed} stale category blocks: {rename_map}")
+
+    # Repair stale snapshot.label values that were saved as raw line codes
+    # (spreadsheet artifacts like "bw0^", "pp1@"). Replace with the proper
+    # output_title from the DB when available; otherwise blank the label.
+    relabel_count = 0
+    for b in form_blocks:
+        if b.get('type') != 'form_question':
+            continue
+        snapshot = b.get('snapshot') or {}
+        label = (snapshot.get('label') or '').strip()
+        line_code = (snapshot.get('line_code') or '').strip()
+        if not label or not line_code:
+            continue
+        # If label equals line_code, it's a raw spreadsheet code — repair it.
+        if label == line_code and line_code in line_code_to_title:
+            b = dict(b)
+            b.setdefault('snapshot', {})['label'] = line_code_to_title[line_code]
+            relabel_count += 1
+        elif label == line_code and line_code not in line_code_to_title:
+            # No proper title in DB — blank it so the UI shows a placeholder
+            # instead of exposing the raw spreadsheet code.
+            b = dict(b)
+            b.setdefault('snapshot', {})['label'] = ''
+            relabel_count += 1
+    if relabel_count:
+        print(f"[_resort_blocks] Relabeled {relabel_count} stale line-code labels")
+
+    # Reassign misplaced blocks: if a block's category does not belong to its
+    # declared source_page in the DB, move it to the correct page.
+    # Drop blocks whose category no longer exists anywhere in the DB and has
+    # no known rename (truly orphaned data).
+    reassigned = []
+    dropped = 0
+    for b in form_blocks:
+        sp = b['source_page']
+        cat = None
+        if b.get('type') == 'category_title':
+            cat = b.get('snapshot', {}).get('title')
+        elif b.get('type') == 'form_question':
+            cat = b.get('snapshot', {}).get('category')
+        if cat:
+            if cat not in cat_to_page:
+                dropped += 1
+                continue
+            if cat_to_page[cat] != sp:
+                b = dict(b)
+                b['source_page'] = cat_to_page[cat]
+        reassigned.append(b)
+
+    # Group form blocks by (possibly corrected) source_page.
+    page_buckets = {}
+    page_order = []
+    for b in reassigned:
+        sp = b['source_page']
+        if sp not in page_buckets:
+            page_buckets[sp] = []
+            page_order.append(sp)
+        page_buckets[sp].append(b)
+
+    # Sort pages by DB display_order.
+    try:
+        ordered_pages = get_all_pages(template_key=session.get('template_key', 'builder_beta'))
+        page_db_order = {pg['page_key']: pg['display_order'] for pg in ordered_pages}
+    except Exception:
+        page_db_order = {}
+
+    def _page_rank(sp):
+        return page_db_order.get(sp, 999)
+
+    sorted_pages = sorted(page_order, key=_page_rank)
+
+    # Within each page, sort categories by DB display_order.
     ordered = []
-    for group in page_groups:
-        page_key = None
-        for b in group:
-            if b.get('source_page'):
-                page_key = b['source_page']
-                break
-        db_order = _get_page_category_order(page_key) if page_key else {}
+    for sp in sorted_pages:
+        group = page_buckets[sp]
+        db_order = _get_page_category_order(sp)
 
-        # Group blocks by category, preserving intra-category order.
+        # Collect page_title/page_break blocks (keep first one as the page header).
+        page_separators = [b for b in group if b.get('type') in ('page_title', 'page_break')]
+        page_header = page_separators[0] if page_separators else None
+
+        # Group remaining blocks by category.
         category_buckets = {}
-        bucket_order = []
+        cat_order = []
         loose = []
         for b in group:
+            if b.get('type') in ('page_title', 'page_break'):
+                continue  # handled above
             cat = None
             if b.get('type') == 'category_title':
                 cat = b.get('snapshot', {}).get('title')
@@ -286,7 +426,7 @@ def _resort_blocks_by_db_category_order(blocks):
             if cat:
                 if cat not in category_buckets:
                     category_buckets[cat] = []
-                    bucket_order.append(cat)
+                    cat_order.append(cat)
                 category_buckets[cat].append(b)
             else:
                 loose.append(b)
@@ -296,13 +436,31 @@ def _resort_blocks_by_db_category_order(blocks):
                 return db_order[c]
             return 999
 
-        sorted_cats = sorted(bucket_order, key=_cat_rank)
+        sorted_cats = sorted(cat_order, key=_cat_rank)
+
+        if page_header:
+            ordered.append(page_header)
         for b in loose:
             ordered.append(b)
         for cat in sorted_cats:
             ordered.extend(category_buckets[cat])
 
-    return ordered
+    # Append manual blocks (calculator, image_group, etc.) at the end.
+    ordered.extend(manual_blocks)
+
+    # Filter out form_question blocks with empty labels — these are spreadsheet
+    # artifacts with no proper output_title and should not appear in QUOTE MODE.
+    filtered = []
+    dropped = 0
+    for b in ordered:
+        if b.get('type') == 'form_question' and not (b.get('snapshot') or {}).get('label', '').strip():
+            dropped += 1
+            continue
+        filtered.append(b)
+    if dropped:
+        print(f"[_resort_blocks] Dropped {dropped} form_question blocks with empty labels")
+
+    return filtered
 
 
 @quote_editor_bp.route('/quote_editor/quotes', methods=['GET'])
@@ -584,7 +742,9 @@ def add_form_block():
                             'category_sort_order': db_category_order.get(category, 999),
                         })
 
-                output_title = item.get('output_title', '') or item.get('line_code', '')
+                output_title = item.get('output_title', '') or ''
+                if not output_title.strip():
+                    continue  # skip items with no display text — spreadsheet artifacts
                 raw_notes = item.get('output_notes', '')
                 item_merge_tags = dict(page_merge_tags)
                 follow_up_config = item.get('follow_up_config')
@@ -871,7 +1031,9 @@ def _build_page_blocks(page_key, page, form_data, checkbox_data):
                             'category_sort_order': db_category_order.get(category, 999),
                         })
 
-                output_title = item.get('output_title', '') or item.get('line_code', '')
+                output_title = item.get('output_title', '') or ''
+                if not output_title.strip():
+                    continue  # skip items with no display text — spreadsheet artifacts
                 raw_notes = item.get('output_notes', '')
                 item_merge_tags = dict(page_merge_tags)
                 follow_up_config = item.get('follow_up_config')

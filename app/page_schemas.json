@@ -88,7 +88,7 @@
         "id": "special_notes_page",
         "title": "Special Notes",
         "navigation": {
-          "next_endpoint": "summary_page",
+          "next_endpoint": "materials_page",
           "previous_endpoint": "index"
         },
         "blocks": [
@@ -105,14 +105,14 @@
             "output_group": "General"
           }
         ],
-        "display_order": 2
+        "display_order": 1
       },
       "summary_page": {
         "id": "summary_page",
         "title": "Summary Page",
         "navigation": {
-          "next_endpoint": "special_notes_page",
-          "previous_endpoint": "special_notes_page"
+          "next_endpoint": "materials_page",
+          "previous_endpoint": "materials_page"
         },
         "blocks": [
           {
@@ -123,7 +123,7 @@
         ],
         "categories": [
           {
-            "name": "Building Works",
+            "name": "Work Summary",
             "sort_order": 0,
             "output_group": "General"
           },
@@ -158,14 +158,14 @@
             "output_group": "General"
           }
         ],
-        "display_order": 1
+        "display_order": 3
       },
       "materials_page": {
         "id": "materials_page",
         "title": "Materials and Details",
         "navigation": {
           "next_endpoint": "further_requirements_page",
-          "previous_endpoint": "special_notes_page"
+          "previous_endpoint": "summary_page"
         },
         "blocks": [
           {
@@ -600,7 +600,7 @@
             "output_group": "General"
           }
         ],
-        "display_order": 3
+        "display_order": 2
       },
       "further_requirements_page": {
         "id": "further_requirements_page",
@@ -1145,7 +1145,7 @@
         }
       ],
       "navigation": {
-        "previous_endpoint": "special_notes_page",
+        "previous_endpoint": "summary_page",
         "next_endpoint": "further_requirements_page"
       }
     },
