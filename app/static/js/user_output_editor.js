@@ -591,20 +591,76 @@ const IMAGE_FRAMES = [
     clearSelection();
   }
 
-  function clearListFromSelection() {
-    const selected = getSelectedBlocks();
-    if (!selected.length) return;
-    selected.forEach(block => {
-      delete block.list_group_id;
-      delete block.list_type;
-      delete block.list_index;
-    });
-    pushHistory();
-    rebuildPages();
-    renderCurrentPage();
-    updateNavPanel();
-    clearSelection();
-  }
+   function clearListFromSelection() {
+     const selected = getSelectedBlocks();
+     if (!selected.length) return;
+     selected.forEach(block => {
+       delete block.list_group_id;
+       delete block.list_type;
+       delete block.list_index;
+     });
+     pushHistory();
+     rebuildPages();
+     renderCurrentPage();
+     updateNavPanel();
+     clearSelection();
+   }
+
+   function getAvailableMergeTags() {
+     const tags = new Set();
+     const currentPage = pages[window.__currentPageIndex || 0] || [];
+     currentPage.forEach(block => {
+       const snapshot = block.snapshot || {};
+       const outputNotes = snapshot.output_notes || '';
+       const matches = outputNotes.match(/\{([^{}]+)\}/g);
+       if (matches) {
+         matches.forEach(m => tags.add(m.slice(1, -1)));
+       }
+       const outputGuidance = snapshot.output_guidance || '';
+       const guidanceMatches = outputGuidance.match(/\{([^{}]+)\}/g);
+       if (guidanceMatches) {
+         guidanceMatches.forEach(m => tags.add(m.slice(1, -1)));
+       }
+     });
+     return Array.from(tags).sort();
+   }
+
+   function populateMergeTags() {
+     const list = document.getElementById('mergeTagList');
+     if (!list) return;
+     const tags = getAvailableMergeTags();
+     if (!tags.length) {
+       list.innerHTML = '<p style="color:#666; font-size:0.85rem;">No merge tags available.</p>';
+       return;
+     }
+     list.innerHTML = tags.map(tag =>
+       `<button class="merge-tag-item" data-tag="{${tag}}"><code>{${tag}}</code></button>`
+     ).join('');
+     list.querySelectorAll('.merge-tag-item').forEach(btn => {
+       btn.addEventListener('click', () => {
+         insertMergeTag(btn.dataset.tag);
+       });
+     });
+   }
+
+   function insertMergeTag(tag) {
+     const popup = document.getElementById('mergeTagPopup');
+     if (popup) popup.style.display = 'none';
+     const active = document.querySelector('.editor-block.is-active .editor-block__content');
+     if (!active) return;
+     active.focus();
+     const sel = window.getSelection();
+     if (!sel.rangeCount) return;
+     const range = sel.getRangeAt(0);
+     range.deleteContents();
+     const textNode = document.createTextNode(tag);
+     range.insertNode(textNode);
+     range.setStartAfter(textNode);
+     range.setEndAfter(textNode);
+     sel.removeAllRanges();
+     sel.addRange(range);
+     triggerAutoSave();
+   }
 
   function clearAllLists() {
     blocks.forEach(block => {
@@ -753,6 +809,30 @@ const IMAGE_FRAMES = [
 
     document.getElementById('insertImageToolbarBtn').addEventListener('click', () => {
       openGalleryModal('image');
+    });
+
+    document.getElementById('insertMergeTagBtn')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const popup = document.getElementById('mergeTagPopup');
+      if (!popup) return;
+      const rect = e.currentTarget.getBoundingClientRect();
+      popup.style.position = 'fixed';
+      popup.style.top = (rect.bottom + 4) + 'px';
+      popup.style.left = rect.left + 'px';
+      if (popup.style.display === 'none') {
+        populateMergeTags();
+        popup.style.display = 'block';
+      } else {
+        popup.style.display = 'none';
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      const popup = document.getElementById('mergeTagPopup');
+      const btn = document.getElementById('insertMergeTagBtn');
+      if (popup && btn && !popup.contains(e.target) && e.target !== btn) {
+        popup.style.display = 'none';
+      }
     });
 
     document.getElementById('undoBtn')?.addEventListener('click', undo);
@@ -2487,7 +2567,7 @@ const IMAGE_FRAMES = [
            blocks = [];
            activeBlockId = null;
            updateSettingsPanel();
-           const blist = quote.blocks_json || [];
+           const blist = (d.fresh_blocks || []).length > 0 ? d.fresh_blocks : (quote.blocks_json || []);
            blist.forEach(b => addBlock(b));
            window.__currentPageIndex = 0;
            if (blocks.length > 0) activeBlockId = blocks[0].id;

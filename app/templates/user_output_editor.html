@@ -80,12 +80,19 @@
         </button>
         <button type="button" id="clearListBtn" title="Clear List" class="toolbar-btn toolbar-btn--text">Clear</button>
         <span class="toolbar-separator"></span>
-        <button type="button" id="insertImageToolbarBtn" title="Insert Image" class="toolbar-btn toolbar-btn--icon">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="1" y="2" width="14" height="12" rx="1.5"/><circle cx="5.5" cy="6" r="1.8"/><path d="M1 12l4-4 3 3 2-2 5 5"/></svg>
-        </button>
-        <button type="button" class="ribbon-toggle toolbar-btn" id="ribbonToggle" title="Toggle Advanced Controls">
-          Advanced
-        </button>
+         <button type="button" id="insertImageToolbarBtn" title="Insert Image" class="toolbar-btn toolbar-btn--icon">
+           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="1" y="2" width="14" height="12" rx="1.5"/><circle cx="5.5" cy="6" r="1.8"/><path d="M1 12l4-4 3 3 2-2 5 5"/></svg>
+         </button>
+         <button type="button" id="insertMergeTagBtn" title="Insert Merge Tag" class="toolbar-btn toolbar-btn--text">{ }</button>
+         <div class="merge-tag-popup" id="mergeTagPopup" style="display:none;">
+           <div class="merge-tag-popup-header">Available Merge Tags</div>
+           <div class="merge-tag-popup-body" id="mergeTagList">
+             <p style="color:#666; font-size:0.85rem;">Loading...</p>
+           </div>
+         </div>
+         <button type="button" class="ribbon-toggle toolbar-btn" id="ribbonToggle" title="Toggle Advanced Controls">
+           Advanced
+         </button>
       </div>
 
       <div class="advanced-ribbon collapsed" id="advancedRibbon">

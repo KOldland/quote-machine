@@ -2558,6 +2558,7 @@ def dynamic_page(page_id):
 
     checkbox_data = session.setdefault('checkbox_data', {})
 
+    form_data = session.setdefault('data', {})
     if request.method == 'POST':
         for block in page.get('blocks', []):
             field_name = block.get('standard', {}).get('name') or block.get('id')
@@ -2567,10 +2568,14 @@ def dynamic_page(page_id):
                 selected = request.form.getlist(field_name)
                 checkbox_data[field_name] = {'preselected': selected}
             else:
-                value = (request.form.get(field_name) or '')
-                if value:
-                    checkbox_data[field_name] = value
+                value = request.form.get(field_name, '')
+                form_data[field_name] = value
+        for key in request.form.keys():
+            if key.startswith('follow_up_'):
+                value = request.form.get(key, '')
+                checkbox_data[key] = value
         session['checkbox_data'] = checkbox_data
+        session['data'] = form_data
         session.modified = True
 
         # ── Form → Quote live sync ──────────────────────────────────────
@@ -2698,6 +2703,7 @@ def dynamic_page(page_id):
             li_categories=_li_cats,
             li_groups=li_groups_data,
             current_page_id=page_id,
+            saved_form_data=session.get('checkbox_data', {}),
             **_get_runtime_quote_context()
         )
 

@@ -179,14 +179,17 @@ def load_quote_route(quote_id):
         return jsonify({'success': False, 'error': 'Quote not found'}), 404
     session['active_quote_id'] = quote_id
     form_data = quote.get('form_data') or {}
-    session['data'] = form_data.get('data', {})
-    session['checkbox_data'] = form_data.get('checkbox_data', {})
-    if form_data.get('template_key'):
+    if 'data' not in session:
+        session['data'] = form_data.get('data', {})
+    if 'checkbox_data' not in session:
+        session['checkbox_data'] = form_data.get('checkbox_data', {})
+    if form_data.get('template_key') and 'template_key' not in session:
         session['template_key'] = form_data['template_key']
     session.pop('legacy_spreadsheet_data', None)
     session.pop('old_form_answers', None)
     session.modified = True
-    return jsonify({'success': True, 'quote': quote})
+    fresh_blocks = get_quote_editor_blocks()
+    return jsonify({'success': True, 'quote': quote, 'fresh_blocks': fresh_blocks})
 
 
 @quote_editor_bp.route('/quote_editor/quotes', methods=['GET'])
@@ -382,9 +385,9 @@ def get_source_block(page_key, block_id):
             'label': target.get('label', ''),
             'type': target.get('type', ''),
             'value': value,
-            'raw': target,
-        }
-    })
+             'raw': target,
+         }
+     })
 
 
 # ── Add-to-Quote Integration ────────────────────────────────────────
@@ -467,8 +470,35 @@ def add_form_block():
                         })
 
                 output_title = item.get('output_title', '') or item.get('line_code', '')
-                output_notes = replace_merge_tags(item.get('output_notes', ''), merge_tags)
-                output_guidance = replace_merge_tags(item.get('output_guidance', ''), merge_tags)
+                raw_notes = item.get('output_notes', '')
+                item_merge_tags = dict(page_merge_tags)
+                follow_up_config = item.get('follow_up_config')
+                if follow_up_config:
+                    configs = []
+                    if isinstance(follow_up_config, str):
+                        try:
+                            parsed = json.loads(follow_up_config)
+                            configs = parsed if isinstance(parsed, list) else [parsed]
+                        except Exception:
+                            pass
+                    elif isinstance(follow_up_config, list):
+                        configs = follow_up_config
+                    for idx, cfg in enumerate(configs):
+                        cfg_type = cfg.get('type', '')
+                        field_name = f"follow_up_{item.get('line_code', '')}_{idx}"
+                        user_answer = checkbox_data.get(field_name) or form_data.get(field_name) or ''
+                        if isinstance(user_answer, dict):
+                            user_answer = user_answer.get('preselected', [])
+                        if isinstance(user_answer, list):
+                            user_answer = user_answer[0] if user_answer else ''
+                        user_answer = str(user_answer or '').strip()
+                        if cfg_type and cfg_type.startswith('Dropdown') and user_answer:
+                            item_merge_tags['select'] = user_answer
+                        elif cfg_type and cfg_type.startswith('Single Entry') and user_answer:
+                            tag = ['one', 'two', 'three'][idx] if idx < 3 else str(idx + 1)
+                            item_merge_tags[tag] = user_answer
+                output_notes = replace_merge_tags(raw_notes, item_merge_tags)
+                output_guidance = replace_merge_tags(item.get('output_guidance', ''), item_merge_tags)
                 value_text = output_notes or ''
 
                 snapshot_blocks.append({
@@ -676,6 +706,8 @@ def _build_page_blocks(page_key, page, form_data, checkbox_data):
             'settings': { 'margin_top': 10, 'margin_bottom': 10, 'padding': 12, 'alignment': 'left', 'font_size': 24 },
         })
 
+    page_merge_tags = get_merge_tag_values(page_key, session, get_line_items_for_page, page_blocks=page.get('blocks', []))
+
     for b in blocks:
         block_type = b.get('block_type', b.get('type', ''))
         storage = b.get('storage', {})
@@ -692,9 +724,8 @@ def _build_page_blocks(page_key, page, form_data, checkbox_data):
                 continue
             items = get_line_items_by_codes(selected_codes)
             if not items:
-                continue
+                 continue
 
-            merge_tags = get_merge_tag_values(page_key, session, get_line_items_for_page, page_blocks=page.get('blocks', []))
             page_categories = {c['name']: c.get('sort_order', 0) for c in page.get('categories', [])}
             items.sort(key=lambda x: (
                 page_categories.get(x.get('category', ''), 999),
@@ -722,8 +753,35 @@ def _build_page_blocks(page_key, page, form_data, checkbox_data):
                         })
 
                 output_title = item.get('output_title', '') or item.get('line_code', '')
-                output_notes = replace_merge_tags(item.get('output_notes', ''), merge_tags)
-                output_guidance = replace_merge_tags(item.get('output_guidance', ''), merge_tags)
+                raw_notes = item.get('output_notes', '')
+                item_merge_tags = dict(page_merge_tags)
+                follow_up_config = item.get('follow_up_config')
+                if follow_up_config:
+                    configs = []
+                    if isinstance(follow_up_config, str):
+                        try:
+                            parsed = json.loads(follow_up_config)
+                            configs = parsed if isinstance(parsed, list) else [parsed]
+                        except Exception:
+                            pass
+                    elif isinstance(follow_up_config, list):
+                        configs = follow_up_config
+                    for idx, cfg in enumerate(configs):
+                        cfg_type = cfg.get('type', '')
+                        field_name = f"follow_up_{item.get('line_code', '')}_{idx}"
+                        user_answer = checkbox_data.get(field_name) or form_data.get(field_name) or ''
+                        if isinstance(user_answer, dict):
+                            user_answer = user_answer.get('preselected', [])
+                        if isinstance(user_answer, list):
+                            user_answer = user_answer[0] if user_answer else ''
+                        user_answer = str(user_answer or '').strip()
+                        if cfg_type and cfg_type.startswith('Dropdown') and user_answer:
+                            item_merge_tags['select'] = user_answer
+                        elif cfg_type and cfg_type.startswith('Single Entry') and user_answer:
+                            tag = ['one', 'two', 'three'][idx] if idx < 3 else str(idx + 1)
+                            item_merge_tags[tag] = user_answer
+                output_notes = replace_merge_tags(raw_notes, item_merge_tags)
+                output_guidance = replace_merge_tags(item.get('output_guidance', ''), item_merge_tags)
                 value_text = output_notes or ''
 
                 snapshot_blocks.append({
@@ -746,13 +804,15 @@ def _build_page_blocks(page_key, page, form_data, checkbox_data):
             continue
 
         if block_type in ('checkbox_group', 'text_input', 'number_currency_input', 'dropdown_select'):
+            label = b.get('standard', {}).get('label', b.get('label', key))
+            label = replace_merge_tags(label, page_merge_tags)
             snapshot_blocks.append({
                 'id': f"form__{page_key}__{b.get('id', key)}",
                 'type': 'form_question',
                 'source_page': page_key,
                 'source_block_id': str(b.get('id', key)),
                 'snapshot': {
-                    'label': b.get('standard', {}).get('label', b.get('label', key)),
+                    'label': label,
                     'value': raw_value if isinstance(raw_value, str) else ', '.join(raw_value),
                 },
                 'editor_overrides': {},

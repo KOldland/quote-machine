@@ -1026,16 +1026,21 @@ document.addEventListener('DOMContentLoaded', function() {
         html += _section('Description', true, [
             _field('internal_description', 'Internal Description', 'text', item.internal_description || ''),
             _field('output_title',         'Output Title',          'text', item.output_title || ''),
-            _field('output_notes',         'Output Notes',         'textarea', item.output_notes || ''),
-            _field('output_guidance',      'Output Guidance',      'textarea', item.output_guidance || ''),
-            '<div style="font-size:.72rem;color:#888;margin-top:.15rem;">Use {selected} to insert the chosen answer, or {ChoiceName} for a specific option. Choices defined in Secondary Questions.</div>'
+            _field_with_merge_tags('output_notes',    'Output Notes',    item.output_notes || '',    item),
+            _field_with_merge_tags('output_guidance', 'Output Guidance', item.output_guidance || '', item)
         ]);
 
         html += _section('Secondary Questions', true, [
             _checkField('is_follow_up', 'Include follow-up question', item.is_follow_up === 1 || item.is_follow_up === '1'),
             '<div id="group_follow_up_type" style="display:' + (item.is_follow_up === 1 || item.is_follow_up === '1' ? 'block' : 'none') + ';">' +
                 '<div id="follow-ups-list"></div>' +
-                '<button type="button" id="btn-add-follow-up" style="margin-top:.5rem; padding:.35rem .75rem; background:#fff; color:#1b3a6b; border:1px solid #1b3a6b; border-radius:4px; cursor:pointer; font-size:.8rem; font-weight:600;">+ Add Follow-up</button>' +
+                '<div style="position:relative; display:inline-block; margin-top:.5rem;">' +
+                    '<button type="button" id="btn-add-follow-up" style="padding:.4rem .9rem; background:#1b3a6b; color:#fff; border:1px solid #1b3a6b; border-radius:6px; cursor:pointer; font-size:.8rem; font-weight:600; box-shadow:0 1px 3px rgba(27,58,107,0.2);">Add Follow Up</button>' +
+                    '<div id="fu-type-picker" style="display:none; position:absolute; top:100%; left:0; background:#fff; border:1px solid #ccc; border-radius:4px; box-shadow:0 2px 8px rgba(0,0,0,0.15); z-index:9999; min-width:180px; margin-top:4px;">' +
+                        '<button type="button" class="fu-picker-item" data-type="Dropdown" style="display:block; width:100%; text-align:left; padding:8px 12px; background:none; border:none; cursor:pointer; font-size:.85rem; color:#333;">Dropdown</button>' +
+                        '<button type="button" class="fu-picker-item" data-type="Single Entry" style="display:block; width:100%; text-align:left; padding:8px 12px; background:none; border:none; cursor:pointer; font-size:.85rem; color:#333; border-top:1px solid #eee;">Single Entry</button>' +
+                    '</div>' +
+                '</div>' +
                 '<input type="hidden" name="follow_up_config" id="li_follow_up_config_hidden">' +
             '</div>',
         ]);
@@ -1079,6 +1084,50 @@ document.addEventListener('DOMContentLoaded', function() {
         html += '</form>';
         $id('li-editor-content').innerHTML = html;
 
+         document.getElementById('li-editor-content').addEventListener('click', function(e) {
+             var option = e.target.closest('.merge-tag-option');
+             if (option) {
+                 e.preventDefault();
+                 var tag = option.getAttribute('data-tag');
+                 var pickerId = option.getAttribute('data-picker');
+                 var picker = $id(pickerId);
+                 var textarea = picker.closest('.li-form-group').querySelector('textarea');
+                 if (!textarea) return;
+                 var start = textarea.selectionStart;
+                 var end = textarea.selectionEnd;
+                 var val = textarea.value;
+                 textarea.value = val.substring(0, start) + tag + val.substring(end);
+                 textarea.selectionStart = textarea.selectionEnd = start + tag.length;
+                 textarea.focus();
+                 var dropdown = document.querySelector('.merge-tag-dropdown[data-picker="' + pickerId + '"]');
+                 if (dropdown) dropdown.style.display = 'none';
+                 var trigger = $id(pickerId);
+                 if (trigger) trigger.classList.remove('active');
+                 return;
+             }
+
+             var trigger = e.target.closest('.merge-tag-trigger');
+             if (!trigger) {
+                 var dropdowns = document.querySelectorAll('.merge-tag-dropdown');
+                 dropdowns.forEach(function(d) { d.style.display = 'none'; });
+                 var triggers = document.querySelectorAll('.merge-tag-trigger');
+                 triggers.forEach(function(t) { t.classList.remove('active'); });
+                 return;
+             }
+              var pickerId = trigger.id;
+              var dropdown = document.querySelector('.merge-tag-dropdown[data-picker="' + pickerId + '"]');
+              if (!dropdown) return;
+              var isOpen = dropdown.style.display === 'block';
+              var dropdowns = document.querySelectorAll('.merge-tag-dropdown');
+              dropdowns.forEach(function(d) { d.style.display = 'none'; });
+              var triggers = document.querySelectorAll('.merge-tag-trigger');
+              triggers.forEach(function(t) { t.classList.remove('active'); });
+               if (!isOpen) {
+                   dropdown.style.display = 'block';
+                   trigger.classList.add('active');
+               }
+           });
+
         // Follow-up toggle logic
         var isFollowUpCheck = $id('lich_is_follow_up');
         var followUpTypeGroup = $id('group_follow_up_type');
@@ -1089,15 +1138,42 @@ document.addEventListener('DOMContentLoaded', function() {
                 followUpTypeGroup.style.display = isFollowUpCheck.checked ? 'block' : 'none';
                 if (isFollowUpCheck.checked) {
                     if ($id('follow-ups-list').children.length === 0) {
-                        _renderFollowUpConfig('Dropdown (text)', {});
+                        _renderFollowUpConfig('Dropdown', {});
                     }
                 }
             });
         }
 
         if ($id('btn-add-follow-up')) {
-            $id('btn-add-follow-up').addEventListener('click', function() {
-                _renderFollowUpConfig('Dropdown (text)', {});
+            $id('btn-add-follow-up').addEventListener('click', function(e) {
+                e.stopPropagation();
+                var picker = $id('fu-type-picker');
+                if (!picker) return;
+                var btnRect = this.getBoundingClientRect();
+                picker.style.position = 'fixed';
+                picker.style.top = (btnRect.bottom + 4) + 'px';
+                picker.style.left = btnRect.left + 'px';
+                picker.style.display = picker.style.display === 'none' || picker.style.display === '' ? 'block' : 'none';
+            });
+        }
+
+        document.addEventListener('click', function(e) {
+            var picker = $id('fu-type-picker');
+            var btn = $id('btn-add-follow-up');
+            if (picker && btn && !picker.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+                picker.style.display = 'none';
+            }
+        });
+
+        if (followUpTypeGroup) {
+            followUpTypeGroup.addEventListener('click', function(e) {
+                if (e.target && e.target.classList && e.target.classList.contains('fu-picker-item')) {
+                    e.preventDefault();
+                    var type = e.target.dataset.type;
+                    var picker = $id('fu-type-picker');
+                    if (picker) picker.style.display = 'none';
+                    _renderFollowUpConfig(type, {});
+                }
             });
         }
 
@@ -1111,9 +1187,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 cfg = [];
             }
             if (!Array.isArray(cfg)) cfg = [cfg];
-            if (cfg.length === 0) cfg = [{ type: item.follow_up_type || 'Dropdown (text)' }];
+            if (cfg.length === 0) cfg = [{ type: item.follow_up_type || 'Dropdown' }];
             cfg.forEach(function(c) {
-                _renderFollowUpConfig(c.type || 'Dropdown (text)', c);
+                _renderFollowUpConfig(c.type || 'Dropdown', c);
             });
         }
 
@@ -1309,52 +1385,72 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // ── Follow-up Config Rendering ─────────────────────────────────────────
     var _followUpTemplates = {
-        'text': function(cfg, fuId) {
-            return _field('fu_helper_text', 'Helper Text', 'text', cfg.helper_text || '', false, 'fu_helper_text_' + fuId);
+        'dropdown': function(cfg, fuId) {
+            return _field('fu_choices', 'Choices (one per line)', 'textarea', (cfg.choices || []).join('\n'), false, 'fu_choices_' + fuId) +
+                   _checkField('fu_include_other', 'Include "Other" field', cfg.include_other === true, 'fu_include_other_' + fuId) +
+                   _checkField('fu_cost', 'Cost', cfg.cost === true, 'fu_cost_' + fuId) +
+                   _checkField('fu_suffix', 'Suffix', cfg.suffix === true, 'fu_suffix_' + fuId) +
+                   '<div id="fu_suffix_config_' + fuId + '" style="display:' + (cfg.suffix ? 'block' : 'none') + '; margin-left:1rem; border-left:2px solid #eee; padding-left:0.5rem;">' +
+                   _field('fu_suffix_value', 'Suffix value (e.g. m, cm, m²)', 'text', cfg.suffix_value || '', false, 'fu_suffix_value_' + fuId) +
+                   '</div>';
         },
-        'cost': function(cfg, fuId) {
-            return _field('fu_default_cost', 'Default Unit Cost (£)', 'number', cfg.default_cost || '', false, 'fu_default_cost_' + fuId) +
-                   _field('fu_default_units', 'Default Unit Amount', 'number', cfg.default_units || '', false, 'fu_default_units_' + fuId) +
-                   _checkField('fu_allow_override', 'Apply User Cost Override', cfg.allow_override === true, 'fu_allow_override_' + fuId);
-        },
-        'dimension': function(cfg, fuId) {
-            return _field('fu_default_dim1', 'Default Dimension 1', 'number', cfg.default_dim1 || '', false, 'fu_default_dim1_' + fuId) +
-                   _checkField('fu_enable_dim2', 'Enable Dimension 2', cfg.enable_dim2 === true, 'fu_enable_dim2_cb_' + fuId) +
-                   _field('fu_default_dim2', 'Default Dimension 2', 'number', cfg.default_dim2 || '', !cfg.enable_dim2, 'fu_default_dim2_' + fuId) +
-                   _checkField('fu_enable_dim3', 'Enable Dimension 3', cfg.enable_dim3 === true, 'fu_enable_dim3_cb_' + fuId) +
-                   _field('fu_default_dim3', 'Default Dimension 3', 'number', cfg.default_dim3 || '', !cfg.enable_dim3, 'fu_default_dim3_' + fuId) +
-                   _field('fu_unit', 'Measurement Unit (e.g. m, sqm)', 'text', cfg.unit || '', false, 'fu_unit_' + fuId);
-        },
-        'dropdown': function(cfg, subType, fuId) {
-            var html = _field('fu_choices', 'Choices (one per line)', 'textarea', (cfg.choices || []).join('\n'), false, 'fu_choices_' + fuId) +
-                       _checkField('fu_include_other', 'Include "Other" field', cfg.include_other === true, 'fu_include_other_' + fuId);
-            html += '<div id="fu_other_config_' + fuId + '" style="display:' + (cfg.include_other ? 'block' : 'none') + '; margin-left:1rem; border-left:2px solid #eee; padding-left:0.5rem;">';
-            if (subType === 'text') html += _followUpTemplates.text(cfg.other_config || {}, fuId + '_other');
-            if (subType === 'cost') html += _followUpTemplates.cost(cfg.other_config || {}, fuId + '_other');
-            if (subType === 'dimension') html += _followUpTemplates.dimension(cfg.other_config || {}, fuId + '_other');
-            html += '</div>';
-            return html;
+        'single_entry': function(cfg, fuId) {
+            return _field('fu_helper_text', 'Helper Text', 'text', cfg.helper_text || '', false, 'fu_helper_text_' + fuId) +
+                   _checkField('fu_cost', 'Cost', cfg.cost === true, 'fu_cost_' + fuId) +
+                   _checkField('fu_suffix', 'Suffix', cfg.suffix === true, 'fu_suffix_' + fuId) +
+                   '<div id="fu_suffix_config_' + fuId + '" style="display:' + (cfg.suffix ? 'block' : 'none') + '; margin-left:1rem; border-left:2px solid #eee; padding-left:0.5rem;">' +
+                   _field('fu_suffix_value', 'Suffix value (e.g. m, cm, m²)', 'text', cfg.suffix_value || '', false, 'fu_suffix_value_' + fuId) +
+                   '</div>';
         }
     };
 
-    function _renderFollowUpConfig(type, cfg) {
-        var container = $id('follow-ups-list');
-        if (!container) return;
-        var html = '';
-        var fuId = 'fu_' + Date.now() + '_' + Math.floor(Math.random()*1000);
-        if (type === 'Dropdown (text)') html = _followUpTemplates.dropdown(cfg, 'text', fuId);
-        else if (type === 'Dropdown (cost)') html = _followUpTemplates.dropdown(cfg, 'cost', fuId);
-        else if (type === 'Dropdown (dimension)') html = _followUpTemplates.dropdown(cfg, 'dimension', fuId);
-        else if (type === 'Single Entry (text)') html = _followUpTemplates.text(cfg, fuId);
-        else if (type === 'Single Entry (cost)') html = _followUpTemplates.cost(cfg, fuId);
-        else if (type === 'Single Entry (dimension)') html = _followUpTemplates.dimension(cfg, fuId);
-        
-        html = '<div class="fu-entry" data-fu-id="' + fuId + '" style="border:1px solid #e2e8f0; border-radius:6px; padding:.6rem; margin-bottom:.5rem; background:#fafafa;">' +
-               '<select class="fu-type-select" data-fu-id="' + fuId + '" style="padding:.25rem .5rem; border:1px solid #ccc; border-radius:4px; font-size:.8rem; margin-bottom:.4rem;">' +
-               ['Dropdown (text)','Dropdown (cost)','Dropdown (dimension)','Single Entry (text)','Single Entry (cost)','Single Entry (dimension)'].map(function(t) {
-                   return '<option value="' + t + '"' + (t === type ? ' selected' : '') + '>' + t + '</option>';
-               }).join('') +
-               '</select>' +
+     function _normalizeFollowUpType(type) {
+         if (type === 'Dropdown' || type === 'Single Entry') return type;
+         if (type && typeof type === 'string') {
+             if (type.startsWith('Dropdown')) return 'Dropdown';
+             if (type.startsWith('Single Entry')) return 'Single Entry';
+         }
+         return 'Dropdown';
+     }
+
+     function _renderFollowUpConfig(type, cfg, existingEntry) {
+         var container = $id('follow-ups-list');
+         if (!container) return;
+
+         type = _normalizeFollowUpType(type);
+         cfg = cfg || {};
+         
+         var fuId;
+         if (existingEntry) {
+             fuId = existingEntry.dataset.fuId;
+             var configDiv = existingEntry.querySelector('.fu-config');
+             if (configDiv) configDiv.innerHTML = '';
+         } else {
+             fuId = 'fu_' + Date.now() + '_' + Math.floor(Math.random()*1000);
+         }
+         
+         var html = '';
+         if (type === 'Dropdown') html = _followUpTemplates.dropdown(cfg, fuId);
+         else if (type === 'Single Entry') html = _followUpTemplates.single_entry(cfg, fuId);
+         
+         if (existingEntry) {
+             var configDiv2 = existingEntry.querySelector('.fu-config');
+             if (configDiv2) {
+                 configDiv2.innerHTML = html;
+                 var typeSelect = configDiv2.previousElementSibling;
+                 if (typeSelect && typeSelect.classList.contains('fu-type-select')) {
+                     typeSelect.value = type;
+                 }
+             }
+             _attachFollowUpListeners(existingEntry);
+             return;
+         }
+         
+         html = '<div class="fu-entry" data-fu-id="' + fuId + '" style="border:1px solid #e2e8f0; border-radius:6px; padding:.6rem; margin-bottom:.5rem; background:#fafafa;">' +
+                '<select class="fu-type-select" data-fu-id="' + fuId + '" style="padding:.25rem .5rem; border:1px solid #ccc; border-radius:4px; font-size:.8rem; margin-bottom:.4rem;">' +
+                 '<option value="Dropdown"' + (type === 'Dropdown' ? ' selected' : '') + '>Dropdown</option>' +
+                 '<option value="Single Entry"' + (type === 'Single Entry' ? ' selected' : '') + '>Single Entry</option>' +
+                '</select>' +
                '<div class="fu-config" data-fu-id="' + fuId + '">' + html + '</div>' +
                '<div style="display:flex; justify-content:space-between; align-items:center; margin-top:.4rem;">' +
                '<span></span>' +
@@ -1370,7 +1466,7 @@ document.addEventListener('DOMContentLoaded', function() {
         var removeBtn = entry.querySelector('.fu-remove-btn');
 
         typeSelect.addEventListener('change', function() {
-            _renderFollowUpConfig(typeSelect.value, {}, fuId);
+            _renderFollowUpConfig(typeSelect.value, {}, entry);
         });
 
         removeBtn.addEventListener('click', function() {
@@ -1380,33 +1476,15 @@ document.addEventListener('DOMContentLoaded', function() {
         _attachFollowUpListeners(entry);
     }
 
-    function _attachFollowUpListeners(entry) {
-        var otherCheck = entry.querySelector('[id="lich_fu_include_other"]');
-        var otherDiv = entry.querySelector('[id="fu_other_config"]');
-        if (otherCheck && otherDiv) {
-            otherCheck.addEventListener('change', function() {
-                otherDiv.style.display = otherCheck.checked ? 'block' : 'none';
-            });
-        }
-
-        var cbDim2 = entry.querySelector('#fu_enable_dim2_cb');
-        var inputDim2 = entry.querySelector('#fu_default_dim2');
-        if (cbDim2 && inputDim2) {
-            cbDim2.addEventListener('change', function() {
-                inputDim2.readOnly = !cbDim2.checked;
-                inputDim2.style.background = cbDim2.checked ? '' : '#f5f5f5';
-            });
-        }
-
-        var cbDim3 = entry.querySelector('#fu_enable_dim3_cb');
-        var inputDim3 = entry.querySelector('#fu_default_dim3');
-        if (cbDim3 && inputDim3) {
-            cbDim3.addEventListener('change', function() {
-                inputDim3.readOnly = !cbDim3.checked;
-                inputDim3.style.background = cbDim3.checked ? '' : '#f5f5f5';
-            });
-        }
-    }
+     function _attachFollowUpListeners(entry) {
+         var suffixCheck = entry.querySelector('[name="fu_suffix"]');
+         var suffixDiv = entry.querySelector('[id^="fu_suffix_config_"]');
+         if (suffixCheck && suffixDiv) {
+             suffixCheck.addEventListener('change', function() {
+                 suffixDiv.style.display = suffixCheck.checked ? 'block' : 'none';
+             });
+         }
+     }
 
     function _collectFollowUpConfig() {
         var container = $id('follow-ups-list');
@@ -1417,7 +1495,7 @@ document.addEventListener('DOMContentLoaded', function() {
         entries.forEach(function(entry) {
             var fuId = entry.dataset.fuId;
             var typeSelect = entry.querySelector('.fu-type-select');
-            var type = typeSelect ? typeSelect.value : 'Dropdown (text)';
+             var type = typeSelect ? typeSelect.value : 'Dropdown';
             var cfg = {};
             
             var getVal = function(name) {
@@ -1432,38 +1510,14 @@ document.addEventListener('DOMContentLoaded', function() {
             if (type.startsWith('Dropdown')) {
                 cfg.choices = (getVal('fu_choices') || '').split('\n').filter(Boolean);
                 cfg.include_other = getVal('fu_include_other');
-                if (cfg.include_other) {
-                    cfg.other_config = {};
-                    if (type.includes('text')) cfg.other_config.helper_text = getVal('fu_helper_text');
-                    if (type.includes('cost')) {
-                        cfg.other_config.default_cost = getVal('fu_default_cost');
-                        cfg.other_config.default_units = getVal('fu_default_units');
-                        cfg.other_config.allow_override = getVal('fu_allow_override');
-                    }
-                    if (type.includes('dimension')) {
-                        cfg.other_config.default_dim1 = getVal('fu_default_dim1');
-                        cfg.other_config.enable_dim2 = getVal('fu_enable_dim2');
-                        cfg.other_config.default_dim2 = getVal('fu_default_dim2');
-                        cfg.other_config.enable_dim3 = getVal('fu_enable_dim3');
-                        cfg.other_config.default_dim3 = getVal('fu_default_dim3');
-                        cfg.other_config.unit = getVal('fu_unit');
-                    }
-                }
+                cfg.cost = getVal('fu_cost');
+                cfg.suffix = getVal('fu_suffix');
+                cfg.suffix_value = getVal('fu_suffix_value');
             } else {
-                if (type.includes('text')) cfg.helper_text = getVal('fu_helper_text');
-                if (type.includes('cost')) {
-                    cfg.default_cost = getVal('fu_default_cost');
-                    cfg.default_units = getVal('fu_default_units');
-                    cfg.allow_override = getVal('fu_allow_override');
-                }
-                if (type.includes('dimension')) {
-                    cfg.default_dim1 = getVal('fu_default_dim1');
-                    cfg.enable_dim2 = getVal('fu_enable_dim2');
-                    cfg.default_dim2 = getVal('fu_default_dim2');
-                    cfg.enable_dim3 = getVal('fu_enable_dim3');
-                    cfg.default_dim3 = getVal('fu_default_dim3');
-                    cfg.unit = getVal('fu_unit');
-                }
+                cfg.helper_text = getVal('fu_helper_text');
+                cfg.cost = getVal('fu_cost');
+                cfg.suffix = getVal('fu_suffix');
+                cfg.suffix_value = getVal('fu_suffix_value');
             }
             configs.push(cfg);
         });
@@ -1496,6 +1550,27 @@ document.addEventListener('DOMContentLoaded', function() {
         return '<div class="li-form-group"><label>' + label + '</label>'
             + '<input type="' + type + '" name="' + name + '"' + idAttr + ' value="' + _esc(value) + '"' + ro + '></div>';
     }
+
+      function _field_with_merge_tags(name, label, value, item) {
+          var pickerId = 'merge_picker_' + name;
+          var options = [
+              '{selected}',
+              '{one}',
+              '{two}',
+              '{three}'
+          ].map(function(tag) {
+              return '<button type="button" class="merge-tag-option" data-tag="' + tag + '" data-picker="' + pickerId + '" style="display:block; width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:.8rem; cursor:pointer;">' + tag + '</button>';
+          }).join('');
+          return '<div class="li-form-group">'
+              + '<label style="position:relative; display:inline-flex; align-items:center; gap:6px;">' + label + ' '
+              + '<button type="button" id="' + pickerId + '" class="merge-tag-trigger" style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:22px;border:1.5px solid #1b3a6b;border-radius:4px;font-size:.75rem;font-weight:700;color:#1b3a6b;background:#f0f4f9;cursor:pointer;line-height:1;">{ }</button>'
+              + '<div class="merge-tag-dropdown" data-picker="' + pickerId + '" style="display:none;position:absolute;top:calc(100% + 4px);left:0;background:#fff;border:1px solid #ccc;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,0.15);z-index:2000;padding:4px 0;min-width:140px;">'
+              + options
+              + '</div>'
+              + '</label>'
+              + '<textarea name="' + name + '" class="merge-tag-textarea" style="width:100%;margin-top:6px;">' + _esc(value) + '</textarea>'
+              + '</div>';
+      }
 
     function _selectField(name, label, value, options) {
         var opts = options.map(function (o) {

@@ -1032,12 +1032,12 @@ input, label {
 }
 
 .btn-secondary {
-    background: #6c757d;
+    background: #1b3a6b;
     color: #fff;
 }
 
 .btn-secondary:hover {
-    background: #5a6268;
+    background: #254e8a;
     transform: translateY(-1px);
 }
 
@@ -1834,4 +1834,34 @@ input[type="text"], input[type="date"], textarea, select {
 .sidebar-quote-mode .nav-item--category .nav-item__label {
   color: rgba(255,255,255,0.9);
   font-weight: 600;
+}
+
+.merge-tag-pick {
+  display: inline-block;
+  background: #e9ecef;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  padding: 1px 6px;
+  font-size: 0.75rem;
+  color: #1b3a6b;
+  cursor: pointer;
+  font-family: monospace;
+}
+
+.merge-tag-pick:hover {
+  background: #1b3a6b;
+  color: #fff;
+  border-color: #1b3a6b;
+}
+
+.merge-tag-textarea {
+  width: 100%;
+  min-height: 80px;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  resize: vertical;
+  box-sizing: border-box;
 }

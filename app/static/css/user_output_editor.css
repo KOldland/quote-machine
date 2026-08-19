@@ -754,9 +754,9 @@
 }
 
 .tab-btn.active {
-  background: #0d6efd;
+  background: #1b3a6b;
   color: #fff;
-  border-color: #0d6efd;
+  border-color: #1b3a6b;
 }
 
 .tab-btn:first-child {
@@ -1184,4 +1184,56 @@
 .preview-page-num {
   font-size: 0.85em;
   color: #555;
+}
+
+.merge-tag-popup {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 1500;
+  min-width: 220px;
+  max-width: 320px;
+  max-height: 300px;
+  overflow-y: auto;
+  margin-top: 4px;
+}
+
+.merge-tag-popup-header {
+  padding: 8px 12px;
+  font-weight: 600;
+  border-bottom: 1px solid #eee;
+  font-size: 0.85rem;
+  color: #333;
+}
+
+.merge-tag-popup-body {
+  padding: 8px;
+}
+
+.merge-tag-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 10px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: #1b3a6b;
+}
+
+.merge-tag-item:hover {
+  background: #f0f4f8;
+}
+
+.merge-tag-item code {
+  background: #f4f4f4;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.8rem;
 }
