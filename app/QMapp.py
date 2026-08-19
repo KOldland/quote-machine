@@ -628,6 +628,44 @@ def get_builder_beta_state():
     except Exception:
         pass
 
+    # Ensure any categories that exist in the DB but not in the JSON schema
+    # are visible in BUILD MODE (e.g. categories added via add_category).
+    try:
+        import sqlite3 as _sqlite3
+        from pathlib import Path as _Path
+        _db_path = _Path(__file__).parent / 'template_store.sqlite3'
+        if _db_path.exists():
+            _conn = _sqlite3.connect(str(_db_path))
+            _conn.row_factory = _sqlite3.Row
+            _rows = _conn.execute(
+                "SELECT pt.page_key, ct.name, ct.display_order, ct.description, ct.output_group "
+                "FROM category_templates ct "
+                "JOIN page_templates pt ON pt.id = ct.page_template_id "
+                "WHERE pt.form_template_version_id = ("
+                "  SELECT MAX(ftv.id) FROM form_template_versions ftv "
+                "  JOIN form_templates ft ON ft.id = ftv.form_template_id "
+                "  WHERE ft.key = ?"
+                ") "
+                "ORDER BY pt.display_order ASC, ct.display_order ASC",
+                (TEMPLATE_STORE_KEY,)
+            ).fetchall()
+            _conn.close()
+            for _r in _rows:
+                _pid = _r['page_key']
+                _cname = _r['name']
+                if _pid not in pages:
+                    continue
+                _cats = pages[_pid].setdefault('categories', [])
+                if not any(c.get('name') == _cname for c in _cats):
+                    _cats.append({
+                        'name': _cname,
+                        'sort_order': _r['display_order'],
+                        'description': _r['description'] or '',
+                        'output_group': _r['output_group'] or 'General',
+                    })
+    except Exception:
+        pass
+
     # 7️⃣  Finally return the fully‑populated state.
     return state
 

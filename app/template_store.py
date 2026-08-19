@@ -1406,6 +1406,19 @@ def add_category(page_key: str, category_name: str, template_key: str = "first_c
             
         page_id = page_row["id"]
         
+        # Check for duplicate category name on this page
+        existing = conn.execute(
+            "SELECT id FROM category_templates WHERE page_template_id = ? AND name = ?",
+            (page_id, category_name)
+        ).fetchone()
+        if existing:
+            conn.close()
+            return {
+                "success": False,
+                "error": f"Category '{category_name}' already exists on this page.",
+                "duplicate": True,
+            }
+        
         max_order_row = conn.execute(
             "SELECT MAX(display_order) as max_order FROM category_templates WHERE page_template_id = ?",
             (page_id,)
@@ -1424,6 +1437,34 @@ def add_category(page_key: str, category_name: str, template_key: str = "first_c
             (version_id, page_id, category_name, next_order, output_group)
         )
         conn.commit()
+        
+        # Also persist into the JSON schema so BUILD MODE sees the new category.
+        try:
+            import json as _json
+            from pathlib import Path as _Path
+            _schema_path = _Path(__file__).parent / 'page_schemas.json'
+            if _schema_path.exists():
+                with _schema_path.open('r') as _f:
+                    _schemas = _json.load(_f)
+                _bb = _schemas.get('builder_beta', _schemas)
+                _pages = _bb.get('pages', {})
+                _page = _pages.get(page_key, {})
+                _cats = _page.get('categories', [])
+                if not any(c.get('name') == category_name for c in _cats):
+                    _cats.append({
+                        'name': category_name,
+                        'sort_order': next_order,
+                        'description': '',
+                    })
+                    _page['categories'] = _cats
+                    _pages[page_key] = _page
+                    _bb['pages'] = _pages
+                    _schemas['builder_beta'] = _bb
+                    with _schema_path.open('w') as _f:
+                        _json.dump(_schemas, _f, indent=2)
+        except Exception:
+            pass
+        
         return {"success": True}
     except Exception as e:
         conn.rollback()

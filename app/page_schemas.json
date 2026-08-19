@@ -156,6 +156,11 @@
             "name": "Additional Notes",
             "sort_order": 6,
             "output_group": "General"
+          },
+          {
+            "name": "Test Category Y",
+            "sort_order": 8,
+            "description": ""
           }
         ],
         "display_order": 3

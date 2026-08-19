@@ -49,7 +49,7 @@ def get_merge_tag_values(page_id, session, get_line_items_for_page, page_blocks=
                         user_answer = user_answer[0] if user_answer else ''
                     user_answer = str(user_answer or '').strip()
                     if user_answer:
-                        merge_tags['select'] = user_answer
+                        merge_tags['selected'] = user_answer
                 elif cfg_type and cfg_type.startswith('Single Entry'):
                     user_answer = answers.get(field_name, '')
                     if isinstance(user_answer, list):
