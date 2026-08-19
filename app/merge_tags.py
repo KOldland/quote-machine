@@ -55,7 +55,7 @@ def get_merge_tag_values(page_id, session, get_line_items_for_page, page_blocks=
                     if isinstance(user_answer, list):
                         user_answer = user_answer[0] if user_answer else ''
                     user_answer = str(user_answer or '').strip()
-                    tag = ['one', 'two', 'three'][single_entry_count] if single_entry_count < 3 else str(single_entry_count + 1)
+                    tag = ['one', 'two', 'three', 'four'][single_entry_count] if single_entry_count < 4 else str(single_entry_count + 1)
                     merge_tags[tag] = user_answer
                     single_entry_count += 1
 

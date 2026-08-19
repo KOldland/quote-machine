@@ -60,22 +60,22 @@ function loadTemplates() {
     const container = document.getElementById('templatesList');
     container.innerHTML = '<p>Loading...</p>';
 
-    fetch('/builder_beta/list_forms')
+    fetch('/builder_beta/template/list')
         .then(r => r.json())
         .then(data => {
-            const forms = data.forms || [];
-            if (!forms.length) {
+            const templates = data.templates || [];
+            if (!templates.length) {
                 container.innerHTML = '<p>No templates found.</p>';
                 return;
             }
             let html = '<table class="table table-hover"><thead><tr><th>Name</th><th>Key</th><th class="text-end">Actions</th></tr></thead><tbody>';
-            forms.forEach(f => {
+            templates.forEach(t => {
                 html += `<tr>
-                    <td>${escapeHtml(f.name)}</td>
-                    <td><code>${escapeHtml(f.key)}</code></td>
+                    <td>${escapeHtml(t.name)}</td>
+                    <td><code>${escapeHtml(t.template_key)}</code></td>
                     <td class="text-end">
-                        <button class="btn btn-primary btn-sm" onclick="loadTemplate('${f.key}')">Load</button>
-                        <button class="btn btn-danger btn-sm" onclick="deleteTemplate('${f.key}')">Delete</button>
+                        <button class="btn btn-primary btn-sm" onclick="loadTemplate('${t.template_key}')">Load</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteTemplate('${t.template_key}')">Delete</button>
                     </td>
                 </tr>`;
             });

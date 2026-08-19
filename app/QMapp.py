@@ -2004,6 +2004,59 @@ def builder_save_as_template():
     return jsonify({'ok': True, 'msg': 'Template saved successfully'})
 
 
+@app.route('/builder_beta/template/quick_save', methods=['POST'])
+@require_role('admin')
+def builder_quick_save():
+    """Save the current template in-place, creating a new version."""
+    import template_store as _ts
+    try:
+        payload = page_schemas if isinstance(page_schemas, dict) else {}
+    except Exception:
+        payload = {}
+    template_key = session.get('template_key') or TEMPLATE_STORE_KEY
+    try:
+        result = _ts.save_template(template_key, payload)
+        return jsonify({'success': True, **result})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/builder_beta/template/save_as', methods=['POST'])
+@require_role('admin')
+def builder_save_as_new():
+    """Save current template under a new name (clone with versioning)."""
+    import template_store as _ts
+    data = request.json or {}
+    new_name = data.get('name', '').strip()
+    new_description = data.get('description', '').strip()
+    new_key = data.get('key', '').strip()
+    if not new_name or not new_key:
+        return jsonify({'success': False, 'error': 'Name and key are required'}), 400
+    try:
+        payload = page_schemas if isinstance(page_schemas, dict) else {}
+    except Exception:
+        payload = {}
+    try:
+        result = _ts.save_template(new_key, payload, name=new_name, description=new_description)
+        return jsonify({'success': True, **result})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/builder_beta/template/list')
+@require_role('admin')
+def builder_template_list():
+    """Return all templates for the save-as / load picker."""
+    import template_store as _ts
+    overview = _ts.get_template_store_overview()
+    templates = overview.get('templates', [])
+    return jsonify({'success': True, 'templates': templates})
+
+
 @app.route('/builder_beta/line_item_delete', methods=['POST'])
 @require_role('admin')
 def builder_line_item_delete():
@@ -2330,9 +2383,24 @@ def builder_page_reorder():
     conn = sqlite3.connect(db)
     conn.row_factory = sqlite3.Row
     try:
+        latest_version_row = conn.execute(
+            """
+            SELECT ftv.id
+            FROM form_template_versions ftv
+            JOIN form_templates ft ON ft.id = ftv.form_template_id
+            WHERE ft.key = ?
+            ORDER BY ftv.version DESC
+            LIMIT 1
+            """,
+            (TEMPLATE_STORE_KEY,),
+        ).fetchone()
+        latest_version_id = int(latest_version_row["id"]) if latest_version_row else None
+        if latest_version_id is None:
+            return jsonify({'error': 'Template version not found'}), 404
+
         cur = conn.execute(
-            "SELECT id, display_order FROM page_templates WHERE page_key = ?",
-            [page_key]
+            "SELECT id, display_order FROM page_templates WHERE page_key = ? AND form_template_version_id = ?",
+            [page_key, latest_version_id]
         ).fetchone()
         if not cur:
             return jsonify({'error': 'Page not found'}), 404
@@ -2341,8 +2409,8 @@ def builder_page_reorder():
         op = '<' if direction == 'up' else '>'
         order = 'DESC' if direction == 'up' else 'ASC'
         adj = conn.execute(
-            f"SELECT id, display_order FROM page_templates WHERE display_order {op} ? ORDER BY display_order {order} LIMIT 1",
-            [cur_order]
+            f"SELECT id, display_order FROM page_templates WHERE display_order {op} ? AND form_template_version_id = ? ORDER BY display_order {order} LIMIT 1",
+            [cur_order, latest_version_id]
         ).fetchone()
         if not adj:
             return jsonify({'error': 'No adjacent page'}), 400

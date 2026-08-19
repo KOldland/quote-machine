@@ -423,8 +423,69 @@ def _sync_logic_rules(conn: sqlite3.Connection, version_id: int) -> int:
 
     return len(rows)
 
+
+def save_template(
+    template_key: str,
+    payload: Dict[str, Any],
+    *,
+    name: Optional[str] = None,
+    description: Optional[str] = None,
+    db_path: Optional[Path] = None,
+) -> Dict[str, Any]:
+    """Create a new versioned snapshot of a template.
+
+    This is the single entry point for both Quick Save (same template_key,
+    new version number) and Save As (new or existing template_key, new
+    version number). The template structure (pages, categories, questions)
+    is re-persisted into fresh page_templates / category_templates rows
+    linked to the new version.
+
+    Returns:
+        Dict with template_key, version, and page/question counts.
+    """
+    path = db_path or _default_db_path()
+    with _connect(path) as conn:
+        _create_schema(conn)
+
+        # Resolve or create the form_template row.
+        tenant_id = _upsert_tenant(conn, slug="default", name="Default Tenant")
+        template_id = _upsert_form_template(
+            conn, tenant_id=tenant_id, key=template_key,
+            name=name or template_key.replace("_", " ").title(),
+            description=description or "",
+        )
+
+        # Bump version and persist payload.
+        version = _next_version(conn, template_id)
+        version_id = _upsert_version(conn, template_id, version, payload)
+
+        # Extract pages from payload (supports builder_beta.pages and legacy pages).
+        pages = payload.get("builder_beta", {}).get("pages", payload.get("pages", {}))
+        if not isinstance(pages, dict):
+            pages = {}
+
+        page_ids = _replace_page_templates(conn, version_id, pages)
+        question_count = _replace_questions(conn, page_ids, pages)
+        _sync_logic_rules(conn, version_id)
+
+        # Update name/description if provided.
+        if name or description:
+            conn.execute(
+                "UPDATE form_templates SET name = COALESCE(?, name), description = COALESCE(?, description) WHERE id = ?",
+                (name, description, template_id),
+            )
+
+    return {
+        "template_key": template_key,
+        "version": version,
+        "pages": len(page_ids),
+        "questions": question_count,
+    }
+
+
     # -----------------------------------------------------------------
     # Open (or create) the SQLite file and make sure the schema exists.
+    # -----------------------------------------------------------------
     # -----------------------------------------------------------------
     with _connect(db_path) as conn:
         _create_schema(conn)
