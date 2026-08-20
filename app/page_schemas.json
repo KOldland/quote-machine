@@ -1,6 +1,82 @@
 {
   "builder_beta": {
     "pages": {
+      "special_notes_page": {
+        "blocks": [
+          {
+            "block_type": "line_items_by_category",
+            "config": {},
+            "id": "special_notes_page__line_items"
+          }
+        ],
+        "categories": [
+          {
+            "name": "Special Notes",
+            "output_group": "General",
+            "sort_order": 0
+          }
+        ],
+        "display_order": 0,
+        "id": "special_notes_page",
+        "navigation": {
+          "next_endpoint": "summary_page",
+          "previous_endpoint": ""
+        },
+        "title": "Special Notes"
+      },
+      "summary_page": {
+        "blocks": [
+          {
+            "block_type": "line_items_by_category",
+            "config": {},
+            "id": "summary_page__line_items"
+          }
+        ],
+        "categories": [
+          {
+            "name": "Work Summary",
+            "output_group": "General",
+            "sort_order": 0
+          },
+          {
+            "name": "Boundary Lines",
+            "output_group": "General",
+            "sort_order": 1
+          },
+          {
+            "name": "Planning Permission",
+            "output_group": "General",
+            "sort_order": 2
+          },
+          {
+            "name": "Basement",
+            "output_group": "General",
+            "sort_order": 3
+          },
+          {
+            "name": "Council",
+            "output_group": "General",
+            "sort_order": 4
+          },
+          {
+            "name": "Dimensions",
+            "output_group": "General",
+            "sort_order": 5
+          },
+          {
+            "name": "Additional Notes",
+            "output_group": "General",
+            "sort_order": 6
+          }
+        ],
+        "display_order": 2,
+        "id": "summary_page",
+        "navigation": {
+          "next_endpoint": "additional_building_work_page",
+          "previous_endpoint": "special_notes_page"
+        },
+        "title": "Summary Page"
+      },
       "additional_building_work_page": {
         "blocks": [
           {
@@ -996,82 +1072,6 @@
           "previous_endpoint": "summary_page"
         },
         "title": "Optional Extras"
-      },
-      "special_notes_page": {
-        "blocks": [
-          {
-            "block_type": "line_items_by_category",
-            "config": {},
-            "id": "special_notes_page__line_items"
-          }
-        ],
-        "categories": [
-          {
-            "name": "Special Notes",
-            "output_group": "General",
-            "sort_order": 0
-          }
-        ],
-        "display_order": 0,
-        "id": "special_notes_page",
-        "navigation": {
-          "next_endpoint": "summary_page",
-          "previous_endpoint": ""
-        },
-        "title": "Special Notes"
-      },
-      "summary_page": {
-        "blocks": [
-          {
-            "block_type": "line_items_by_category",
-            "config": {},
-            "id": "summary_page__line_items"
-          }
-        ],
-        "categories": [
-          {
-            "name": "Work Summary",
-            "output_group": "General",
-            "sort_order": 0
-          },
-          {
-            "name": "Boundary Lines",
-            "output_group": "General",
-            "sort_order": 1
-          },
-          {
-            "name": "Planning Permission",
-            "output_group": "General",
-            "sort_order": 2
-          },
-          {
-            "name": "Basement",
-            "output_group": "General",
-            "sort_order": 3
-          },
-          {
-            "name": "Council",
-            "output_group": "General",
-            "sort_order": 4
-          },
-          {
-            "name": "Dimensions",
-            "output_group": "General",
-            "sort_order": 5
-          },
-          {
-            "name": "Additional Notes",
-            "output_group": "General",
-            "sort_order": 6
-          }
-        ],
-        "display_order": 2,
-        "id": "summary_page",
-        "navigation": {
-          "next_endpoint": "additional_building_work_page",
-          "previous_endpoint": "special_notes_page"
-        },
-        "title": "Summary Page"
       }
     },
     "question_types": {

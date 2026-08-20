@@ -935,6 +935,18 @@ document.addEventListener('DOMContentLoaded', function() {
         footerHtml += '<div style="display:flex; justify-content:flex-end; align-items:center; gap: 10px;">';
         footerHtml += '  <button type="button" id="btn-cat-save" class="li-save-btn" style="padding:0.45rem; width:auto; margin-top:0;" title="Save Category"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>';
         footerHtml += '  <button type="button" id="btn-cat-delete" class="li-delete-btn" style="padding:0.45rem; background:#6d0b0b; color:#fff; border:none; border-radius:5px; font-weight:700; cursor:pointer;" title="Delete Category"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>';
+        footerHtml += '  <button type="button" id="btn-cat-move" class="li-save-btn" style="padding:0.45rem; width:auto; margin-top:0; background:#495057;" title="Move Category to Another Page"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>';
+        footerHtml += '</div>';
+        footerHtml += '<div id="cat-move-panel" style="display:none; margin-top:0.75rem; padding:0.75rem; background:#f8f9fa; border:1px solid #dee2e6; border-radius:4px;">';
+        footerHtml += '  <label style="font-size:.8rem; font-weight:600; color:#333; display:block; margin-bottom:0.4rem;">Move category to page:</label>';
+        footerHtml += '  <select id="cat-move-target" style="width:100%; padding:0.4rem; border:1px solid #ccc; border-radius:4px; font-size:.85rem;">';
+        footerHtml += '    <option value="">-- Choose a page --</option>';
+        footerHtml += '  </select>';
+        footerHtml += '  <div style="display:flex; gap:0.5rem; justify-content:flex-end; margin-top:0.5rem;">';
+        footerHtml += '    <button type="button" id="btn-cat-move-cancel" class="btn" style="background:#f0f0f0; color:#333; border:1px solid #ccc; padding:0.35rem 0.9rem; border-radius:4px; cursor:pointer; font-size:.8rem;">Cancel</button>';
+        footerHtml += '    <button type="button" id="btn-cat-move-confirm" class="btn" style="background:#1b3a6b; color:#fff; border:none; padding:0.35rem 0.9rem; border-radius:4px; cursor:pointer; font-size:.8rem;">Move</button>';
+        footerHtml += '  </div>';
+        footerHtml += '</div>';
         footerHtml += '</div>';
         footerHtml += '</div>';
         
@@ -1020,21 +1032,95 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         if (newDelC) newDelC.addEventListener('click', function() {
-            if (confirm('Deleting this category is permanent. Are you sure?')) {
+            if (confirm('Delete category "' + catName + '"? This cannot be undone.')) {
+                var payload = JSON.stringify({ page_key: _pageKey, category_name: catName });
+                console.log('Delete payload:', payload);
                 fetch('/builder_beta/category/delete', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json', 'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''},
-                    body: JSON.stringify({ page_key: _pageKey, category_name: catName })
-                }).then(function(r) { return r.json(); }).then(function(d) {
+                    body: payload
+                }).then(function(r) {
+                    console.log('Delete response status:', r.status);
+                    return r.json().then(function(data) {
+                        console.log('Delete response data:', data);
+                        return data;
+                    });
+                }).then(function(d) {
                     if(d.success) {
                         try { sessionStorage.removeItem('li_activeCategory'); } catch(e){}
                         try { sessionStorage.removeItem('li_activeItemId'); } catch(e){}
                         window.location.reload();
                     }
-                    else alert('Error: ' + d.error);
-                }).catch(e => alert('Network error.'));
+                    else alert('Error: ' + (d.error || 'Unknown error'));
+                }).catch(e => {
+                    console.error('Delete network error:', e);
+                    alert('Network error: ' + e.message);
+                });
             }
         });
+
+        // Move category to another page
+        var btnMove = $id('btn-cat-move');
+        var movePanel = $id('cat-move-panel');
+        var btnMoveCancel = $id('btn-cat-move-cancel');
+        var btnMoveConfirm = $id('btn-cat-move-confirm');
+        var moveTarget = $id('cat-move-target');
+        if (btnMove && movePanel) {
+            btnMove.addEventListener('click', function() {
+                movePanel.style.display = movePanel.style.display === 'none' ? 'block' : 'none';
+            });
+            if (btnMoveCancel) {
+                btnMoveCancel.addEventListener('click', function() {
+                    movePanel.style.display = 'none';
+                });
+            }
+            if (btnMoveConfirm) {
+                btnMoveConfirm.addEventListener('click', function() {
+                    var target = moveTarget ? moveTarget.value : '';
+                    if (!target) {
+                        alert('Please select a target page.');
+                        return;
+                    }
+                    if (!confirm('Move "' + catName + '" to "' + target + '"? Are you sure?')) return;
+                    btnMoveConfirm.disabled = true;
+                    btnMoveConfirm.textContent = 'Moving…';
+                    fetch('/builder_beta/category/move', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json', 'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''},
+                        body: JSON.stringify({ page_key: _pageKey, category_name: catName, target_page_key: target })
+                    }).then(function(r) { return r.json(); }).then(function(d) {
+                        if (d.success) {
+                            try { showQmToast('Category moved successfully', true); } catch(e){}
+                            window.location.href = '/' + target + '?edit=1';
+                        } else {
+                            alert('Move failed: ' + (d.error || 'Unknown error'));
+                        }
+                    }).catch(function(e) {
+                        alert('Network error moving category.');
+                    }).finally(function() {
+                        btnMoveConfirm.disabled = false;
+                        btnMoveConfirm.textContent = 'Move';
+                    });
+                });
+            }
+
+            // Populate move target dropdown from global pages list
+            console.log('Populating move dropdown. window._allPages:', window._allPages, 'moveTarget:', moveTarget);
+            if (moveTarget && window._allPages && Array.isArray(window._allPages)) {
+                window._allPages.forEach(function(pg) {
+                    if (pg.page_key && pg.page_key !== _pageKey) {
+                        var opt = document.createElement('option');
+                        opt.value = pg.page_key;
+                        opt.textContent = pg.title || pg.page_key;
+                        moveTarget.appendChild(opt);
+                        console.log('Added option:', opt.value, opt.textContent);
+                    }
+                });
+                console.log('Dropdown options after population:', moveTarget.options.length);
+            } else {
+                console.log('Population skipped. moveTarget:', !!moveTarget, 'window._allPages:', !!window._allPages, 'isArray:', Array.isArray(window._allPages));
+            }
+        }
     }
 
     function _attachAccordion(container) {

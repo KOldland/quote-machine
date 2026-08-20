@@ -1493,9 +1493,25 @@ def builder_page_details_json(page_key):
     db = str(Path(__file__).parent / 'template_store.sqlite3')
     conn = sqlite3.connect(db)
     conn.row_factory = sqlite3.Row
+    # Get latest version id
+    latest_version_row = conn.execute(
+        """
+        SELECT ftv.id
+        FROM form_template_versions ftv
+        JOIN form_templates ft ON ft.id = ftv.form_template_id
+        WHERE ft.key = ?
+        ORDER BY ftv.version DESC
+        LIMIT 1
+        """,
+        (TEMPLATE_STORE_KEY,)
+    ).fetchone()
+    latest_version_id = int(latest_version_row[0]) if latest_version_row else None
+    if latest_version_id is None:
+        conn.close()
+        return jsonify({})
     row = conn.execute(
-        "SELECT title, description FROM page_templates WHERE page_key = ?",
-        [page_key]).fetchone()
+        "SELECT title, description FROM page_templates WHERE page_key = ? AND form_template_version_id = ?",
+        [page_key, latest_version_id]).fetchone()
     conn.close()
     if row:
         return jsonify(dict(row))
@@ -1742,14 +1758,31 @@ def builder_page_details_save(page_key):
     title = data.get('title', '')
     desc = data.get('description', '')
     conn = sqlite3.connect(db)
+    # Get latest version id
+    latest_version_row = conn.execute(
+        """
+        SELECT ftv.id
+        FROM form_template_versions ftv
+        JOIN form_templates ft ON ft.id = ftv.form_template_id
+        WHERE ft.key = ?
+        ORDER BY ftv.version DESC
+        LIMIT 1
+        """,
+        (TEMPLATE_STORE_KEY,)
+    ).fetchone()
+    latest_version_id = int(latest_version_row[0]) if latest_version_row else None
+    if latest_version_id is None:
+        conn.close()
+        return jsonify({'ok': False, 'error': 'Template version not found'}), 404
     conn.execute(
-        "UPDATE page_templates SET title = ?, description = ? WHERE page_key = ?", [
-            title, desc, page_key])
+        "UPDATE page_templates SET title = ?, description = ? WHERE page_key = ? AND form_template_version_id = ?", [
+            title, desc, page_key, latest_version_id])
     conn.commit()
     conn.close()
     return jsonify({'ok': True})
 
 
+@app.route('/builder_beta/category_details_json')
 @app.route('/builder_beta/category_details_json')
 @require_role('admin')
 def builder_category_details_json():
@@ -1760,12 +1793,28 @@ def builder_category_details_json():
     db = str(Path(__file__).parent / 'template_store.sqlite3')
     conn = sqlite3.connect(db)
     conn.row_factory = sqlite3.Row
+    # Get latest version id
+    latest_version_row = conn.execute(
+        """
+        SELECT ftv.id
+        FROM form_template_versions ftv
+        JOIN form_templates ft ON ft.id = ftv.form_template_id
+        WHERE ft.key = ?
+        ORDER BY ftv.version DESC
+        LIMIT 1
+        """,
+        (TEMPLATE_STORE_KEY,)
+    ).fetchone()
+    latest_version_id = int(latest_version_row[0]) if latest_version_row else None
+    if latest_version_id is None:
+        conn.close()
+        return jsonify({})
     row = conn.execute('''
         SELECT c.id, c.name, c.description, c.output_group, c.image_url
         FROM category_templates c
         JOIN page_templates p ON c.page_template_id = p.id
-        WHERE p.page_key = ? AND c.name = ?
-    ''', [page_key, name]).fetchone()
+        WHERE p.page_key = ? AND p.form_template_version_id = ? AND c.name = ?
+    ''', [page_key, latest_version_id, name]).fetchone()
     conn.close()
     if row:
         result = dict(row)
@@ -1790,10 +1839,26 @@ def builder_category_details_save():
 
     conn = sqlite3.connect(db)
     try:
+        # Get latest version id
+        latest_version_row = conn.execute(
+            """
+            SELECT ftv.id
+            FROM form_template_versions ftv
+            JOIN form_templates ft ON ft.id = ftv.form_template_id
+            WHERE ft.key = ?
+            ORDER BY ftv.version DESC
+            LIMIT 1
+            """,
+            (TEMPLATE_STORE_KEY,)
+        ).fetchone()
+        latest_version_id = int(latest_version_row[0]) if latest_version_row else None
+        if latest_version_id is None:
+            return jsonify({'success': False, 'error': 'Template version not found'}), 404
+
         # Get page id
         page_id = conn.execute(
-            "SELECT id FROM page_templates WHERE page_key = ?",
-            [page_key]).fetchone()[0]
+            "SELECT id FROM page_templates WHERE page_key = ? AND form_template_version_id = ?",
+            [page_key, latest_version_id]).fetchone()[0]
 
         conn.execute(
             "UPDATE category_templates SET name = ?, description = ?, output_group = ?, image_url = ? WHERE page_template_id = ? AND name = ?",
@@ -1854,11 +1919,27 @@ def builder_line_item_add():
         conn.row_factory = sqlite3.Row
 
         # Verify the category exists before attempting insert
+        # Get latest version id
+        latest_version_row = conn.execute(
+            """
+            SELECT ftv.id
+            FROM form_template_versions ftv
+            JOIN form_templates ft ON ft.id = ftv.form_template_id
+            WHERE ft.key = ?
+            ORDER BY ftv.version DESC
+            LIMIT 1
+            """,
+            (TEMPLATE_STORE_KEY,)
+        ).fetchone()
+        latest_version_id = int(latest_version_row[0]) if latest_version_row else None
+        if latest_version_id is None:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Template version not found'}), 404
         cat_exists = conn.execute(
             "SELECT 1 FROM category_templates ct "
             "JOIN page_templates p ON ct.page_template_id = p.id "
-            "WHERE p.page_key = ? AND ct.name = ?",
-            [page_key, category]
+            "WHERE p.page_key = ? AND p.form_template_version_id = ? AND ct.name = ?",
+            [page_key, latest_version_id, category]
         ).fetchone()
 
         if not cat_exists:
@@ -1879,8 +1960,8 @@ def builder_line_item_add():
         default_group = conn.execute(
             "SELECT output_group FROM category_templates ct "
             "JOIN page_templates p ON ct.page_template_id = p.id "
-            "WHERE p.page_key = ? AND ct.name = ?",
-            [page_key, category]
+            "WHERE p.page_key = ? AND p.form_template_version_id = ? AND ct.name = ?",
+            [page_key, latest_version_id, category]
         ).fetchone()
         output_group_val = default_group[0] if default_group else 'General'
 
@@ -1920,9 +2001,29 @@ def builder_category_delete():
 
     conn = sqlite3.connect(db)
     try:
-        page_id = conn.execute(
-            "SELECT id FROM page_templates WHERE page_key = ?",
-            [page_key]).fetchone()[0]
+        # Get latest version id
+        latest_version_row = conn.execute(
+            """
+            SELECT ftv.id
+            FROM form_template_versions ftv
+            JOIN form_templates ft ON ft.id = ftv.form_template_id
+            WHERE ft.key = ?
+            ORDER BY ftv.version DESC
+            LIMIT 1
+            """,
+            (TEMPLATE_STORE_KEY,)
+        ).fetchone()
+        latest_version_id = int(latest_version_row[0]) if latest_version_row else None
+        if latest_version_id is None:
+            return jsonify({'success': False, 'error': 'Template version not found'}), 404
+
+        page_id_row = conn.execute(
+            "SELECT id FROM page_templates WHERE page_key = ? AND form_template_version_id = ?",
+            [page_key, latest_version_id]).fetchone()
+        if not page_id_row:
+            return jsonify({'success': False, 'error': 'Page not found'}), 404
+        page_id = page_id_row[0]
+
         # Delete category mapping
         conn.execute(
             "DELETE FROM category_templates WHERE page_template_id = ? AND name = ?", [
@@ -1934,9 +2035,83 @@ def builder_category_delete():
         conn.commit()
         return jsonify({'success': True})
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 400
     finally:
         conn.close()
+
+
+@app.route('/builder_beta/category/move', methods=['POST'])
+@require_role('admin')
+def builder_category_move():
+    """Move a category (and its line items) from one page to another."""
+    import sqlite3
+    from pathlib import Path
+    db = str(Path(__file__).parent / 'template_store.sqlite3')
+    data = request.get_json(force=True) or {}
+    page_key = data.get('page_key')
+    category_name = data.get('category_name')
+    target_page_key = data.get('target_page_key')
+
+    if not page_key or not category_name or not target_page_key:
+        return jsonify({'success': False, 'error': 'page_key, category_name, and target_page_key are required'}), 400
+
+    if page_key == target_page_key:
+        return jsonify({'success': False, 'error': 'Source and target pages are the same'}), 400
+
+    conn = sqlite3.connect(db)
+    try:
+        # Get latest version id
+        latest_version_row = conn.execute(
+            """
+            SELECT ftv.id
+            FROM form_template_versions ftv
+            JOIN form_templates ft ON ft.id = ftv.form_template_id
+            WHERE ft.key = ?
+            ORDER BY ftv.version DESC
+            LIMIT 1
+            """,
+            (TEMPLATE_STORE_KEY,)
+        ).fetchone()
+        latest_version_id = int(latest_version_row[0]) if latest_version_row else None
+        if latest_version_id is None:
+            return jsonify({'success': False, 'error': 'Template version not found'}), 404
+
+        source_page = conn.execute(
+            "SELECT id FROM page_templates WHERE page_key = ? AND form_template_version_id = ?",
+            [page_key, latest_version_id]
+        ).fetchone()
+        target_page = conn.execute(
+            "SELECT id FROM page_templates WHERE page_key = ? AND form_template_version_id = ?",
+            [target_page_key, latest_version_id]
+        ).fetchone()
+
+        if not source_page or not target_page:
+            return jsonify({'success': False, 'error': 'Source or target page not found'}), 404
+
+        source_page_id = source_page[0]
+        target_page_id = target_page[0]
+
+        # Update category_templates to point to target page
+        conn.execute(
+            "UPDATE category_templates SET page_template_id = ? WHERE page_template_id = ? AND name = ?",
+            [target_page_id, source_page_id, category_name]
+        )
+
+        # Update line_items to point to target page
+        conn.execute(
+            "UPDATE line_items SET form_page = ? WHERE form_page = ? AND category = ?",
+            [target_page_key, page_key, category_name]
+        )
+
+        conn.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    finally:
+        conn.close()
+
 
 
 @app.route('/builder_beta/page_details_delete/<page_key>', methods=['POST'])
@@ -1947,9 +2122,25 @@ def builder_page_delete(page_key):
     db = str(Path(__file__).parent / 'template_store.sqlite3')
     conn = sqlite3.connect(db)
     try:
+        # Get latest version id
+        latest_version_row = conn.execute(
+            """
+            SELECT ftv.id
+            FROM form_template_versions ftv
+            JOIN form_templates ft ON ft.id = ftv.form_template_id
+            WHERE ft.key = ?
+            ORDER BY ftv.version DESC
+            LIMIT 1
+            """,
+            (TEMPLATE_STORE_KEY,)
+        ).fetchone()
+        latest_version_id = int(latest_version_row[0]) if latest_version_row else None
+        if latest_version_id is None:
+            return jsonify({'error': 'Template version not found'}), 404
+
         row = conn.execute(
-            "SELECT id FROM page_templates WHERE page_key = ?",
-            [page_key]).fetchone()
+            "SELECT id FROM page_templates WHERE page_key = ? AND form_template_version_id = ?",
+            [page_key, latest_version_id]).fetchone()
         if not row:
             return jsonify({'error': 'Page not found'}), 404
         page_id = row[0]
@@ -1962,6 +2153,8 @@ def builder_page_delete(page_key):
         conn.commit()
         return jsonify({'ok': True})
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 400
     finally:
         conn.close()
@@ -2301,6 +2494,22 @@ def builder_swap_order():
     conn = sqlite3.connect(db)
     conn.row_factory = sqlite3.Row
     try:
+        # Get latest version id
+        latest_version_row = conn.execute(
+            """
+            SELECT ftv.id
+            FROM form_template_versions ftv
+            JOIN form_templates ft ON ft.id = ftv.form_template_id
+            WHERE ft.key = ?
+            ORDER BY ftv.version DESC
+            LIMIT 1
+            """,
+            (TEMPLATE_STORE_KEY,)
+        ).fetchone()
+        latest_version_id = int(latest_version_row[0]) if latest_version_row else None
+        if latest_version_id is None:
+            return jsonify({'error': 'Template version not found'}), 404
+
         if scope == 'question':
             # Get current item's sort_order and category
             cur = conn.execute(
@@ -2333,8 +2542,8 @@ def builder_swap_order():
             if not page_key:
                 return jsonify({'error': 'page_key is required for category scope'}), 400
             cur = conn.execute(
-                "SELECT id, display_order FROM category_templates WHERE page_template_id = (SELECT id FROM page_templates WHERE page_key = ?) AND name = ?",
-                [page_key, identifier]
+                "SELECT id, display_order FROM category_templates WHERE page_template_id = (SELECT id FROM page_templates WHERE page_key = ? AND form_template_version_id = ?) AND name = ?",
+                [page_key, latest_version_id, identifier]
             ).fetchone()
             if not cur:
                 return jsonify({'error': 'Category not found'}), 404
@@ -2343,8 +2552,8 @@ def builder_swap_order():
             op = '<' if direction == 'up' else '>'
             order = 'DESC' if direction == 'up' else 'ASC'
             adj = conn.execute(
-                f"SELECT id, display_order FROM category_templates WHERE page_template_id = (SELECT id FROM page_templates WHERE page_key = ?) AND display_order {op} ? ORDER BY display_order {order} LIMIT 1",
-                [page_key, cur_order]
+                f"SELECT id, display_order FROM category_templates WHERE page_template_id = (SELECT id FROM page_templates WHERE page_key = ? AND form_template_version_id = ?) AND display_order {op} ? ORDER BY display_order {order} LIMIT 1",
+                [page_key, latest_version_id, cur_order]
             ).fetchone()
             if not adj:
                 return jsonify({'error': 'No adjacent category'}), 400
@@ -2394,7 +2603,7 @@ def builder_page_reorder():
             """,
             (TEMPLATE_STORE_KEY,),
         ).fetchone()
-        latest_version_id = int(latest_version_row["id"]) if latest_version_row else None
+        latest_version_id = int(latest_version_row[0]) if latest_version_row else None
         if latest_version_id is None:
             return jsonify({'error': 'Template version not found'}), 404
 
@@ -2439,7 +2648,7 @@ def builder_page_reorder():
 
 
 def _sync_page_schemas_navigation_after_reorder(moved_page_key, direction):
-    """Update page_schemas navigation metadata after a page reorder."""
+    """Update page_schemas navigation metadata and page order after a page reorder."""
     global page_schemas
     ordered_pages = get_all_pages(template_key=TEMPLATE_STORE_KEY)
     page_keys = [pg['page_key'] for pg in ordered_pages]
@@ -2476,6 +2685,17 @@ def _sync_page_schemas_navigation_after_reorder(moved_page_key, direction):
                 nav['next_endpoint'] = moved_page_key
             elif pid == next_key:
                 nav['previous_endpoint'] = moved_page_key
+
+    # Reorder page dicts to match new DB order so Quick Save preserves it
+    pages_dict = page_schemas.get('pages', {})
+    reordered = {k: pages_dict[k] for k in page_keys if k in pages_dict}
+    if reordered:
+        page_schemas['pages'] = reordered
+
+    builder_pages_dict = page_schemas.get('builder_beta', {}).get('pages', {})
+    reordered_builder = {k: builder_pages_dict[k] for k in page_keys if k in builder_pages_dict}
+    if reordered_builder:
+        page_schemas['builder_beta']['pages'] = reordered_builder
 
     save_page_schemas()
 
