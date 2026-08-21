@@ -1999,15 +1999,19 @@ def builder_category_details_save():
         if latest_version_id is None:
             return jsonify({'success': False, 'error': 'Template version not found'}), 404
 
-        # Get page id
-        page_id = conn.execute(
-            "SELECT id FROM page_templates WHERE page_key = ? AND form_template_version_id = ?",
-            [page_key, latest_version_id]).fetchone()[0]
+        # Get ALL page ids for this page key (across every template version),
+        # so a rename applies everywhere. Otherwise older versions keep the
+        # old name and the UI shows a duplicate "blank" category with the
+        # existing title.
+        page_ids = [r[0] for r in conn.execute(
+            "SELECT id FROM page_templates WHERE page_key = ?",
+            [page_key]).fetchall()]
 
-        conn.execute(
-            "UPDATE category_templates SET name = ?, description = ?, output_group = ?, image_url = ? WHERE page_template_id = ? AND name = ?",
-            [new_name, desc, output_group, category_image, page_id, old_name]
-        )
+        for pid in page_ids:
+            conn.execute(
+                "UPDATE category_templates SET name = ?, description = ?, output_group = ?, image_url = ? WHERE page_template_id = ? AND name = ?",
+                [new_name, desc, output_group, category_image, pid, old_name]
+            )
 
         # Cascading update: line_items category linking to match if changed
         if old_name != new_name:

@@ -188,7 +188,7 @@
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (data.success) {
-                showQmToast('Template saved (version ' + data.version + ')', true);
+                showQmToast('Template saved', true);
             } else {
                 showQmToast('Save failed: ' + (data.error || 'Unknown'), false);
             }

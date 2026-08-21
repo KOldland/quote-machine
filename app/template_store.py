@@ -432,13 +432,17 @@ def save_template(
     description: Optional[str] = None,
     db_path: Optional[Path] = None,
 ) -> Dict[str, Any]:
-    """Create a new versioned snapshot of a template.
+    """Persist (or overwrite) a template snapshot.
 
-    This is the single entry point for both Quick Save (same template_key,
-    new version number) and Save As (new or existing template_key, new
-    version number). The template structure (pages, categories, questions)
-    is re-persisted into fresh page_templates / category_templates rows
-    linked to the new version.
+    Versioning is collapsed to a SINGLE in-place version:
+      * If the template_key already exists, we upsert the existing latest
+        version (no number bump). This keeps the form_template_version_id
+        stable so page_templates / category_templates / option_sets rows
+        stay linked, and prevents stale-version ghost categories.
+      * If the template_key is brand new, we create it at version 1.
+
+    This is the single entry point for both Quick Save (same key, overwrite
+    in place) and Save As (existing key = overwrite; new key = create).
 
     Returns:
         Dict with template_key, version, and page/question counts.
@@ -455,8 +459,14 @@ def save_template(
             description=description or "",
         )
 
-        # Bump version and persist payload.
-        version = _next_version(conn, template_id)
+        # Collapse to a single version: reuse the existing latest version if
+        # the template already exists, otherwise start at version 1.
+        existing = conn.execute(
+            "SELECT MAX(version) AS max_version FROM form_template_versions WHERE form_template_id = ?",
+            (template_id,),
+        ).fetchone()
+        version = int(existing["max_version"]) if existing and existing["max_version"] is not None else 1
+
         version_id = _upsert_version(conn, template_id, version, payload)
 
         # Extract pages from payload (supports builder_beta.pages and legacy pages).
