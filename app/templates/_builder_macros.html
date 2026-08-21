@@ -1157,7 +1157,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 '<div id="follow-ups-list"></div>' +
                 '<div style="position:relative; display:inline-block; margin-top:.5rem;">' +
                     '<button type="button" id="btn-add-follow-up" style="padding:.4rem .9rem; background:#1b3a6b; color:#fff; border:1px solid #1b3a6b; border-radius:6px; cursor:pointer; font-size:.8rem; font-weight:600; box-shadow:0 1px 3px rgba(27,58,107,0.2);">Add Follow Up</button>' +
-                    '<div id="fu-type-picker" style="display:none; position:absolute; top:100%; left:0; background:#fff; border:1px solid #ccc; border-radius:4px; box-shadow:0 2px 8px rgba(0,0,0,0.15); z-index:9999; min-width:180px; margin-top:4px;">' +
+                    '<div id="fu-type-picker" style="display:none; position:absolute; top:100%; left:0; background:#fff; border:1px solid #ccc; border-radius:4px; box-shadow:0 2px 8px rgba(0,0,0,0.15); z-index:200; min-width:180px; margin-top:4px;">' +
                         '<button type="button" class="fu-picker-item" data-type="Dropdown" style="display:block; width:100%; text-align:left; padding:8px 12px; background:none; border:none; cursor:pointer; font-size:.85rem; color:#333;">Dropdown</button>' +
                         '<button type="button" class="fu-picker-item" data-type="Single Entry" style="display:block; width:100%; text-align:left; padding:8px 12px; background:none; border:none; cursor:pointer; font-size:.85rem; color:#333; border-top:1px solid #eee;">Single Entry</button>' +
                     '</div>' +
@@ -1685,7 +1685,7 @@ document.addEventListener('DOMContentLoaded', function() {
           return '<div class="li-form-group">'
               + '<label style="position:relative; display:inline-flex; align-items:center; gap:6px;">' + label + ' '
               + '<button type="button" id="' + pickerId + '" class="merge-tag-trigger" style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:22px;border:1.5px solid #1b3a6b;border-radius:4px;font-size:.75rem;font-weight:700;color:#1b3a6b;background:#f0f4f9;cursor:pointer;line-height:1;">{ }</button>'
-              + '<div class="merge-tag-dropdown" data-picker="' + pickerId + '" style="display:none;position:absolute;top:calc(100% + 4px);left:0;background:#fff;border:1px solid #ccc;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,0.15);z-index:2000;padding:4px 0;min-width:140px;">'
+              + '<div class="merge-tag-dropdown" data-picker="' + pickerId + '" style="display:none;position:absolute;top:calc(100% + 4px);left:0;background:#fff;border:1px solid #ccc;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,0.15);z-index:300;padding:4px 0;min-width:140px;">'
               + options
               + '</div>'
               + '</label>'

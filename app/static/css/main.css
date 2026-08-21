@@ -21,6 +21,7 @@
     transition: width 0.3s ease; /* Smooth transition for sidebar toggle */
     display: flex;
     flex-direction: column;
+    z-index: 1100;
 }
 
 .sidebar .nav-link {
@@ -694,7 +695,7 @@
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
     background: rgba(0,0,0,.45);
-    z-index: 10000;
+    z-index: 200;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -820,7 +821,7 @@
     position: fixed;
     top: 20px;
     left: 20px;
-    z-index: 1000;
+    z-index: 1200;
     background-color: #1F2D3D;
     color: white;
     border: none;
@@ -886,7 +887,7 @@ input, label {
     width: 100%;
     top: 0;
     left: 0;
-    z-index: 999; /* Ensure the header stays on top */
+    z-index: 1150; /* Ensure the header stays on top */
 }
 
 /* Logo styles */
@@ -1155,7 +1156,7 @@ body {
             left: 0;
             top: 0;
             background-color: #1F2D3D;
-            z-index: 1000; /* Bring sidebar above other content */
+            z-index: 1100; /* Bring sidebar above other content */
             transition: width 0.3s ease; /* Smooth transition for sidebar toggle */
         }
 
@@ -1243,7 +1244,7 @@ body {
         padding: 30px; /* Reduce padding for mobile */
         text-align: center; /* Center the logo and text */
         background-color: rgba(31, 45, 61, 0.2); /* Semi-transparent background */
-        z-index: 1100; /* Higher than the sidebar */
+        z-index: 1150; /* Higher than the sidebar */
         box-shadow: none; /* Remove any shadow to keep it clean */
         }
 
@@ -1630,7 +1631,7 @@ input[type="text"], input[type="date"], textarea, select {
     cursor: row-resize;
     flex-shrink: 0;
     transition: background 0.15s;
-    z-index: 5;
+    z-index: 10;
 }
 .resize-handle-horizontal::after {
     content: '';
@@ -1660,7 +1661,7 @@ input[type="text"], input[type="date"], textarea, select {
     cursor: col-resize;
     flex-shrink: 0;
     transition: background 0.15s;
-    z-index: 5;
+    z-index: 10;
 }
 .resize-handle-vertical::after {
     content: '';

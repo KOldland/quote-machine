@@ -40,9 +40,8 @@
                 </button>
                 <button type="button" id="btn-save-as" class="btn btn-sidebar"
                         style="width:100%;text-align:left;">Save As...</button>
-                <button type="button" class="btn btn-sidebar"
-                        style="width:100%;text-align:left;"
-                        onclick="window.location.href='{{ url_for('builder_templates') }}'">Load Template</button>
+                <button type="button" id="btn-load-template" class="btn btn-sidebar"
+                        style="width:100%;text-align:left;">Load Template</button>
                 <button type="button" id="btn-add-page" class="btn btn-sidebar"
                         style="width:100%;text-align:left;">Add Page</button>
                 <button type="button" class="btn btn-sidebar"
@@ -52,7 +51,7 @@
 
             <!-- Save As Modal -->
             <div id="save-as-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;
-                 background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;
+                 background:rgba(0,0,0,0.55);z-index:1200;align-items:center;justify-content:center;
                  backdrop-filter:blur(2px);">
                 <div style="background:#fff;padding:1.75rem 2rem;border-radius:10px;width:520px;max-width:92%;max-height:85vh;overflow-y:auto;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1f2937;box-shadow:0 20px 25px -5px rgba(0,0,0,0.1),0 10px 10px -5px rgba(0,0,0,0.04);">
                     <h3 style="margin:0 0 1.25rem 0;font-size:1.25rem;font-weight:700;color:#0f172a;letter-spacing:-0.01em;">Save Template As</h3>
@@ -71,6 +70,43 @@
                     <div style="display:flex;gap:.75rem;justify-content:flex-end;padding-top:.5rem;border-top:1px solid #e5e7eb;">
                         <button type="button" id="btn-save-as-cancel" class="btn" style="background:#fff;color:#374151;border:1px solid #d1d5db;padding:.55rem 1.1rem;border-radius:6px;cursor:pointer;font-size:.9rem;font-weight:500;">Cancel</button>
                         <button type="button" id="btn-save-as-confirm" class="btn" style="background:#1b3a6b;color:#fff;border:none;padding:.55rem 1.1rem;border-radius:6px;cursor:pointer;font-size:.9rem;font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,0.05);">Save</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Load Template Modal -->
+            <div id="load-template-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;
+                 background:rgba(0,0,0,0.55);z-index:1200;align-items:center;justify-content:center;
+                 backdrop-filter:blur(2px);">
+                <div style="background:#fff;padding:1.75rem 2rem;border-radius:10px;width:620px;max-width:92%;max-height:85vh;overflow-y:auto;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1f2937;box-shadow:0 20px 25px -5px rgba(0,0,0,0.1),0 10px 10px -5px rgba(0,0,0,0.04);">
+                    <h3 style="margin:0 0 1.25rem 0;font-size:1.25rem;font-weight:700;color:#0f172a;letter-spacing:-0.01em;">Load Template</h3>
+                    <div id="load-template-list" style="margin-bottom:1.5rem;">
+                        <p style="color:#6b7280;">Loading templates...</p>
+                    </div>
+                    <div style="display:flex;gap:.75rem;justify-content:flex-end;padding-top:.5rem;border-top:1px solid #e5e7eb;">
+                        <button type="button" id="btn-load-template-close" class="btn" style="background:#fff;color:#374151;border:1px solid #d1d5db;padding:.55rem 1.1rem;border-radius:6px;cursor:pointer;font-size:.9rem;font-weight:500;">Close</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Add Page Modal -->
+            <div id="add-page-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;
+                 background:rgba(0,0,0,0.55);z-index:1200;align-items:center;justify-content:center;
+                 backdrop-filter:blur(2px);">
+                <div style="background:#fff;padding:1.75rem 2rem;border-radius:10px;width:520px;max-width:92%;max-height:85vh;overflow-y:auto;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1f2937;box-shadow:0 20px 25px -5px rgba(0,0,0,0.1),0 10px 10px -5px rgba(0,0,0,0.04);">
+                    <h3 style="margin:0 0 1.25rem 0;font-size:1.25rem;font-weight:700;color:#0f172a;letter-spacing:-0.01em;">Add Page</h3>
+                    <div style="margin-bottom:1.1rem;">
+                        <label style="display:block;margin-bottom:.35rem;font-size:.875rem;font-weight:600;color:#374151;">Page Title</label>
+                        <input type="text" id="add-page-title" style="width:100%;padding:.6rem .75rem;border:1px solid #d1d5db;border-radius:6px;font-size:.95rem;color:#111827;background:#fff;" placeholder="My Page">
+                    </div>
+                    <div style="margin-bottom:1.5rem;">
+                        <label style="display:block;margin-bottom:.35rem;font-size:.875rem;font-weight:600;color:#374151;">Page Key</label>
+                        <input type="text" id="add-page-key" style="width:100%;padding:.6rem .75rem;border:1px solid #d1d5db;border-radius:6px;font-size:.95rem;color:#111827;background:#fff;" placeholder="my_page_key">
+                        <p style="font-size:.8rem;color:#6b7280;margin-top:.35rem;">Use lowercase letters, numbers, and underscores only.</p>
+                    </div>
+                    <div style="display:flex;gap:.75rem;justify-content:flex-end;padding-top:.5rem;border-top:1px solid #e5e7eb;">
+                        <button type="button" id="btn-add-page-cancel" class="btn" style="background:#fff;color:#374151;border:1px solid #d1d5db;padding:.55rem 1.1rem;border-radius:6px;cursor:pointer;font-size:.9rem;font-weight:500;">Cancel</button>
+                        <button type="button" id="btn-add-page-confirm" class="btn" style="background:#1b3a6b;color:#fff;border:none;padding:.55rem 1.1rem;border-radius:6px;cursor:pointer;font-size:.9rem;font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,0.05);">Add Page</button>
                     </div>
                 </div>
             </div>
@@ -174,6 +210,9 @@
     if (!btnSaveAs || !modal) return;
 
     function openModal() {
+        if (modal.parentElement !== document.body) {
+            document.body.appendChild(modal);
+        }
         modal.style.display = 'flex';
         inputName.value = '';
         inputKey.value = '';
@@ -226,6 +265,169 @@
             btnConfirm.textContent = 'Save';
         });
     });
+})();
+
+// ── Add Page Modal ───────────────────────────────────────────────────────
+(function() {
+    var btnAddPage = document.getElementById('btn-add-page');
+    var modal = document.getElementById('add-page-modal');
+    var btnCancel = document.getElementById('btn-add-page-cancel');
+    var btnConfirm = document.getElementById('btn-add-page-confirm');
+    var inputTitle = document.getElementById('add-page-title');
+    var inputKey = document.getElementById('add-page-key');
+    if (!btnAddPage || !modal) return;
+
+    function openModal() {
+        if (modal.parentElement !== document.body) {
+            document.body.appendChild(modal);
+        }
+        modal.style.display = 'flex';
+        inputTitle.value = '';
+        inputKey.value = '';
+        inputTitle.focus();
+    }
+    function closeModal() {
+        modal.style.display = 'none';
+    }
+
+    btnAddPage.addEventListener('click', openModal);
+    btnCancel.addEventListener('click', closeModal);
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) closeModal();
+    });
+
+    inputTitle.addEventListener('input', function() {
+        if (!inputKey.value) {
+            inputKey.value = inputTitle.value.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+        }
+    });
+
+    btnConfirm.addEventListener('click', function() {
+        var title = inputTitle.value.trim();
+        var key = inputKey.value.trim().replace(/[^a-z0-9_]/g, '_').replace(/^_|_$/g, '');
+        if (!title || !key) {
+            showQmToast('Title and Key are required.', false);
+            return;
+        }
+        btnConfirm.disabled = true;
+        btnConfirm.textContent = 'Adding…';
+        var csrf = (document.querySelector('[name=csrf_token]') || {}).value || '';
+        fetch('/builder_beta/page/add', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrf
+            },
+            body: JSON.stringify({ title: title, page_key: key })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                showQmToast('Page added successfully.', true);
+                closeModal();
+                window.location.reload();
+            } else {
+                showQmToast('Add page failed: ' + (data.error || 'Unknown'), false);
+            }
+        })
+        .catch(function() {
+            showQmToast('Add page request failed.', false);
+        })
+        .finally(function() {
+            btnConfirm.disabled = false;
+            btnConfirm.textContent = 'Add Page';
+        });
+    });
+})();
+
+// ── Load Template Modal ───────────────────────────────────────────────────
+(function() {
+    function escapeHtml(str) {
+        return String(str || '').replace(/[&<>"']/g, function(m) {
+            return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];
+        });
+    }
+    var btnLoad = document.getElementById('btn-load-template');
+    var modal = document.getElementById('load-template-modal');
+    var btnClose = document.getElementById('btn-load-template-close');
+    var listEl = document.getElementById('load-template-list');
+    if (!btnLoad || !modal) return;
+
+    function openModal() {
+        if (modal.parentElement !== document.body) {
+            document.body.appendChild(modal);
+        }
+        modal.style.display = 'flex';
+        listEl.innerHTML = '<p style="color:#6b7280;">Loading templates...</p>';
+        loadTemplateList();
+    }
+    function closeModal() {
+        modal.style.display = 'none';
+    }
+
+    btnLoad.addEventListener('click', function(e) {
+        e.preventDefault();
+        openModal();
+    });
+    if (btnClose) btnClose.addEventListener('click', closeModal);
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) closeModal();
+    });
+
+    function loadTemplateList() {
+        fetch('/builder_beta/template/list')
+            .then(r => r.json())
+            .then(data => {
+                var templates = data.templates || [];
+                if (!templates.length) {
+                    listEl.innerHTML = '<p style="color:#6b7280;">No templates found.</p>';
+                    return;
+                }
+                var html = '<div style="display:flex; flex-direction:column; gap:0.5rem;">';
+                templates.forEach(function(t) {
+                    html += '<div style="display:flex; align-items:center; justify-content:space-between; padding:0.6rem 0.75rem; border:1px solid #e5e7eb; border-radius:6px; background:#f9fafb;">';
+                    html += '<div style="min-width:0;">';
+                    html += '<div style="font-weight:600; color:#111827;">' + escapeHtml(t.name) + '</div>';
+                    html += '<div style="font-size:0.8rem; color:#6b7280;">' + escapeHtml(t.template_key) + '</div>';
+                    html += '</div>';
+                    html += '<div style="display:flex; gap:0.4rem;">';
+                    html += '<button class="btn btn-primary btn-sm" data-load="' + t.template_key + '">Load</button>';
+                    html += '</div>';
+                    html += '</div>';
+                });
+                html += '</div>';
+                listEl.innerHTML = html;
+
+                listEl.querySelectorAll('[data-load]').forEach(function(btn) {
+                    btn.addEventListener('click', function() {
+                        if (!confirm('Load this template? Current unsaved changes will be lost.')) return;
+                        var key = btn.getAttribute('data-load');
+                        var csrf = (document.querySelector('[name=csrf_token]') || {}).value || '';
+                        fetch('/builder_beta/load_form', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+                            body: JSON.stringify({ form_key: key })
+                        })
+                        .then(function(r) { return r.json(); })
+                        .then(function(data) {
+                            if (data.success) {
+                                showQmToast('Template loaded successfully.', true);
+                                closeModal();
+                                window.location.reload();
+                            } else {
+                                showQmToast('Load failed: ' + (data.error || 'unknown'), false);
+                            }
+                        })
+                        .catch(function() {
+                            showQmToast('Error loading template.', false);
+                        });
+                    });
+                });
+            })
+            .catch(function(err) {
+                listEl.innerHTML = '<p style="color:red;">Error loading templates: ' + err.message + '</p>';
+            });
+    }
 })();
 </script>
 {% endblock %}

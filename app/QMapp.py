@@ -50,6 +50,130 @@ from template_store import (
     get_all_pages,
     get_line_items_for_page,
 )
+
+
+def _get_latest_version_id(conn, template_key):
+    row = conn.execute(
+        """
+        SELECT ftv.id
+        FROM form_template_versions ftv
+        JOIN form_templates ft ON ft.id = ftv.form_template_id
+        WHERE ft.key = ?
+        ORDER BY ftv.version DESC
+        LIMIT 1
+        """,
+        (template_key,),
+    ).fetchone()
+    return int(row[0]) if row else None
+
+
+def _remove_category_from_payload(conn, version_id, page_key, category_name):
+    row = conn.execute(
+        "SELECT payload_json FROM form_template_versions WHERE id = ?",
+        (version_id,),
+    ).fetchone()
+    if not row:
+        return
+    try:
+        payload = json.loads(row[0])
+    except Exception:
+        return
+    pages = payload.get("builder_beta", {}).get("pages", payload.get("pages", {}))
+    page = pages.get(page_key)
+    if not isinstance(page, dict):
+        return
+    cats = page.get("categories", [])
+    if not isinstance(cats, list):
+        return
+    new_cats = [c for c in cats if not (isinstance(c, dict) and c.get("name") == category_name)]
+    if len(new_cats) != len(cats):
+        page["categories"] = new_cats
+        conn.execute(
+            "UPDATE form_template_versions SET payload_json = ? WHERE id = ?",
+            (json.dumps(payload, sort_keys=True), version_id),
+        )
+
+
+def _move_category_in_payload(conn, version_id, source_page_key, target_page_key, category_name):
+    row = conn.execute(
+        "SELECT payload_json FROM form_template_versions WHERE id = ?",
+        (version_id,),
+    ).fetchone()
+    if not row:
+        return
+    try:
+        payload = json.loads(row[0])
+    except Exception:
+        return
+    pages = payload.get("builder_beta", {}).get("pages", payload.get("pages", {}))
+    source_page = pages.get(source_page_key)
+    target_page = pages.get(target_page_key)
+    if not isinstance(source_page, dict) or not isinstance(target_page, dict):
+        return
+    source_cats = source_page.get("categories", [])
+    target_cats = target_page.get("categories", [])
+    if not isinstance(source_cats, list) or not isinstance(target_cats, list):
+        return
+    moved = None
+    new_source = []
+    for c in source_cats:
+        if isinstance(c, dict) and c.get("name") == category_name:
+            moved = dict(c)
+        else:
+            new_source.append(c)
+    if moved is None:
+        return
+    source_page["categories"] = new_source
+    target_cats.append(moved)
+    target_page["categories"] = target_cats
+    conn.execute(
+        "UPDATE form_template_versions SET payload_json = ? WHERE id = ?",
+        (json.dumps(payload, sort_keys=True), version_id),
+    )
+
+
+def _rebuild_payload_from_db(conn, template_key):
+    import sqlite3
+    from pathlib import Path
+    db = str(Path(__file__).parent / 'template_store.sqlite3')
+    if conn is None:
+        conn = sqlite3.connect(db)
+    conn.row_factory = sqlite3.Row
+    latest_version_id = _get_latest_version_id(conn, template_key)
+    if not latest_version_id:
+        return None
+    pages_rows = conn.execute(
+        "SELECT id, page_key, title, display_order FROM page_templates WHERE form_template_version_id = ? ORDER BY display_order ASC",
+        (latest_version_id,),
+    ).fetchall()
+    pages = {}
+    for page_row in pages_rows:
+        page_id = page_row["id"]
+        page_key = page_row["page_key"]
+        cats = conn.execute(
+            "SELECT name, display_order, output_group FROM category_templates WHERE page_template_id = ? ORDER BY display_order ASC",
+            (page_id,),
+        ).fetchall()
+        questions = conn.execute(
+            "SELECT question_key, question_type, label, storage_key, display_order, metadata_json FROM question_templates WHERE page_template_id = ? ORDER BY display_order ASC",
+            (page_id,),
+        ).fetchall()
+        blocks = []
+        for q in questions:
+            try:
+                meta = json.loads(q["metadata_json"])
+            except Exception:
+                meta = {"id": q["question_key"], "block_type": q["question_type"], "label": q["label"] or "", "storage": {"key": q["storage_key"] or q["question_key"]}}
+            blocks.append(meta)
+        pages[page_key] = {
+            "title": page_row["title"],
+            "categories": [
+                {"name": c["name"], "sort_order": c["display_order"], "output_group": c["output_group"]}
+                for c in cats
+            ],
+            "blocks": blocks,
+        }
+    return {"builder_beta": {"pages": pages}}
 from config import (
     TEMPLATE_STORE_READ_ENABLED,
     TEMPLATE_STORE_KEY,
@@ -587,8 +711,9 @@ def get_builder_beta_state():
     question_types = state.get('question_types')
     if not isinstance(question_types, dict):
         state['question_types'] = deepcopy(DEFAULT_BUILDER_BETA_QUESTION_TYPES)
-        for k, v in DEFAULT_BUILDER_BETA_QUESTION_TYPES.items():
-            question_types.setdefault(k, deepcopy(v))
+        question_types = state['question_types']
+    for k, v in DEFAULT_BUILDER_BETA_QUESTION_TYPES.items():
+        question_types.setdefault(k, deepcopy(v))
 
     # 5️⃣  Load the *pages* from the schema – this is the crucial part.
     #     If the schema contains a 'pages' mapping we honour it; otherwise we
@@ -1642,13 +1767,23 @@ def load_form_route():
     if not form_key:
         return jsonify({'success': False, 'error': 'Form key is required'}), 400
 
-    if form_key not in page_schemas:
-        return jsonify({'success': False, 'error': 'Template not found'}), 404
-
     try:
-        page_schemas['builder_beta'] = copy.deepcopy(page_schemas[form_key])
-        save_page_schemas()
-        return jsonify({'success': True})
+        # Try loading from template store first
+        payload = ts.load_template_payload(form_key)
+        if payload:
+            pages = payload.get('builder_beta', {}).get('pages', payload.get('pages', {}))
+            if pages:
+                page_schemas['builder_beta'] = copy.deepcopy(pages)
+                save_page_schemas()
+                return jsonify({'success': True})
+        
+        # Fallback to in-memory page_schemas
+        if form_key in page_schemas:
+            page_schemas['builder_beta'] = copy.deepcopy(page_schemas[form_key])
+            save_page_schemas()
+            return jsonify({'success': True})
+        
+        return jsonify({'success': False, 'error': 'Template not found'}), 404
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -2032,6 +2167,8 @@ def builder_category_delete():
         conn.execute(
             "DELETE FROM line_items WHERE form_page = ? AND category = ?", [
                 page_key, category_name])
+        # Sync payload snapshot
+        _remove_category_from_payload(conn, latest_version_id, page_key, category_name)
         conn.commit()
         return jsonify({'success': True})
     except Exception as e:
@@ -2105,6 +2242,8 @@ def builder_category_move():
             [target_page_key, page_key, category_name]
         )
 
+        # Sync payload snapshot
+        _move_category_in_payload(conn, latest_version_id, page_key, target_page_key, category_name)
         conn.commit()
         return jsonify({'success': True})
     except Exception as e:
@@ -2202,12 +2341,11 @@ def builder_save_as_template():
 def builder_quick_save():
     """Save the current template in-place, creating a new version."""
     import template_store as _ts
-    try:
-        payload = page_schemas if isinstance(page_schemas, dict) else {}
-    except Exception:
-        payload = {}
     template_key = session.get('template_key') or TEMPLATE_STORE_KEY
     try:
+        payload = _rebuild_payload_from_db(conn=None, template_key=template_key)
+        if not payload:
+            payload = _ts.load_template_payload(template_key) or {}
         result = _ts.save_template(template_key, payload)
         return jsonify({'success': True, **result})
     except Exception as e:
@@ -2225,10 +2363,16 @@ def builder_save_as_new():
     new_name = data.get('name', '').strip()
     new_description = data.get('description', '').strip()
     new_key = data.get('key', '').strip()
+    overwrite_key = data.get('overwrite_key', '').strip()
+    if overwrite_key:
+        new_key = overwrite_key
+        new_name = new_name or overwrite_key
     if not new_name or not new_key:
         return jsonify({'success': False, 'error': 'Name and key are required'}), 400
     try:
-        payload = page_schemas if isinstance(page_schemas, dict) else {}
+        payload = _rebuild_payload_from_db(conn=None, template_key=TEMPLATE_STORE_KEY)
+        if not payload:
+            payload = _ts.load_template_payload(TEMPLATE_STORE_KEY) or {}
     except Exception:
         payload = {}
     try:
