@@ -55,6 +55,10 @@
                  backdrop-filter:blur(2px);">
                 <div style="background:#fff;padding:1.75rem 2rem;border-radius:10px;width:520px;max-width:92%;max-height:85vh;overflow-y:auto;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1f2937;box-shadow:0 20px 25px -5px rgba(0,0,0,0.1),0 10px 10px -5px rgba(0,0,0,0.04);">
                     <h3 style="margin:0 0 1.25rem 0;font-size:1.25rem;font-weight:700;color:#0f172a;letter-spacing:-0.01em;">Save Template As</h3>
+                    <div style="margin-bottom:.4rem;font-size:.8rem;color:#6b7280;">Click an existing template to overwrite it, or fill the form below to create a new one.</div>
+                    <div id="save-as-existing" style="margin-bottom:1.1rem;border:1px solid #e5e7eb;border-radius:6px;padding:.4rem;max-height:160px;overflow-y:auto;background:#f9fafb;">
+                        <p style="font-size:.8rem;color:#6b7280;margin:.3rem .4rem;">Loading templates…</p>
+                    </div>
                     <div style="margin-bottom:1.1rem;">
                         <label style="display:block;margin-bottom:.35rem;font-size:.875rem;font-weight:600;color:#374151;">Template Name</label>
                         <input type="text" id="save-as-name" style="width:100%;padding:.6rem .75rem;border:1px solid #d1d5db;border-radius:6px;font-size:.95rem;color:#111827;background:#fff;" placeholder="My Template">
@@ -62,6 +66,7 @@
                     <div style="margin-bottom:1.1rem;">
                         <label style="display:block;margin-bottom:.35rem;font-size:.875rem;font-weight:600;color:#374151;">Template Key</label>
                         <input type="text" id="save-as-key" style="width:100%;padding:.6rem .75rem;border:1px solid #d1d5db;border-radius:6px;font-size:.95rem;color:#111827;background:#fff;" placeholder="my_template_key">
+                        <p style="font-size:.78rem;color:#6b7280;margin-top:.3rem;">Used only for a NEW template. If you pick an existing one above, its key is used to overwrite.</p>
                     </div>
                     <div style="margin-bottom:1.5rem;">
                         <label style="display:block;margin-bottom:.35rem;font-size:.875rem;font-weight:600;color:#374151;">Description (optional)</label>
@@ -207,16 +212,66 @@
     var inputName = document.getElementById('save-as-name');
     var inputKey = document.getElementById('save-as-key');
     var inputDesc = document.getElementById('save-as-description');
+    var existingList = document.getElementById('save-as-existing');
     if (!btnSaveAs || !modal) return;
+
+    var overwriteKey = '';
+
+    function escapeHtml(str) {
+        return String(str || '').replace(/[&<>"']/g, function(m) {
+            return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];
+        });
+    }
+
+    function loadExisting() {
+        existingList.innerHTML = '<p style="font-size:.8rem;color:#6b7280;margin:.3rem .4rem;">Loading templates…</p>';
+        fetch('/builder_beta/template/list')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                var templates = data.templates || [];
+                if (!templates.length) {
+                    existingList.innerHTML = '<p style="font-size:.8rem;color:#6b7280;margin:.3rem .4rem;">No existing templates yet.</p>';
+                    return;
+                }
+                var html = '';
+                templates.forEach(function(t) {
+                    html += '<div class="save-as-existing-item" data-key="' + escapeHtml(t.template_key) + '" data-name="' + escapeHtml(t.name) + '" style="padding:.45rem .55rem;border-radius:5px;cursor:pointer;font-size:.88rem;display:flex;justify-content:space-between;gap:.5rem;align-items:center;">';
+                    html += '<span style="font-weight:600;color:#111827;">' + escapeHtml(t.name) + '</span>';
+                    html += '<span style="font-size:.72rem;color:#6b7280;">v' + escapeHtml(t.latest_version) + ' · ' + escapeHtml(t.template_key) + '</span>';
+                    html += '</div>';
+                });
+                existingList.innerHTML = html;
+                existingList.querySelectorAll('.save-as-existing-item').forEach(function(el) {
+                    el.addEventListener('click', function() {
+                        overwriteKey = el.getAttribute('data-key');
+                        inputName.value = el.getAttribute('data-name');
+                        inputKey.value = overwriteKey;
+                        existingList.querySelectorAll('.save-as-existing-item').forEach(function(x) {
+                            x.style.background = '';
+                        });
+                        el.style.background = '#e0edff';
+                        showQmToast('Will overwrite "' + el.getAttribute('data-name') + '".', true);
+                    });
+                });
+            })
+            .catch(function() {
+                existingList.innerHTML = '<p style="font-size:.8rem;color:red;margin:.3rem .4rem;">Failed to load templates.</p>';
+            });
+    }
 
     function openModal() {
         if (modal.parentElement !== document.body) {
             document.body.appendChild(modal);
         }
         modal.style.display = 'flex';
+        overwriteKey = '';
         inputName.value = '';
         inputKey.value = '';
         inputDesc.value = '';
+        existingList.querySelectorAll('.save-as-existing-item').forEach(function(x) {
+            x.style.background = '';
+        });
+        loadExisting();
         inputName.focus();
     }
     function closeModal() {
@@ -246,7 +301,7 @@
                 'Content-Type': 'application/json',
                 'X-CSRFToken': csrf
             },
-            body: JSON.stringify({ name: name, key: key, description: desc })
+            body: JSON.stringify({ name: name, key: key, description: desc, overwrite_key: overwriteKey })
         })
         .then(function(r) { return r.json(); })
         .then(function(data) {
