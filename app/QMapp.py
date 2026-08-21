@@ -741,13 +741,22 @@ def get_builder_beta_state():
         if not isinstance(pg.get('blocks'), list):
             pg['blocks'] = []   # make sure a list exists
 
-    # Inject display_order from SQLite so navigation can use it as single source of truth
+    # Inject display_order from SQLite so navigation can use it as single source of truth.
+    # Also ensure any pages that exist in the DB but not in the JSON schema are included
+    # (e.g. pages added via the Add Page modal).
     try:
         ordered_pages = get_all_pages(template_key=TEMPLATE_STORE_KEY)
         for pg in ordered_pages:
             pid = pg['page_key']
             if pid in pages:
                 pages[pid]['display_order'] = pg['display_order']
+            else:
+                pages[pid] = {
+                    'title': pg.get('title', pid.replace('_', ' ').title()),
+                    'blocks': [],
+                    'categories': [],
+                    'display_order': pg.get('display_order', 999),
+                }
         pages = dict(sorted(pages.items(), key=lambda x: x[1].get('display_order', 999)))
         state['pages'] = pages
     except Exception:
@@ -2682,22 +2691,64 @@ def builder_swap_order():
             conn.commit()
             return jsonify({'success': True})
         elif scope == 'category':
-            # Swap display_order in category_templates by category name
+            # Swap display_order in category_templates by category name.
+            # Match the category list behavior: search across all versions of the page,
+            # but prefer the latest version for the actual swap so the change is
+            # visible in the current template.
             if not page_key:
                 return jsonify({'error': 'page_key is required for category scope'}), 400
             cur = conn.execute(
-                "SELECT id, display_order FROM category_templates WHERE page_template_id = (SELECT id FROM page_templates WHERE page_key = ? AND form_template_version_id = ?) AND name = ?",
-                [page_key, latest_version_id, identifier]
+                """SELECT ct.id, ct.display_order, pt.form_template_version_id
+                   FROM category_templates ct
+                   JOIN page_templates pt ON pt.id = ct.page_template_id
+                   WHERE pt.page_key = ? AND ct.name = ?
+                   ORDER BY pt.form_template_version_id DESC
+                   LIMIT 1""",
+                [page_key, identifier]
             ).fetchone()
             if not cur:
-                return jsonify({'error': 'Category not found'}), 404
-            cur_order = cur['display_order']
-            cat_id = cur['id']
+                # Category exists in line_items but not in category_templates
+                # (e.g. "Size of Extension"). Create it in the latest version so
+                # the swap can proceed.
+                page_row = conn.execute(
+                    "SELECT id FROM page_templates WHERE page_key = ? AND form_template_version_id = ?",
+                    [page_key, latest_version_id]
+                ).fetchone()
+                if not page_row:
+                    return jsonify({'error': 'Category not found'}), 404
+                page_id = page_row['id']
+                max_order_row = conn.execute(
+                    "SELECT MAX(display_order) as max_order FROM category_templates WHERE page_template_id = ?",
+                    (page_id,)
+                ).fetchone()
+                next_order = 0
+                if max_order_row and max_order_row['max_order'] is not None:
+                    next_order = int(max_order_row['max_order']) + 1
+                conn.execute(
+                    "INSERT INTO category_templates (form_template_version_id, page_template_id, name, display_order, output_group) VALUES (?, ?, ?, ?, ?)",
+                    (latest_version_id, page_id, identifier, next_order, 'General')
+                )
+                conn.commit()
+                cur = conn.execute(
+                    "SELECT id, display_order FROM category_templates WHERE page_template_id = ? AND name = ?",
+                    (page_id, identifier)
+                ).fetchone()
+                if not cur:
+                    return jsonify({'error': 'Category not found'}), 404
+                cur_order = cur['display_order']
+                cat_id = cur['id']
+                target_version_id = latest_version_id
+            else:
+                cur_order = cur['display_order']
+                cat_id = cur['id']
+                target_version_id = cur['form_template_version_id']
             op = '<' if direction == 'up' else '>'
             order = 'DESC' if direction == 'up' else 'ASC'
             adj = conn.execute(
-                f"SELECT id, display_order FROM category_templates WHERE page_template_id = (SELECT id FROM page_templates WHERE page_key = ? AND form_template_version_id = ?) AND display_order {op} ? ORDER BY display_order {order} LIMIT 1",
-                [page_key, latest_version_id, cur_order]
+                f"""SELECT id, display_order FROM category_templates
+                    WHERE page_template_id = (SELECT id FROM page_templates WHERE page_key = ? AND form_template_version_id = ?)
+                    AND display_order {op} ? ORDER BY display_order {order} LIMIT 1""",
+                [page_key, target_version_id, cur_order]
             ).fetchone()
             if not adj:
                 return jsonify({'error': 'No adjacent category'}), 400

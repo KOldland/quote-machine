@@ -57,6 +57,11 @@
             "name": "Council",
             "output_group": "General",
             "sort_order": 4
+          },
+          {
+            "name": "New Test Category",
+            "sort_order": 5,
+            "description": ""
           }
         ],
         "display_order": 0,
