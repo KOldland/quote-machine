@@ -2168,10 +2168,12 @@ def builder_category_delete():
             return jsonify({'success': False, 'error': 'Page not found'}), 404
         page_id = page_id_row[0]
 
-        # Delete category mapping
+        # Delete category mapping across ALL versions (not just latest),
+        # so categories that exist in older versions but not the latest
+        # (e.g. "Work Summary" renamed to "Summary" in v647) can still be removed.
         conn.execute(
-            "DELETE FROM category_templates WHERE page_template_id = ? AND name = ?", [
-                page_id, category_name])
+            "DELETE FROM category_templates WHERE page_template_id IN (SELECT id FROM page_templates WHERE page_key = ?) AND name = ?", [
+                page_key, category_name])
         # Additionally delete all child line_items
         conn.execute(
             "DELETE FROM line_items WHERE form_page = ? AND category = ?", [
@@ -2691,75 +2693,63 @@ def builder_swap_order():
             conn.commit()
             return jsonify({'success': True})
         elif scope == 'category':
-            # Swap display_order in category_templates by category name.
-            # Match the category list behavior: search across all versions of the page,
-            # but prefer the latest version for the actual swap so the change is
-            # visible in the current template.
+            # Swap category order using the deduplicated category list
+            # (same as the UI). This handles categories that exist in
+            # multiple template versions with inconsistent display_orders.
             if not page_key:
                 return jsonify({'error': 'page_key is required for category scope'}), 400
-            cur = conn.execute(
-                """SELECT ct.id, ct.display_order, pt.form_template_version_id
-                   FROM category_templates ct
-                   JOIN page_templates pt ON pt.id = ct.page_template_id
-                   WHERE pt.page_key = ? AND ct.name = ?
-                   ORDER BY pt.form_template_version_id DESC
-                   LIMIT 1""",
-                [page_key, identifier]
-            ).fetchone()
-            if not cur:
-                # Category exists in line_items but not in category_templates
-                # (e.g. "Size of Extension"). Create it in the latest version so
-                # the swap can proceed.
-                page_row = conn.execute(
-                    "SELECT id FROM page_templates WHERE page_key = ? AND form_template_version_id = ?",
-                    [page_key, latest_version_id]
-                ).fetchone()
-                if not page_row:
-                    return jsonify({'error': 'Category not found'}), 404
-                page_id = page_row['id']
-                max_order_row = conn.execute(
-                    "SELECT MAX(display_order) as max_order FROM category_templates WHERE page_template_id = ?",
-                    (page_id,)
-                ).fetchone()
-                next_order = 0
-                if max_order_row and max_order_row['max_order'] is not None:
-                    next_order = int(max_order_row['max_order']) + 1
-                conn.execute(
-                    "INSERT INTO category_templates (form_template_version_id, page_template_id, name, display_order, output_group) VALUES (?, ?, ?, ?, ?)",
-                    (latest_version_id, page_id, identifier, next_order, 'General')
-                )
-                conn.commit()
-                cur = conn.execute(
-                    "SELECT id, display_order FROM category_templates WHERE page_template_id = ? AND name = ?",
-                    (page_id, identifier)
-                ).fetchone()
-                if not cur:
-                    return jsonify({'error': 'Category not found'}), 404
-                cur_order = cur['display_order']
-                cat_id = cur['id']
-                target_version_id = latest_version_id
+
+            # Get all category rows across all versions, deduplicated by name
+            cat_rows = conn.execute(
+                """SELECT c.name, c.display_order, c.id
+                   FROM category_templates c
+                   JOIN page_templates pt ON pt.id = c.page_template_id
+                   WHERE pt.page_key = ?
+                   ORDER BY c.display_order ASC, c.id ASC""",
+                [page_key]
+            ).fetchall()
+
+            seen = set()
+            cat_list = []
+            for row in cat_rows:
+                if row['name'] not in seen:
+                    seen.add(row['name'])
+                    cat_list.append(row)
+
+            # Find current category index
+            cur_idx = None
+            for i, cat in enumerate(cat_list):
+                if cat['name'] == identifier:
+                    cur_idx = i
+                    break
+
+            if cur_idx is None:
+                return jsonify({'error': 'Category not found'}), 404
+
+            # Find adjacent category
+            if direction == 'up':
+                adj_idx = cur_idx - 1
             else:
-                cur_order = cur['display_order']
-                cat_id = cur['id']
-                target_version_id = cur['form_template_version_id']
-            op = '<' if direction == 'up' else '>'
-            order = 'DESC' if direction == 'up' else 'ASC'
-            adj = conn.execute(
-                f"""SELECT id, display_order FROM category_templates
-                    WHERE page_template_id = (SELECT id FROM page_templates WHERE page_key = ? AND form_template_version_id = ?)
-                    AND display_order {op} ? ORDER BY display_order {order} LIMIT 1""",
-                [page_key, target_version_id, cur_order]
-            ).fetchone()
-            if not adj:
+                adj_idx = cur_idx + 1
+
+            if adj_idx < 0 or adj_idx >= len(cat_list):
                 return jsonify({'error': 'No adjacent category'}), 400
-            conn.execute(
-                "UPDATE category_templates SET display_order = ? WHERE id = ?",
-                [adj['display_order'], cat_id]
-            )
-            conn.execute(
-                "UPDATE category_templates SET display_order = ? WHERE id = ?",
-                [cur_order, adj['id']]
-            )
+
+            cur_cat = cat_list[cur_idx]
+            adj_cat = cat_list[adj_idx]
+
+            # Reorder the deduplicated list, then renumber display_order
+            # sequentially (0,1,2,...) for every category name across ALL
+            # versions. Simply swapping raw display_order values fails when
+            # two categories share the same display_order (e.g. "Summary"
+            # and "Basement" both = 2), which made swaps a no-op.
+            cat_list[cur_idx], cat_list[adj_idx] = cat_list[adj_idx], cat_list[cur_idx]
+            for new_order, cat in enumerate(cat_list):
+                conn.execute(
+                    "UPDATE category_templates SET display_order = ? WHERE name = ? AND page_template_id IN (SELECT id FROM page_templates WHERE page_key = ?)",
+                    [new_order, cat['name'], page_key]
+                )
+
             conn.commit()
             return jsonify({'success': True})
         else:
