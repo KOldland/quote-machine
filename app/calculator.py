@@ -28,6 +28,7 @@ def calculate_quote(
     template_key: str,
     form_data: dict[str, Any] | None = None,
     session_overrides: dict[str, Any] | None = None,
+    follow_up_data: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
     Calculate a complete quote for a given template.
@@ -72,7 +73,7 @@ def calculate_quote(
             SELECT id, line_code, category, internal_description,
                    unit_cost, units, output_title, output_notes, output_guidance,
                    output_group, pricing_visibility, allow_user_override,
-                   include_default, sort_order, form_page
+                   include_default, sort_order, form_page, quantity_source
             FROM line_items
             WHERE form_page IN ({placeholders})
             ORDER BY output_group, sort_order, line_code
@@ -91,6 +92,16 @@ def calculate_quote(
             question_id = item["id"]
             base_cost = float(item["unit_cost"] or 0)
             units = float(item["units"] or 1)
+
+            # If quantity_source is set, use the follow-up answer as units
+            qty_source = item.get("quantity_source")
+            if qty_source and isinstance(follow_up_data, dict):
+                fu_val = follow_up_data.get(qty_source)
+                if fu_val is not None and str(fu_val).strip() not in ("", "0", "off", "false", "N", "No"):
+                    try:
+                        units = float(fu_val)
+                    except (TypeError, ValueError):
+                        pass
 
             # Apply user price override if present (API-driven overrides bypass allow_user_override)
             if str(question_id) in overrides:
@@ -265,6 +276,7 @@ def save_calculated_quote(
     quote_id: int | None = None,
     form_data: dict[str, Any] | None = None,
     session_overrides: dict[str, Any] | None = None,
+    follow_up_data: dict[str, Any] | None = None,
     client_name: str = "",
     client_address: str = "",
     notes: str = "",
@@ -273,7 +285,7 @@ def save_calculated_quote(
     Run calculate_quote() then persist totals + line items to the DB.
     Returns the quote_id.
     """
-    result = calculate_quote(template_key, form_data, session_overrides)
+    result = calculate_quote(template_key, form_data, session_overrides, follow_up_data)
     conn = _get_connection()
     try:
         if quote_id:

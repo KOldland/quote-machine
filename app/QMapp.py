@@ -2518,7 +2518,7 @@ def builder_line_item_save(item_id):
         # Build SET clause from allowed fields
         allowed = [
             'internal_description', 'output_title', 'output_notes', 'output_guidance',
-            'unit_cost', 'units', 'pricing_visibility',
+            'unit_cost', 'units', 'pricing_visibility', 'quantity_source',
             'form_visible', 'category',
             'is_follow_up', 'follow_up_type', 'follow_up_config',
             'output_group',
@@ -4129,10 +4129,11 @@ def calculator():
     context = {}
     template_key = session.get('template_key', 'standard_build')
     form_data = session.get('data', {})
+    follow_up_data = session.get('checkbox_data', {})
     session_overrides = session.get('session_overrides', {})
     try:
         from calculator import calculate_quote
-        context['result'] = calculate_quote(template_key, form_data, session_overrides)
+        context['result'] = calculate_quote(template_key, form_data, session_overrides, follow_up_data)
     except Exception as exc:
         context['error'] = str(exc)
     return render_template('calculator.html', **context)

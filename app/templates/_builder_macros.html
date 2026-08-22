@@ -1166,11 +1166,30 @@ document.addEventListener('DOMContentLoaded', function() {
             '</div>',
         ]);
 
-        html += _section('Costs', false, [
+        var qtyOpts = ['Static'];
+        var qtyVals = [''];
+        try {
+            var fuConfig = typeof item.follow_up_config === 'string' ? JSON.parse(item.follow_up_config || '[]') : (item.follow_up_config || []);
+            if (Array.isArray(fuConfig)) {
+                fuConfig.forEach(function(cfg, idx) {
+                    if (cfg && cfg.type && cfg.type.indexOf('Single Entry') !== -1) {
+                        var label = cfg.helper_text || ('Follow-up ' + (idx + 1));
+                        qtyOpts.push('Follow-up: ' + label);
+                        qtyVals.push('follow_up_' + item.line_code + '_' + idx);
+                    }
+                });
+            }
+        } catch (e) {}
+        var qtyOptionsHtml = qtyVals.map(function(v, i) {
+            return '<option value="' + _esc(v) + '"' + ((item.quantity_source || '') === v ? ' selected' : '') + '>' + _esc(qtyOpts[i]) + '</option>';
+        }).join('');
+        var qtyField = '<div class="li-form-group"><label>Units Source</label><select name="quantity_source" id="li_quantity_source">' + qtyOptionsHtml + '</select></div>';
+
+        html += _section('Price', false, [
             _field('unit_cost', 'Unit Cost (£)', 'number', item.unit_cost != null ? item.unit_cost : ''),
-            _field('units',     'Units',         'number', item.units     != null ? item.units     : ''),
+            _field('units',     'Units',         'number', item.units     != null ? item.units     : '', false, 'li_units'),
+            qtyField,
             _checkField('price_override_enabled', 'User Can Edit Price', item.pricing_visibility === 'user_edit', 'lich_price_override'),
-            
         ]);
 
         // Generate category options
@@ -1254,16 +1273,32 @@ document.addEventListener('DOMContentLoaded', function() {
         var followUpTypeGroup = $id('group_follow_up_type');
         var configHidden = $id('li_follow_up_config_hidden');
 
-        if (isFollowUpCheck && followUpTypeGroup) {
-            isFollowUpCheck.addEventListener('change', function() {
-                followUpTypeGroup.style.display = isFollowUpCheck.checked ? 'block' : 'none';
-                if (isFollowUpCheck.checked) {
-                    if ($id('follow-ups-list').children.length === 0) {
-                        _renderFollowUpConfig('Dropdown', {});
+            if (isFollowUpCheck && followUpTypeGroup) {
+                isFollowUpCheck.addEventListener('change', function() {
+                    followUpTypeGroup.style.display = isFollowUpCheck.checked ? 'block' : 'none';
+                    if (isFollowUpCheck.checked) {
+                        if ($id('follow-ups-list').children.length === 0) {
+                            _renderFollowUpConfig('Dropdown', {});
+                        }
                     }
-                }
-            });
-        }
+                });
+            }
+
+            function _syncUnitsField() {
+                var qtySelect = $id('li_quantity_source');
+                var unitsInput = $id('li_units');
+                if (!qtySelect || !unitsInput) return;
+                var disabled = qtySelect.value && qtySelect.value.trim() !== '';
+                unitsInput.disabled = disabled;
+                unitsInput.style.opacity = disabled ? '0.5' : '1';
+                unitsInput.title = disabled ? 'Quantity is driven by follow-up answer' : '';
+            }
+
+            var qtySelect = $id('li_quantity_source');
+            if (qtySelect) {
+                qtySelect.addEventListener('change', _syncUnitsField);
+                _syncUnitsField();
+            }
 
         if ($id('btn-add-follow-up')) {
             $id('btn-add-follow-up').addEventListener('click', function(e) {

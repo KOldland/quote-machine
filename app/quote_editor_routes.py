@@ -836,10 +836,11 @@ def add_form_block():
 def add_calc_block():
     form_key = session.get('template_key', 'builder_beta')
     form_data = session.get('data', {})
+    follow_up_data = session.get('checkbox_data', {})
     session_overrides = session.get('session_overrides', {})
     try:
         import calculator
-        calc_result = calculator.calculate_quote(form_key, form_data, session_overrides)
+        calc_result = calculator.calculate_quote(form_key, form_data, session_overrides, follow_up_data)
     except Exception:
         calc_result = {}
     block = {

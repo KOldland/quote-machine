@@ -29,7 +29,8 @@ def export_pdf():
 
     # 3️⃣ Run the calculator to get fresh quote data
     form_data = session.get('form_data', {})
-    calc_result = calculate_quote(form_key, form_data)
+    follow_up_data = session.get('checkbox_data', {})
+    calc_result = calculate_quote(form_key, form_data, follow_up_data=follow_up_data)
 
     # 4️⃣ Render HTML with template sections and CSS
     rendered_html = render_template(
@@ -72,7 +73,8 @@ def export_docx():
 
     # Fresh calculation - try session['form_data'], fallback to session['data'], then empty dict
     form_data = session.get('form_data') or session.get('data', {})
-    calc_result = calculate_quote(form_key, form_data)
+    follow_up_data = session.get('checkbox_data') or {}
+    calc_result = calculate_quote(form_key, form_data, follow_up_data=follow_up_data)
 
     # ---------------------------------------------------------------------
     # Build DOCX document

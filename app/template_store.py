@@ -255,6 +255,7 @@ def _create_schema(conn: sqlite3.Connection) -> None:
             is_follow_up         INTEGER NOT NULL DEFAULT 0,
             follow_up_type       TEXT,
             follow_up_config     TEXT,
+            quantity_source      TEXT,
             created_at           DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at           DATETIME DEFAULT CURRENT_TIMESTAMP
         );
@@ -450,6 +451,10 @@ def save_template(
     path = db_path or _default_db_path()
     with _connect(path) as conn:
         _create_schema(conn)
+        try:
+            conn.execute("ALTER TABLE line_items ADD COLUMN quantity_source TEXT")
+        except Exception:
+            pass
 
         # Resolve or create the form_template row.
         tenant_id = _upsert_tenant(conn, slug="default", name="Default Tenant")
