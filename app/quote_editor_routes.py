@@ -40,26 +40,32 @@ quote_editor_bp = Blueprint('quote_editor', __name__)
 
 
 def _get_category_image(page_key, category_name):
-    """Return the category_image URL stored on the category_templates row."""
+    """Return the first category image URL for a category (backwards compat)."""
+    images = _get_category_images(page_key, category_name)
+    return images[0] if images else ''
+
+
+def _get_category_images(page_key, category_name):
+    """Return list of image URLs for a category, in sort_order."""
     try:
         import sqlite3 as _sql
         conn = _sql.connect(str(DB_PATH))
         conn.row_factory = _sql.Row
-        row = conn.execute(
+        rows = conn.execute(
             '''
-            SELECT ct.image_url
-            FROM category_templates ct
-            JOIN page_templates pt ON pt.id = ct.page_template_id
-            WHERE pt.page_key = ? AND ct.name = ?
+            SELECT ci.image_url
+            FROM category_images ci
+            JOIN page_templates pt ON pt.id = ci.page_template_id
+            WHERE pt.page_key = ? AND ci.category_name = ?
+            ORDER BY ci.sort_order, ci.id
             ''',
             (page_key, category_name),
-        ).fetchone()
+        ).fetchall()
         conn.close()
-        if row and row['image_url']:
-            return row['image_url'] or ''
+        return [r['image_url'] for r in rows if r['image_url']]
     except Exception:
         pass
-    return ''
+    return []
 
 
 def _get_page_category_order(page_key):
@@ -729,18 +735,29 @@ def add_form_block():
                     current_category = category
                     if category not in seen_categories:
                         seen_categories.add(category)
-                        category_image = _get_category_image(page_key, category)
+                        category_images = _get_category_images(page_key, category)
                         snapshot_blocks.append({
                             'id': f"form__{page_key}__category__{category}",
                             'type': 'category_title',
                             'source_page': page_key,
                             'source_block_id': '__category_title__',
-                            'snapshot': {'title': category, 'category_image': category_image},
+                            'snapshot': {'title': category},
                             'editor_overrides': {},
                             'flags': { 'source_dirty': False, 'editor_dirty': False },
                             'settings': { 'margin_top': 5, 'margin_bottom': 5, 'padding': 12, 'alignment': 'left', 'font_size': 20 },
                             'category_sort_order': db_category_order.get(category, 999),
                         })
+                        for idx, img_url in enumerate(category_images):
+                            snapshot_blocks.append({
+                                'id': f"form__{page_key}__category__{category}__image__{idx}",
+                                'type': 'image',
+                                'source_page': page_key,
+                                'source_block_id': '__category_image__',
+                                'snapshot': {'url': img_url},
+                                'editor_overrides': {},
+                                'flags': { 'source_dirty': False, 'editor_dirty': False },
+                                'settings': { 'margin_top': 4, 'margin_bottom': 8, 'padding': 0, 'alignment': 'left', 'font_size': 16 },
+                            })
 
                 output_title = item.get('output_title', '') or ''
                 if not output_title.strip():
@@ -794,6 +811,22 @@ def add_form_block():
                     'settings': { 'margin_top': 2, 'margin_bottom': 2, 'padding': 12, 'alignment': 'left' },
                     'category_sort_order': db_category_order.get(category, 999),
                 })
+
+                question_images = item.get('question_images') or []
+                if isinstance(question_images, list):
+                    for idx, img_url in enumerate(question_images):
+                        if not img_url:
+                            continue
+                        snapshot_blocks.append({
+                            'id': f"form__{page_key}__{key}__{item.get('line_code', '')}__image__{idx}",
+                            'type': 'image',
+                            'source_page': page_key,
+                            'source_block_id': f"__question_image__{item.get('line_code', '')}__{idx}",
+                            'snapshot': {'url': img_url},
+                            'editor_overrides': {},
+                            'flags': { 'source_dirty': False, 'editor_dirty': False },
+                            'settings': { 'margin_top': 4, 'margin_bottom': 8, 'padding': 0, 'alignment': 'left', 'font_size': 16 },
+                        })
             continue
 
         if block_type in ('checkbox_group', 'text_input', 'number_currency_input', 'dropdown_select'):
@@ -1019,18 +1052,29 @@ def _build_page_blocks(page_key, page, form_data, checkbox_data):
                     current_category = category
                     if category not in seen_categories:
                         seen_categories.add(category)
-                        category_image = _get_category_image(page_key, category)
+                        category_images = _get_category_images(page_key, category)
                         snapshot_blocks.append({
                             'id': f"form__{page_key}__category__{category}",
                             'type': 'category_title',
                             'source_page': page_key,
                             'source_block_id': '__category_title__',
-                            'snapshot': {'title': category, 'category_image': category_image},
+                            'snapshot': {'title': category},
                             'editor_overrides': {},
                             'flags': { 'source_dirty': False, 'editor_dirty': False },
                             'settings': { 'margin_top': 5, 'margin_bottom': 5, 'padding': 12, 'alignment': 'left', 'font_size': 20 },
                             'category_sort_order': db_category_order.get(category, 999),
                         })
+                        for idx, img_url in enumerate(category_images):
+                            snapshot_blocks.append({
+                                'id': f"form__{page_key}__category__{category}__image__{idx}",
+                                'type': 'image',
+                                'source_page': page_key,
+                                'source_block_id': '__category_image__',
+                                'snapshot': {'url': img_url},
+                                'editor_overrides': {},
+                                'flags': { 'source_dirty': False, 'editor_dirty': False },
+                                'settings': { 'margin_top': 4, 'margin_bottom': 8, 'padding': 0, 'alignment': 'left', 'font_size': 16 },
+                            })
 
                 output_title = item.get('output_title', '') or ''
                 if not output_title.strip():
@@ -1084,6 +1128,22 @@ def _build_page_blocks(page_key, page, form_data, checkbox_data):
                     'settings': { 'margin_top': 2, 'margin_bottom': 2, 'padding': 12, 'alignment': 'left' },
                     'category_sort_order': db_category_order.get(category, 999),
                 })
+
+                question_images = item.get('question_images') or []
+                if isinstance(question_images, list):
+                    for idx, img_url in enumerate(question_images):
+                        if not img_url:
+                            continue
+                        snapshot_blocks.append({
+                            'id': f"form__{page_key}__{key}__{item.get('line_code', '')}__image__{idx}",
+                            'type': 'image',
+                            'source_page': page_key,
+                            'source_block_id': f"__question_image__{item.get('line_code', '')}__{idx}",
+                            'snapshot': {'url': img_url},
+                            'editor_overrides': {},
+                            'flags': { 'source_dirty': False, 'editor_dirty': False },
+                            'settings': { 'margin_top': 4, 'margin_bottom': 8, 'padding': 0, 'alignment': 'left', 'font_size': 16 },
+                        })
             continue
 
         if block_type in ('checkbox_group', 'text_input', 'number_currency_input', 'dropdown_select'):

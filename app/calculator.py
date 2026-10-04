@@ -10,6 +10,7 @@ Core calculation pipeline for quotes:
 """
 
 from __future__ import annotations
+import json
 import sqlite3
 from pathlib import Path
 from typing import Any
@@ -22,6 +23,81 @@ def _get_connection() -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     return conn
+
+
+def _to_float(value: Any, default: float | None = None) -> float | None:
+    """Parse a user-entered money value leniently.
+
+    Prices are typed by hand into builder fields labelled "Price for each
+    (£, one per line)", so thousands separators and stray currency symbols are
+    common ("3,850", "£4,800.50"). ``float()`` rejects all of those, and the
+    price paths used to swallow the resulting ValueError - which silently
+    dropped the line to £0 instead of raising. Normalise first, and let the
+    caller decide what an unusable value means via ``default``.
+    """
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return default
+    if isinstance(value, (int, float)):
+        return float(value)
+    text = str(value).strip()
+    if not text:
+        return default
+    # Keep a leading minus sign, drop currency symbols and separators.
+    negative = text.startswith("-")
+    cleaned = "".join(ch for ch in text if ch.isdigit() or ch == ".")
+    if not cleaned or cleaned == ".":
+        return default
+    try:
+        parsed = float(cleaned)
+    except ValueError:
+        return default
+    return -parsed if negative else parsed
+
+
+def _extract_checkbox_addons(follow_up_config, follow_up_data, line_code=None):
+    addon_total = 0.0
+    has_addon = False
+    if not follow_up_config or not isinstance(follow_up_data, dict):
+        return 0.0
+    try:
+        fu_configs = json.loads(follow_up_config) if isinstance(follow_up_config, str) else follow_up_config
+        if not isinstance(fu_configs, list):
+            return 0.0
+        for cfg_idx, cfg in enumerate(fu_configs):
+            if not isinstance(cfg, dict):
+                continue
+            cfg_type = cfg.get("type", "")
+            if not cfg_type.startswith("Checkbox"):
+                continue
+            choices = cfg.get("choices", [])
+            prices = cfg.get("prices", [])
+            if not isinstance(choices, list) or not isinstance(prices, list):
+                continue
+            field_name = 'follow_up_' + (line_code or '') + '_' + str(cfg_idx)
+            checked_values = follow_up_data.get(field_name, [])
+            if isinstance(checked_values, str):
+                checked_values = [checked_values]
+            for i, choice in enumerate(choices):
+                if i < len(prices) and str(choice).strip() in [str(v).strip() for v in (checked_values or [])]:
+                    price_key = field_name + '_price_' + str(i)
+                    user_price = follow_up_data.get(price_key)
+                    if user_price is not None and str(user_price).strip() not in ("", "0", "off", "false", "N", "No"):
+                        amount = _to_float(user_price)
+                        if amount is None:
+                            amount = _to_float(prices[i])
+                        if amount is not None:
+                            addon_total += amount
+                            has_addon = True
+                    else:
+                        amount = _to_float(prices[i])
+                        if amount is not None:
+                            addon_total += amount
+                            has_addon = True
+    except Exception:
+        pass
+    return addon_total if has_addon else 0.0
 
 
 def calculate_quote(
@@ -73,7 +149,8 @@ def calculate_quote(
             SELECT id, line_code, category, internal_description,
                    unit_cost, units, output_title, output_notes, output_guidance,
                    output_group, pricing_visibility, allow_user_override,
-                   include_default, sort_order, form_page, quantity_source
+                   include_default, sort_order, form_page, quantity_source, pricing_mode,
+                   addon_amount, follow_up_config, price_matrix
             FROM line_items
             WHERE form_page IN ({placeholders})
             ORDER BY output_group, sort_order, line_code
@@ -92,6 +169,7 @@ def calculate_quote(
             question_id = item["id"]
             base_cost = float(item["unit_cost"] or 0)
             units = float(item["units"] or 1)
+            addon_amount = float(item.get("addon_amount") or 0)
 
             # If quantity_source is set, use the follow-up answer as units
             qty_source = item.get("quantity_source")
@@ -103,21 +181,256 @@ def calculate_quote(
                     except (TypeError, ValueError):
                         pass
 
+            # Per-selection pricing: look up option price from follow-up config
+            line_total = None
+            pricing_mode = item.get("pricing_mode", "per_unit")
+            if pricing_mode == "per_selection" and qty_source and isinstance(follow_up_data, dict):
+                selected = follow_up_data.get(qty_source, "")
+                selected = str(selected or "").strip()
+                option_total = 0.0
+                has_price = False
+                fu_config_raw = item.get("follow_up_config")
+                if fu_config_raw:
+                    try:
+                        fu_configs = json.loads(fu_config_raw) if isinstance(fu_config_raw, str) else fu_config_raw
+                        if isinstance(fu_configs, list):
+                            for cfg in fu_configs:
+                                if not isinstance(cfg, dict):
+                                    continue
+                                cfg_type = cfg.get("type", "")
+                                choices = cfg.get("choices", [])
+                                prices = cfg.get("prices", [])
+                                if cfg_type.startswith("Dropdown") and selected:
+                                    if isinstance(choices, list) and isinstance(prices, list):
+                                        for i, choice in enumerate(choices):
+                                            if i < len(prices) and str(choice).strip() == selected:
+                                                user_price_key = qty_source + '_price'
+                                                user_price = follow_up_data.get(user_price_key)
+                                                if user_price is not None and str(user_price).strip() not in ("", "0", "off", "false", "N", "No"):
+                                                    amount = _to_float(user_price)
+                                                    if amount is None:
+                                                        amount = _to_float(prices[i])
+                                                    if amount is not None:
+                                                        option_total += amount
+                                                        has_price = True
+                                                else:
+                                                    amount = _to_float(prices[i])
+                                                    if amount is not None:
+                                                        option_total += amount
+                                                        has_price = True
+                                elif cfg_type.startswith("Checkbox"):
+                                    if isinstance(choices, list) and isinstance(prices, list):
+                                        for i, choice in enumerate(choices):
+                                            if i < len(prices):
+                                                field_name = qty_source
+                                                checked_values = follow_up_data.get(field_name, [])
+                                                if isinstance(checked_values, str):
+                                                    checked_values = [checked_values]
+                                                if str(choice).strip() in [str(v).strip() for v in (checked_values or [])]:
+                                                    price_key = field_name + '_price_' + str(i)
+                                                    user_price = follow_up_data.get(price_key)
+                                                    if user_price is not None and str(user_price).strip() not in ("", "0", "off", "false", "N", "No"):
+                                                        amount = _to_float(user_price)
+                                                        if amount is None:
+                                                            amount = _to_float(prices[i])
+                                                        if amount is not None:
+                                                            option_total += amount
+                                                            has_price = True
+                                                    else:
+                                                        amount = _to_float(prices[i])
+                                                        if amount is not None:
+                                                            option_total += amount
+                                                            has_price = True
+                    except Exception:
+                        pass
+                if has_price:
+                    line_total = option_total + addon_amount
+                    units = 1
+
+            # Per-unit-rate pricing: dropdown selects a rate per unit, quantity from follow-up, checkboxes add fixed amounts
+            if pricing_mode == "per_unit_rate" and qty_source and isinstance(follow_up_data, dict):
+                fu_config_raw = item.get("follow_up_config")
+                rate = None
+                quantity = None
+                addon_total = 0.0
+                has_rate = False
+                has_qty = False
+                rate_source_key = None
+                if fu_config_raw:
+                    try:
+                        fu_configs = json.loads(fu_config_raw) if isinstance(fu_config_raw, str) else fu_config_raw
+                        if isinstance(fu_configs, list):
+                            for cfg_idx, cfg in enumerate(fu_configs):
+                                if not isinstance(cfg, dict):
+                                    continue
+                                cfg_type = cfg.get("type", "")
+                                choices = cfg.get("choices", [])
+                                prices = cfg.get("prices", [])
+                                if rate is None and cfg_type.startswith("Dropdown"):
+                                    candidate_key = qty_source.rsplit('_', 1)[0] + '_' + str(cfg_idx)
+                                    selected = follow_up_data.get(candidate_key, "")
+                                    selected = str(selected or "").strip()
+                                    if selected and isinstance(choices, list) and isinstance(prices, list):
+                                        for i, choice in enumerate(choices):
+                                            if i < len(prices) and str(choice).strip() == selected:
+                                                user_price_key = candidate_key + '_price'
+                                                user_price = follow_up_data.get(user_price_key)
+                                                if user_price is not None and str(user_price).strip() not in ("", "0", "off", "false", "N", "No"):
+                                                    amount = _to_float(user_price)
+                                                    if amount is None:
+                                                        amount = _to_float(prices[i])
+                                                    if amount is not None:
+                                                        rate = amount
+                                                        has_rate = True
+                                                        rate_source_key = candidate_key
+                                                else:
+                                                    amount = _to_float(prices[i])
+                                                    if amount is not None:
+                                                        rate = amount
+                                                        has_rate = True
+                                                        rate_source_key = candidate_key
+                                elif cfg_type.startswith("Checkbox"):
+                                    if isinstance(choices, list) and isinstance(prices, list):
+                                        for i, choice in enumerate(choices):
+                                            if i < len(prices):
+                                                checked_values = follow_up_data.get(qty_source, [])
+                                                if isinstance(checked_values, str):
+                                                    checked_values = [checked_values]
+                                                if str(choice).strip() in [str(v).strip() for v in (checked_values or [])]:
+                                                    price_key = qty_source + '_price_' + str(i)
+                                                    user_price = follow_up_data.get(price_key)
+                                                    if user_price is not None and str(user_price).strip() not in ("", "0", "off", "false", "N", "No"):
+                                                        amount = _to_float(user_price)
+                                                        if amount is None:
+                                                            amount = _to_float(prices[i])
+                                                        if amount is not None:
+                                                            addon_total += amount
+                                                    else:
+                                                        amount = _to_float(prices[i])
+                                                        if amount is not None:
+                                                            addon_total += amount
+                    except Exception:
+                        pass
+                if not has_rate:
+                    try:
+                        fu_configs = json.loads(fu_config_raw) if isinstance(fu_config_raw, str) else fu_config_raw
+                        if isinstance(fu_configs, list):
+                            for cfg in fu_configs:
+                                if isinstance(cfg, dict) and cfg.get("type", "").startswith("Dropdown"):
+                                    choices = cfg.get("choices", [])
+                                    prices = cfg.get("prices", [])
+                                    if isinstance(choices, list) and isinstance(prices, list):
+                                        for i, choice in enumerate(choices):
+                                            if i < len(prices):
+                                                amount = _to_float(prices[i])
+                                                if amount is not None:
+                                                    rate = amount
+                                                    has_rate = True
+                                                    break
+                                if has_rate:
+                                    break
+                    except Exception:
+                        pass
+                qty_val = follow_up_data.get(qty_source)
+                if qty_val is not None and str(qty_val).strip() not in ("", "0", "off", "false", "N", "No"):
+                    try:
+                        quantity = float(qty_val)
+                        has_qty = True
+                    except (TypeError, ValueError):
+                        pass
+                if has_rate and has_qty:
+                    line_total = (rate * quantity) + addon_total + addon_amount
+                    units = quantity
+
+            # Matrix pricing: dropdown(s) select type and/or size, price looked up from price_matrix JSON
+            if pricing_mode == "matrix" and isinstance(follow_up_data, dict):
+                fu_config_raw = item.get("follow_up_config")
+                price_matrix_raw = item.get("price_matrix")
+                rate = None
+                quantity = None
+                if fu_config_raw and price_matrix_raw:
+                    try:
+                        fu_configs = json.loads(fu_config_raw) if isinstance(fu_config_raw, str) else fu_config_raw
+                        price_matrix = json.loads(price_matrix_raw) if isinstance(price_matrix_raw, str) else price_matrix_raw
+                        if isinstance(fu_configs, list) and isinstance(price_matrix, dict):
+                            dropdown_cfgs = [cfg for cfg in fu_configs if isinstance(cfg, dict) and cfg.get("type", "").startswith("Dropdown")]
+                            if len(dropdown_cfgs) == 1:
+                                size_cfg = dropdown_cfgs[0]
+                                size_idx = fu_configs.index(size_cfg)
+                                line_code = item.get("line_code", "")
+                                size_key = 'follow_up_' + (line_code or '') + '_' + str(size_idx)
+                                selected_size = str(follow_up_data.get(size_key, "") or "").strip()
+                                if selected_size:
+                                    sizes = price_matrix.get("sizes", [])
+                                    prices = price_matrix.get("prices", [])
+                                    if isinstance(sizes, list) and isinstance(prices, list) and len(prices) > 0:
+                                        try:
+                                            size_col = sizes.index(selected_size)
+                                            if size_col < len(prices[0]):
+                                                rate = _to_float(prices[0][size_col])
+                                        except (ValueError, TypeError, IndexError):
+                                            pass
+                            elif len(dropdown_cfgs) >= 2:
+                                type_cfg = dropdown_cfgs[0]
+                                size_cfg = dropdown_cfgs[1]
+                                type_idx = fu_configs.index(type_cfg)
+                                size_idx = fu_configs.index(size_cfg)
+                                line_code = item.get("line_code", "")
+                                type_key = 'follow_up_' + (line_code or '') + '_' + str(type_idx)
+                                size_key = 'follow_up_' + (line_code or '') + '_' + str(size_idx)
+                                selected_type = str(follow_up_data.get(type_key, "") or "").strip()
+                                selected_size = str(follow_up_data.get(size_key, "") or "").strip()
+                                if selected_type and selected_size:
+                                    types = price_matrix.get("types", [])
+                                    sizes = price_matrix.get("sizes", [])
+                                    prices = price_matrix.get("prices", [])
+                                    if isinstance(types, list) and isinstance(sizes, list) and isinstance(prices, list):
+                                        try:
+                                            type_row = types.index(selected_type)
+                                            size_col = sizes.index(selected_size)
+                                            if type_row < len(prices) and size_col < len(prices[type_row]):
+                                                rate = _to_float(prices[type_row][size_col])
+                                        except (ValueError, TypeError, IndexError):
+                                            pass
+                    except Exception:
+                        pass
+                if rate is not None:
+                    if qty_source:
+                        qty_val = follow_up_data.get(qty_source)
+                        if qty_val is not None and str(qty_val).strip() not in ("", "0", "off", "false", "N", "No"):
+                            try:
+                                quantity = float(qty_val)
+                            except (TypeError, ValueError):
+                                pass
+                    if quantity is not None:
+                        line_total = rate * quantity
+                        units = quantity
+                    else:
+                        line_total = rate
+                        units = 1
+                    # Checkbox extras still apply
+                    checkbox_addons = _extract_checkbox_addons(item.get("follow_up_config"), follow_up_data, item.get("line_code"))
+                    line_total = line_total + checkbox_addons + addon_amount
+
             # Apply user price override if present (API-driven overrides bypass allow_user_override)
             if str(question_id) in overrides:
                 override_val = overrides[str(question_id)]
-                try:
-                    user_price = float(override_val)
+                user_price = _to_float(override_val)
+                if user_price is not None:
                     line_total = user_price
                     item["overridden"] = True
                     item["override_source"] = "user"
                     item["unit_cost"] = user_price
-                except (TypeError, ValueError):
-                    line_total = base_cost * units
+                else:
+                    if line_total is None:
+                        line_total = base_cost * units + addon_amount
                     item["overridden"] = False
                     item["unit_cost"] = base_cost
             else:
-                line_total = base_cost * units
+                if line_total is None:
+                    line_total = base_cost * units + addon_amount
+                checkbox_addons = _extract_checkbox_addons(item.get("follow_up_config"), follow_up_data, item.get("line_code"))
+                line_total = line_total + checkbox_addons
                 item["overridden"] = False
                 item["unit_cost"] = base_cost
 

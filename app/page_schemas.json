@@ -31,12 +31,17 @@
         ],
         "categories": [
           {
-            "name": "Boundary Lines",
+            "name": "Work Summary",
+            "output_group": "General",
+            "sort_order": 0
+          },
+          {
+            "name": "Size of Extension",
             "output_group": "General",
             "sort_order": 1
           },
           {
-            "name": "Planning Permission",
+            "name": "Boundary Lines",
             "output_group": "General",
             "sort_order": 2
           },
@@ -51,29 +56,14 @@
             "sort_order": 4
           },
           {
-            "name": "Size of Extension",
-            "sort_order": 0,
-            "description": "",
-            "output_group": "General"
-          },
-          {
-            "name": "Summary",
-            "sort_order": 2,
-            "description": "Summary of building works",
-            "output_group": "General"
-          },
-          {
-            "name": "Work Summary",
-            "sort_order": 0,
-            "description": "Summary of building works",
-            "output_group": "General"
+            "name": "Planning Permission",
+            "output_group": "General",
+            "sort_order": 5
           }
         ],
-        "title": "Summary Page",
+        "title": "Building Works",
         "id": "summary_page",
-        "navigation": {
-          "next_endpoint": "materials_page"
-        },
+        "navigation": {},
         "display_order": 1
       },
       "materials_page": {
@@ -470,52 +460,44 @@
         ],
         "categories": [
           {
-            "name": "Drainage",
+            "name": "External Wall Finish & Height",
             "output_group": "General",
             "sort_order": 0
           },
           {
-            "name": "Internal doors",
+            "name": "External Roofing Finish",
             "output_group": "General",
             "sort_order": 1
           },
           {
-            "name": "Waste & Parking",
+            "name": "Floor Structure",
             "output_group": "General",
             "sort_order": 2
           },
           {
-            "name": "dimension",
+            "name": "Plastering",
             "output_group": "General",
             "sort_order": 3
           },
           {
-            "name": "external roofing finish",
+            "name": "Internal doors",
             "output_group": "General",
             "sort_order": 4
           },
           {
-            "name": "external wall finish & height",
+            "name": "Drainage",
             "output_group": "General",
             "sort_order": 5
           },
           {
-            "name": "floor structure",
+            "name": "Waste & Parking",
             "output_group": "General",
             "sort_order": 6
-          },
-          {
-            "name": "plastering",
-            "output_group": "General",
-            "sort_order": 7
           }
         ],
         "title": "Materials and Details",
         "id": "materials_page",
-        "navigation": {
-          "previous_endpoint": "summary_page",
-          "next_endpoint": "further_requirements_page"
-        },
+        "navigation": {},
         "display_order": 2
       },
       "further_requirements_page": {
@@ -712,22 +694,19 @@
         ],
         "categories": [
           {
-            "name": "Demolition Works",
+            "name": "Further Requirements & Considerations",
             "output_group": "General",
             "sort_order": 0
           },
           {
-            "name": "Further Requirements & Considerations",
+            "name": "Demolition Works",
             "output_group": "General",
             "sort_order": 1
           }
         ],
         "title": "Further Requirements and Considerations",
         "id": "further_requirements_page",
-        "navigation": {
-          "next_endpoint": "additional_building_work_page",
-          "previous_endpoint": "materials_page"
-        },
+        "navigation": {},
         "display_order": 3
       },
       "additional_building_work_page": {
@@ -747,11 +726,189 @@
         ],
         "title": "Additional Building Works",
         "id": "additional_building_work_page",
-        "navigation": {
-          "next_endpoint": "further_requirements_page",
-          "previous_endpoint": "further_requirements_page"
-        },
+        "navigation": {},
         "display_order": 4
+      },
+      "image_upload_page": {
+        "blocks": [
+          {
+            "block_type": "static_text_heading",
+            "id": "image_upload_page__site_image",
+            "logic_options": {
+              "depends_on_field": "",
+              "depends_on_value": "",
+              "visibility": "always"
+            },
+            "output_options": {
+              "group": "General",
+              "include_in_output": true,
+              "output_label": "Site / Property Image",
+              "sort_order": 0,
+              "value_mode": "show_value"
+            },
+            "pricing_options": {
+              "enabled": false,
+              "entered_key": "",
+              "fixed_amount": 0.0,
+              "mode": "none",
+              "percent_of_subtotal": 0.0,
+              "quantity_key": "",
+              "rate": 0.0
+            },
+            "standard": {
+              "dropdown_choices": [],
+              "help_text": "",
+              "label": "Site / Property Image",
+              "name": "site_image",
+              "placeholder": "",
+              "required": false,
+              "source_prefix": "",
+              "static_content": "Image upload placeholder",
+              "static_variant": "body"
+            }
+          },
+          {
+            "block_type": "dropdown_select",
+            "id": "image_upload_page__layout_template",
+            "logic_options": {
+              "depends_on_field": "",
+              "depends_on_value": "",
+              "visibility": "always"
+            },
+            "output_options": {
+              "group": "General",
+              "include_in_output": true,
+              "output_label": "Layout Template",
+              "sort_order": 0,
+              "value_mode": "show_value"
+            },
+            "pricing_options": {
+              "enabled": false,
+              "entered_key": "",
+              "fixed_amount": 0.0,
+              "mode": "none",
+              "percent_of_subtotal": 0.0,
+              "quantity_key": "",
+              "rate": 0.0
+            },
+            "standard": {
+              "dropdown_choices": [],
+              "help_text": "",
+              "label": "Layout Template",
+              "name": "layout_template",
+              "placeholder": "",
+              "required": false,
+              "source_prefix": "",
+              "static_content": "",
+              "static_variant": "body"
+            }
+          }
+        ],
+        "categories": [],
+        "title": "Image Upload",
+        "id": "image_upload_page",
+        "navigation": {},
+        "display_order": 5
+      },
+      "index": {
+        "blocks": [
+          {
+            "block_type": "text_input",
+            "id": "index__client_address",
+            "logic_options": {
+              "depends_on_field": "",
+              "depends_on_value": "",
+              "visibility": "always"
+            },
+            "output_options": {
+              "group": "General",
+              "include_in_output": true,
+              "output_label": "Address:",
+              "sort_order": 0,
+              "value_mode": "show_value"
+            },
+            "pricing_options": {
+              "enabled": false,
+              "entered_key": "",
+              "fixed_amount": 0.0,
+              "mode": "none",
+              "percent_of_subtotal": 0.0,
+              "quantity_key": "",
+              "rate": 0.0
+            },
+            "standard": {
+              "dropdown_choices": [],
+              "help_text": "",
+              "label": "Address:",
+              "name": "client_address",
+              "placeholder": "Enter client address",
+              "required": true,
+              "source_prefix": "",
+              "static_content": "",
+              "static_variant": "body"
+            }
+          },
+          {
+            "block_type": "text_input",
+            "id": "index__Date",
+            "logic_options": {
+              "depends_on_field": "",
+              "depends_on_value": "",
+              "visibility": "always"
+            },
+            "output_options": {
+              "group": "General",
+              "include_in_output": true,
+              "output_label": "Date:",
+              "sort_order": 0,
+              "value_mode": "show_value"
+            },
+            "pricing_options": {
+              "enabled": false,
+              "entered_key": "",
+              "fixed_amount": 0.0,
+              "mode": "none",
+              "percent_of_subtotal": 0.0,
+              "quantity_key": "",
+              "rate": 0.0
+            },
+            "standard": {
+              "dropdown_choices": [],
+              "help_text": "",
+              "label": "Date:",
+              "name": "Date",
+              "placeholder": "",
+              "required": true,
+              "source_prefix": "",
+              "static_content": "",
+              "static_variant": "body"
+            }
+          }
+        ],
+        "categories": [],
+        "title": "Project Details",
+        "id": "index",
+        "navigation": {},
+        "display_order": 6
+      },
+      "schedule_of_works": {
+        "blocks": [],
+        "categories": [
+          {
+            "name": "Extension Schedule of Works",
+            "output_group": "General",
+            "sort_order": 0
+          },
+          {
+            "name": "Additional Building Items Schedule of Works",
+            "output_group": "General",
+            "sort_order": 1
+          }
+        ],
+        "title": "Schedule of Works",
+        "id": "schedule_of_works",
+        "navigation": {},
+        "display_order": 7
       },
       "additional_costs_page": {
         "blocks": [
@@ -835,210 +992,55 @@
         ],
         "categories": [
           {
-            "name": "Electrics",
+            "name": "Standard Item",
             "output_group": "General",
             "sort_order": 0
           },
           {
-            "name": "Plumbing",
+            "name": "Electrics",
             "output_group": "General",
             "sort_order": 1
           },
           {
-            "name": "Skylights",
+            "name": "Plumbing",
             "output_group": "General",
             "sort_order": 2
           },
           {
-            "name": "Velux",
+            "name": "Skylights",
             "output_group": "General",
             "sort_order": 3
           },
           {
-            "name": "Aluminium Capping",
+            "name": "Velux",
             "output_group": "General",
             "sort_order": 4
           },
           {
-            "name": "Sliding Doors",
+            "name": "Aluminium Capping",
             "output_group": "General",
             "sort_order": 5
+          },
+          {
+            "name": "Glass Valley",
+            "output_group": "General",
+            "sort_order": 6
+          },
+          {
+            "name": "Sliding Doors",
+            "output_group": "General",
+            "sort_order": 7
+          },
+          {
+            "name": "Sash Windows",
+            "output_group": "General",
+            "sort_order": 8
           }
         ],
         "title": "Additional Costs",
         "id": "additional_costs_page",
-        "navigation": {
-          "next_endpoint": "materials_page",
-          "previous_endpoint": "further_requirements_page"
-        },
-        "display_order": 5
-      },
-      "image_upload_page": {
-        "blocks": [
-          {
-            "block_type": "static_text_heading",
-            "id": "image_upload_page__site_image",
-            "logic_options": {
-              "depends_on_field": "",
-              "depends_on_value": "",
-              "visibility": "always"
-            },
-            "output_options": {
-              "group": "General",
-              "include_in_output": true,
-              "output_label": "Site / Property Image",
-              "sort_order": 0,
-              "value_mode": "show_value"
-            },
-            "pricing_options": {
-              "enabled": false,
-              "entered_key": "",
-              "fixed_amount": 0.0,
-              "mode": "none",
-              "percent_of_subtotal": 0.0,
-              "quantity_key": "",
-              "rate": 0.0
-            },
-            "standard": {
-              "dropdown_choices": [],
-              "help_text": "",
-              "label": "Site / Property Image",
-              "name": "site_image",
-              "placeholder": "",
-              "required": false,
-              "source_prefix": "",
-              "static_content": "Image upload placeholder",
-              "static_variant": "body"
-            }
-          },
-          {
-            "block_type": "dropdown_select",
-            "id": "image_upload_page__layout_template",
-            "logic_options": {
-              "depends_on_field": "",
-              "depends_on_value": "",
-              "visibility": "always"
-            },
-            "output_options": {
-              "group": "General",
-              "include_in_output": true,
-              "output_label": "Layout Template",
-              "sort_order": 0,
-              "value_mode": "show_value"
-            },
-            "pricing_options": {
-              "enabled": false,
-              "entered_key": "",
-              "fixed_amount": 0.0,
-              "mode": "none",
-              "percent_of_subtotal": 0.0,
-              "quantity_key": "",
-              "rate": 0.0
-            },
-            "standard": {
-              "dropdown_choices": [],
-              "help_text": "",
-              "label": "Layout Template",
-              "name": "layout_template",
-              "placeholder": "",
-              "required": false,
-              "source_prefix": "",
-              "static_content": "",
-              "static_variant": "body"
-            }
-          }
-        ],
-        "categories": [],
-        "title": "Image Upload",
-        "id": "image_upload_page",
-        "navigation": {
-          "next_endpoint": "materials_page",
-          "previous_endpoint": "materials_page"
-        },
-        "display_order": 6
-      },
-      "index": {
-        "blocks": [
-          {
-            "block_type": "text_input",
-            "id": "index__client_address",
-            "logic_options": {
-              "depends_on_field": "",
-              "depends_on_value": "",
-              "visibility": "always"
-            },
-            "output_options": {
-              "group": "General",
-              "include_in_output": true,
-              "output_label": "Address:",
-              "sort_order": 0,
-              "value_mode": "show_value"
-            },
-            "pricing_options": {
-              "enabled": false,
-              "entered_key": "",
-              "fixed_amount": 0.0,
-              "mode": "none",
-              "percent_of_subtotal": 0.0,
-              "quantity_key": "",
-              "rate": 0.0
-            },
-            "standard": {
-              "dropdown_choices": [],
-              "help_text": "",
-              "label": "Address:",
-              "name": "client_address",
-              "placeholder": "Enter client address",
-              "required": true,
-              "source_prefix": "",
-              "static_content": "",
-              "static_variant": "body"
-            }
-          },
-          {
-            "block_type": "text_input",
-            "id": "index__Date",
-            "logic_options": {
-              "depends_on_field": "",
-              "depends_on_value": "",
-              "visibility": "always"
-            },
-            "output_options": {
-              "group": "General",
-              "include_in_output": true,
-              "output_label": "Date:",
-              "sort_order": 0,
-              "value_mode": "show_value"
-            },
-            "pricing_options": {
-              "enabled": false,
-              "entered_key": "",
-              "fixed_amount": 0.0,
-              "mode": "none",
-              "percent_of_subtotal": 0.0,
-              "quantity_key": "",
-              "rate": 0.0
-            },
-            "standard": {
-              "dropdown_choices": [],
-              "help_text": "",
-              "label": "Date:",
-              "name": "Date",
-              "placeholder": "",
-              "required": true,
-              "source_prefix": "",
-              "static_content": "",
-              "static_variant": "body"
-            }
-          }
-        ],
-        "categories": [],
-        "title": "Project Details",
-        "id": "index",
-        "navigation": {
-          "previous_endpoint": "materials_page"
-        },
-        "display_order": 7
+        "navigation": {},
+        "display_order": 8
       },
       "optional_extras_page": {
         "blocks": [
@@ -1055,6 +1057,40 @@
             "sort_order": 0
           },
           {
+            "name": "Chimneys",
+            "sort_order": 1,
+            "description": "",
+            "output_group": "General"
+          }
+        ],
+        "title": "Optional Extras",
+        "id": "optional_extras_page",
+        "navigation": {
+          "next_endpoint": "contingency"
+        },
+        "display_order": 11
+      },
+      "contingency": {
+        "blocks": [],
+        "categories": [
+          {
+            "name": "Contingency",
+            "output_group": "General",
+            "sort_order": 0
+          }
+        ],
+        "title": "Contingency",
+        "id": "contingency",
+        "navigation": {
+          "previous_endpoint": "optional_extras_page",
+          "next_endpoint": "finishing_works"
+        },
+        "display_order": 10
+      },
+      "finishing_works": {
+        "blocks": [],
+        "categories": [
+          {
             "name": "Finishing Works",
             "output_group": "General",
             "sort_order": 1
@@ -1065,44 +1101,40 @@
             "sort_order": 2
           }
         ],
-        "title": "Optional Extras",
-        "id": "optional_extras_page",
-        "navigation": {
-          "next_endpoint": "finishing_works"
-        },
-        "display_order": 8
-      },
-      "finishing_works": {
         "title": "Finishing Works",
-        "blocks": [],
-        "categories": [],
-        "display_order": 9,
         "id": "finishing_works",
         "navigation": {
-          "previous_endpoint": "optional_extras_page",
-          "next_endpoint": "contingency"
-        }
-      },
-      "finishing_works_optional_extras": {
-        "title": "Finishing Works Optional Extras",
-        "blocks": [],
-        "categories": [],
-        "display_order": 11,
-        "id": "finishing_works_optional_extras",
-        "navigation": {
-          "next_endpoint": "contingency"
-        }
-      },
-      "contingency": {
-        "blocks": [],
-        "categories": [],
-        "title": "contingency",
-        "id": "contingency",
-        "navigation": {
-          "previous_endpoint": "finishing_works_optional_extras",
-          "next_endpoint": "review"
+          "previous_endpoint": "contingency"
         },
-        "display_order": 10
+        "display_order": 13
+      },
+      "additional_notes": {
+        "blocks": [],
+        "categories": [
+          {
+            "name": "Additional Notes",
+            "output_group": "General",
+            "sort_order": 0
+          }
+        ],
+        "title": "Additional Notes",
+        "id": "additional_notes",
+        "navigation": {},
+        "display_order": 14
+      },
+      "pricing_categories": {
+        "blocks": [],
+        "categories": [
+          {
+            "name": "pricing category",
+            "output_group": "General",
+            "sort_order": 1
+          }
+        ],
+        "title": "Pricing Categories",
+        "id": "pricing_categories",
+        "navigation": {},
+        "display_order": 15
       }
     }
   }

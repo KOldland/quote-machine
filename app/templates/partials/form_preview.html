@@ -38,7 +38,7 @@
                             <div class="preview-li-accordion">
                                 {% if li_groups %}
                                     {% for group in li_groups %}
-                                    <details class="preview-li-category" {% if loop.first %}open{% endif %}>
+                                    <details class="preview-li-category">
                                         <summary class="preview-li-category-header">
                                             <span class="preview-li-category-title">{{ group['category'] }}</span>
                                             <span class="preview-li-category-count">{{ group['items'] | length }} items</span>
@@ -77,7 +77,11 @@
             {% set _fu_val = _saved.get(_fu_key, '') %}
             <div class="form-input" style="margin-bottom:0.4rem; width:100%; max-width:400px;">
             {% if fu_type and fu_type.startswith('Dropdown') %}
-                <select class="form-input preview-select" name="{{ _fu_key }}" style="width:100%; max-width:400px;">
+                {% set _dd_prices = cfg.prices | default([]) %}
+                {% set _dd_user_edit = cfg.user_edit | default(false) %}
+                {% set _dd_saved_price = _saved.get(_fu_key + '_price', '') %}
+                <select class="form-input preview-select" name="{{ _fu_key }}" style="width:100%; max-width:400px;"
+                        {% if _dd_user_edit %}data-follow-up-prices='{{ _dd_prices | tojson }}' data-follow-up-target="{{ _fu_key }}_price"{% endif %}>
                     <option value="">-- Select --</option>
                     {% for choice in cfg.choices | default([]) %}
                     <option value="{{ choice }}"{% if choice == _fu_val %} selected{% endif %}>{{ choice }}</option>
@@ -89,6 +93,22 @@
                        placeholder="Other..."
                        value="{{ _saved.get(_fu_key + '_other', '') }}"
                        style="width:100%; max-width:400px; margin-top:0.3rem;">
+                {% endif %}
+                {% if _dd_user_edit %}
+                {% set _dd_confirmed = _dd_saved_price not in [None, ''] %}
+                <div class="preview-fu-price-row" data-preview-price-row style="margin-top:0.3rem; display:flex; align-items:center; gap:.4rem; flex-wrap:wrap;">
+                    <span style="font-size:.8rem; color:#666;">Price (£):</span>
+                    <input type="number" class="form-input preview-follow-up-input"
+                           name="{{ _fu_key }}_price"
+                           value="{{ _dd_saved_price }}"
+                           step="0.01" min="0"
+                           data-price-confirmed="{{ '1' if _dd_confirmed else '0' }}"
+                           data-price-suggested="{{ '1' if _dd_confirmed else '0' }}"
+                           style="width:120px; padding:.2rem .4rem; font-size:.85rem;">
+                    <span class="preview-fu-price-status" data-price-status style="font-size:.75rem; color:#856404; display:none;">Suggested — confirm to apply</span>
+                    <button type="button" class="preview-fu-price-confirm" data-price-confirm
+                            style="padding:.2rem .5rem; font-size:.75rem; border:1px solid #1b3a6b; background:#1b3a6b; color:#fff; border-radius:3px; cursor:pointer; display:none;">Confirm price</button>
+                </div>
                 {% endif %}
             {% elif fu_type and fu_type.startswith('Single') %}
                 {% if cfg.dim1_label %}
@@ -114,7 +134,40 @@
                            value="{{ _fu_val }}"
                            placeholder="{{ cfg.helper_text or 'Enter value...' }}"
                            style="width:100%; max-width:400px;">
+                    {% if cfg.user_edit and cfg.cost %}
+                    <div style="margin-top:0.3rem; display:flex; align-items:center; gap:.4rem;">
+                        <span style="font-size:.8rem; color:#666;">Price (£):</span>
+                        <input type="number" class="form-input preview-follow-up-input"
+                               name="{{ _fu_key }}_price"
+                               value="{{ _saved.get(_fu_key + '_price', '') }}"
+                               step="0.01" min="0"
+                               style="width:120px; padding:.2rem .4rem; font-size:.85rem;">
+                    </div>
+                    {% endif %}
                 {% endif %}
+            {% elif fu_type and fu_type.startswith('Checkbox') %}
+                {% set _cb_prices = cfg.prices | default([]) %}
+                {% set _user_edit = cfg.user_edit | default(false) %}
+                {% for choice in cfg.choices | default([]) %}
+                    {% set _choice_idx = loop.index0 %}
+                    {% set _price = _cb_prices[_choice_idx] if _choice_idx < _cb_prices | length else '' %}
+                    {% set _user_price = _saved.get(_fu_key + '_price_' + (_choice_idx | string), _price) %}
+                    <label class="preview-checkbox" style="display:flex; align-items:center; gap:.4rem; margin-bottom:.3rem; flex-wrap:wrap;">
+                        <input type="checkbox" class="preview-checkbox-input"
+                               name="{{ _fu_key }}" value="{{ choice }}">
+                        <span>{{ choice }}</span>
+                        {% if _user_edit %}
+                        <span style="font-size:.8rem; color:#666;">£</span>
+                        <input type="number" class="form-input preview-follow-up-input"
+                               name="{{ _fu_key }}_price_{{ _choice_idx }}"
+                               value="{{ _user_price }}"
+                               step="0.01" min="0"
+                               style="width:100px; padding:.2rem .4rem; font-size:.85rem; margin-left:.3rem;">
+                        {% elif _price %}
+                        <span style="font-size:.8rem; color:#666; margin-left:auto;">£{{ _price }}</span>
+                        {% endif %}
+                    </label>
+                {% endfor %}
             {% endif %}
             </div>
         {% endfor %}
@@ -130,7 +183,7 @@
                             </div>
                         {% else %}
                             {# ── Standard field types: render with outer wrapper ── #}
-                            <div class="preview-element preview-element-{{ block_type }}" data-field-id="{{ field.id }}">
+                            <div class="preview-element preview-element-{{ block_type }}" data-field-id="{{ field.id }}" data-logic-visibility="{{ meta.logic_options.visibility | default('always') }}" data-logic-depends-on="{{ meta.logic_options.depends_on_field | default('') }}" data-logic-depends-on-value="{{ meta.logic_options.depends_on_value | default('') }}">
                                 {% if block_type != 'static_text_heading' %}
                                     <label class="preview-label" for="{{ field.name }}">
                                         {{ field.label }}
@@ -141,7 +194,7 @@
                                 {% endif %}
 
                                 {% if block_type == 'checkbox_group' %}
-                                <div class="preview-checkbox-group">
+                                <div class="preview-checkbox-group" data-selection-limit="{{ meta.selection_limit | default('', true) }}">
                                     {% for choice in meta.dropdown_choices %}
                                     <label class="preview-checkbox">
                                         <input type="checkbox" class="preview-checkbox-input"
@@ -589,3 +642,76 @@ details[open] > .preview-li-category-header::before {
     animation: fadeInUp 0.3s ease-out;
 }
 </style>
+
+<script>
+(function() {
+    // ── Selection limit enforcement (single-select checkbox groups) ──────
+    document.querySelectorAll('.preview-checkbox-group[data-selection-limit="1"]').forEach(function(group) {
+        var checkboxes = group.querySelectorAll('.preview-checkbox-input');
+        checkboxes.forEach(function(cb) {
+            cb.addEventListener('change', function() {
+                if (cb.checked) {
+                    checkboxes.forEach(function(other) {
+                        if (other !== cb) other.checked = false;
+                    });
+                }
+            });
+        });
+    });
+
+    // ── Conditional visibility evaluation ────────────────────────────────
+    function getFieldValue(fieldId) {
+        var el = document.querySelector('[data-field-id="' + fieldId + '"]');
+        if (!el) return '';
+        var input = el.querySelector('input[type="checkbox"]:checked');
+        if (input) return input.value;
+        var select = el.querySelector('select');
+        if (select) return select.value;
+        var textInput = el.querySelector('input[type="text"], input[type="number"], input[type="date"]');
+        if (textInput) return textInput.value;
+        return '';
+    }
+
+    function getCheckboxGroupValue(groupEl) {
+        var checked = groupEl.querySelectorAll('.preview-checkbox-input:checked');
+        return Array.from(checked).map(function(cb) { return cb.value; });
+    }
+
+    function evaluateConditionalFields(changedFieldId) {
+        var fields = document.querySelectorAll('.preview-element[data-logic-visibility="conditional"]');
+        fields.forEach(function(fieldEl) {
+            var dependsOn = fieldEl.getAttribute('data-logic-depends-on');
+            var requiredValue = fieldEl.getAttribute('data-logic-depends-on-value');
+            if (!dependsOn) {
+                fieldEl.style.display = 'none';
+                return;
+            }
+            var triggerEl = document.querySelector('[data-field-id="' + dependsOn + '"]');
+            if (!triggerEl || triggerEl.style.display === 'none') {
+                fieldEl.style.display = 'none';
+                return;
+            }
+            var currentValues = [];
+            var cbGroup = triggerEl.querySelector('.preview-checkbox-group');
+            if (cbGroup) {
+                currentValues = getCheckboxGroupValue(cbGroup);
+            } else {
+                currentValues = [getFieldValue(dependsOn)];
+            }
+            var matched = currentValues.some(function(v) { return String(v).trim() === String(requiredValue).trim(); });
+            fieldEl.style.display = matched ? '' : 'none';
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        evaluateConditionalFields(null);
+        document.querySelectorAll('.preview-element input, .preview-element select, .preview-element .preview-checkbox-group').forEach(function(el) {
+            el.addEventListener('change', function() {
+                var fieldEl = el.closest('.preview-element');
+                var fieldId = fieldEl ? fieldEl.getAttribute('data-field-id') : '';
+                evaluateConditionalFields(fieldId);
+            });
+        });
+    });
+})();
+</script>

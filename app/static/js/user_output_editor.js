@@ -350,10 +350,7 @@ const IMAGE_FRAMES = [
       contentHtml = `<h1>${escapeHtml(snapshot.title || '')}</h1>`;
       isEditable = 'true';
     } else if (block.type === 'category_title') {
-      const catImg = snapshot.category_image
-        ? `<img src="${escapeHtml(snapshot.category_image)}" alt="" class="category-image" style="max-width:200px;max-height:120px;display:block;margin-bottom:8px;border-radius:4px;">`
-        : '';
-      contentHtml = `${catImg}<h2>${escapeHtml(snapshot.title || '')}</h2>`;
+      contentHtml = `<h2>${escapeHtml(snapshot.title || '')}</h2>`;
       isEditable = 'false';
     } else if (block.type === 'page_break') {
       contentHtml = '<div class="page-break-visual">Page Break</div>';
@@ -1680,10 +1677,7 @@ const IMAGE_FRAMES = [
     } else if (block.type === 'page_title') {
       return '';
     } else if (block.type === 'category_title') {
-      const catImg = snapshot.category_image
-        ? `<img src="${escapeHtml(snapshot.category_image)}" alt="" style="max-width:200px;max-height:120px;display:block;margin-bottom:8px;border-radius:4px;">`
-        : '';
-      return `<li${previewMergedStyle('category_title', `margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:0; text-align:${alignment};`)}>${catImg}<h2>${escapeHtml(snapshot.title || '')}</h2></li>`;
+      return `<li${previewMergedStyle('category_title', `margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:0; text-align:${alignment};`)}><h2>${escapeHtml(snapshot.title || '')}</h2></li>`;
     } else if (block.type === 'page_break') {
       return `<li${previewMergedStyle('page_break', `margin-top:${marginTop}px; margin-bottom:${marginBottom}px; padding:0;`)}><div style="page-break-before: always;"></div></li>`;
     } else {

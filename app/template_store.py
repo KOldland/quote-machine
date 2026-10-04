@@ -256,8 +256,20 @@ def _create_schema(conn: sqlite3.Connection) -> None:
             follow_up_type       TEXT,
             follow_up_config     TEXT,
             quantity_source      TEXT,
+            pricing_mode         TEXT NOT NULL DEFAULT 'per_unit',
+            addon_amount         REAL NOT NULL DEFAULT 0.0,
+            price_matrix         TEXT,
             created_at           DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at           DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS question_images (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            line_item_id INTEGER NOT NULL,
+            image_url TEXT NOT NULL,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (line_item_id) REFERENCES line_items(id) ON DELETE CASCADE
         );
         """
     )
@@ -453,6 +465,14 @@ def save_template(
         _create_schema(conn)
         try:
             conn.execute("ALTER TABLE line_items ADD COLUMN quantity_source TEXT")
+        except Exception:
+            pass
+        try:
+            conn.execute("ALTER TABLE line_items ADD COLUMN pricing_mode TEXT NOT NULL DEFAULT 'per_unit'")
+        except Exception:
+            pass
+        try:
+            conn.execute("ALTER TABLE line_items ADD COLUMN addon_amount REAL NOT NULL DEFAULT 0.0")
         except Exception:
             pass
 

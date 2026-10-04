@@ -389,13 +389,138 @@ function updateDrainageInputs() {
 				followUpContainer.style.display = checkbox.checked ? 'block' : 'none';
 				if (!checkbox.checked) {
 					var inputs = followUpContainer.querySelectorAll('.preview-follow-up-input');
-					inputs.forEach(function(input) { input.value = ''; });
+					inputs.forEach(function(input) {
+						input.value = '';
+						// Reset any prefilled/confirmed price state alongside the value.
+						if (input.hasAttribute('data-price-confirmed')) {
+							input.setAttribute('data-price-confirmed', '0');
+							input.setAttribute('data-price-suggested', '0');
+							var row = input.closest('[data-preview-price-row]');
+							if (row) {
+								var status = row.querySelector('[data-price-status]');
+								var cbtn = row.querySelector('[data-price-confirm]');
+								if (status) status.style.display = 'none';
+								if (cbtn) cbtn.style.display = 'none';
+							}
+						}
+					});
 				}
 			});
 			// Set initial state
 			followUpContainer.style.display = checkbox.checked ? 'block' : 'none';
 		}
 	});
+
+	// --------------------- 9b FOLLOW-UP PRICE PREFILL / CONFIRM ---------------------
+	//
+	// Dropdown follow-ups that have "Set prices per choice" map a chosen option to
+	// a price. Selecting an option prefills the override field as a *suggestion*;
+	// it is only sent to the server as an override once the user confirms it.
+	// An unconfirmed value is disabled on submit so the calculator falls back to
+	// the price configured in the builder for that choice.
+	(function () {
+		function parsePrices(select) {
+			try {
+				var raw = select.getAttribute('data-follow-up-prices');
+				var parsed = raw ? JSON.parse(raw) : [];
+				return Array.isArray(parsed) ? parsed : [];
+			} catch (e) {
+				return [];
+			}
+		}
+
+		function setState(input, row, state) {
+			// state: 'suggested' | 'confirmed' | 'empty'
+			var status = row.querySelector('[data-price-status]');
+			var confirmBtn = row.querySelector('[data-price-confirm]');
+			if (state === 'confirmed') {
+				input.setAttribute('data-price-confirmed', '1');
+				input.setAttribute('data-price-suggested', '0');
+				if (status) { status.style.display = 'none'; }
+				if (confirmBtn) {
+					confirmBtn.style.display = 'none';
+					confirmBtn.dataset.state = 'confirmed';
+				}
+			} else if (state === 'suggested') {
+				input.setAttribute('data-price-confirmed', '0');
+				input.setAttribute('data-price-suggested', '1');
+				if (status) { status.style.display = ''; }
+				if (confirmBtn) {
+					confirmBtn.style.display = '';
+					confirmBtn.dataset.state = 'suggested';
+				}
+			} else {
+				input.setAttribute('data-price-confirmed', '0');
+				input.setAttribute('data-price-suggested', '0');
+				if (status) { status.style.display = 'none'; }
+				if (confirmBtn) { confirmBtn.style.display = 'none'; }
+			}
+		}
+
+		// Dropdown change -> suggest the mapped price.
+		document.querySelectorAll('select[data-follow-up-target]').forEach(function (select) {
+			var targetName = select.getAttribute('data-follow-up-target');
+			var input = document.querySelector('input[name="' + targetName + '"]');
+			if (!input) return;
+			var row = input.closest('[data-preview-price-row]') || input.parentElement;
+			if (!row) return;
+
+			select.addEventListener('change', function () {
+				var prices = parsePrices(select);
+				var idx = select.selectedIndex - 1; // index 0 is "-- Select --"
+				if (!select.value || idx < 0 || idx >= prices.length) {
+					input.value = '';
+					setState(input, row, 'empty');
+					return;
+				}
+				var suggested = prices[idx];
+				if (suggested === null || suggested === undefined || String(suggested).trim() === '') {
+					input.value = '';
+					setState(input, row, 'empty');
+					return;
+				}
+				input.value = String(suggested).replace(/[^0-9.\-]/g, '');
+				setState(input, row, 'suggested');
+			});
+
+			// Editing a suggested price counts as a deliberate override.
+			input.addEventListener('input', function () {
+				if (input.getAttribute('data-price-confirmed') === '1') return;
+				setState(input, row, 'suggested');
+			});
+
+			// Explicit confirmation.
+			var confirmBtn = row.querySelector('[data-price-confirm]');
+			if (confirmBtn) {
+				confirmBtn.addEventListener('click', function () {
+					if (String(input.value).trim() === '') {
+						input.focus();
+						return;
+					}
+					setState(input, row, 'confirmed');
+				});
+			}
+
+			// Reflect state on first render (e.g. returning to a completed page).
+			if (String(input.value).trim() === '') {
+				setState(input, row, 'empty');
+			} else if (input.getAttribute('data-price-confirmed') === '1') {
+				setState(input, row, 'confirmed');
+			} else {
+				setState(input, row, 'suggested');
+			}
+		});
+
+		// Never submit an unconfirmed suggestion: a disabled input is omitted by
+		// the browser, so the calculator uses the builder price for the choice.
+		document.querySelectorAll('form').forEach(function (form) {
+			form.addEventListener('submit', function () {
+				form.querySelectorAll('input[data-price-confirmed="0"]').forEach(function (input) {
+					input.disabled = true;
+				});
+			});
+		});
+	})();
 				
 // --------------------- 10 IMAGE SELECTION TOGGLE ---------------------
 

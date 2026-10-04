@@ -81,9 +81,9 @@
   <fieldset>
     <legend>Pricing</legend>
 
-    <label>Enabled:
+    <label>
       <input type="checkbox" name="pricing_enabled"
-             {% if block.pricing_options.enabled %}checked{% endif %} />
+             {% if block.pricing_options.enabled %}checked{% endif %}> Enable pricing
     </label><br>
 
     <label>Mode:
@@ -94,6 +94,12 @@
           </option>
         {% endfor %}
       </select>
+    </label><br>
+
+    {# Addon amount: added to any calculated total #}
+    <label>Addon amount:
+      <input type="number" step="0.01" name="pricing_addon_amount"
+             value="{{ block.pricing_options.addon_amount|default(0) }}" />
     </label><br>
 
     {# Fixed amount (used when mode = fixed) #}
@@ -148,7 +154,7 @@
              value="{{ block.output_options.output_label|e }}" />
     </label><br>
 
-    <label>Group:
+    <label>Cost Group:
       <input type="text" name="output_group"
              value="{{ block.output_options.group|e }}" />
     </label><br>
