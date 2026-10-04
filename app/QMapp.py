@@ -722,7 +722,7 @@ def get_builder_beta_state():
     #     fall back to an empty dict (so the UI still works but is empty).
     schema_pages = page_schemas.get('pages', {})
     if isinstance(schema_pages, dict):
-        pages = schema_pages.copy()
+        pages = deepcopy(schema_pages)
     else:
         pages = {}
 
@@ -732,7 +732,10 @@ def get_builder_beta_state():
     #     keep the pages from schema_pages above.
     state_pages = state.get('pages', {})
     if isinstance(state_pages, dict) and state_pages:
-        pages = state_pages
+        # deepcopy: `state` is a shallow copy of the module-level
+        # page_schemas, so without this the DB-merge below would mutate the
+        # shared seed object in place and compound on every call.
+        pages = deepcopy(state_pages)
     # else: keep pages from schema_pages (already set above)
 
     # Populate any missing defaults for each page.
@@ -742,6 +745,32 @@ def get_builder_beta_state():
         pg.setdefault('navigation', {})
         if not isinstance(pg.get('blocks'), list):
             pg['blocks'] = []   # make sure a list exists
+
+    # Make SQLite authoritative for page *content* (title, categories, blocks).
+    #
+    # The builder used to read pages straight from page_schemas.json, a legacy
+    # seed file that is also re-seeded from the versioned payload_json at import.
+    # That made it a second source of truth: a category renamed or page merged in
+    # SQLite left the old entry behind, because the sync below only ever appended.
+    # _rebuild_payload_from_db() derives the same structure from page_templates /
+    # category_templates / question_templates, so prefer it.
+    #
+    # Navigation is the exception: previous/next endpoints are only populated in
+    # the JSON seed (the page_templates columns are empty for the live version),
+    # so carry it across rather than dropping the Save & Continue chain.
+    try:
+        _db_state = _rebuild_payload_from_db(conn=None, template_key=TEMPLATE_STORE_KEY)
+        _db_pages = (_db_state or {}).get('builder_beta', {}).get('pages') or {}
+        for _pid, _pg in _db_pages.items():
+            if not isinstance(_pg, dict):
+                continue
+            _pg.setdefault('id', _pid)
+            _pg.setdefault('navigation', (pages.get(_pid) or {}).get('navigation') or {})
+            if not isinstance(_pg.get('blocks'), list):
+                _pg['blocks'] = []
+            pages[_pid] = _pg
+    except Exception:
+        pass
 
     # Inject display_order from SQLite so navigation can use it as single source of truth.
     # Also ensure any pages that exist in the DB but not in the JSON schema are included
