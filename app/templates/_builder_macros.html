@@ -1,4 +1,5 @@
 {% macro render_properties_panel(selected_block, blocks, pricing_modes, current_page_id) %}
+<!-- TEST MARKER: THIS FILE IS BEING SERVED -->
     <div class="builder-properties">
         <div class="properties-header">Block Properties</div>
         <div class="properties-content" id="properties-content">
@@ -170,7 +171,7 @@
                                 <input type="text" name="output_label" value="{{ selected_block.output_options.output_label }}">
                             </div>
                             <div class="form-group">
-                                <label>Output Group</label>
+                                <label>Cost Group</label>
                                 <input type="text" name="output_group" value="{{ selected_block.output_options.group }}">
                             </div>
                             <div class="form-group">
@@ -285,7 +286,7 @@
             <div id="add-cat-inline" style="display:none; margin-top:.4rem;">
                 <input type="text" id="add-cat-name-input" placeholder="Category name…"
                        style="width:100%; font-size:.82rem; padding:.25rem .4rem; border:1px solid #ccc; border-radius:3px; box-sizing:border-box;">
-                <input type="text" id="add-cat-output-group-input" placeholder="Output group (default: General)"
+                <input type="text" id="add-cat-output-group-input" placeholder="Cost group (default: General)"
                        style="width:100%; font-size:.82rem; padding:.25rem .4rem; border:1px solid #ccc; border-radius:3px; box-sizing:border-box; margin-top:.3rem;">
                 <div style="display:flex; gap:.4rem; margin-top:.35rem;">
                     <button type="button" id="btn-add-cat-confirm" class="li-save-btn" style="flex:1; margin-top:0;">Save</button>
@@ -912,8 +913,8 @@ document.addEventListener('DOMContentLoaded', function() {
             _field('cat_name', 'Category Name', 'text', catName),
             _field('cat_description', 'Category Description', 'textarea', '')
         ]);
-        html += _section('Output Group', true, [
-            _field('cat_output_group', 'Output Group', 'text', data.output_group || 'General')
+        html += _section('Cost Group', true, [
+            _field('cat_output_group', 'Cost Group', 'text', data.output_group || 'General')
         ]);
         html += _section('Meta', false, [
             _field('cat_page_key', 'Belongs to Page', 'text', _pageKey, true)
@@ -1201,7 +1202,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         html += _section('Meta', false, [
             _field('line_code',       'Line Code',       'text',   item.line_code   || '', true),
-            _field('output_group',    'Output Group',    'text',   item.output_group || 'General'),
+            _field('output_group',    'Cost Group',    'text',   item.output_group || 'General'),
             _selectField('category',  'Category',        item.category || '', allCats)
         ]);
 
@@ -1217,12 +1218,31 @@ document.addEventListener('DOMContentLoaded', function() {
         html += '</div>';
         html += '<div style="display:flex; justify-content:flex-end; align-items:center; gap: 10px;">';
         html += '  <button type="button" id="btn-duplicate-question" class="li-save-btn" style="padding:0.45rem; width:auto; margin-top:0; background:#6c757d;" title="Duplicate Question"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>';
-        html += '  <button type="submit" class="li-save-btn" style="padding:0.45rem; width:auto; margin-top:0;" title="Save Question"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1 2-2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>';
+        html += '  <button type="button" id="btn-question-images" class="li-save-btn" style="padding:0.45rem; width:auto; margin-top:0; background:#495057;" title="Manage Question Images"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></button>';
+        html += '  <button type="submit" class="li-save-btn" style="padding:0.45rem; width:auto; margin-top:0;" title="Save Question"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>';
         html += '  <button type="button" id="btn-delete-question" class="li-delete-btn" style="padding:0.45rem; background:#6d0b0b; color:#fff; border:none; border-radius:5px; font-weight:700; cursor:pointer;" title="Delete Question"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>';
         html += '</div>';
         html += '</div>';
         html += '</form>';
         $id('li-editor-content').innerHTML = html;
+        console.log('[EDITOR] Form rendered, btn-question-images:', !!document.getElementById('btn-question-images'), 'btn-duplicate:', !!document.getElementById('btn-duplicate-question'), 'btn-save:', !!document.querySelector('#li-edit-form button[type="submit"]'));
+        
+        // Fallback: add images button via JS if missing from HTML
+        if (!document.getElementById('btn-question-images') && document.getElementById('btn-duplicate-question')) {
+            console.log('[EDITOR] Adding btn-question-images via JS fallback');
+            var dupBtn = document.getElementById('btn-duplicate-question');
+            var saveBtn = document.querySelector('#li-edit-form button[type="submit"]');
+            var imgBtn = document.createElement('button');
+            imgBtn.type = 'button';
+            imgBtn.id = 'btn-question-images';
+            imgBtn.className = 'li-save-btn';
+            imgBtn.style.cssText = 'padding:0.45rem;width:auto;margin-top:0;background:#495057;';
+            imgBtn.title = 'Manage Question Images';
+            imgBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>';
+            if (saveBtn && saveBtn.parentNode) {
+                saveBtn.parentNode.insertBefore(imgBtn, saveBtn);
+            }
+        }
 
          document.getElementById('li-editor-content').addEventListener('click', function(e) {
              var option = e.target.closest('.merge-tag-option');
@@ -1489,8 +1509,193 @@ document.addEventListener('DOMContentLoaded', function() {
                         saveBtn.disabled = false;
                         saveBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>';
                     }
+             });
+         });
+
+        // ── Question images modal ─────────────────────────────────────────
+        var questionModalImages = [];
+        var questionModalPendingFile = null;
+        var btnQuestionModalBrowse = $id('btn-question-modal-browse');
+        var btnQuestionModalUpload = $id('btn-question-modal-upload');
+        var btnQuestionModalSave = $id('btn-question-modal-save');
+        var btnQuestionModalClose = $id('btn-question-modal-close');
+        var questionModalFileInput = $id('question-modal-file-input');
+        var questionModalFilename = $id('question-modal-filename');
+        var questionModalImagesList = $id('question-modal-images-list');
+
+        function renderQuestionModalImages() {
+            if (!questionModalImagesList) return;
+            if (questionModalImages.length === 0) {
+                questionModalImagesList.innerHTML = '<span style="color:#888;font-size:.85rem;">No images attached.</span>';
+                return;
+            }
+            var html = '';
+            questionModalImages.forEach(function(url, idx) {
+                html += '<div style="display:inline-flex;flex-direction:column;align-items:center;gap:4px;border:1px solid #ccc;border-radius:6px;padding:4px;background:#fff;width:110px;">' +
+                    '<img src="' + url + '" style="width:100px;height:80px;object-fit:cover;border-radius:4px;border:1px solid #ddd;">' +
+                    '<button type="button" class="btn-q-modal-remove-item" data-idx="' + idx + '" style="padding:0.2rem 0.5rem;background:#6d0b0b;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:.7rem;width:100%;">Remove</button>' +
+                '</div>';
+            });
+            questionModalImagesList.innerHTML = html;
+            questionModalImagesList.querySelectorAll('.btn-q-modal-remove-item').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var idx = parseInt(this.getAttribute('data-idx'), 10);
+                    if (idx >= 0 && idx < questionModalImages.length) {
+                        questionModalImages.splice(idx, 1);
+                        renderQuestionModalImages();
+                    }
                 });
             });
+        }
+
+        function openQuestionImagesModal() {
+            var questionImagesModal = $id('question-images-modal');
+            if (!questionImagesModal) return;
+            questionModalImages = (item.question_images && Array.isArray(item.question_images)) ? item.question_images.slice() : [];
+            renderQuestionModalImages();
+            questionImagesModal.style.display = 'flex';
+        }
+
+        function closeQuestionImagesModal() {
+            var questionImagesModal = $id('question-images-modal');
+            if (!questionImagesModal) return;
+            questionImagesModal.style.display = 'none';
+            questionModalPendingFile = null;
+            if (questionModalFileInput) questionModalFileInput.value = '';
+            if (questionModalFilename) {
+                questionModalFilename.textContent = '';
+                questionModalFilename.style.color = '#888';
+                questionModalFilename.style.fontStyle = 'italic';
+            }
+            if (btnQuestionModalUpload) btnQuestionModalUpload.disabled = true;
+        }
+
+        var btnQuestionImages = $id('btn-question-images');
+        if (btnQuestionImages) {
+            btnQuestionImages.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                openQuestionImagesModal();
+            });
+        }
+
+        if (btnQuestionModalClose) {
+            btnQuestionModalClose.addEventListener('click', closeQuestionImagesModal);
+        }
+
+        var questionImagesModal = $id('question-images-modal');
+        if (questionImagesModal) {
+            questionImagesModal.addEventListener('click', function(e) {
+                if (e.target === questionImagesModal) {
+                    closeQuestionImagesModal();
+                }
+            });
+        }
+
+        if (btnQuestionModalBrowse && questionModalFileInput) {
+            btnQuestionModalBrowse.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                questionModalFileInput.click();
+            });
+            questionModalFileInput.addEventListener('change', function() {
+                questionModalPendingFile = this.files && this.files[0];
+                if (questionModalFilename) {
+                    questionModalFilename.textContent = questionModalPendingFile ? questionModalPendingFile.name : 'No file selected';
+                    questionModalFilename.style.color = questionModalPendingFile ? '#1b3a6b' : '#888';
+                    questionModalFilename.style.fontStyle = questionModalPendingFile ? 'normal' : 'italic';
+                }
+                if (btnQuestionModalUpload) {
+                    btnQuestionModalUpload.disabled = !questionModalPendingFile;
+                }
+            });
+        }
+
+        if (btnQuestionModalUpload) {
+            btnQuestionModalUpload.addEventListener('click', function() {
+                if (!questionModalPendingFile) {
+                    alert('Please browse and select an image first.');
+                    return;
+                }
+                var formData = new FormData();
+                formData.append('file', questionModalPendingFile);
+                var csrf = (document.querySelector('[name=csrf_token]') || {}).value || '';
+                btnQuestionModalUpload.disabled = true;
+                btnQuestionModalUpload.textContent = 'Uploading...';
+                fetch('/quote_editor/upload-image', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'X-CSRFToken': csrf },
+                    body: formData
+                })
+                .then(function(r) {
+                    return r.json().then(function(d) { return {status: r.status, data: d}; });
+                })
+                .then(function(result) {
+                    btnQuestionModalUpload.disabled = false;
+                    btnQuestionModalUpload.textContent = 'Upload';
+                    if (result.data.success && result.data.url) {
+                        questionModalImages.push(result.data.url);
+                        renderQuestionModalImages();
+                        questionModalPendingFile = null;
+                        if (questionModalFileInput) questionModalFileInput.value = '';
+                        if (questionModalFilename) {
+                            questionModalFilename.textContent = 'Upload complete';
+                            questionModalFilename.style.color = '#155724';
+                            questionModalFilename.style.fontStyle = 'normal';
+                        }
+                    } else {
+                        alert('Upload failed: ' + (result.data.error || 'Unknown error'));
+                        if (questionModalFilename) {
+                            questionModalFilename.textContent = 'Upload failed';
+                            questionModalFilename.style.color = '#721c24';
+                        }
+                    }
+                })
+                .catch(function(err) {
+                    btnQuestionModalUpload.disabled = false;
+                    btnQuestionModalUpload.textContent = 'Upload';
+                    alert('Upload failed: network error');
+                });
+            });
+        }
+
+        if (btnQuestionModalSave) {
+            btnQuestionModalSave.addEventListener('click', function() {
+                if (!item) {
+                    alert('No question selected.');
+                    return;
+                }
+                btnQuestionModalSave.disabled = true;
+                btnQuestionModalSave.textContent = 'Saving...';
+                fetch('/builder_beta/question_images', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json', 'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''},
+                    body: JSON.stringify({ line_item_id: item.id, images: questionModalImages })
+                })
+                .then(function(r) { 
+                    return r.json().then(function(d) { return {status: r.status, data: d}; }); 
+                })
+                .then(function(result) {
+                    if (result.data.success) {
+                        if (typeof showQmToast === 'function') { showQmToast('Question images saved', true); }
+                        item.question_images = questionModalImages.slice();
+                        closeQuestionImagesModal();
+                    } else {
+                        alert('Save failed: ' + (result.data.error || 'Unknown error'));
+                    }
+                })
+                .catch(function(e) {
+                    alert('Network error saving question images.');
+                })
+                .finally(function() {
+                    btnQuestionModalSave.disabled = false;
+                    btnQuestionModalSave.textContent = 'Attach Images';
+                });
+            });
+        }
+
+        // ── End Question images modal ─────────────────────────────────────
 
         // Auto-save Internal Description on blur / Enter
             var titleField = form.querySelector('[name="internal_description"]');
@@ -1883,6 +2088,29 @@ document.addEventListener('DOMContentLoaded', function() {
 
 }());
 </script>
+
+    <!-- Question Images Modal -->
+    <div id="question-images-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;
+         background:rgba(0,0,0,0.55);z-index:1200;align-items:center;justify-content:center;
+         backdrop-filter:blur(2px);">
+        <div style="background:#fff;padding:1.5rem 1.75rem;border-radius:10px;width:560px;max-width:92%;max-height:85vh;overflow-y:auto;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1f2937;box-shadow:0 20px 25px -5px rgba(0,0,0,0.1),0 10px 10px -5px rgba(0,0,0,0.04);">
+            <h3 style="margin:0 0 1rem 0;font-size:1.15rem;font-weight:700;color:#0f172a;">Question Images</h3>
+            <div id="question-modal-images-list" style="display:flex;flex-wrap:wrap;gap:0.75rem;margin-bottom:1rem;min-height:60px;"></div>
+            <div style="border-top:1px solid #e5e7eb;padding-top:0.75rem;margin-bottom:0.75rem;">
+                <label style="display:block;margin-bottom:.35rem;font-size:.8rem;font-weight:600;color:#374151;">Add Image</label>
+                <input type="file" id="question-modal-file-input" accept="image/*" style="display:none;">
+                <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
+                    <button type="button" id="btn-question-modal-browse" class="btn" style="background:#f0f0f0;color:#333;border:1px solid #ccc;padding:.45rem .9rem;border-radius:6px;cursor:pointer;font-size:.85rem;font-weight:500;">Browse</button>
+                    <button type="button" id="btn-question-modal-upload" class="btn" style="background:#155724;color:#fff;border:none;padding:.45rem .9rem;border-radius:6px;cursor:pointer;font-size:.85rem;font-weight:600;" disabled>Upload</button>
+                    <span id="question-modal-filename" style="font-size:.8rem;color:#888;font-style:italic;"></span>
+                </div>
+            </div>
+            <div style="display:flex;gap:.75rem;justify-content:flex-end;padding-top:.5rem;border-top:1px solid #e5e7eb;">
+                <button type="button" id="btn-question-modal-close" class="btn" style="background:#fff;color:#374151;border:1px solid #d1d5db;padding:.55rem 1.1rem;border-radius:6px;cursor:pointer;font-size:.9rem;font-weight:500;">Cancel</button>
+                <button type="button" id="btn-question-modal-save" class="btn" style="background:#1b3a6b;color:#fff;border:none;padding:.55rem 1.1rem;border-radius:6px;cursor:pointer;font-size:.9rem;font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,0.05);">Attach Images</button>
+            </div>
+        </div>
+    </div>
 {% endmacro %}
 
 {# ── End Session L Macros ──────────────────────────────────────────────────── #}

@@ -1326,8 +1326,37 @@ def get_line_items_by_codes(codes: list, db_path=None) -> list:
         "ORDER BY category ASC, sort_order ASC, line_code ASC",
         codes
     ).fetchall()
+
+    items = [dict(r) for r in rows]
+
+    if items:
+        item_ids = [i['id'] for i in items]
+        ph = ','.join('?' * len(item_ids))
+        img_rows = conn.execute(
+            f"SELECT line_item_id, image_url FROM question_images "
+            f"WHERE line_item_id IN ({ph}) ORDER BY sort_order, id",
+            item_ids
+        ).fetchall()
+        img_map = {}
+        for r in img_rows:
+            img_map.setdefault(r['line_item_id'], []).append(r['image_url'])
+        for item in items:
+            item['question_images'] = img_map.get(item['id'], [])
+
     conn.close()
-    return [dict(r) for r in rows]
+    return items
+
+
+def get_question_images_for_line_item(line_item_id, db_path=None):
+    """Return list of image_url strings for a single line_item, ordered by sort_order."""
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    rows = conn.execute(
+        "SELECT image_url FROM question_images WHERE line_item_id = ? ORDER BY sort_order, id",
+        (line_item_id,),
+    ).fetchall()
+    conn.close()
+    return [r['image_url'] for r in rows if r['image_url']]
 
 def get_all_pages(template_key: str = "first_client_template_v1", db_path: Optional[Path] = None) -> list:
     """Return all page_templates for the latest version of a template, ordered by display_order."""

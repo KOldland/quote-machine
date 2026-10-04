@@ -49,6 +49,7 @@ from template_store import (
     get_line_items_by_codes,
     get_all_pages,
     get_line_items_for_page,
+    get_question_images_for_line_item,
 )
 
 
@@ -686,7 +687,8 @@ ALLOWED_BLOCK_PRICING_MODES = {
     'fixed',
     'entered',
     'quantity_rate',
-    'percent_subtotal'}
+    'percent_subtotal',
+    'matrix'}
 
 
 def get_builder_beta_state():
@@ -784,19 +786,24 @@ def get_builder_beta_state():
                 (TEMPLATE_STORE_KEY,)
             ).fetchall()
             _conn.close()
+            # DB is authoritative for categories. Previously this only *appended*
+            # DB rows that were missing from the JSON seed, which meant a category
+            # renamed in SQLite left a phantom behind (e.g. stale "Standard Item"
+            # from the versioned payload_json alongside the real "Standard Items").
+            # Replace the list wherever the DB actually has rows, and keep the JSON
+            # seed only for pages the DB knows nothing about.
+            _by_page: dict[str, list[dict]] = {}
             for _r in _rows:
-                _pid = _r['page_key']
-                _cname = _r['name']
+                _by_page.setdefault(_r['page_key'], []).append({
+                    'name': _r['name'],
+                    'sort_order': _r['display_order'],
+                    'description': _r['description'] or '',
+                    'output_group': _r['output_group'] or 'General',
+                })
+            for _pid, _cats in _by_page.items():
                 if _pid not in pages:
                     continue
-                _cats = pages[_pid].setdefault('categories', [])
-                if not any(c.get('name') == _cname for c in _cats):
-                    _cats.append({
-                        'name': _cname,
-                        'sort_order': _r['display_order'],
-                        'description': _r['description'] or '',
-                        'output_group': _r['output_group'] or 'General',
-                    })
+                pages[_pid]['categories'] = _cats
     except Exception:
         pass
 
@@ -827,6 +834,7 @@ def _new_block_template(block_type, page_id, position):
             'source_prefix': '',
             'placeholder': '',
             'dropdown_choices': [],
+            'selection_limit': None,
             'static_content': '',
             'static_variant': 'body',
         },
@@ -943,6 +951,15 @@ def update_builder_beta_page_from_form(page_id, form_data):
                 standard['dropdown_choices'] = [
                     c.strip() for c in raw_choices.splitlines() if c.strip()]
 
+            raw_selection_limit = form_data.get('standard_selection_limit')
+            if raw_selection_limit is not None and str(raw_selection_limit).strip() != '':
+                try:
+                    standard['selection_limit'] = int(raw_selection_limit)
+                except (TypeError, ValueError):
+                    standard['selection_limit'] = None
+            else:
+                standard['selection_limit'] = None
+
             logic_options['visibility'] = (
                 form_data.get('logic_visibility') or logic_options.get(
                     'visibility', 'always')).strip() or 'always'
@@ -966,6 +983,8 @@ def update_builder_beta_page_from_form(page_id, form_data):
             pricing_options['mode'] = pricing_mode
             pricing_options['fixed_amount'] = _parse_builder_float(
                 form_data.get('pricing_fixed_amount'), pricing_options.get('fixed_amount', 0.0), 0, 1000000)
+            pricing_options['addon_amount'] = _parse_builder_float(
+                form_data.get('pricing_addon_amount'), pricing_options.get('addon_amount', 0.0), 0, 1000000)
             pricing_options['entered_key'] = (
                 form_data.get('pricing_entered_key') or pricing_options.get(
                     'entered_key', '')).strip()
@@ -976,6 +995,37 @@ def update_builder_beta_page_from_form(page_id, form_data):
                     'quantity_key', '')).strip()
             pricing_options['percent_of_subtotal'] = _parse_builder_float(
                 form_data.get('pricing_percent_of_subtotal'), pricing_options.get('percent_of_subtotal', 0.0), 0, 100)
+
+            if pricing_mode == 'matrix':
+                matrix_types = form_data.get('pricing_matrix_types', '')
+                matrix_sizes = form_data.get('pricing_matrix_sizes', '')
+                matrix_prices_raw = form_data.get('pricing_matrix_prices', '')
+                types_list = [t.strip() for t in (matrix_types or '').splitlines() if t.strip()]
+                sizes_list = [s.strip() for s in (matrix_sizes or '').splitlines() if s.strip()]
+                prices_list = []
+                if matrix_prices_raw:
+                    try:
+                        parsed = json.loads(matrix_prices_raw)
+                        if isinstance(parsed, list):
+                            prices_list = parsed
+                    except Exception:
+                        prices_list = []
+                pricing_options['matrix_types'] = types_list
+                pricing_options['matrix_sizes'] = sizes_list
+                pricing_options['matrix_prices'] = prices_list
+                if types_list and sizes_list and prices_list and len(prices_list) == len(types_list):
+                    pricing_options['price_matrix'] = {
+                        'types': types_list,
+                        'sizes': sizes_list,
+                        'prices': prices_list
+                    }
+                else:
+                    pricing_options['price_matrix'] = {'types': types_list, 'sizes': sizes_list, 'prices': prices_list}
+            else:
+                pricing_options.pop('price_matrix', None)
+                pricing_options.pop('matrix_types', None)
+                pricing_options.pop('matrix_sizes', None)
+                pricing_options.pop('matrix_prices', None)
 
             output_options['include_in_output'] = form_data.get(
                 'output_include_in_output') == 'on'
@@ -1022,6 +1072,7 @@ def compile_builder_beta_page_to_runtime_schema(page_id):
                 'block_type': block_type,
                 'placeholder': standard.get('placeholder', ''),
                 'dropdown_choices': standard.get('dropdown_choices', []),
+                'selection_limit': standard.get('selection_limit'),
                 'static_content': standard.get('static_content', ''),
                 'static_variant': standard.get('static_variant', 'body'),
                 'logic_options': deepcopy(block.get('logic_options', {})),
@@ -1047,10 +1098,48 @@ def compile_builder_beta_page_to_runtime_schema(page_id):
                 'config': deepcopy(block.get('config', {})),
             })
         else:
+            # Renders by block_type in the form templates, so pass the real
+            # label through. A "[beta:<type>]" marker was used here to flag
+            # unhandled block types while migrating off the legacy schema,
+            # but it leaked into customer-facing output.
             compiled_fields.append({
                 **common_payload,
                 'type': block_type,
-                'label': f"[beta:{block_type}] {field_label}",
+                'label': field_label,
+            })
+
+    # Fallback: a page with no blocks still needs to render its line items in
+    # the form. Some pages (created before blocks existed, or edited purely
+    # through the builder UI) have line_items in SQLite but no blocks and no
+    # category_templates rows at all — keying this off `categories` alone
+    # missed those. Detect from the line items themselves, which is the same
+    # source the form view uses to render them.
+    if not compiled_fields:
+        try:
+            _li_rows = _get_line_items_for_page(page_id) or {}
+            _li_total = sum(len(v) for v in _li_rows.values())
+        except Exception:
+            _li_total = 0
+        if _li_total:
+            compiled_fields.append({
+                'id': page_id + '_auto_li',
+                'name': page_id + '_line_items',
+                'label': page.get('title', page_id.replace('_', ' ').title()),
+                'note': '',
+                'hidden': False,
+                'type': 'line_items_by_category',
+                'builder_beta_meta': {
+                    'block_type': 'line_items_by_category',
+                    'placeholder': '',
+                    'dropdown_choices': [],
+                    'selection_limit': None,
+                    'static_content': '',
+                    'static_variant': 'body',
+                    'logic_options': {},
+                    'pricing_options': {},
+                    'output_options': {},
+                },
+                'config': {'page_key': page_id},
             })
 
     return {
@@ -1059,6 +1148,39 @@ def compile_builder_beta_page_to_runtime_schema(page_id):
         'navigation': deepcopy(page.get('navigation', {})),
         'fields': compiled_fields,
     }
+
+
+def _apply_conditional_visibility(page_schema, form_data, checkbox_data):
+    field_hidden = {}
+    for field in page_schema.get('fields', []):
+        meta = field.get('builder_beta_meta', {})
+        logic = meta.get('logic_options', {})
+        if logic.get('visibility') != 'conditional':
+            continue
+        depends_on = logic.get('depends_on_field', '')
+        required_value = logic.get('depends_on_value', '')
+        if not depends_on:
+            field['hidden'] = True
+            field_hidden[field.get('id')] = True
+            continue
+        if field_hidden.get(depends_on, False):
+            field['hidden'] = True
+            field_hidden[field.get('id')] = True
+            continue
+        current_value = ''
+        cb_val = checkbox_data.get(depends_on)
+        if isinstance(cb_val, dict):
+            current_value = cb_val.get('preselected', [])
+        elif cb_val is not None:
+            current_value = str(cb_val)
+        else:
+            current_value = str(form_data.get(depends_on, ''))
+        if isinstance(current_value, list):
+            field['hidden'] = str(required_value).strip() not in [str(v).strip() for v in current_value]
+        else:
+            field['hidden'] = str(current_value).strip() != str(required_value).strip()
+        field_hidden[field.get('id')] = field['hidden']
+
 
 # Dynamic – prefers template store, falls back to sheet data
 
@@ -1963,10 +2085,30 @@ def builder_category_details_json():
     if row:
         result = dict(row)
         result['category_image'] = result.get('image_url', '') or ''
+        # Also load multiple images from category_images table
+        try:
+            import sqlite3 as _sql
+            conn2 = _sql.connect(db)
+            conn2.row_factory = _sql.Row
+            img_rows = conn2.execute(
+                '''
+                SELECT ci.image_url
+                FROM category_images ci
+                JOIN page_templates pt ON pt.id = ci.page_template_id
+                WHERE pt.page_key = ? AND ci.category_name = ?
+                ORDER BY ci.sort_order, ci.id
+                ''',
+                (page_key, name),
+            ).fetchall()
+            conn2.close()
+            result['category_images'] = [r['image_url'] for r in img_rows if r['image_url']]
+        except Exception:
+            result['category_images'] = []
         return jsonify(result)
     return jsonify({})
 
 
+@csrf.exempt
 @app.route('/builder_beta/category_details_save', methods=['POST'])
 @require_role('admin')
 def builder_category_details_save():
@@ -1977,13 +2119,25 @@ def builder_category_details_save():
     page_key = data.get('page_key')
     old_name = data.get('old_name')
     new_name = data.get('new_name')
-    desc = data.get('description', '')  # ← FIXED: define desc
+    desc = data.get('description', '')
     output_group = data.get('output_group', 'General')
     category_image = (data.get('category_image') or '').strip()
+    category_images = data.get('category_images') or []
+    if not isinstance(category_images, list):
+        category_images = [category_images] if category_images else []
+    category_images = [str(u).strip() for u in category_images if str(u).strip()]
+    # dedupe preserving order
+    seen = set()
+    deduped = []
+    for u in category_images:
+        if u not in seen:
+            seen.add(u)
+            deduped.append(u)
+    category_images = deduped
+    print(f"[CAT_SAVE] page_key={page_key!r} old_name={old_name!r} new_name={new_name!r} category_image={category_image!r} category_images={category_images!r}", flush=True)
 
     conn = sqlite3.connect(db)
     try:
-        # Get latest version id
         latest_version_row = conn.execute(
             """
             SELECT ftv.id
@@ -1999,19 +2153,33 @@ def builder_category_details_save():
         if latest_version_id is None:
             return jsonify({'success': False, 'error': 'Template version not found'}), 404
 
-        # Get ALL page ids for this page key (across every template version),
-        # so a rename applies everywhere. Otherwise older versions keep the
-        # old name and the UI shows a duplicate "blank" category with the
-        # existing title.
         page_ids = [r[0] for r in conn.execute(
             "SELECT id FROM page_templates WHERE page_key = ?",
             [page_key]).fetchall()]
+        print(f"[CAT_SAVE] page_ids={page_ids}", flush=True)
 
         for pid in page_ids:
             conn.execute(
                 "UPDATE category_templates SET name = ?, description = ?, output_group = ?, image_url = ? WHERE page_template_id = ? AND name = ?",
-                [new_name, desc, output_group, category_image, pid, old_name]
+                [new_name, desc, output_group, category_image or (category_images[0] if category_images else ''), pid, old_name]
             )
+            print(f"[CAT_SAVE] Updated pid={pid} old_name={old_name!r} -> image_url={category_image!r}", flush=True)
+
+        conn.commit()
+
+        # Sync category_images table
+        for pid in page_ids:
+            conn.execute(
+                "DELETE FROM category_images WHERE page_template_id = ? AND category_name = ?",
+                [pid, old_name]
+            )
+            for idx, url in enumerate(category_images):
+                conn.execute(
+                    "INSERT INTO category_images (page_template_id, category_name, image_url, sort_order) VALUES (?, ?, ?, ?)",
+                    [pid, new_name, url, idx]
+                )
+        conn.commit()
+        print(f"[CAT_SAVE] Synced {len(category_images)} images to category_images table", flush=True)
 
         # Cascading update: line_items category linking to match if changed
         if old_name != new_name:
@@ -2032,19 +2200,28 @@ def builder_category_details_save():
 @require_role('admin')
 def builder_beta_category_add():
     import template_store as _ts
-    data = request.get_json(force=True) or {}
-    if not data or 'page_key' not in data or 'category_name' not in data:
-        return jsonify(
-            {'success': False, 'error': 'Missing page_key or category_name'}), 400
-    output_group = data.get('output_group', 'General')
-    res = _ts.add_category(
-        data['page_key'],
-        data['category_name'],
-        template_key=TEMPLATE_STORE_KEY,
-        output_group=output_group)
-    if res.get('success'):
-        return jsonify({'success': True})
-    return jsonify(res), 500
+    import sys
+    try:
+        data = request.get_json(force=True) or {}
+        if not data or 'page_key' not in data or 'category_name' not in data:
+            return jsonify(
+                {'success': False, 'error': 'Missing page_key or category_name'}), 400
+        output_group = data.get('output_group', 'General')
+        print(f"[CAT_ADD_DEBUG] page_key={data['page_key']!r} category_name={data['category_name']!r} output_group={output_group!r}", file=sys.stderr)
+        res = _ts.add_category(
+            data['page_key'],
+            data['category_name'],
+            template_key=TEMPLATE_STORE_KEY,
+            output_group=output_group)
+        print(f"[CAT_ADD_DEBUG] res={res!r}", file=sys.stderr)
+        if res.get('success'):
+            return jsonify({'success': True})
+        return jsonify(res), 500
+    except Exception as e:
+        import traceback
+        print(f"[CAT_ADD_DEBUG] exception: {e!r}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/builder_beta/line_item_add', methods=['POST'])
@@ -2148,6 +2325,7 @@ def builder_category_delete():
     category_name = data.get('category_name')
 
     conn = sqlite3.connect(db)
+    conn.row_factory = sqlite3.Row
     try:
         # Get latest version id
         latest_version_row = conn.execute(
@@ -2184,6 +2362,25 @@ def builder_category_delete():
                 page_key, category_name])
         # Sync payload snapshot
         _remove_category_from_payload(conn, latest_version_id, page_key, category_name)
+        
+        # Renumber display_order to close gaps left by deleted categories
+        remaining = conn.execute(
+            """SELECT c.name
+               FROM category_templates c
+               JOIN page_templates pt ON pt.id = c.page_template_id
+               WHERE pt.page_key = ?
+               ORDER BY c.display_order ASC, c.id ASC""",
+            [page_key]
+        ).fetchall()
+        seen = set()
+        for new_order, row in enumerate(remaining):
+            if row['name'] not in seen:
+                seen.add(row['name'])
+                conn.execute(
+                    "UPDATE category_templates SET display_order = ? WHERE name = ? AND page_template_id IN (SELECT id FROM page_templates WHERE page_key = ?)",
+                    [new_order, row['name'], page_key]
+                )
+        
         conn.commit()
         return jsonify({'success': True})
     except Exception as e:
@@ -2450,10 +2647,12 @@ def builder_line_item_duplicate():
     conn = sqlite3.connect(db)
     conn.row_factory = sqlite3.Row
     try:
+        print(f"[DUPLICATE] line_code={line_code!r} page_key={page_key!r} category={category!r}", flush=True)
         row = conn.execute(
             "SELECT * FROM line_items WHERE line_code = ?",
             [line_code]
         ).fetchone()
+        print(f"[DUPLICATE] row found: {row is not None}", flush=True)
         if not row:
             return jsonify({'error': 'Line item not found'}), 404
 
@@ -2467,39 +2666,51 @@ def builder_line_item_duplicate():
         cur = conn.cursor()
         cur.execute('''
             INSERT INTO line_items (
-                form_page, category, line_code, internal_description,
-                item_role, form_visible, sort_order, output_group,
+                line_code, form_page, category, internal_description,
+                include_default, unit_cost, units, pricing_visibility,
                 output_title, output_notes, output_guidance,
-                unit_cost, units, pricing_visibility,
+                parent_code, item_role, input_type, trigger_parent_code,
+                form_visible, sort_order,
                 is_follow_up, follow_up_type, follow_up_config,
-                source_field, include_default
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                allow_user_override, output_group, quantity_source, pricing_mode,
+                addon_amount, price_matrix
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', [
+            new_code,
             row['form_page'],
             row['category'],
-            new_code,
             row['internal_description'] + ' (copy)',
-            row['item_role'],
-            row['form_visible'],
-            next_sort,
-            row['output_group'],
-            row['output_title'],
-            row['output_notes'],
-            row['output_guidance'],
+            row['include_default'],
             row['unit_cost'],
             row['units'],
             row['pricing_visibility'],
+            row['output_title'],
+            row['output_notes'],
+            row['output_guidance'],
+            row['parent_code'] or '',
+            row['item_role'],
+            row['input_type'] or '',
+            row['trigger_parent_code'] or '',
+            row['form_visible'],
+            next_sort,
             row['is_follow_up'],
-            row['follow_up_type'],
-            row['follow_up_config'],
-            row['source_field'],
-            row['include_default']
+            row['follow_up_type'] or '',
+            row['follow_up_config'] or '',
+            row['allow_user_override'] if 'allow_user_override' in row.keys() else 0,
+            row['output_group'] or 'General',
+            row['quantity_source'] or '',
+            row['pricing_mode'] if 'pricing_mode' in row.keys() else 'per_unit',
+            row['addon_amount'] if 'addon_amount' in row.keys() else 0.0,
+            row['price_matrix'] if 'price_matrix' in row.keys() else None,
         ])
         conn.commit()
         new_id = cur.lastrowid
         new_row = conn.execute("SELECT * FROM line_items WHERE id = ?", [new_id]).fetchone()
         return jsonify({'success': True, 'item': dict(new_row)})
     except Exception as e:
+        import traceback
+        print(f"[DUPLICATE ERROR] {type(e).__name__}: {e}", flush=True)
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 400
     finally:
         conn.close()
@@ -2518,10 +2729,10 @@ def builder_line_item_save(item_id):
         # Build SET clause from allowed fields
         allowed = [
             'internal_description', 'output_title', 'output_notes', 'output_guidance',
-            'unit_cost', 'units', 'pricing_visibility', 'quantity_source',
+            'unit_cost', 'units', 'pricing_visibility', 'quantity_source', 'pricing_mode',
             'form_visible', 'category',
             'is_follow_up', 'follow_up_type', 'follow_up_config',
-            'output_group',
+            'output_group', 'price_matrix',
         ]
         sets = []
         params = []
@@ -2529,6 +2740,24 @@ def builder_line_item_save(item_id):
             if key in data:
                 sets.append(f'{key} = ?')
                 params.append(data[key])
+        if 'pricing_matrix_types' in data or 'pricing_matrix_sizes' in data or 'pricing_matrix_prices' in data:
+            types_list = [t.strip() for t in (data.get('pricing_matrix_types') or '').splitlines() if t.strip()]
+            sizes_list = [s.strip() for s in (data.get('pricing_matrix_sizes') or '').splitlines() if s.strip()]
+            prices_list = []
+            prices_raw = data.get('pricing_matrix_prices')
+            if prices_raw:
+                try:
+                    parsed = json.loads(prices_raw)
+                    if isinstance(parsed, list):
+                        prices_list = parsed
+                except Exception:
+                    prices_list = []
+            price_matrix = {'types': types_list, 'sizes': sizes_list, 'prices': prices_list}
+            sets.append('price_matrix = ?')
+            params.append(json.dumps(price_matrix))
+        elif data.get('pricing_mode') and data.get('pricing_mode') != 'matrix':
+            sets.append('price_matrix = ?')
+            params.append(None)
         if not sets:
             return jsonify({'ok': False, 'error': 'No fields to update'}), 400
         params.append(item_id)
@@ -2537,9 +2766,70 @@ def builder_line_item_save(item_id):
             params
         )
         conn.commit()
+
+        question_images = data.get('question_images') or []
+        if not isinstance(question_images, list):
+            question_images = [question_images] if question_images else []
+        question_images = [str(u).strip() for u in question_images if str(u).strip()]
+        seen = set()
+        deduped = []
+        for u in question_images:
+            if u not in seen:
+                seen.add(u)
+                deduped.append(u)
+        question_images = deduped
+
+        conn.execute("DELETE FROM question_images WHERE line_item_id = ?", (item_id,))
+        for idx, url in enumerate(question_images):
+            conn.execute(
+                "INSERT INTO question_images (line_item_id, image_url, sort_order) VALUES (?, ?, ?)",
+                (item_id, url, idx)
+            )
+        conn.commit()
+
         return jsonify({'ok': True})
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 400
+    finally:
+        conn.close()
+
+
+@app.route('/builder_beta/question_images', methods=['POST'])
+@require_role('admin')
+def builder_question_images():
+    """Save/update images for a question (line item)."""
+    import sqlite3
+    from pathlib import Path
+    db = str(Path(__file__).parent / 'template_store.sqlite3')
+    data = request.get_json(force=True) or {}
+    line_item_id = data.get('line_item_id')
+    images = data.get('images') or []
+    if not isinstance(images, list):
+        images = [images] if images else []
+    images = [str(u).strip() for u in images if str(u).strip()]
+    seen = set()
+    deduped = []
+    for u in images:
+        if u not in seen:
+            seen.add(u)
+            deduped.append(u)
+    images = deduped
+
+    if line_item_id is None:
+        return jsonify({'success': False, 'error': 'line_item_id is required'}), 400
+
+    conn = sqlite3.connect(db)
+    try:
+        conn.execute("DELETE FROM question_images WHERE line_item_id = ?", (line_item_id,))
+        for idx, url in enumerate(images):
+            conn.execute(
+                "INSERT INTO question_images (line_item_id, image_url, sort_order) VALUES (?, ?, ?)",
+                (line_item_id, url, idx)
+            )
+        conn.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
     finally:
         conn.close()
 
@@ -2600,6 +2890,23 @@ def save_title():
             conn.close()
 
 
+def _row_to_item(row: dict) -> dict:
+    item = dict(row)
+    price_matrix_raw = item.get('price_matrix')
+    if price_matrix_raw:
+        try:
+            price_matrix = json.loads(price_matrix_raw) if isinstance(price_matrix_raw, str) else price_matrix_raw
+            if isinstance(price_matrix, dict):
+                item.setdefault('pricing_options', {})
+                item['pricing_options']['matrix_types'] = price_matrix.get('types', [])
+                item['pricing_options']['matrix_sizes'] = price_matrix.get('sizes', [])
+                item['pricing_options']['matrix_prices'] = price_matrix.get('prices', [])
+        except Exception:
+            pass
+    item['question_images'] = get_question_images_for_line_item(item.get('id'))
+    return item
+
+
 @app.route('/builder_beta/line_items_json')
 @require_role('admin')
 def builder_line_items_json():
@@ -2617,7 +2924,7 @@ def builder_line_items_json():
                 "SELECT * FROM line_items WHERE form_page = ? AND category = ? ORDER BY sort_order",
                 [page, category]
             ).fetchall()
-            categories = [{'name': category, 'items': [dict(r) for r in rows]}]
+            categories = [{'name': category, 'items': [_row_to_item(dict(r)) for r in rows]}]
         else:
             cat_rows = conn.execute(
                 "SELECT DISTINCT category FROM line_items WHERE form_page = ? ORDER BY category",
@@ -2630,7 +2937,7 @@ def builder_line_items_json():
                     [page, cr['category']]
                 ).fetchall()
                 categories.append(
-                    {'name': cr['category'], 'items': [dict(r) for r in rows]})
+                    {'name': cr['category'], 'items': [_row_to_item(dict(r)) for r in rows]})
         return jsonify({'categories': categories})
     except Exception as e:
         return jsonify({'error': str(e)}), 400
@@ -2703,6 +3010,9 @@ def builder_swap_order():
             if not page_key:
                 return jsonify({'error': 'page_key is required for category scope'}), 400
 
+            import sys
+            print(f"[SWAP_DEBUG] request payload: scope={scope!r} identifier={identifier!r} direction={direction!r} page_key={page_key!r}", file=sys.stderr)
+
             # Get all category rows across all versions, deduplicated by name
             cat_rows = conn.execute(
                 """SELECT c.name, c.display_order, c.id
@@ -2720,15 +3030,63 @@ def builder_swap_order():
                     seen.add(row['name'])
                     cat_list.append(row)
 
-            # Find current category index
+            identifier = (identifier or '').strip()
+            if not identifier:
+                return jsonify({'error': 'identifier is required for category scope'}), 400
+            
+            # Find current category index (match by exact name, stripped name, or id)
             cur_idx = None
             for i, cat in enumerate(cat_list):
-                if cat['name'] == identifier:
+                if (cat['name'] == identifier or 
+                    cat['name'].strip().lower() == identifier.strip().lower() or
+                    str(cat['id']) == str(identifier)):
                     cur_idx = i
                     break
 
             if cur_idx is None:
-                return jsonify({'error': 'Category not found'}), 404
+                cat_name = identifier.strip()
+                page_row = conn.execute(
+                    "SELECT id FROM page_templates WHERE form_template_version_id = ? AND page_key = ?",
+                    (latest_version_id, page_key)
+                ).fetchone()
+                if page_row:
+                    existing = conn.execute(
+                        "SELECT id FROM category_templates WHERE page_template_id = ? AND name = ?",
+                        (page_row["id"], cat_name)
+                    ).fetchone()
+                    if not existing:
+                        max_order_row = conn.execute(
+                            "SELECT MAX(display_order) as max_order FROM category_templates WHERE page_template_id = ?",
+                            (page_row["id"],)
+                        ).fetchone()
+                        next_order = 0
+                        if max_order_row and max_order_row["max_order"] is not None:
+                            next_order = int(max_order_row["max_order"]) + 1
+                        conn.execute(
+                            "INSERT INTO category_templates (form_template_version_id, page_template_id, name, display_order, output_group) VALUES (?, ?, ?, ?, ?)",
+                            (latest_version_id, page_row["id"], cat_name, next_order, "General")
+                        )
+                        conn.commit()
+                        cat_rows = conn.execute(
+                            """SELECT c.name, c.display_order, c.id
+                               FROM category_templates c
+                               JOIN page_templates pt ON pt.id = c.page_template_id
+                               WHERE pt.page_key = ?
+                               ORDER BY c.display_order ASC, c.id ASC""",
+                            [page_key]
+                        ).fetchall()
+                        seen = set()
+                        cat_list = []
+                        for row in cat_rows:
+                            if row['name'] not in seen:
+                                seen.add(row['name'])
+                                cat_list.append(row)
+                        for i, cat in enumerate(cat_list):
+                            if cat['name'] == identifier or cat['name'].strip().lower() == identifier.strip().lower():
+                                cur_idx = i
+                                break
+                if cur_idx is None:
+                    return jsonify({'error': 'Category not found'}), 404
 
             # Find adjacent category
             if direction == 'up':
@@ -2737,6 +3095,8 @@ def builder_swap_order():
                 adj_idx = cur_idx + 1
 
             if adj_idx < 0 or adj_idx >= len(cat_list):
+                import sys
+                print(f"[SWAP_DEBUG] page_key={page_key!r} identifier={identifier!r} direction={direction!r} cur_idx={cur_idx} len={len(cat_list)} cats={[c['name'] for c in cat_list]}", file=sys.stderr)
                 return jsonify({'error': 'No adjacent category'}), 400
 
             cur_cat = cat_list[cur_idx]
@@ -3076,6 +3436,7 @@ def dynamic_page(page_id):
     checkbox_data = session.setdefault('checkbox_data', {})
 
     form_data = session.setdefault('data', {})
+    _apply_conditional_visibility(page_schema, form_data, checkbox_data)
     if request.method == 'POST':
         for block in page.get('blocks', []):
             field_name = block.get('standard', {}).get('name') or block.get('id')
@@ -3089,8 +3450,11 @@ def dynamic_page(page_id):
                 form_data[field_name] = value
         for key in request.form.keys():
             if key.startswith('follow_up_'):
-                value = request.form.get(key, '')
-                checkbox_data[key] = value
+                values = request.form.getlist(key)
+                if '_price_' in key or key.endswith('_price'):
+                    checkbox_data[key] = values[0] if values else ''
+                else:
+                    checkbox_data[key] = values if len(values) > 1 else (values[0] if values else '')
         session['checkbox_data'] = checkbox_data
         session['data'] = form_data
         session.modified = True
