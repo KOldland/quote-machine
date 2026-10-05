@@ -342,21 +342,46 @@ document.addEventListener('DOMContentLoaded', function() {
                 headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
                 body: JSON.stringify({ page_key: pageKey, category_name: catName, output_group: catOutputGroup })
             })
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                if (data.success) {
+            .then(function (r) {
+                // Read status + text first. r.json() throws on non-JSON bodies
+                // (e.g. the 400 HTML page Flask-WTF returns for a stale CSRF
+                // token), which previously surfaced as a misleading
+                // "Network error" even though it was an auth/session problem.
+                return r.text().then(function (text) {
+                    var parsed = null;
+                    try { parsed = JSON.parse(text); } catch (e) { parsed = null; }
+                    return { status: r.status, ok: r.ok, data: parsed, text: text };
+                });
+            })
+            .then(function (res) {
+                if (res.data && res.data.success) {
                     _saveSelectionState();
                     window.location.reload();
-                } else {
-                    alert('Failed to add category: ' + data.error);
-                    btnConfirm.disabled = false;
-                    btnConfirm.textContent = 'Save';
+                    return;
                 }
-            })
-            .catch(function() {
-                alert('Network error — category not saved.');
                 btnConfirm.disabled = false;
                 btnConfirm.textContent = 'Save';
+                if (res.data && res.data.error) {
+                    alert('Failed to add category: ' + res.data.error);
+                } else if (res.status === 400) {
+                    alert('Could not add category: your session has expired.\n\n'
+                        + 'Nothing was saved. Please reload the page and sign in again.');
+                } else if (res.status === 401 || res.status === 403) {
+                    alert('Could not add category: not authorised (HTTP ' + res.status + ').\n\n'
+                        + 'Please reload the page and sign in again.');
+                } else if (res.status === 0) {
+                    alert('Network error — could not reach the server.\n\n'
+                        + 'The category was NOT saved. Check your connection and try again.');
+                } else {
+                    var snippet = (res.text || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 180);
+                    alert('Could not add category (HTTP ' + res.status + ').\n\n'
+                        + (snippet || 'The server returned an unexpected response.'));
+                }
+            })
+            .catch(function (err) {
+                btnConfirm.disabled = false;
+                btnConfirm.textContent = 'Save';
+                alert('Network error — category was NOT saved.\n\n' + (err && err.message ? err.message : 'Unknown error'));
             });
         });
 
@@ -366,6 +391,270 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+    // ══ Images modal (questions + categories) ═══════════════════════════
+    // Owns the single shared modal instance and its listeners so both the
+    // question and category editors can drive it. Exposed on window because
+    // the two editors live in different function scopes.
+    (function () {
+        // ── Images modal (shared by questions and categories) ────────────
+        var questionModalImages = [];
+        var questionModalPendingFile = null;
+        var imagesModalContext = 'question';   // 'question' | 'category'
+        var imagesModalCategoryData = null;
+        var btnQuestionModalBrowse = null;
+        var btnQuestionModalUpload = null;
+        var btnQuestionModalSave = null;
+        var btnQuestionModalClose = null;
+        var questionModalFileInput = null;
+        var questionModalFilename = null;
+        var questionModalImagesList = null;
+        var questionModalTitle = null;
+
+        function renderQuestionModalImages() {
+            if (!questionModalImagesList) return;
+            if (questionModalImages.length === 0) {
+                questionModalImagesList.innerHTML = '<span style="color:#888;font-size:.85rem;">No images attached.</span>';
+                return;
+            }
+            var html = '';
+            questionModalImages.forEach(function(url, idx) {
+                html += '<div style="display:inline-flex;flex-direction:column;align-items:center;gap:4px;border:1px solid #ccc;border-radius:6px;padding:4px;background:#fff;width:110px;">' +
+                    '<img src="' + url + '" style="width:100px;height:80px;object-fit:cover;border-radius:4px;border:1px solid #ddd;">' +
+                    '<button type="button" class="btn-q-modal-remove-item" data-idx="' + idx + '" style="padding:0.2rem 0.5rem;background:#6d0b0b;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:.7rem;width:100%;">Remove</button>' +
+                '</div>';
+            });
+            questionModalImagesList.innerHTML = html;
+            questionModalImagesList.querySelectorAll('.btn-q-modal-remove-item').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var idx = parseInt(this.getAttribute('data-idx'), 10);
+                    if (idx >= 0 && idx < questionModalImages.length) {
+                        questionModalImages.splice(idx, 1);
+                        renderQuestionModalImages();
+                    }
+                });
+            });
+        }
+
+        function openQuestionImagesModal() {
+            openImagesModal('question');
+        }
+
+        // Single entry point for both editors. `ctx` is 'question' or 'category';
+        // `categoryData` is the loaded category payload when editing a category.
+        function openImagesModal(ctx, categoryData) {
+            var questionImagesModal = $id('question-images-modal');
+            if (!questionImagesModal) return;
+            imagesModalContext = ctx || 'question';
+            imagesModalCategoryData = categoryData || null;
+            if (imagesModalContext === 'category') {
+                categoryData = categoryData || {};
+                questionModalImages = (Array.isArray(categoryData.category_images) && categoryData.category_images.length)
+                    ? categoryData.category_images.slice()
+                    : (categoryData.category_image ? [categoryData.category_image] : []);
+            } else {
+                questionModalImages = (_activeItem && _activeItem.question_images && Array.isArray(_activeItem.question_images)) ? _activeItem.question_images.slice() : [];
+            }
+            if (questionModalTitle) {
+                questionModalTitle.textContent = imagesModalContext === 'category' ? 'Category Images' : 'Question Images';
+            }
+            renderQuestionModalImages();
+            questionImagesModal.style.display = 'flex';
+        }
+
+        function closeQuestionImagesModal() {
+            var questionImagesModal = $id('question-images-modal');
+            if (!questionImagesModal) return;
+            questionImagesModal.style.display = 'none';
+            questionModalPendingFile = null;
+            if (questionModalFileInput) questionModalFileInput.value = '';
+            if (questionModalFilename) {
+                questionModalFilename.textContent = '';
+                questionModalFilename.style.color = '#888';
+                questionModalFilename.style.fontStyle = 'italic';
+            }
+            if (btnQuestionModalUpload) btnQuestionModalUpload.disabled = true;
+        }
+
+        // The modal markup is emitted after this <script> in the macro, so the
+        // element lookups below must wait until the DOM has been parsed.
+        function wireImagesModal() {
+            btnQuestionModalBrowse = $id('btn-question-modal-browse');
+            btnQuestionModalUpload = $id('btn-question-modal-upload');
+            btnQuestionModalSave = $id('btn-question-modal-save');
+            btnQuestionModalClose = $id('btn-question-modal-close');
+            questionModalFileInput = $id('question-modal-file-input');
+            questionModalFilename = $id('question-modal-filename');
+            questionModalImagesList = $id('question-modal-images-list');
+            questionModalTitle = $id('question-images-modal-title');
+
+        if (btnQuestionModalClose) {
+            btnQuestionModalClose.addEventListener('click', closeQuestionImagesModal);
+        }
+
+        var questionImagesModal = $id('question-images-modal');
+        if (questionImagesModal) {
+            questionImagesModal.addEventListener('click', function(e) {
+                if (e.target === questionImagesModal) {
+                    closeQuestionImagesModal();
+                }
+            });
+        }
+
+        if (btnQuestionModalBrowse && questionModalFileInput) {
+            btnQuestionModalBrowse.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                questionModalFileInput.click();
+            });
+            questionModalFileInput.addEventListener('change', function() {
+                questionModalPendingFile = this.files && this.files[0];
+                if (questionModalFilename) {
+                    questionModalFilename.textContent = questionModalPendingFile ? questionModalPendingFile.name : 'No file selected';
+                    questionModalFilename.style.color = questionModalPendingFile ? '#1b3a6b' : '#888';
+                    questionModalFilename.style.fontStyle = questionModalPendingFile ? 'normal' : 'italic';
+                }
+                if (btnQuestionModalUpload) {
+                    btnQuestionModalUpload.disabled = !questionModalPendingFile;
+                }
+            });
+        }
+
+        if (btnQuestionModalUpload) {
+            btnQuestionModalUpload.addEventListener('click', function() {
+                if (!questionModalPendingFile) {
+                    alert('Please browse and select an image first.');
+                    return;
+                }
+                var formData = new FormData();
+                formData.append('file', questionModalPendingFile);
+                var csrf = (document.querySelector('[name=csrf_token]') || {}).value || '';
+                btnQuestionModalUpload.disabled = true;
+                btnQuestionModalUpload.textContent = 'Uploading...';
+                fetch('/quote_editor/upload-image', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'X-CSRFToken': csrf },
+                    body: formData
+                })
+                .then(function(r) {
+                    return r.json().then(function(d) { return {status: r.status, data: d}; });
+                })
+                .then(function(result) {
+                    btnQuestionModalUpload.disabled = false;
+                    btnQuestionModalUpload.textContent = 'Upload';
+                    if (result.data.success && result.data.url) {
+                        questionModalImages.push(result.data.url);
+                        renderQuestionModalImages();
+                        questionModalPendingFile = null;
+                        if (questionModalFileInput) questionModalFileInput.value = '';
+                        if (questionModalFilename) {
+                            questionModalFilename.textContent = 'Upload complete';
+                            questionModalFilename.style.color = '#155724';
+                            questionModalFilename.style.fontStyle = 'normal';
+                        }
+                    } else {
+                        alert('Upload failed: ' + (result.data.error || 'Unknown error'));
+                        if (questionModalFilename) {
+                            questionModalFilename.textContent = 'Upload failed';
+                            questionModalFilename.style.color = '#721c24';
+                        }
+                    }
+                })
+                .catch(function(err) {
+                    btnQuestionModalUpload.disabled = false;
+                    btnQuestionModalUpload.textContent = 'Upload';
+                    alert('Upload failed: network error');
+                });
+            });
+        }
+
+        if (btnQuestionModalSave) {
+            btnQuestionModalSave.addEventListener('click', function() {
+                if (imagesModalContext === 'category') {
+                    // Categories persist images through their own form save, which
+                    // already accepts category_image + category_images.
+                    var frm = $id('li-category-edit-form');
+                    if (!frm) { alert('No category selected.'); return; }
+                    var single = frm.querySelector('input[name="cat_category_image"]');
+                    var multi = frm.querySelector('input[name="cat_category_images"]');
+                    if (multi) {
+                        multi.value = JSON.stringify(questionModalImages).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                    }
+                    if (single) single.value = questionModalImages.length ? questionModalImages[0] : '';
+                    if (imagesModalCategoryData) {
+                        imagesModalCategoryData.category_images = questionModalImages.slice();
+                        imagesModalCategoryData.category_image = questionModalImages.length ? questionModalImages[0] : '';
+                    }
+                    closeQuestionImagesModal();
+                    try { if (typeof showQmToast === 'function') showQmToast('Category images updated — save the category to apply', true); } catch(e){}
+                    return;
+                }
+                if (!_activeItem) {
+                    alert('No question selected.');
+                    return;
+                }
+                btnQuestionModalSave.disabled = true;
+                btnQuestionModalSave.textContent = 'Saving...';
+                fetch('/builder_beta/question_images', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json', 'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''},
+                    body: JSON.stringify({ line_item_id: _activeItem.id, images: questionModalImages })
+                })
+                .then(function(r) { 
+                    return r.json().then(function(d) { return {status: r.status, data: d}; }); 
+                })
+                .then(function(result) {
+                    if (result.data.success) {
+                        if (typeof showQmToast === 'function') { showQmToast('Question images saved', true); }
+                        _activeItem.question_images = questionModalImages.slice();
+                        closeQuestionImagesModal();
+                    } else {
+                        alert('Save failed: ' + (result.data.error || 'Unknown error'));
+                    }
+                })
+                .catch(function(e) {
+                    alert('Network error saving question images.');
+                })
+                .finally(function() {
+                    btnQuestionModalSave.disabled = false;
+                    btnQuestionModalSave.textContent = 'Attach Images';
+                });
+            });
+        }
+
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', wireImagesModal);
+        } else {
+            wireImagesModal();
+        }
+
+        // Delegated triggers: bound once at load so they work no matter when the
+        // editor that owns the button renders. The previous approach attached the
+        // listener at the end of the render routine, so any earlier throw left the
+        // button inert with no visible error.
+        document.addEventListener('click', function (e) {
+            var catBtn = e.target.closest && e.target.closest('#btn-cat-images');
+            if (catBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                openImagesModal('category', window.__qmCategoryPayload || null);
+                return;
+            }
+            var qBtn = e.target.closest && e.target.closest('#btn-question-images');
+            if (qBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                openImagesModal('question');
+            }
+        });
+
+        // ── End images modal ──────────────────────────────────────────────
+        window.openImagesModal = openImagesModal;
+        window.closeQuestionImagesModal = closeQuestionImagesModal;
+    })();
+
 </script>
 <style>
 /* Canvas wrapper — shared by all edit-mode views */
@@ -908,6 +1197,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function _renderCategoryEditorHtml(catName, data) {
+        // Stashed immediately so the delegated image trigger has the payload even
+        // if a later line in this routine throws.
+        window.__qmCategoryPayload = data;
         var html = '<form id="li-category-edit-form" autocomplete="off" style="display:flex;flex-direction:column;flex:1;max-width:100%;">';
         html += _section('Description', true, [
             _field('cat_name', 'Category Name', 'text', catName),
@@ -919,14 +1211,11 @@ document.addEventListener('DOMContentLoaded', function() {
         html += _section('Meta', false, [
             _field('cat_page_key', 'Belongs to Page', 'text', _pageKey, true)
         ]);
-        html += _section('Category Image', false, [
-            '<div id="cat-image-wrap" style="margin-bottom:8px;">' +
-              (data.category_image ? '<img src="' + (data.category_image || '') + '" style="max-width:160px;max-height:100px;border:1px solid #ccc;border-radius:4px;">' : '<span style="color:#888;font-size:.8rem;">No image attached.</span>') +
-            '</div>',
-            '<button type="button" id="btn-cat-attach-image" class="li-save-btn" style="width:auto;padding:0.4rem 1rem;margin-bottom:8px;">Attach Image</button>',
-            '<button type="button" id="btn-cat-remove-image" class="li-delete-btn" style="width:auto;padding:0.4rem 1rem;background:#6d0b0b;color:#fff;border:none;border-radius:5px;' + (data.category_image ? '' : 'display:none;') + '>Remove Image</button>',
-            '<input type="hidden" name="cat_category_image" value="' + (data.category_image || '') + '">'
-        ]);
+        // Category images are managed through the shared images modal (same as
+        // questions). The save endpoint already accepts category_image +
+        // category_images, so both are carried in hidden inputs.
+        html += '<input type="hidden" name="cat_category_image" value="' + (data.category_image || '') + '">';
+        html += '<input type="hidden" name="cat_category_images" value=\'' + JSON.stringify(data.category_images || []).replace(/\\/g, '\\\\').replace(/'/g, "\\'") + '\'>';
 
         // Render sticky action buttons correctly mapping back onto Category View wrapper level
         var footerHtml = '<div class="cat-sticky-footer" style="background:#fff; margin-top:1rem; padding:.75rem; border-top:1px solid #dee2e6;">';
@@ -934,6 +1223,7 @@ document.addEventListener('DOMContentLoaded', function() {
         footerHtml += '  <label style="font-size:.85rem; font-weight:600; color:#1b3a6b; cursor:pointer;"><input type="checkbox" id="cat-visibility-checkbox" checked style="margin-right:.4rem;">Category Visible in Form</label>';
         footerHtml += '</div>';
         footerHtml += '<div style="display:flex; justify-content:flex-end; align-items:center; gap: 10px;">';
+        footerHtml += '  <button type="button" id="btn-cat-images" class="li-save-btn" style="padding:0.45rem; width:auto; margin-top:0; background:#495057;" title="Manage Category Images"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></button>';
         footerHtml += '  <button type="button" id="btn-cat-save" class="li-save-btn" style="padding:0.45rem; width:auto; margin-top:0;" title="Save Category"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>';
         footerHtml += '  <button type="button" id="btn-cat-delete" class="li-delete-btn" style="padding:0.45rem; background:#6d0b0b; color:#fff; border:none; border-radius:5px; font-weight:700; cursor:pointer;" title="Delete Category"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>';
         footerHtml += '  <button type="button" id="btn-cat-move" class="li-save-btn" style="padding:0.45rem; width:auto; margin-top:0; background:#495057;" title="Move Category to Another Page"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>';
@@ -964,36 +1254,20 @@ document.addEventListener('DOMContentLoaded', function() {
             $id('li-category-content-wrap').appendChild(footerNode); 
         }
 
-        $id('li-category-edit-form').querySelector('textarea[name="cat_description"]').value = data.description || '';
-        if ($id('cat-visibility-checkbox')) {
-            $id('cat-visibility-checkbox').checked = (data.form_visible !== false);
+        // Guarded: a missing node here used to throw and abort the rest of the
+        // render, leaving the action-row buttons unwired.
+        try {
+            var catForm = $id('li-category-edit-form');
+            var catDesc = catForm && catForm.querySelector('textarea[name="cat_description"]');
+            if (catDesc) catDesc.value = data.description || '';
+            if ($id('cat-visibility-checkbox')) {
+                $id('cat-visibility-checkbox').checked = (data.form_visible !== false);
+            }
+        } catch (err) {
+            console.error('[CATEGORY] render guard failed', err);
         }
 
         _attachAccordion($id('li-category-editor'));
-        
-        // Category image attach / remove
-        var attachBtn = $id('btn-cat-attach-image');
-        var removeBtn = $id('btn-cat-remove-image');
-        var imgWrap = $id('cat-image-wrap');
-        var imgInput = $id('li-category-edit-form') ? $id('li-category-edit-form').querySelector('input[name="cat_category_image"]') : null;
-        if (attachBtn && window.QuoteGallery) {
-            attachBtn.addEventListener('click', function() {
-                window.QuoteGallery.open(function(img) {
-                    if (imgInput) imgInput.value = img.url;
-                    if (imgWrap) imgWrap.innerHTML = '<img src="' + img.url + '" style="max-width:160px;max-height:100px;border:1px solid #ccc;border-radius:4px;">';
-                    if (removeBtn) removeBtn.style.display = '';
-                });
-            });
-        } else if (attachBtn) {
-            attachBtn.style.display = 'none';
-        }
-        if (removeBtn) {
-            removeBtn.addEventListener('click', function() {
-                if (imgInput) imgInput.value = '';
-                if (imgWrap) imgWrap.innerHTML = '<span style="color:#888;font-size:.8rem;">No image attached.</span>';
-                removeBtn.style.display = 'none';
-            });
-        }
         
         // Attach Category actions (targeting the DOM globally since footer moved)
         var btnSaveC = $id('btn-cat-save');
@@ -1012,10 +1286,16 @@ document.addEventListener('DOMContentLoaded', function() {
             var outputGroup = frm.querySelector('input[name="cat_output_group"]').value || 'General';
             var visible = $id('cat-visibility-checkbox').checked;
             var categoryImage = (frm.querySelector('input[name="cat_category_image"]') || {}).value || '';
+            var categoryImages = [];
+            try {
+                categoryImages = JSON.parse((frm.querySelector('input[name="cat_category_images"]') || {}).value || '[]');
+                if (!Array.isArray(categoryImages)) categoryImages = [];
+            } catch (e) { categoryImages = []; }
+            if (!categoryImages.length && categoryImage) categoryImages = [categoryImage];
             fetch('/builder_beta/category_details_save', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json', 'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''},
-                body: JSON.stringify({ page_key: _pageKey, old_name: catName, new_name: newName, description: desc, output_group: outputGroup, form_visible: visible, category_image: categoryImage })
+                body: JSON.stringify({ page_key: _pageKey, old_name: catName, new_name: newName, description: desc, output_group: outputGroup, form_visible: visible, category_image: categoryImage, category_images: categoryImages })
             }).then(r => r.json()).then(d => {
                 if (d.ok) {
                     if (newName !== catName) {
@@ -1143,6 +1423,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // ── Render question editor (View Two) ─────────────────────────────────
     function renderEditorForm(item) {
+
+        // Question trigger: the button is created by this render pass, so the
+        // listener must be attached here rather than at load time.
+        var btnQuestionImages = $id('btn-question-images');
+        if (btnQuestionImages) {
+            btnQuestionImages.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (typeof window.openImagesModal === 'function') window.openImagesModal('question');
+            });
+        }
+
         var html = '<form id="li-edit-form" autocomplete="off">';
 
         html += _section('Description', true, [
@@ -1219,12 +1511,87 @@ document.addEventListener('DOMContentLoaded', function() {
         html += '<div style="display:flex; justify-content:flex-end; align-items:center; gap: 10px;">';
         html += '  <button type="button" id="btn-duplicate-question" class="li-save-btn" style="padding:0.45rem; width:auto; margin-top:0; background:#6c757d;" title="Duplicate Question"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>';
         html += '  <button type="button" id="btn-question-images" class="li-save-btn" style="padding:0.45rem; width:auto; margin-top:0; background:#495057;" title="Manage Question Images"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></button>';
+        html += '  <button type="button" id="btn-q-move" class="li-save-btn" style="padding:0.45rem; width:auto; margin-top:0; background:#495057;" title="Move Question to Another Category"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>';
         html += '  <button type="submit" class="li-save-btn" style="padding:0.45rem; width:auto; margin-top:0;" title="Save Question"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>';
         html += '  <button type="button" id="btn-delete-question" class="li-delete-btn" style="padding:0.45rem; background:#6d0b0b; color:#fff; border:none; border-radius:5px; font-weight:700; cursor:pointer;" title="Delete Question"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>';
+        html += '</div>';
+        html += '<div id="q-move-panel" style="display:none; margin-top:0.75rem; padding:0.75rem; background:#f8f9fa; border:1px solid #dee2e6; border-radius:4px;">';
+        html += '  <label style="font-size:.8rem; font-weight:600; color:#333; display:block; margin-bottom:0.4rem;">Move question to category:</label>';
+        html += '  <select id="q-move-target" style="width:100%; padding:0.4rem; border:1px solid #ccc; border-radius:4px; font-size:.85rem;">';
+        html += '    <option value="">-- Choose a category --</option>';
+        html += '  </select>';
+        html += '  <div style="display:flex; gap:0.5rem; justify-content:flex-end; margin-top:0.5rem;">';
+        html += '    <button type="button" id="btn-q-move-cancel" class="btn" style="background:#f0f0f0; color:#333; border:1px solid #ccc; padding:0.35rem 0.9rem; border-radius:4px; cursor:pointer; font-size:.8rem;">Cancel</button>';
+        html += '    <button type="button" id="btn-q-move-confirm" class="btn" style="background:#1b3a6b; color:#fff; border:none; padding:0.35rem 0.9rem; border-radius:4px; cursor:pointer; font-size:.8rem;">Move</button>';
+        html += '  </div>';
         html += '</div>';
         html += '</div>';
         html += '</form>';
         $id('li-editor-content').innerHTML = html;
+
+        // ── Move question to another category ──────────────────────────
+        (function () {
+            var qMovePanel = $id('q-move-panel');
+            var qMoveTarget = $id('q-move-target');
+            var btnQMove = $id('btn-q-move');
+            var btnQMoveCancel = $id('btn-q-move-cancel');
+            var btnQMoveConfirm = $id('btn-q-move-confirm');
+            if (!btnQMove || !qMovePanel) return;
+
+            btnQMove.addEventListener('click', function () {
+                qMovePanel.style.display = (qMovePanel.style.display === 'none' || qMovePanel.style.display === '') ? 'block' : 'none';
+            });
+            if (btnQMoveCancel) {
+                btnQMoveCancel.addEventListener('click', function () { qMovePanel.style.display = 'none'; });
+            }
+
+            // Populate from the live category list so only real targets appear.
+            if (qMoveTarget) {
+                var currentCat = (item && item.category) ? item.category : '';
+                document.querySelectorAll('.li-section-btn[data-category]').forEach(function (b) {
+                    var name = b.getAttribute('data-category');
+                    if (!name || name === currentCat) return;
+                    var opt = document.createElement('option');
+                    opt.value = name;
+                    opt.textContent = name;
+                    qMoveTarget.appendChild(opt);
+                });
+            }
+
+            if (btnQMoveConfirm) {
+                btnQMoveConfirm.addEventListener('click', function () {
+                    var target = qMoveTarget ? qMoveTarget.value : '';
+                    if (!target) { alert('Please select a target category.'); return; }
+                    if (!confirm('Move "' + ((item && item.internal_description) || 'this question') + '" to "' + target + '"?')) return;
+                    btnQMoveConfirm.disabled = true;
+                    btnQMoveConfirm.textContent = 'Moving…';
+                    fetch('/builder_beta/line_item_move', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json', 'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''},
+                        body: JSON.stringify({
+                            line_item_id: item.id,
+                            page_key: _pageKey,
+                            target_page_key: _pageKey,
+                            target_category: target
+                        })
+                    }).then(function (r) { return r.json(); }).then(function (d) {
+                        if (d.success) {
+                            try { showQmToast('Question moved', true); } catch (e) {}
+                            _saveSelectionState();
+                            window.location.reload();
+                        } else {
+                            alert('Move failed: ' + (d.error || 'Unknown error'));
+                            btnQMoveConfirm.disabled = false;
+                            btnQMoveConfirm.textContent = 'Move';
+                        }
+                    }).catch(function (e) {
+                        alert('Network error moving question.');
+                        btnQMoveConfirm.disabled = false;
+                        btnQMoveConfirm.textContent = 'Move';
+                    });
+                });
+            }
+        })();
         console.log('[EDITOR] Form rendered, btn-question-images:', !!document.getElementById('btn-question-images'), 'btn-duplicate:', !!document.getElementById('btn-duplicate-question'), 'btn-save:', !!document.querySelector('#li-edit-form button[type="submit"]'));
         
         // Fallback: add images button via JS if missing from HTML
@@ -1512,190 +1879,6 @@ document.addEventListener('DOMContentLoaded', function() {
              });
          });
 
-        // ── Question images modal ─────────────────────────────────────────
-        var questionModalImages = [];
-        var questionModalPendingFile = null;
-        var btnQuestionModalBrowse = $id('btn-question-modal-browse');
-        var btnQuestionModalUpload = $id('btn-question-modal-upload');
-        var btnQuestionModalSave = $id('btn-question-modal-save');
-        var btnQuestionModalClose = $id('btn-question-modal-close');
-        var questionModalFileInput = $id('question-modal-file-input');
-        var questionModalFilename = $id('question-modal-filename');
-        var questionModalImagesList = $id('question-modal-images-list');
-
-        function renderQuestionModalImages() {
-            if (!questionModalImagesList) return;
-            if (questionModalImages.length === 0) {
-                questionModalImagesList.innerHTML = '<span style="color:#888;font-size:.85rem;">No images attached.</span>';
-                return;
-            }
-            var html = '';
-            questionModalImages.forEach(function(url, idx) {
-                html += '<div style="display:inline-flex;flex-direction:column;align-items:center;gap:4px;border:1px solid #ccc;border-radius:6px;padding:4px;background:#fff;width:110px;">' +
-                    '<img src="' + url + '" style="width:100px;height:80px;object-fit:cover;border-radius:4px;border:1px solid #ddd;">' +
-                    '<button type="button" class="btn-q-modal-remove-item" data-idx="' + idx + '" style="padding:0.2rem 0.5rem;background:#6d0b0b;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:.7rem;width:100%;">Remove</button>' +
-                '</div>';
-            });
-            questionModalImagesList.innerHTML = html;
-            questionModalImagesList.querySelectorAll('.btn-q-modal-remove-item').forEach(function(btn) {
-                btn.addEventListener('click', function() {
-                    var idx = parseInt(this.getAttribute('data-idx'), 10);
-                    if (idx >= 0 && idx < questionModalImages.length) {
-                        questionModalImages.splice(idx, 1);
-                        renderQuestionModalImages();
-                    }
-                });
-            });
-        }
-
-        function openQuestionImagesModal() {
-            var questionImagesModal = $id('question-images-modal');
-            if (!questionImagesModal) return;
-            questionModalImages = (item.question_images && Array.isArray(item.question_images)) ? item.question_images.slice() : [];
-            renderQuestionModalImages();
-            questionImagesModal.style.display = 'flex';
-        }
-
-        function closeQuestionImagesModal() {
-            var questionImagesModal = $id('question-images-modal');
-            if (!questionImagesModal) return;
-            questionImagesModal.style.display = 'none';
-            questionModalPendingFile = null;
-            if (questionModalFileInput) questionModalFileInput.value = '';
-            if (questionModalFilename) {
-                questionModalFilename.textContent = '';
-                questionModalFilename.style.color = '#888';
-                questionModalFilename.style.fontStyle = 'italic';
-            }
-            if (btnQuestionModalUpload) btnQuestionModalUpload.disabled = true;
-        }
-
-        var btnQuestionImages = $id('btn-question-images');
-        if (btnQuestionImages) {
-            btnQuestionImages.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                openQuestionImagesModal();
-            });
-        }
-
-        if (btnQuestionModalClose) {
-            btnQuestionModalClose.addEventListener('click', closeQuestionImagesModal);
-        }
-
-        var questionImagesModal = $id('question-images-modal');
-        if (questionImagesModal) {
-            questionImagesModal.addEventListener('click', function(e) {
-                if (e.target === questionImagesModal) {
-                    closeQuestionImagesModal();
-                }
-            });
-        }
-
-        if (btnQuestionModalBrowse && questionModalFileInput) {
-            btnQuestionModalBrowse.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                questionModalFileInput.click();
-            });
-            questionModalFileInput.addEventListener('change', function() {
-                questionModalPendingFile = this.files && this.files[0];
-                if (questionModalFilename) {
-                    questionModalFilename.textContent = questionModalPendingFile ? questionModalPendingFile.name : 'No file selected';
-                    questionModalFilename.style.color = questionModalPendingFile ? '#1b3a6b' : '#888';
-                    questionModalFilename.style.fontStyle = questionModalPendingFile ? 'normal' : 'italic';
-                }
-                if (btnQuestionModalUpload) {
-                    btnQuestionModalUpload.disabled = !questionModalPendingFile;
-                }
-            });
-        }
-
-        if (btnQuestionModalUpload) {
-            btnQuestionModalUpload.addEventListener('click', function() {
-                if (!questionModalPendingFile) {
-                    alert('Please browse and select an image first.');
-                    return;
-                }
-                var formData = new FormData();
-                formData.append('file', questionModalPendingFile);
-                var csrf = (document.querySelector('[name=csrf_token]') || {}).value || '';
-                btnQuestionModalUpload.disabled = true;
-                btnQuestionModalUpload.textContent = 'Uploading...';
-                fetch('/quote_editor/upload-image', {
-                    method: 'POST',
-                    credentials: 'same-origin',
-                    headers: { 'X-CSRFToken': csrf },
-                    body: formData
-                })
-                .then(function(r) {
-                    return r.json().then(function(d) { return {status: r.status, data: d}; });
-                })
-                .then(function(result) {
-                    btnQuestionModalUpload.disabled = false;
-                    btnQuestionModalUpload.textContent = 'Upload';
-                    if (result.data.success && result.data.url) {
-                        questionModalImages.push(result.data.url);
-                        renderQuestionModalImages();
-                        questionModalPendingFile = null;
-                        if (questionModalFileInput) questionModalFileInput.value = '';
-                        if (questionModalFilename) {
-                            questionModalFilename.textContent = 'Upload complete';
-                            questionModalFilename.style.color = '#155724';
-                            questionModalFilename.style.fontStyle = 'normal';
-                        }
-                    } else {
-                        alert('Upload failed: ' + (result.data.error || 'Unknown error'));
-                        if (questionModalFilename) {
-                            questionModalFilename.textContent = 'Upload failed';
-                            questionModalFilename.style.color = '#721c24';
-                        }
-                    }
-                })
-                .catch(function(err) {
-                    btnQuestionModalUpload.disabled = false;
-                    btnQuestionModalUpload.textContent = 'Upload';
-                    alert('Upload failed: network error');
-                });
-            });
-        }
-
-        if (btnQuestionModalSave) {
-            btnQuestionModalSave.addEventListener('click', function() {
-                if (!item) {
-                    alert('No question selected.');
-                    return;
-                }
-                btnQuestionModalSave.disabled = true;
-                btnQuestionModalSave.textContent = 'Saving...';
-                fetch('/builder_beta/question_images', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json', 'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''},
-                    body: JSON.stringify({ line_item_id: item.id, images: questionModalImages })
-                })
-                .then(function(r) { 
-                    return r.json().then(function(d) { return {status: r.status, data: d}; }); 
-                })
-                .then(function(result) {
-                    if (result.data.success) {
-                        if (typeof showQmToast === 'function') { showQmToast('Question images saved', true); }
-                        item.question_images = questionModalImages.slice();
-                        closeQuestionImagesModal();
-                    } else {
-                        alert('Save failed: ' + (result.data.error || 'Unknown error'));
-                    }
-                })
-                .catch(function(e) {
-                    alert('Network error saving question images.');
-                })
-                .finally(function() {
-                    btnQuestionModalSave.disabled = false;
-                    btnQuestionModalSave.textContent = 'Attach Images';
-                });
-            });
-        }
-
-        // ── End Question images modal ─────────────────────────────────────
 
         // Auto-save Internal Description on blur / Enter
             var titleField = form.querySelector('[name="internal_description"]');
@@ -2094,7 +2277,7 @@ document.addEventListener('DOMContentLoaded', function() {
          background:rgba(0,0,0,0.55);z-index:1200;align-items:center;justify-content:center;
          backdrop-filter:blur(2px);">
         <div style="background:#fff;padding:1.5rem 1.75rem;border-radius:10px;width:560px;max-width:92%;max-height:85vh;overflow-y:auto;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1f2937;box-shadow:0 20px 25px -5px rgba(0,0,0,0.1),0 10px 10px -5px rgba(0,0,0,0.04);">
-            <h3 style="margin:0 0 1rem 0;font-size:1.15rem;font-weight:700;color:#0f172a;">Question Images</h3>
+            <h3 id="question-images-modal-title" style="margin:0 0 1rem 0;font-size:1.15rem;font-weight:700;color:#0f172a;">Question Images</h3>
             <div id="question-modal-images-list" style="display:flex;flex-wrap:wrap;gap:0.75rem;margin-bottom:1rem;min-height:60px;"></div>
             <div style="border-top:1px solid #e5e7eb;padding-top:0.75rem;margin-bottom:0.75rem;">
                 <label style="display:block;margin-bottom:.35rem;font-size:.8rem;font-weight:600;color:#374151;">Add Image</label>

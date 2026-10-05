@@ -665,6 +665,11 @@ DEFAULT_BUILDER_BETA_QUESTION_TYPES = {
         'default_label': 'New text input',
         'supports': {'logic': True, 'pricing': True, 'output': True},
     },
+    'textarea_input': {
+        'label': 'Larger Text Box',
+        'default_label': 'New larger text box',
+        'supports': {'logic': True, 'pricing': True, 'output': True},
+    },
     'number_currency_input': {
         'label': 'Number/Currency Input',
         'default_label': 'New number/currency input',
@@ -2026,8 +2031,13 @@ def admin_payment_schedule():
         )
         return jsonify({'success': True})
 
+    import template_store as _ts
     return render_template(
         'admin_payment_schedule.html',
+        # Build Mode context so index.html renders the standard sidebar/page
+        # selector, matching every other builder page.
+        edit_mode=True,
+        db_pages=_ts.get_all_pages(TEMPLATE_STORE_KEY),
         deposit_pct=settings.get('deposit_pct', 0.10),
         completion_pct=settings.get('completion_pct', 0.10),
         allow_user_override=settings.get('allow_user_override', False),
@@ -2041,6 +2051,86 @@ def admin_payment_schedule():
         temp_kitchen_cost=settings.get('temp_kitchen_cost', 250.0),
         glazing_cost=settings.get('glazing_cost', 500.0),
     )
+
+
+@app.route('/builder_beta/line_item_move', methods=['POST'])
+@require_role('admin')
+def builder_line_item_move():
+    """Move a question (line_item) to a different category, optionally on another page.
+
+    Mirrors builder_category_move so both levels of the hierarchy behave the same.
+    """
+    import sqlite3
+    from pathlib import Path
+    db = str(Path(__file__).parent / 'template_store.sqlite3')
+    data = request.get_json(force=True) or {}
+    line_item_id = data.get('line_item_id')
+    target_category = (data.get('target_category') or '').strip()
+    source_page = data.get('page_key')
+    target_page = (data.get('target_page_key') or source_page or '').strip()
+
+    if not line_item_id or not target_category or not source_page or not target_page:
+        return jsonify({'success': False,
+                        'error': 'line_item_id, page_key and target_category are required'}), 400
+
+    conn = sqlite3.connect(db)
+    conn.row_factory = sqlite3.Row
+    try:
+        item = conn.execute(
+            "SELECT id, form_page, category, sort_order FROM line_items WHERE id = ?",
+            [line_item_id]
+        ).fetchone()
+        if not item:
+            return jsonify({'success': False, 'error': 'Question not found'}), 404
+
+        latest_row = conn.execute(
+            """
+            SELECT ftv.id FROM form_template_versions ftv
+            JOIN form_templates ft ON ft.id = ftv.form_template_id
+            WHERE ft.key = ? ORDER BY ftv.version DESC LIMIT 1
+            """,
+            (TEMPLATE_STORE_KEY,)
+        ).fetchone()
+        latest_version_id = int(latest_row[0]) if latest_row else None
+        if latest_version_id is None:
+            return jsonify({'success': False, 'error': 'Template version not found'}), 404
+
+        target_page_row = conn.execute(
+            "SELECT id FROM page_templates WHERE page_key = ? AND form_template_version_id = ?",
+            [target_page, latest_version_id]
+        ).fetchone()
+        if not target_page_row:
+            return jsonify({'success': False, 'error': 'Target page not found'}), 404
+
+        target_cat_row = conn.execute(
+            """SELECT ct.id FROM category_templates ct
+               JOIN page_templates pt ON pt.id = ct.page_template_id
+               WHERE pt.page_key = ? AND pt.form_template_version_id = ? AND ct.name = ?""",
+            [target_page, latest_version_id, target_category]
+        ).fetchone()
+        if not target_cat_row:
+            return jsonify({'success': False,
+                            'error': f"Category '{target_category}' not found on the target page"}), 404
+
+        # Land at the end of the target category so ordering stays predictable.
+        max_order = conn.execute(
+            "SELECT MAX(sort_order) AS m FROM line_items WHERE form_page = ? AND category = ?",
+            [target_page, target_category]
+        ).fetchone()['m']
+        next_sort = (int(max_order) + 1) if max_order is not None else 0
+
+        conn.execute(
+            "UPDATE line_items SET form_page = ?, category = ?, sort_order = ? WHERE id = ?",
+            [target_page, target_category, next_sort, line_item_id]
+        )
+        conn.commit()
+        return jsonify({'success': True, 'category': target_category,
+                        'form_page': target_page, 'sort_order': next_sort})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 400
+    finally:
+        conn.close()
 
 
 @app.route('/builder_beta/page_details_save/<page_key>', methods=['POST'])
@@ -3604,18 +3694,24 @@ def dynamic_page(page_id):
                     ]
                 break
 
-        return render_template(
-            'form.html',
-            page_schema=page_schema,
-            page_config=page_config,
-            schema_render_mode='full',
-            title=page_schema.get('title', page_id.replace('_', ' ').title()),
-            li_categories=_li_cats,
-            li_groups=li_groups_data,
-            current_page_id=page_id,
-            saved_form_data=session.get('checkbox_data', {}),
-            **_get_runtime_quote_context()
-        )
+    return render_template(
+        'form.html',
+        page_schema=page_schema,
+        page_config=page_config,
+        schema_render_mode='full',
+        title=page_schema.get('title', page_id.replace('_', ' ').title()),
+        li_categories=_li_cats,
+        li_groups=li_groups_data,
+        current_page_id=page_id,
+        # Edit mode needs the same builder context the POST branch passes:
+        # builder_state drives the question-type picker, db_pages the sidebar
+        # page selector. Without these the type list is empty on this route.
+        edit_mode=bool(request.args.get('edit') == '1'),
+        builder_state=get_builder_beta_state(),
+        db_pages=get_all_pages(template_key=TEMPLATE_STORE_KEY),
+        saved_form_data=session.get('checkbox_data', {}),
+        **_get_runtime_quote_context()
+    )
 
 @app.route('/', methods=['POST', 'GET'])
 def index():

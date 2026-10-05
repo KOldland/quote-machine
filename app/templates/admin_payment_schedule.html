@@ -1,11 +1,10 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
-    <title>Payment Schedule Config – Quote Machine</title>
-    <style>
+{% extends "index.html" %}
+
+{# Rendered inside the standard builder shell so this page keeps the same
+   sidebar / page selector as every other Build Mode page. #}
+
+{% block styles %}
+<style>
         .config-wrapper {
             max-width: 640px;
             margin: 2rem auto;
@@ -88,8 +87,9 @@
         }
         .back-link:hover { text-decoration: underline; }
     </style>
-</head>
-<body>
+{% endblock styles %}
+
+{% block content %}
 <div class="config-wrapper">
     <div class="config-card">
         <h1>Payment Schedule Configuration</h1>
@@ -272,5 +272,4 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
-</body>
-</html>
+{% endblock content %}

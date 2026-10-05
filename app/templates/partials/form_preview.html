@@ -207,6 +207,12 @@
                                 <input type="text" id="{{ field.name }}" name="{{ field.name }}"
                                        class="form-input"
                                        placeholder="{{ meta.placeholder or 'Enter text...' }}">
+                            {% elif block_type == 'textarea_input' %}
+                                <textarea id="{{ field.name }}" name="{{ field.name }}"
+                                          class="form-input"
+                                          rows="{{ meta.rows or 5 }}"
+                                          style="min-height:{{ (meta.rows or 5) * 22 }}px;resize:vertical;width:100%;"
+                                          placeholder="{{ meta.placeholder or 'Enter text...' }}"></textarea>
                             {% elif block_type == 'number_currency_input' %}
                                 <div class="preview-currency-wrapper">
                                     <span class="preview-currency-symbol">£</span>

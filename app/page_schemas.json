@@ -16,10 +16,7 @@
             "sort_order": 0
           }
         ],
-        "title": "Special Notes",
-        "id": "special_notes_page",
-        "navigation": {},
-        "display_order": 0
+        "title": "Special Notes"
       },
       "summary_page": {
         "blocks": [
@@ -61,10 +58,7 @@
             "sort_order": 5
           }
         ],
-        "title": "Building Works",
-        "id": "summary_page",
-        "navigation": {},
-        "display_order": 1
+        "title": "Building Works"
       },
       "materials_page": {
         "blocks": [
@@ -495,10 +489,7 @@
             "sort_order": 6
           }
         ],
-        "title": "Materials and Details",
-        "id": "materials_page",
-        "navigation": {},
-        "display_order": 2
+        "title": "Materials and Details"
       },
       "further_requirements_page": {
         "blocks": [
@@ -704,10 +695,7 @@
             "sort_order": 1
           }
         ],
-        "title": "Further Requirements and Considerations",
-        "id": "further_requirements_page",
-        "navigation": {},
-        "display_order": 3
+        "title": "Further Requirements and Considerations"
       },
       "additional_building_work_page": {
         "blocks": [
@@ -724,10 +712,7 @@
             "sort_order": 0
           }
         ],
-        "title": "Additional Building Works",
-        "id": "additional_building_work_page",
-        "navigation": {},
-        "display_order": 4
+        "title": "Additional Building Works"
       },
       "image_upload_page": {
         "blocks": [
@@ -805,10 +790,7 @@
           }
         ],
         "categories": [],
-        "title": "Image Upload",
-        "id": "image_upload_page",
-        "navigation": {},
-        "display_order": 5
+        "title": "Image Upload"
       },
       "index": {
         "blocks": [
@@ -886,10 +868,7 @@
           }
         ],
         "categories": [],
-        "title": "Project Details",
-        "id": "index",
-        "navigation": {},
-        "display_order": 6
+        "title": "Project Details"
       },
       "schedule_of_works": {
         "blocks": [],
@@ -905,10 +884,7 @@
             "sort_order": 1
           }
         ],
-        "title": "Schedule of Works",
-        "id": "schedule_of_works",
-        "navigation": {},
-        "display_order": 7
+        "title": "Schedule of Works"
       },
       "additional_costs_page": {
         "blocks": [
@@ -1037,10 +1013,7 @@
             "sort_order": 8
           }
         ],
-        "title": "Additional Costs",
-        "id": "additional_costs_page",
-        "navigation": {},
-        "display_order": 8
+        "title": "Additional Costs"
       },
       "optional_extras_page": {
         "blocks": [
@@ -1058,17 +1031,11 @@
           },
           {
             "name": "Chimneys",
-            "sort_order": 1,
-            "description": "",
-            "output_group": "General"
+            "output_group": "General",
+            "sort_order": 1
           }
         ],
-        "title": "Optional Extras",
-        "id": "optional_extras_page",
-        "navigation": {
-          "next_endpoint": "contingency"
-        },
-        "display_order": 11
+        "title": "Optional Extras"
       },
       "contingency": {
         "blocks": [],
@@ -1079,13 +1046,7 @@
             "sort_order": 0
           }
         ],
-        "title": "Contingency",
-        "id": "contingency",
-        "navigation": {
-          "previous_endpoint": "optional_extras_page",
-          "next_endpoint": "finishing_works"
-        },
-        "display_order": 10
+        "title": "Contingency"
       },
       "finishing_works": {
         "blocks": [],
@@ -1102,11 +1063,9 @@
           }
         ],
         "title": "Finishing Works",
-        "id": "finishing_works",
         "navigation": {
-          "previous_endpoint": "contingency"
-        },
-        "display_order": 13
+          "next_endpoint": "finish_sched_work"
+        }
       },
       "additional_notes": {
         "blocks": [],
@@ -1115,12 +1074,18 @@
             "name": "Additional Notes",
             "output_group": "General",
             "sort_order": 0
+          },
+          {
+            "name": "ZZ Network Probe",
+            "sort_order": 1,
+            "description": ""
           }
         ],
         "title": "Additional Notes",
-        "id": "additional_notes",
-        "navigation": {},
-        "display_order": 14
+        "navigation": {
+          "next_endpoint": "finish_sched_work",
+          "previous_endpoint": "finish_sched_work"
+        }
       },
       "pricing_categories": {
         "blocks": [],
@@ -1132,9 +1097,37 @@
           }
         ],
         "title": "Pricing Categories",
-        "id": "pricing_categories",
-        "navigation": {},
-        "display_order": 15
+        "navigation": {
+          "previous_endpoint": "finish_sched_work"
+        }
+      },
+      "finish_sched_work": {
+        "categories": [
+          {
+            "name": "Finishing Schedule of Works",
+            "sort_order": 0,
+            "description": ""
+          }
+        ]
+      },
+      "finishing_works_opt_ext": {
+        "categories": [
+          {
+            "name": "1st Floor Bathroom Refurbishment",
+            "sort_order": 3,
+            "description": ""
+          },
+          {
+            "name": "Brick Slips",
+            "sort_order": 2,
+            "description": ""
+          },
+          {
+            "name": "Flush External Patio",
+            "sort_order": 3,
+            "description": ""
+          }
+        ]
       }
     }
   }
