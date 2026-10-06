@@ -183,8 +183,7 @@ document.addEventListener('DOMContentLoaded', () => {
                  static_content: '',
                  static_variant: 'body',
                  calculator_groups: [],
-                 cost_group_id: '',
-                 cost_group_override: ''
+                 
              },
             logic_options: {
                 visibility: 'always',

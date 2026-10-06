@@ -52,22 +52,6 @@
                                     <option value="note" {% if selected_block.standard.static_variant == "note" %}selected{% endif %}>Note</option>
                                 </select>
                             </div>
-                            {% elif selected_block.block_type == "cost_group_total" %}
-                            <div class="form-group">
-                                <label>Cost Group</label>
-                                <select name="cost_group_id" class="form-input">
-                                    <option value="">-- Select Cost Group --</option>
-                                    {% for group_id, group_data in cost_groups.items() %}
-                                    <option value="{{ group_id }}" {% if selected_block.standard.cost_group_id == group_id %}selected{% endif %}>{{ group_data.label }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Override Total (£)</label>
-                                <input type="number" name="cost_group_override" step="0.01" min="0"
-                                       value="{{ selected_block.standard.cost_group_override or '' }}"
-                                       placeholder="Leave blank to use calculated total">
-                            </div>
                             {% endif %}
                         </div>
                     </div>
@@ -301,8 +285,9 @@
                         data-category="{{ cat_name }}"
                         data-id="{{ cat_id }}"
                         data-page="{{ form_page_key }}"
+                        data-is-cost-group="{{ cat.is_cost_group if cat is mapping and cat.is_cost_group else 0 }}"
                         style="flex:1;">
-                    {{ cat_name }}
+                    {% if cat is mapping and cat.is_cost_group %}<span style="background:#2d5a3b;color:#fff;font-size:.6rem;font-weight:700;padding:.12rem .35rem;border-radius:3px;margin-right:.3rem;">CG</span>{% endif %}{{ cat_name }}
                 </button>
                 <div class="li-reorder-controls" style="display:flex;flex-direction:column;margin-right:4px;">
                     <button type="button" class="li-move-btn" data-scope="category" data-id="{{ cat_id }}" data-page="{{ form_page_key }}" data-dir="up" style="border:none;background:none;font-size:10px;cursor:pointer;padding:0 4px;color:#888;line-height:1;">▲</button>
@@ -535,7 +520,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Single entry point for both editors. `ctx` is 'question' or 'category';
         // `categoryData` is the loaded category payload when editing a category.
         function openImagesModal(ctx, categoryData) {
-            var questionImagesModal = $id('question-images-modal');
+            var questionImagesModal = document.getElementById('question-images-modal');
             if (!questionImagesModal) return;
             imagesModalContext = ctx || 'question';
             imagesModalCategoryData = categoryData || null;
@@ -555,7 +540,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         function closeQuestionImagesModal() {
-            var questionImagesModal = $id('question-images-modal');
+            var questionImagesModal = document.getElementById('question-images-modal');
             if (!questionImagesModal) return;
             questionImagesModal.style.display = 'none';
             questionModalPendingFile = null;
@@ -571,20 +556,20 @@ document.addEventListener('DOMContentLoaded', function() {
         // The modal markup is emitted after this <script> in the macro, so the
         // element lookups below must wait until the DOM has been parsed.
         function wireImagesModal() {
-            btnQuestionModalBrowse = $id('btn-question-modal-browse');
-            btnQuestionModalUpload = $id('btn-question-modal-upload');
-            btnQuestionModalSave = $id('btn-question-modal-save');
-            btnQuestionModalClose = $id('btn-question-modal-close');
-            questionModalFileInput = $id('question-modal-file-input');
-            questionModalFilename = $id('question-modal-filename');
-            questionModalImagesList = $id('question-modal-images-list');
-            questionModalTitle = $id('question-images-modal-title');
+            btnQuestionModalBrowse = document.getElementById('btn-question-modal-browse');
+            btnQuestionModalUpload = document.getElementById('btn-question-modal-upload');
+            btnQuestionModalSave = document.getElementById('btn-question-modal-save');
+            btnQuestionModalClose = document.getElementById('btn-question-modal-close');
+            questionModalFileInput = document.getElementById('question-modal-file-input');
+            questionModalFilename = document.getElementById('question-modal-filename');
+            questionModalImagesList = document.getElementById('question-modal-images-list');
+            questionModalTitle = document.getElementById('question-images-modal-title');
 
         if (btnQuestionModalClose) {
             btnQuestionModalClose.addEventListener('click', closeQuestionImagesModal);
         }
 
-        var questionImagesModal = $id('question-images-modal');
+        var questionImagesModal = document.getElementById('question-images-modal');
         if (questionImagesModal) {
             questionImagesModal.addEventListener('click', function(e) {
                 if (e.target === questionImagesModal) {
@@ -666,7 +651,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (imagesModalContext === 'category') {
                     // Categories persist images through their own form save, which
                     // already accepts category_image + category_images.
-                    var frm = $id('li-category-edit-form');
+                    var frm = document.getElementById('li-category-edit-form');
                     if (!frm) { alert('No category selected.'); return; }
                     var single = frm.querySelector('input[name="cat_category_image"]');
                     var multi = frm.querySelector('input[name="cat_category_images"]');
@@ -746,7 +731,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // ── End images modal ──────────────────────────────────────────────
         window.openImagesModal = openImagesModal;
         window.closeQuestionImagesModal = closeQuestionImagesModal;
-    })();
+    }());
 
 </script>
 <style>
@@ -838,7 +823,6 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
             <div id="add-question-wrap" style="padding: 0.5rem; background: #fff; border-top: 1px solid #eee; display: none;">
                 <button type="button" id="btn-add-question" style="width: 100%; padding: 0.4rem; background: #1b3a6b; color: #fff; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">Add Question</button>
-                <button type="button" id="btn-add-cg-block" style="width: 100%; padding: 0.4rem; background: #2d5a3b; color: #fff; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; margin-top:.25rem;">+ Cost Group Total</button>
             </div>
         </div>
 
@@ -1043,40 +1027,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 btnAddQuestion.textContent = 'Add Question';
                 alert('Network error adding question');
             });
-        });
-    }
-
-    var btnAddCg = $id('btn-add-cg-block');
-    if (btnAddCg) {
-        btnAddCg.addEventListener('click', function() {
-            if (!_activeCategory) { alert("Please select a category first."); return; }
-            var payload = {
-                page_key: _pageKey,
-                category: _activeCategory,
-                internal_description: "Cost Group Total",
-                metadata: { block_type: "cost_group_total" }
-            };
-            btnAddCg.disabled = true;
-            btnAddCg.textContent = 'Adding...';
-            fetch('/builder_beta/line_item_add', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json', 'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''},
-                body: JSON.stringify(payload)
-            }).then(r => r.json()).then(d => {
-                btnAddCg.disabled = false;
-                btnAddCg.textContent = '+ Cost Group Total';
-                if (d.success) {
-                    var activeBtn = document.querySelector('.li-section-btn[data-category="'+_activeCategory+'"]');
-                    if (activeBtn) activeBtn.click();
-                } else {
-                    alert('Error adding cost group total: ' + (d.error || 'Unknown error'));
-                }
-            }).catch(e => {
-                btnAddCg.disabled = false;
-                btnAddCg.textContent = '+ Cost Group Total';
-                alert('Network error adding cost group total');
-            });
-        });
+    });
     }
 
     var pageDetailsBtn = $id('btn-page-details');
@@ -1097,11 +1048,23 @@ document.addEventListener('DOMContentLoaded', function() {
             btn.classList.add('active');
             _activeCategory = btn.dataset.category;
             _saveSelectionState();
+            
+            // Check if this is a cost group section
+            if (btn.getAttribute('data-is-cost-group') === '1') {
+                showViewCostGroup(_activeCategory);
+                return;
+            }
+            
             var url = '/builder_beta/line_items_json?page=' + encodeURIComponent(_pageKey) + '&category=' + encodeURIComponent(_activeCategory);
             showViewOne(_activeCategory);
             $id('li-question-list').innerHTML = '<p style="color:#999;font-size:.8rem;padding:.5rem .75rem;">Loading…</p>';
             fetch(url, {credentials: 'same-origin'})
-                .then(function (r) { return r.json(); })
+                .then(function (r) {
+                    if (!r.ok) {
+                        throw new Error('HTTP ' + r.status);
+                    }
+                    return r.json();
+                })
                 .then(function (data) {
                     _categoryItems = [];
                     if (data.categories && data.categories.length > 0) {
@@ -1110,7 +1073,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     renderQuestionList(_categoryItems);
                 })
                 .catch(function (e) {
-                    $id('li-question-list').innerHTML = '<p style="color:red;font-size:.8rem;padding:.5rem .75rem;">Error loading items.</p>';
+                    console.error('Fetch error:', e);
+                    var ql = document.getElementById('li-question-list');
+                    if (ql) ql.innerHTML = '<p style="color:red;font-size:.8rem;padding:.5rem .75rem;">Error loading items: ' + (e && e.message ? e.message : 'unknown') + '</p>';
                 });
         });
     });
@@ -1547,6 +1512,108 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    function showViewCostGroup(catName) {
+        // Show cost group settings in the middle column (where categories normally appear)
+        $id('li-view-empty').style.display = 'none';
+        $id('li-view-page').style.display  = 'none';
+        $id('li-view-one').style.display   = 'flex';
+        if ($id('li-view-one-title')) {
+            $id('li-view-one-title').textContent = 'Cost Group: ' + catName;
+        }
+        // Hide the right column question area
+        $id('li-view-empty-q').style.display = 'none';
+        $id('li-view-two').style.display = 'none';
+        var qlist = $id('li-question-list');
+        if (qlist) {
+            qlist.innerHTML = '<p style="color:#aaa; font-size:0.85rem; text-align:center; margin-top:2rem;">Cost group selected — no questions to display.</p>';
+        }
+        $id('li-view-one-count').textContent = '';
+        if ($id('add-question-wrap')) $id('add-question-wrap').style.display = 'none';
+        // Load the cost group section data
+        fetch('/builder_beta/category_details_json?page_key=' + encodeURIComponent(_pageKey) + '&name=' + encodeURIComponent(catName))
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var cgHtml = '<div class="li-form-group"><label>Cost Group</label>' +
+                '<select name="cat_output_group" id="cat-output-group-select" style="width:100%;">' +
+                '<option value="">-- Select Cost Group --</option>';
+            var _cgList = (window.builderStateCostGroups || {});
+            for (var _gid in _cgList) {
+                var _gd = _cgList[_gid];
+                var _sel = (_gid === (data.output_group || '')) ? ' selected' : '';
+                cgHtml += '<option value="' + _gid + '"' + _sel + '>' + (_gd.label || _gid) + '</option>';
+            }
+            cgHtml += '</select></div>' +
+                '<div class="li-form-group" style="display:flex;align-items:center;gap:.5rem;">' +
+                '<input type="checkbox" id="cg-override-allowed"' + (data.cost_group_override_allowed ? ' checked' : '') + '>' +
+                '<label for="cg-override-allowed">Allow user to override total</label></div>';
+            var html = '<form id="li-category-edit-form" autocomplete="off">';
+            html += _section('Cost Group Settings', true, [
+                cgHtml
+            ]);
+            html += _section('Meta', false, [
+                '<div class="li-form-group"><label>Section Name</label><input type="text" name="cat_name" value="' + (data.name || catName) + '" style="width:100%;"></div>'
+            ]);
+            html += '<div style="display:flex;gap:.5rem;justify-content:flex-end;padding:.75rem;border-top:1px solid #dee2e6;">' +
+                '<button type="button" id="btn-cg-delete" style="padding:.45rem 1rem;background:#d32f2f;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:.85rem;">Delete</button>' +
+                '<button type="submit" class="li-save-btn" style="padding:.45rem 1rem;">Save</button>' +
+                '</div>';
+            html += '</form>';
+            $id('li-category-editor').innerHTML = html;
+
+            // Save handler
+            var form = $id('li-category-edit-form');
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    var newName = form.querySelector('input[name="cat_name"]').value.trim() || catName;
+                    var outputGroup = form.querySelector('select[name="cat_output_group"]').value;
+                    var allowOverride = $id('cg-override-allowed') ? ($id('cg-override-allowed').checked ? 1 : 0) : 0;
+                    var csrf = (document.querySelector('[name=csrf_token]') || {}).value || '';
+                    fetch('/builder_beta/category_details_save', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
+                        body: JSON.stringify({
+                            page_key: _pageKey,
+                            old_name: catName,
+                            new_name: newName,
+                            description: '',
+                            output_group: outputGroup,
+                            is_cost_group: 1,
+                            cost_group_override_allowed: allowOverride,
+                            form_visible: true,
+                            category_image: '',
+                            category_images: []
+                        })
+                    }).then(function(r) { return r.json(); }).then(function(d) {
+                        if (d.ok) { window.location.reload(); }
+                        else { alert('Error: ' + (d.error || 'Unknown')); }
+                    }).catch(function() { alert('Network error.'); });
+                });
+            }
+            
+            // Delete button
+            var delBtn = $id('btn-cg-delete');
+            if (delBtn) {
+                delBtn.addEventListener('click', function() {
+                    if (confirm('Delete cost group section "' + catName + '"? This cannot be undone.')) {
+                        var csrf = (document.querySelector('[name=csrf_token]') || {}).value || '';
+                        fetch('/builder_beta/category/delete', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
+                            body: JSON.stringify({ page_key: _pageKey, category_name: catName })
+                        }).then(function(r) { return r.json(); }).then(function(d) {
+                            if (d.success) { window.location.reload(); }
+                            else { alert('Error: ' + (d.error || 'Unknown')); }
+                        }).catch(function() { alert('Network error.'); });
+                    }
+                });
+            }
+        })
+        .catch(function() {
+            $id('li-category-editor').innerHTML = '<p style="color:red;padding:.5rem;">Error loading cost group section.</p>';
+        });
+    }
+
     function _attachAccordion(container) {
         if (!container) return;
         var existing = container._accHandler;
@@ -1580,36 +1647,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         var html = '<form id="li-edit-form" autocomplete="off">';
 
-        // ── Cost Group Total block: show cost group selector + override ─────
-        if (item.metadata && item.metadata.block_type === 'cost_group_total') {
-            var cgHtml = '<div class="li-form-group"><label>Cost Group</label>' +
-                '<select name="cost_group_id" id="cg-total-select" style="width:100%;">' +
-                '<option value="">-- Select Cost Group --</option>';
-            var _cgItems = (window.builderStateCostGroups || {});
-            for (var _gid in _cgItems) {
-                var _gd = _cgItems[_gid];
-                var _sel = (_gid === (item.metadata.cost_group_id || '')) ? ' selected' : '';
-                cgHtml += '<option value="' + _gid + '"' + _sel + '>' + (_gd.label || _gid) + '</option>';
-            }
-            cgHtml += '</select></div>' +
-                '<div class="li-form-group"><label>Override Total (£)</label>' +
-                '<input type="number" name="cost_group_override" step="0.01" min="0" style="width:100%;" value="' + (item.metadata.cost_group_override || '') + '" placeholder="Leave blank to use calculated total">' +
-                '</div>';
-            html += _section('Description', true, [
-                '<div class="li-form-group" style="font-size:.85rem;color:#666;padding:.3rem 0;">This item displays a cost group total with optional override.</div>'
-            ]);
-            html += _section('Cost Group Total', true, [
-                cgHtml
-            ]);
-            html += _section('Meta', false, [
-                _field('line_code', 'Line Code', 'text', item.line_code || '', true),
-                _field('output_group', 'Cost Group', 'text', item.output_group || 'General'),
-                _field('output_title', 'Output Title', 'text', item.output_title || '')
-            ]);
-            html += '</form>';
-            $id('li-editor-content').innerHTML = html;
-            return;
-        }
+
 
         html += _section('Description', true, [
             _field('internal_description', 'Internal Description', 'text', item.internal_description || ''),
@@ -1765,7 +1803,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                 });
             }
-        })();
+        }());
         console.log('[EDITOR] Form rendered, btn-question-images:', !!document.getElementById('btn-question-images'), 'btn-duplicate:', !!document.getElementById('btn-duplicate-question'), 'btn-save:', !!document.querySelector('#li-edit-form button[type="submit"]'));
         
         // Fallback: add images button via JS if missing from HTML

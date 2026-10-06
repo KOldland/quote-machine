@@ -184,6 +184,20 @@
                                     <p class="preview-li-empty">No line items configured for this category.</p>
                                 {% endif %}
                             </div>
+                        {% elif block_type == 'cost_group_section' %}
+                            <div class="preview-cost-group-section" style="margin-bottom:1rem;border:1px solid #dee2e6;border-radius:6px;background:#f8f9fa;">
+                                <details class="preview-cg-details" data-cg-id="{{ meta.cost_group_id }}" data-override-allowed="{{ '1' if meta.override_allowed else '0' }}" data-field-name="{{ field.name }}" style="margin:0;">
+                                    <summary class="preview-cg-header" style="padding:.5rem .75rem;background:#e8f0e8;cursor:pointer;font-weight:600;font-size:.9rem;">
+                                        <span>💰 {{ field.label }}</span>
+                                        <span id="cg-total-{{ field.name }}" style="float:right;font-weight:700;color:#1b3a6b;">Loading…</span>
+                                    </summary>
+                                    <div class="preview-cg-body" style="padding:.5rem .75rem;display:block;">
+                                        <div id="cg-content-{{ field.name }}" style="padding:.5rem 0;">
+                                            <p style="color:#888;font-size:.85rem;">Calculating cost group total…</p>
+                                        </div>
+                                    </div>
+                                </details>
+                            </div>
                         {% else %}
                             {# ── Standard field types: render with outer wrapper ── #}
                             <div class="preview-element preview-element-{{ block_type }}" data-field-id="{{ field.id }}" data-logic-visibility="{{ meta.logic_options.visibility | default('always') }}" data-logic-depends-on="{{ meta.logic_options.depends_on_field | default('') }}" data-logic-depends-on-value="{{ meta.logic_options.depends_on_value | default('') }}">
@@ -748,20 +762,58 @@ details[open] > .preview-li-category-header::before {
         });
         // ── Calculator / Payment Schedule block rendering ──────────────
         renderCalculatorBlocks();
-        // ── Cost Group Total block rendering ───────────────────────────
-        document.querySelectorAll('.preview-cost-group-total').forEach(function(container) {
-            var cgId = container.getAttribute('data-cost-group-id');
-            var cgData = (window.builderStateCostGroups || {})[cgId];
-            var contentEl = container.querySelector('[id^=\"cg-total-content-\"]');
-            if (!contentEl) return;
-            if (!cgId || !cgData) {
-                contentEl.innerHTML = '<div style=\"color:#888;padding:.5rem;text-align:center;\">No cost group selected.</div>';
-                return;
-            }
-            contentEl.innerHTML = '<div style=\"display:flex;align-items:center;justify-content:space-between;padding:.5rem .75rem;background:#f0f4ff;border:1px solid #dee2e6;border-radius:6px;\">' +
-                '<span style=\"font-weight:600;\">' + cgData.label + '</span>' +
-                '<span style=\"font-weight:600;color:#1b3a6b;\">Calculated on save</span>' +
-                '</div>';
+        // ── Cost Group Section rendering (form mode) ─────────────────────
+        document.querySelectorAll('.preview-cg-details').forEach(function(details) {
+            var cgId = details.getAttribute('data-cg-id');
+            var fieldName = details.getAttribute('data-field-name');
+            var overrideAllowed = details.getAttribute('data-override-allowed') === '1';
+            var totalEl = document.getElementById('cg-total-' + fieldName);
+            var contentEl = document.getElementById('cg-content-' + fieldName);
+            if (!cgId || !totalEl || !contentEl) return;
+            
+            var pageKey = window.location.pathname.split('/').filter(Boolean)[0] || '';
+            fetch('/builder_beta/calculator_preview?page_key=' + encodeURIComponent(pageKey) + '&groups=' + encodeURIComponent(cgId))
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                var items = (data.items || {})[cgId] || [];
+                var total = 0;
+                items.forEach(function(it) {
+                    total += (parseFloat(it.unit_cost || 0) || 0) * (parseInt(it.units || 1) || 1);
+                });
+                var cgLabel = (window.builderStateCostGroups || {})[cgId]?.label || cgId;
+                totalEl.textContent = '\u00a3' + total.toFixed(2);
+                
+                var html = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">' +
+                    '<span style="font-weight:600;">' + cgLabel + ' Total: <span style="color:#1b3a6b;font-weight:700;">\u00a3' + total.toFixed(2) + '</span></span>';
+                if (overrideAllowed) {
+                    html += '<span><input type="number" step="0.01" min="0" style="width:120px;padding:.3rem;border:1px solid #ccc;border-radius:4px;" name="' + fieldName + '_override" value="' + total.toFixed(2) + '"></span>';
+                }
+                html += '</div>' +
+                    '<details style="margin-top:.3rem;border:1px solid #dee2e6;border-radius:4px;padding:.3rem;">' +
+                    '<summary style="cursor:pointer;font-size:.82rem;color:#1b3a6b;font-weight:600;padding:.25rem .5rem;">Details (\u00a9' + items.length + ' items)</summary>' +
+                    '<table style="width:100%;border-collapse:collapse;font-size:.78rem;">' +
+                    '<thead><tr style="background:#f0f4ff;">' +
+                    '<th style="padding:.2rem .4rem;text-align:left;">Item</th>' +
+                    '<th style="padding:.2rem .4rem;text-align:right;">Cost</th>' +
+                    '<th style="padding:.2rem .4rem;text-align:center;">Qty</th>' +
+                    '<th style="padding:.2rem .4rem;text-align:right;">Total</th>' +
+                    '</tr></thead><tbody>';
+                items.forEach(function(it) {
+                    var lineTotal = (parseFloat(it.unit_cost || 0) || 0) * (parseInt(it.units || 1) || 1);
+                    html += '<tr>' +
+                        '<td style="padding:.2rem .4rem;">' + (it.internal_description || it.line_code || 'Item') + '</td>' +
+                        '<td style="padding:.2rem .4rem;text-align:right;">\u00a3' + (parseFloat(it.unit_cost || 0) || 0).toFixed(2) + '</td>' +
+                        '<td style="padding:.2rem .4rem;text-align:center;">' + (parseInt(it.units || 1) || 1) + '</td>' +
+                        '<td style="padding:.2rem .4rem;text-align:right;font-weight:600;">\u00a3' + lineTotal.toFixed(2) + '</td>' +
+                        '</tr>';
+                });
+                html += '</tbody></table></details>';
+                contentEl.innerHTML = html;
+            })
+            .catch(function() {
+                totalEl.textContent = 'Error';
+                contentEl.innerHTML = '<p style="color:red;">Error loading cost data.</p>';
+            });
         });
     });
 })();

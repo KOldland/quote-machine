@@ -259,6 +259,7 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024  # 20MB total (if batch)
 app.config['SESSION_TYPE'] = 'filesystem'  # Store sessions in the filesystem
 app.config['SESSION_FILE_DIR'] = str(Path(__file__).parent / 'flask_session')
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Ensure cookies are sent with same-origin AJAX
 app.config['SECRET_KEY'] = os.getenv(
     'QM_SECRET_KEY', 'dev-insecure-key-change-me')
 app.config['WTF_CSRF_TIME_LIMIT'] = 86400
@@ -309,13 +310,42 @@ def _get_line_items_for_page(page_id: str):
 
 
 def _get_li_categories_from_schema(page_id: str):
-    """Return list of category names for a page from the schema.
+    """Return list of category objects for a page from the template store.
+    Each object has name, display_order, output_group, is_cost_group, etc.
     Falls back to keys from get_line_items_for_page()."""
     try:
         items = get_line_items_for_page(page_id)
-        return list(items.keys()) if items else []
+        cat_names = list(items.keys()) if items else []
     except Exception:
-        return []
+        cat_names = []
+    # Query category_templates directly for is_cost_group data
+    try:
+        from template_store import _default_db_path, _connect
+        db = _default_db_path()
+        conn = _connect(db)
+        rows = conn.execute(
+            """SELECT ct.name, ct.display_order, ct.output_group, ct.is_cost_group,
+                      ct.cost_group_override_allowed, ct.image_url, ct.description
+               FROM category_templates ct
+               JOIN page_templates pt ON pt.id = ct.page_template_id
+               JOIN form_template_versions ftv ON ftv.id = ct.form_template_version_id
+               WHERE pt.page_key = ?
+               ORDER BY ct.display_order ASC""",
+            (page_id,)
+        ).fetchall()
+        conn.close()
+        cat_dict = {r['name']: dict(r) for r in rows}
+        result = []
+        for name in cat_names:
+            if name in cat_dict:
+                result.append(cat_dict[name])
+            else:
+                result.append({'name': name, 'is_cost_group': 0, 'output_group': 'General', 'display_order': 0})
+        return result
+    except Exception:
+        pass
+    # Fallback: return just names
+    return [{'name': n, 'is_cost_group': 0, 'output_group': 'General', 'display_order': 0} for n in cat_names]
 
 
 # Legacy: page_schemas.json – will be replaced by template store in
@@ -698,13 +728,6 @@ DEFAULT_BUILDER_BETA_QUESTION_TYPES = {
         'supports': {'logic': False, 'pricing': False, 'output': True},
         'icon': '$',
         'description': 'Payment schedule breakdown based on quote totals — shows deposit, stage payments, and completion amounts',
-    },
-    'cost_group_total': {
-        'label': 'Cost Group Total',
-        'default_label': 'New cost group total',
-        'supports': {'logic': True, 'pricing': False, 'output': True},
-        'icon': '£',
-        'description': 'Displays the total for a selected cost group, with optional override field',
     },
 }
 
@@ -1234,6 +1257,55 @@ def compile_builder_beta_page_to_runtime_schema(page_id):
                 },
                 'config': {'page_key': page_id},
             })
+
+    return {
+        'id': page_id,
+        'title': page.get('title', page_id.replace('_', ' ').title()),
+        'navigation': deepcopy(page.get('navigation', {})),
+        'fields': compiled_fields,
+    }
+
+    # Add cost group sections (from category_templates with is_cost_group=1)
+    try:
+        from template_store import _default_db_path, _connect
+        import sqlite3
+        db = _default_db_path()
+        conn = _connect(db)
+        try:
+            version_id = conn.execute(
+                "SELECT ftv.id FROM form_template_versions ftv JOIN form_templates ft ON ft.id = ftv.form_template_id WHERE ft.key = ? ORDER BY ftv.version DESC LIMIT 1",
+                (TEMPLATE_STORE_KEY,)
+            ).fetchone()
+            ver = int(version_id[0]) if version_id else None
+        except Exception:
+            ver = None
+        if ver:
+            cg_rows = conn.execute(
+                """SELECT name, output_group, cost_group_override_allowed
+                   FROM category_templates ct
+                   JOIN page_templates pt ON pt.id = ct.page_template_id
+                   WHERE pt.page_key = ? AND pt.form_template_version_id = ? AND ct.is_cost_group = 1
+                   ORDER BY ct.display_order ASC""",
+                (page_id, ver)
+            ).fetchall()
+            for row in cg_rows:
+                compiled_fields.append({
+                    'id': page_id + '_cg_' + (row['name'] or '').replace(' ', '_'),
+                    'name': page_id + '_cost_group_' + (row['name'] or '').replace(' ', '_'),
+                    'label': row['name'] or 'Cost Group',
+                    'note': '',
+                    'hidden': False,
+                    'type': 'cost_group_section',
+                    'builder_beta_meta': {
+                        'block_type': 'cost_group_section',
+                        'cost_group_id': row['output_group'] or '',
+                        'override_allowed': bool(row['cost_group_override_allowed']),
+                    },
+                    'config': {'page_key': page_id},
+                })
+        conn.close()
+    except Exception:
+        pass
 
     return {
         'id': page_id,
@@ -2393,6 +2465,19 @@ def builder_beta_category_add():
             data['category_name'],
             template_key=TEMPLATE_STORE_KEY,
             output_group=output_group)
+        # If this is a cost group section and the name already exists, update the existing entry
+        if is_cost_group and not res.get('success') and res.get('duplicate'):
+            import sqlite3
+            from pathlib import Path
+            db = str(Path(__file__).parent / 'template_store.sqlite3')
+            conn2 = sqlite3.connect(db)
+            conn2.execute(
+                "UPDATE category_templates SET is_cost_group = 1 WHERE name = ? AND page_template_id IN (SELECT id FROM page_templates WHERE page_key = ?)",
+                (data['category_name'], data['page_key'])
+            )
+            conn2.commit()
+            conn2.close()
+            res = {'success': True}
         if res.get('success') and is_cost_group:
             # Update the newly created category to mark it as a cost group section
             try:

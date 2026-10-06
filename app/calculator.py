@@ -457,6 +457,36 @@ def calculate_quote(
                 }
             )
 
+        # ── 3b. Apply cost group overrides from form_data ───────────────────
+        cost_group_overrides = {}
+        if isinstance(form_data, dict):
+            for key, val in form_data.items():
+                if key.endswith('_override') and val is not None:
+                    # Extract the cost group name from the form_data
+                    # The key is like: {page_id}_cost_group_{name}_override
+                    # We map it to the output_group name stored in the cost group section
+                    try:
+                        override_val = float(val)
+                    except (TypeError, ValueError):
+                        continue
+                    # Check if any group name matches this override
+                    # The override value replaces the group subtotal
+                    cost_group_overrides[key] = override_val
+
+        # Apply overrides to group subtotals (match by output_group name)
+        # The form stores output_group in the cost group section's meta
+        # We also need to check by the override target's group name
+        if cost_group_overrides:
+            for gname in list(subtotals.keys()):
+                # Try to find an override for this group
+                for ov_key, ov_val in cost_group_overrides.items():
+                    # Direct match: override key contains the group name
+                    if gname.lower().replace(' ', '_') in ov_key.lower():
+                        subtotals[gname] = round(ov_val, 2)
+                        for gd in group_data:
+                            if gd['name'] == gname:
+                                gd['subtotal'] = round(ov_val, 2)
+
         # ── 4. Apply quote adjustments (from session or defaults) ──────────
         adjustments: list[dict[str, Any]] = []
         adjustment_total = 0.0

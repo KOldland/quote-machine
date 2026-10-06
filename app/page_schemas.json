@@ -857,7 +857,7 @@
             "config": {},
             "id": "additional_costs_page__line_items"
           }
-          ],
+        ],
         "categories": [
           {
             "name": "Standard Items",
@@ -986,6 +986,16 @@
             "name": "pricing category",
             "output_group": "General",
             "sort_order": 1
+          },
+          {
+            "name": "Building Works",
+            "sort_order": 2,
+            "description": ""
+          },
+          {
+            "name": "Pre-Project Package",
+            "sort_order": 3,
+            "description": ""
           }
         ],
         "title": "Pricing Categories",
