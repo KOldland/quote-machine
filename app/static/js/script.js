@@ -414,10 +414,11 @@ function updateDrainageInputs() {
 	// --------------------- 9b FOLLOW-UP PRICE PREFILL / CONFIRM ---------------------
 	//
 	// Dropdown follow-ups that have "Set prices per choice" map a chosen option to
-	// a price. Selecting an option prefills the override field as a *suggestion*;
-	// it is only sent to the server as an override once the user confirms it.
-	// An unconfirmed value is disabled on submit so the calculator falls back to
-	// the price configured in the builder for that choice.
+	// a price. Selecting an option prefills the override field as a *suggestion*.
+	// The auto-filled value is NOT submitted — the builder's configured price is
+	// used unless the user explicitly edits the field and clicks Confirm price.
+	// This keeps the default price flowing through without friction, while still
+	// allowing deliberate overrides.
 	(function () {
 		function parsePrices(select) {
 			try {
@@ -429,90 +430,87 @@ function updateDrainageInputs() {
 			}
 		}
 
-		function setState(input, row, state) {
-			// state: 'suggested' | 'confirmed' | 'empty'
-			var status = row.querySelector('[data-price-status]');
-			var confirmBtn = row.querySelector('[data-price-confirm]');
-			if (state === 'confirmed') {
-				input.setAttribute('data-price-confirmed', '1');
-				input.setAttribute('data-price-suggested', '0');
-				if (status) { status.style.display = 'none'; }
-				if (confirmBtn) {
-					confirmBtn.style.display = 'none';
-					confirmBtn.dataset.state = 'confirmed';
-				}
-			} else if (state === 'suggested') {
-				input.setAttribute('data-price-confirmed', '0');
-				input.setAttribute('data-price-suggested', '1');
-				if (status) { status.style.display = ''; }
-				if (confirmBtn) {
-					confirmBtn.style.display = '';
-					confirmBtn.dataset.state = 'suggested';
-				}
-			} else {
-				input.setAttribute('data-price-confirmed', '0');
-				input.setAttribute('data-price-suggested', '0');
-				if (status) { status.style.display = 'none'; }
-				if (confirmBtn) { confirmBtn.style.display = 'none'; }
+		function setAutoFilled(input, confirmBtn) {
+			input.setAttribute('data-price-confirmed', '0');
+			if (confirmBtn) {
+				confirmBtn.style.display = 'none';
 			}
 		}
 
-		// Dropdown change -> suggest the mapped price.
+		function setSuggested(input, confirmBtn) {
+			input.setAttribute('data-price-confirmed', '0');
+			if (confirmBtn) {
+				confirmBtn.style.display = '';
+			}
+		}
+
+		function setConfirmed(input, confirmBtn) {
+			input.setAttribute('data-price-confirmed', '1');
+			if (confirmBtn) {
+				confirmBtn.style.display = 'none';
+			}
+		}
+
+		// Dropdown change -> auto-fill the price (no confirm button shown).
 		document.querySelectorAll('select[data-follow-up-target]').forEach(function (select) {
 			var targetName = select.getAttribute('data-follow-up-target');
 			var input = document.querySelector('input[name="' + targetName + '"]');
 			if (!input) return;
 			var row = input.closest('[data-preview-price-row]') || input.parentElement;
 			if (!row) return;
+			var confirmBtn = row.querySelector('[data-price-confirm]');
 
 			select.addEventListener('change', function () {
 				var prices = parsePrices(select);
-				var idx = select.selectedIndex - 1; // index 0 is "-- Select --"
+				var idx = select.selectedIndex - 1;
 				if (!select.value || idx < 0 || idx >= prices.length) {
 					input.value = '';
-					setState(input, row, 'empty');
+					setAutoFilled(input, confirmBtn);
 					return;
 				}
 				var suggested = prices[idx];
 				if (suggested === null || suggested === undefined || String(suggested).trim() === '') {
 					input.value = '';
-					setState(input, row, 'empty');
+					setAutoFilled(input, confirmBtn);
 					return;
 				}
 				input.value = String(suggested).replace(/[^0-9.\-]/g, '');
-				setState(input, row, 'suggested');
+				// Auto-filled — no confirm button. Default price is used on submit.
+				setAutoFilled(input, confirmBtn);
 			});
 
-			// Editing a suggested price counts as a deliberate override.
+			// User edits the price → show the confirm button so they can lock it in.
 			input.addEventListener('input', function () {
 				if (input.getAttribute('data-price-confirmed') === '1') return;
-				setState(input, row, 'suggested');
+				if (String(input.value).trim() === '') {
+					if (confirmBtn) confirmBtn.style.display = 'none';
+					return;
+				}
+				setSuggested(input, confirmBtn);
 			});
 
-			// Explicit confirmation.
-			var confirmBtn = row.querySelector('[data-price-confirm]');
+			// Confirm button click → lock the override.
 			if (confirmBtn) {
 				confirmBtn.addEventListener('click', function () {
 					if (String(input.value).trim() === '') {
 						input.focus();
 						return;
 					}
-					setState(input, row, 'confirmed');
+					setConfirmed(input, confirmBtn);
 				});
 			}
 
 			// Reflect state on first render (e.g. returning to a completed page).
 			if (String(input.value).trim() === '') {
-				setState(input, row, 'empty');
+				setAutoFilled(input, confirmBtn);
 			} else if (input.getAttribute('data-price-confirmed') === '1') {
-				setState(input, row, 'confirmed');
+				setConfirmed(input, confirmBtn);
 			} else {
-				setState(input, row, 'suggested');
+				setAutoFilled(input, confirmBtn);
 			}
 		});
 
-		// Never submit an unconfirmed suggestion: a disabled input is omitted by
-		// the browser, so the calculator uses the builder price for the choice.
+		// Never submit an unconfirmed value.
 		document.querySelectorAll('form').forEach(function (form) {
 			form.addEventListener('submit', function () {
 				form.querySelectorAll('input[data-price-confirmed="0"]').forEach(function (input) {

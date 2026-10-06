@@ -58,6 +58,14 @@ def get_merge_tag_values(page_id, session, get_line_items_for_page, page_blocks=
                     tag = ['one', 'two', 'three', 'four'][single_entry_count] if single_entry_count < 4 else str(single_entry_count + 1)
                     merge_tags[tag] = user_answer
                     single_entry_count += 1
+                elif cfg_type and cfg_type.startswith('Textarea'):
+                    user_answer = answers.get(field_name, '')
+                    if isinstance(user_answer, list):
+                        user_answer = user_answer[0] if user_answer else ''
+                    user_answer = str(user_answer or '').strip()
+                    tag = ['one', 'two', 'three', 'four'][single_entry_count] if single_entry_count < 4 else str(single_entry_count + 1)
+                    merge_tags[tag] = user_answer
+                    single_entry_count += 1
 
     return merge_tags
 

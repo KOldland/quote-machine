@@ -699,6 +699,13 @@ DEFAULT_BUILDER_BETA_QUESTION_TYPES = {
         'icon': '$',
         'description': 'Payment schedule breakdown based on quote totals — shows deposit, stage payments, and completion amounts',
     },
+    'cost_group_total': {
+        'label': 'Cost Group Total',
+        'default_label': 'New cost group total',
+        'supports': {'logic': True, 'pricing': False, 'output': True},
+        'icon': '£',
+        'description': 'Displays the total for a selected cost group, with optional override field',
+    },
 }
 
 ALLOWED_BLOCK_PRICING_MODES = {
@@ -1011,6 +1018,17 @@ def update_builder_beta_page_from_form(page_id, form_data):
                 static_variant = 'body'
             standard['static_variant'] = static_variant
             standard['static_content'] = (form_data.get('standard_static_content') or standard.get('standard_content', '')).strip()
+
+            # Cost group total block fields
+            standard['cost_group_id'] = form_data.get('cost_group_id', '') or ''
+            raw_override = form_data.get('cost_group_override', '')
+            if raw_override and str(raw_override).strip():
+                try:
+                    standard['cost_group_override'] = float(raw_override)
+                except (TypeError, ValueError):
+                    standard['cost_group_override'] = ''
+            else:
+                standard['cost_group_override'] = ''
 
             raw_choices = form_data.get('standard_dropdown_choices', '')
             if isinstance(raw_choices, str):
@@ -2236,7 +2254,7 @@ def builder_category_details_json():
         conn.close()
         return jsonify({})
     row = conn.execute('''
-        SELECT c.id, c.name, c.description, c.output_group, c.image_url
+        SELECT c.id, c.name, c.description, c.output_group, c.image_url, c.is_cost_group, c.cost_group_override_allowed
         FROM category_templates c
         JOIN page_templates p ON c.page_template_id = p.id
         WHERE p.page_key = ? AND p.form_template_version_id = ? AND c.name = ?
@@ -2281,6 +2299,7 @@ def builder_category_details_save():
     new_name = data.get('new_name')
     desc = data.get('description', '')
     output_group = data.get('output_group', 'General')
+    is_cost_group = data.get('is_cost_group', False)
     category_image = (data.get('category_image') or '').strip()
     category_images = data.get('category_images') or []
     if not isinstance(category_images, list):
@@ -2320,8 +2339,8 @@ def builder_category_details_save():
 
         for pid in page_ids:
             conn.execute(
-                "UPDATE category_templates SET name = ?, description = ?, output_group = ?, image_url = ? WHERE page_template_id = ? AND name = ?",
-                [new_name, desc, output_group, category_image or (category_images[0] if category_images else ''), pid, old_name]
+                "UPDATE category_templates SET name = ?, description = ?, output_group = ?, image_url = ?, is_cost_group = ?, cost_group_override_allowed = ? WHERE page_template_id = ? AND name = ?",
+                [new_name, desc, output_group, category_image or (category_images[0] if category_images else ''), 1 if is_cost_group else 0, 1 if data.get('cost_group_override_allowed') else 0, pid, old_name]
             )
             print(f"[CAT_SAVE] Updated pid={pid} old_name={old_name!r} -> image_url={category_image!r}", flush=True)
 
@@ -2367,7 +2386,28 @@ def builder_beta_category_add():
             return jsonify(
                 {'success': False, 'error': 'Missing page_key or category_name'}), 400
         output_group = data.get('output_group', 'General')
-        print(f"[CAT_ADD_DEBUG] page_key={data['page_key']!r} category_name={data['category_name']!r} output_group={output_group!r}", file=sys.stderr)
+        is_cost_group = data.get('is_cost_group', 0)
+        print(f"[CAT_ADD_DEBUG] page_key={data['page_key']!r} category_name={data['category_name']!r} output_group={output_group!r} is_cost_group={is_cost_group!r}", file=sys.stderr)
+        res = _ts.add_category(
+            data['page_key'],
+            data['category_name'],
+            template_key=TEMPLATE_STORE_KEY,
+            output_group=output_group)
+        if res.get('success') and is_cost_group:
+            # Update the newly created category to mark it as a cost group section
+            try:
+                import sqlite3
+                from pathlib import Path
+                db = str(Path(__file__).parent / 'template_store.sqlite3')
+                conn2 = sqlite3.connect(db)
+                conn2.execute(
+                    "UPDATE category_templates SET is_cost_group = 1 WHERE name = ? AND page_template_id IN (SELECT id FROM page_templates WHERE page_key = ?)",
+                    (data['category_name'], data['page_key'])
+                )
+                conn2.commit()
+                conn2.close()
+            except Exception:
+                pass
         res = _ts.add_category(
             data['page_key'],
             data['category_name'],
@@ -2451,9 +2491,9 @@ def builder_line_item_add():
         output_group_val = default_group[0] if default_group else 'General'
 
         cur.execute('''
-            INSERT INTO line_items (form_page, category, line_code, internal_description, item_role, form_visible, sort_order, output_group)
-            VALUES (?, ?, ?, ?, ?, 1, ?, ?)
-        ''', [page_key, category, new_code, "New Question", "parent", next_sort, output_group_val])
+            INSERT INTO line_items (form_page, category, line_code, internal_description, item_role, form_visible, sort_order, output_group, metadata_json)
+            VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?)
+        ''', [page_key, category, new_code, "New Question", "parent", next_sort, output_group_val, json.dumps(data.get('metadata', {}) or {})])
         conn.commit()
 
         new_id = cur.lastrowid
@@ -3090,6 +3130,26 @@ def builder_line_item_save(item_id):
             if key in data:
                 sets.append(f'{key} = ?')
                 params.append(data[key])
+        # Cost group total fields: store in metadata_json
+        if 'cost_group_id' in data or 'cost_group_override' in data:
+            existing_row = conn.execute("SELECT metadata_json FROM line_items WHERE id = ?", (item_id,)).fetchone()
+            existing_meta = {}
+            if existing_row and existing_row[0]:
+                try:
+                    existing_meta = json.loads(existing_row[0]) if isinstance(existing_row[0], str) else existing_row[0]
+                except Exception:
+                    existing_meta = {}
+            if not isinstance(existing_meta, dict):
+                existing_meta = {}
+            if 'cost_group_id' in data:
+                existing_meta['cost_group_id'] = data['cost_group_id']
+            if 'cost_group_override' in data:
+                try:
+                    existing_meta['cost_group_override'] = float(data['cost_group_override']) if data['cost_group_override'] else ''
+                except (TypeError, ValueError):
+                    existing_meta['cost_group_override'] = ''
+            sets.append('metadata_json = ?')
+            params.append(json.dumps(existing_meta))
         if 'pricing_matrix_types' in data or 'pricing_matrix_sizes' in data or 'pricing_matrix_prices' in data:
             types_list = [t.strip() for t in (data.get('pricing_matrix_types') or '').splitlines() if t.strip()]
             sizes_list = [s.strip() for s in (data.get('pricing_matrix_sizes') or '').splitlines() if s.strip()]
@@ -3251,6 +3311,14 @@ def _row_to_item(row: dict) -> dict:
                 item['pricing_options']['matrix_types'] = price_matrix.get('types', [])
                 item['pricing_options']['matrix_sizes'] = price_matrix.get('sizes', [])
                 item['pricing_options']['matrix_prices'] = price_matrix.get('prices', [])
+        except Exception:
+            pass
+    meta_raw = item.get('metadata_json')
+    if meta_raw:
+        try:
+            parsed = json.loads(meta_raw) if isinstance(meta_raw, str) else meta_raw
+            if isinstance(parsed, dict):
+                item['metadata'] = parsed
         except Exception:
             pass
     item['question_images'] = get_question_images_for_line_item(item.get('id'))

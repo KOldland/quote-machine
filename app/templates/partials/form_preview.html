@@ -75,7 +75,7 @@
             {% set fu_idx = loop.index0 %}
             {% set _fu_key = 'follow_up_' + item.value + '_' + (fu_idx | string) %}
             {% set _fu_val = _saved.get(_fu_key, '') %}
-            <div class="form-input" style="margin-bottom:0.4rem; width:100%; max-width:400px;">
+            <div class="form-input" style="margin-bottom:0.4rem; width:100%; max-width:650px;">
             {% if fu_type and fu_type.startswith('Dropdown') %}
                 {% set _dd_prices = cfg.prices | default([]) %}
                 {% set _dd_user_edit = cfg.user_edit | default(false) %}
@@ -103,9 +103,7 @@
                            value="{{ _dd_saved_price }}"
                            step="0.01" min="0"
                            data-price-confirmed="{{ '1' if _dd_confirmed else '0' }}"
-                           data-price-suggested="{{ '1' if _dd_confirmed else '0' }}"
                            style="width:120px; padding:.2rem .4rem; font-size:.85rem;">
-                    <span class="preview-fu-price-status" data-price-status style="font-size:.75rem; color:#856404; display:none;">Suggested — confirm to apply</span>
                     <button type="button" class="preview-fu-price-confirm" data-price-confirm
                             style="padding:.2rem .5rem; font-size:.75rem; border:1px solid #1b3a6b; background:#1b3a6b; color:#fff; border-radius:3px; cursor:pointer; display:none;">Confirm price</button>
                 </div>
@@ -145,6 +143,11 @@
                     </div>
                     {% endif %}
                 {% endif %}
+            {% elif fu_type and fu_type.startswith('Textarea') %}
+                <textarea class="form-input preview-follow-up-input"
+                       name="{{ _fu_key }}"
+                       placeholder="Enter notes..."
+                       style="width:100%; max-width:650px; min-height:100px; resize:vertical;">{{ _fu_val }}</textarea>
             {% elif fu_type and fu_type.startswith('Checkbox') %}
                 {% set _cb_prices = cfg.prices | default([]) %}
                 {% set _user_edit = cfg.user_edit | default(false) %}
@@ -252,6 +255,17 @@
                                      </div>
                                      <div class="preview-calculator-loading" style="padding:.5rem;color:#888;text-align:center;">
                                          <span>Loading cost data…</span>
+                                     </div>
+                                 </div>
+                                 {% elif block_type == 'cost_group_total' %}
+                                 <div class="preview-cost-group-total" data-block-type="cost_group_total"
+                                      data-cost-group-id="{{ meta.standard.cost_group_id | default('') }}"
+                                      data-field-name="{{ field.name }}">
+                                     <div style="margin-bottom:.75rem;">
+                                         <h4>{{ meta.standard.label }}</h4>
+                                     </div>
+                                     <div id="cg-total-content-{{ field.name }}" style="padding:.5rem;color:#888;text-align:center;">
+                                         <span>Loading cost group data…</span>
                                      </div>
                                  </div>
                                  {% endif %}
@@ -734,6 +748,21 @@ details[open] > .preview-li-category-header::before {
         });
         // ── Calculator / Payment Schedule block rendering ──────────────
         renderCalculatorBlocks();
+        // ── Cost Group Total block rendering ───────────────────────────
+        document.querySelectorAll('.preview-cost-group-total').forEach(function(container) {
+            var cgId = container.getAttribute('data-cost-group-id');
+            var cgData = (window.builderStateCostGroups || {})[cgId];
+            var contentEl = container.querySelector('[id^=\"cg-total-content-\"]');
+            if (!contentEl) return;
+            if (!cgId || !cgData) {
+                contentEl.innerHTML = '<div style=\"color:#888;padding:.5rem;text-align:center;\">No cost group selected.</div>';
+                return;
+            }
+            contentEl.innerHTML = '<div style=\"display:flex;align-items:center;justify-content:space-between;padding:.5rem .75rem;background:#f0f4ff;border:1px solid #dee2e6;border-radius:6px;\">' +
+                '<span style=\"font-weight:600;\">' + cgData.label + '</span>' +
+                '<span style=\"font-weight:600;color:#1b3a6b;\">Calculated on save</span>' +
+                '</div>';
+        });
     });
 })();
 </script>

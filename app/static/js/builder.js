@@ -182,7 +182,9 @@ document.addEventListener('DOMContentLoaded', () => {
                  dropdown_choices: type === 'dropdown_select' || type === 'checkbox_group' ? ['Option 1', 'Option 2'] : [],
                  static_content: '',
                  static_variant: 'body',
-                 calculator_groups: []
+                 calculator_groups: [],
+                 cost_group_id: '',
+                 cost_group_override: ''
              },
             logic_options: {
                 visibility: 'always',

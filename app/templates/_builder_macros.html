@@ -52,6 +52,22 @@
                                     <option value="note" {% if selected_block.standard.static_variant == "note" %}selected{% endif %}>Note</option>
                                 </select>
                             </div>
+                            {% elif selected_block.block_type == "cost_group_total" %}
+                            <div class="form-group">
+                                <label>Cost Group</label>
+                                <select name="cost_group_id" class="form-input">
+                                    <option value="">-- Select Cost Group --</option>
+                                    {% for group_id, group_data in cost_groups.items() %}
+                                    <option value="{{ group_id }}" {% if selected_block.standard.cost_group_id == group_id %}selected{% endif %}>{{ group_data.label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Override Total (£)</label>
+                                <input type="number" name="cost_group_override" step="0.01" min="0"
+                                       value="{{ selected_block.standard.cost_group_override or '' }}"
+                                       placeholder="Leave blank to use calculated total">
+                            </div>
                             {% endif %}
                         </div>
                     </div>
@@ -298,9 +314,12 @@
             <p style="font-size:.8rem;color:#999;padding:.5rem .75rem;">No categories configured for this page.</p>
         {% endif %}
         <div style="padding:.5rem .75rem; border-top:1px solid #dee2e6; background:#f0f4ff; margin-top:.5rem;">
-            <button type="button" id="btn-add-category" class="li-save-btn" style="margin-top:0;" data-page="{{ form_page_key }}">Add Category</button>
+            <div style="display:flex;gap:.4rem;">
+                <button type="button" id="btn-add-category" class="li-save-btn" style="flex:1; margin-top:0;" data-page="{{ form_page_key }}">+ Category</button>
+                <button type="button" id="btn-add-costgroup-section" class="li-save-btn" style="flex:1; margin-top:0; background:#2d5a3b; color:#fff;" data-page="{{ form_page_key }}">+ Cost Group</button>
+            </div>
             <div id="add-cat-inline" style="display:none; margin-top:.4rem;">
-                <input type="text" id="add-cat-name-input" placeholder="Category name…"
+                <input type="text" id="add-cat-name-input" placeholder="Name..."
                        style="width:100%; font-size:.82rem; padding:.25rem .4rem; border:1px solid #ccc; border-radius:3px; box-sizing:border-box;">
                 <select id="add-cat-output-group-input"
                         style="width:100%; font-size:.82rem; padding:.25rem .4rem; border:1px solid #ccc; border-radius:3px; box-sizing:border-box; margin-top:.3rem;">
@@ -323,6 +342,7 @@
                            checked style="margin:0; cursor:pointer;">
                     Include in Form
                 </label>
+                <input type="hidden" id="add-cat-type" value="category">
             </div>
         </div>
     </div>{# end li-sections-list #}
@@ -335,14 +355,27 @@ document.addEventListener('DOMContentLoaded', function() {
     const btnConfirm   = document.getElementById('btn-add-cat-confirm');
     const btnCancel    = document.getElementById('btn-add-cat-cancel');
 
-    if (btnAddCat) {
-        // Toggle inline form open/closed
-        btnAddCat.addEventListener('click', function() {
-            const isHidden = addCatInline.style.display === 'none' || addCatInline.style.display === '';
-            addCatInline.style.display = isHidden ? 'block' : 'none';
-            if (isHidden) { addCatInput.focus(); }
-        });
+    var btnAddCostGroup = document.getElementById('btn-add-costgroup-section');
+    var addCatType = document.getElementById('add-cat-type');
 
+    if (btnAddCat) {
+        btnAddCat.addEventListener('click', function() {
+            addCatType.value = 'category';
+            addCatInput.placeholder = 'Category name...';
+            addCatInline.style.display = 'block';
+            addCatInput.focus();
+        });
+    }
+    if (btnAddCostGroup) {
+        btnAddCostGroup.addEventListener('click', function() {
+            addCatType.value = 'cost_group';
+            addCatInput.placeholder = 'Cost Group section name...';
+            addCatInline.style.display = 'block';
+            addCatInput.focus();
+        });
+    }
+
+    if (btnAddCat) {
         // Cancel — collapse and clear input
         btnCancel.addEventListener('click', function() {
             addCatInput.value = '';
@@ -358,7 +391,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 method: 'POST',
                 credentials: 'same-origin',
                 headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
-                body: JSON.stringify({ page_key: pageKey, category_name: catName, output_group: catOutputGroup })
+                body: JSON.stringify({ page_key: pageKey, category_name: catName, output_group: catOutputGroup, is_cost_group: addCatType ? (addCatType.value === 'cost_group' ? 1 : 0) : 0 })
             })
             .then(function (r) {
                 // Read status + text first. r.json() throws on non-JSON bodies
@@ -805,6 +838,7 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
             <div id="add-question-wrap" style="padding: 0.5rem; background: #fff; border-top: 1px solid #eee; display: none;">
                 <button type="button" id="btn-add-question" style="width: 100%; padding: 0.4rem; background: #1b3a6b; color: #fff; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">Add Question</button>
+                <button type="button" id="btn-add-cg-block" style="width: 100%; padding: 0.4rem; background: #2d5a3b; color: #fff; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; margin-top:.25rem;">+ Cost Group Total</button>
             </div>
         </div>
 
@@ -1008,6 +1042,39 @@ document.addEventListener('DOMContentLoaded', function() {
                 btnAddQuestion.disabled = false;
                 btnAddQuestion.textContent = 'Add Question';
                 alert('Network error adding question');
+            });
+        });
+    }
+
+    var btnAddCg = $id('btn-add-cg-block');
+    if (btnAddCg) {
+        btnAddCg.addEventListener('click', function() {
+            if (!_activeCategory) { alert("Please select a category first."); return; }
+            var payload = {
+                page_key: _pageKey,
+                category: _activeCategory,
+                internal_description: "Cost Group Total",
+                metadata: { block_type: "cost_group_total" }
+            };
+            btnAddCg.disabled = true;
+            btnAddCg.textContent = 'Adding...';
+            fetch('/builder_beta/line_item_add', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''},
+                body: JSON.stringify(payload)
+            }).then(r => r.json()).then(d => {
+                btnAddCg.disabled = false;
+                btnAddCg.textContent = '+ Cost Group Total';
+                if (d.success) {
+                    var activeBtn = document.querySelector('.li-section-btn[data-category="'+_activeCategory+'"]');
+                    if (activeBtn) activeBtn.click();
+                } else {
+                    alert('Error adding cost group total: ' + (d.error || 'Unknown error'));
+                }
+            }).catch(e => {
+                btnAddCg.disabled = false;
+                btnAddCg.textContent = '+ Cost Group Total';
+                alert('Network error adding cost group total');
             });
         });
     }
@@ -1265,22 +1332,21 @@ document.addEventListener('DOMContentLoaded', function() {
             _field('cat_name', 'Category Name', 'text', catName),
             _field('cat_description', 'Category Description', 'textarea', '')
         ]);
-        html += '<div class="_field _section"><div class="_section-header _collapsed" onclick="toggleSection(this)">Cost Group <span class="_section-arrow">▸</span></div><div class="_section-body" style="display:none;">' +
-                '<div style="display:flex;gap:0.3rem;align-items:center;">' +
-                '<select name="cat_output_group" id="cat-output-group-select" style="flex:1;">' +
-                '<option value="">-- Select Cost Group --</option>';
-            var _cg = (window.builderStateCostGroups || {});
-            for (var _gid in _cg) {
-                var _gd = _cg[_gid];
-                var _sel = (_gid === (data.output_group || 'General')) ? ' selected' : '';
-                html += '<option value=\"' + _gid + '\"' + _sel + '>' + (_gd.label || _gid) + '</option>';
-            }
-            html += '<option value=\"__NEW__\">-- Add New Cost Group --</option>';
-            html += '</select>' +
-                '<button type=\"button\" id=\"btn-cat-cg-edit\" title=\"Edit Cost Group\" style=\"font-size:0.75rem;padding:0.15rem 0.35rem;border:1px solid #aaa;background:#fff;border-radius:3px;cursor:pointer;\">✏️</button>' +
-                '<button type=\"button\" id=\"btn-cat-cg-delete\" title=\"Delete Cost Group\" style=\"font-size:0.75rem;padding:0.15rem 0.35rem;border:1px solid #d32f2f;background:#fff;color:#d32f2f;border-radius:3px;cursor:pointer;\">🗑</button>' +
-                '</div></div>' +
-                '</div>';
+                var _cgHtml = '<div class="li-form-group"><label>Cost Group <span style="font-weight:400;color:#888;font-size:.78rem;">(currently: ' + ((window.builderStateCostGroups || {})[data.output_group || 'General']?.label || data.output_group || 'General') + ')</span></label>' +
+            '<select name="cat_output_group" id="cat-output-group-select" style="width:100%;">' +
+            '<option value="">-- Select Cost Group --</option>';
+        var _cgList = (window.builderStateCostGroups || {});
+        for (var _gid in _cgList) {
+            var _gd = _cgList[_gid];
+            var _sel = (_gid === (data.output_group || 'General')) ? ' selected' : '';
+            _cgHtml += '<option value="' + _gid + '"' + _sel + '>' + (_gd.label || _gid) + '</option>';
+        }
+        _cgHtml += '<option value="__NEW__">-- Add New Cost Group --</option>';
+        _cgHtml += '</select></div>';
+
+        html += _section('Cost Group', true, [
+            _cgHtml
+        ]);
         html += _section('Meta', false, [
             _field('cat_page_key', 'Belongs to Page', 'text', _pageKey, true)
         ]);
@@ -1292,6 +1358,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Render sticky action buttons correctly mapping back onto Category View wrapper level
         var footerHtml = '<div class="cat-sticky-footer" style="background:#fff; margin-top:1rem; padding:.75rem; border-top:1px solid #dee2e6;">';
+        footerHtml += '<div style="display:flex; justify-content:flex-end; align-items:center; margin-bottom:0.8rem;">';
+        footerHtml += '  <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.85rem;font-weight:600;color:#1b3a6b;"><input type="checkbox" id="cat-is-cost-group"' + (data.is_cost_group ? ' checked' : '') + ' style="margin-right:.4rem;">Cost Group - show item totals with override</label>'
+        footerHtml += '</div>';
         footerHtml += '<div style="display:flex; justify-content:flex-end; align-items:center; margin-bottom:0.8rem;">';
         footerHtml += '  <label style="font-size:.85rem; font-weight:600; color:#1b3a6b; cursor:pointer;"><input type="checkbox" id="cat-visibility-checkbox" checked style="margin-right:.4rem;">Category Visible in Form</label>';
         footerHtml += '</div>';
@@ -1352,94 +1421,12 @@ document.addEventListener('DOMContentLoaded', function() {
         var newDelC = btnDelC ? btnDelC.cloneNode(true) : null;
         if (newDelC) btnDelC.parentNode.replaceChild(newDelC, btnDelC);
         
-        // ── Cost Group Management (category editor) ─────────────────────
-        var cgSelect = $id('cat-output-group-select');
-        var btnCgEdit = $id('btn-cat-cg-edit');
-        var btnCgDelete = $id('btn-cat-cg-delete');
-
-        if (cgSelect) {
-            // Handle __NEW__: create cost group then select it
-            cgSelect.addEventListener('change', function() {
-                if (cgSelect.value === '__NEW__') {
-                    var newName = prompt('Enter name for new cost group:');
-                    if (!newName || newName.trim() === '') {
-                        cgSelect.value = '';
-                        return;
-                    }
-                    var newId = newName.toLowerCase().replace(/[^a-z0-9]+/g, '_');
-                    var csrf = (document.querySelector('[name=csrf_token]') || {}).value || '';
-                    btnCgEdit.disabled = true;
-                    btnCgDelete.disabled = true;
-                    fetch('/builder_beta/cost_group/save', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
-                        body: JSON.stringify({ id: newId, label: newName.trim(), description: '', sort_order: 0 })
-                    }).then(function(r) { return r.json(); }).then(function(d) {
-                        if (d.success) {
-                            window.location.reload();
-                        } else {
-                            alert('Failed to create cost group: ' + (d.error || 'Unknown error'));
-                            cgSelect.value = '';
-                            btnCgEdit.disabled = false;
-                            btnCgDelete.disabled = false;
-                        }
-                    }).catch(function() {
-                        alert('Network error creating cost group.');
-                        cgSelect.value = '';
-                        btnCgEdit.disabled = false;
-                        btnCgDelete.disabled = false;
-                    });
-                }
-            });
-
-            // Edit button
-            if (btnCgEdit) {
-                btnCgEdit.addEventListener('click', function() {
-                    var gid = cgSelect.value;
-                    if (!gid || gid === '' || gid === '__NEW__') return;
-                    var gd = (window.builderStateCostGroups || {})[gid];
-                    if (!gd) return;
-                    var newName = prompt('Enter new name for cost group:', gd.label || '');
-                    if (!newName || newName.trim() === '' || newName.trim() === (gd.label || '')) return;
-                    var csrf = (document.querySelector('[name=csrf_token]') || {}).value || '';
-                    fetch('/builder_beta/cost_group/save', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
-                        body: JSON.stringify({ id: gid, label: newName.trim(), description: gd.description || '', sort_order: gd.sort_order || 0, old_id: gid })
-                    }).then(function(r) { return r.json(); }).then(function(d) {
-                        if (d.success) { window.location.reload(); }
-                        else { alert('Failed to update cost group: ' + (d.error || 'Unknown error')); }
-                    }).catch(function() { alert('Network error updating cost group.'); });
-                });
-            }
-
-            // Delete button
-            if (btnCgDelete) {
-                btnCgDelete.addEventListener('click', function() {
-                    var gid = cgSelect.value;
-                    if (!gid || gid === '' || gid === '__NEW__' || gid === 'general') {
-                        if (gid === 'general') alert('Cannot delete the default General cost group.');
-                        return;
-                    }
-                    if (!confirm('Delete this cost group? Items using it will be remapped to General.')) return;
-                    var csrf = (document.querySelector('[name=csrf_token]') || {}).value || '';
-                    fetch('/builder_beta/cost_group/delete', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
-                        body: JSON.stringify({ id: gid, remap_to: 'general' })
-                    }).then(function(r) { return r.json(); }).then(function(d) {
-                        if (d.success) { window.location.reload(); }
-                        else { alert('Failed to delete cost group: ' + (d.error || 'Unknown error')); }
-                    }).catch(function() { alert('Network error deleting cost group.'); });
-                });
-            }
-        }
-
         if (newSaveC) newSaveC.addEventListener('click', function() {
             var frm = $id('li-category-edit-form');
             var desc = frm.querySelector('textarea[name="cat_description"]').value;
             var newName = frm.querySelector('input[name="cat_name"]').value;
             var outputGroup = (frm.querySelector('select[name="cat_output_group"]') || frm.querySelector('input[name="cat_output_group"]')).value || 'General';
+            var isCostGroup = document.getElementById('cat-is-cost-group') ? (document.getElementById('cat-is-cost-group').checked ? 1 : 0) : 0;
             var visible = $id('cat-visibility-checkbox').checked;
             var categoryImage = (frm.querySelector('input[name="cat_category_image"]') || {}).value || '';
             var categoryImages = [];
@@ -1451,7 +1438,7 @@ document.addEventListener('DOMContentLoaded', function() {
             fetch('/builder_beta/category_details_save', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json', 'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''},
-                body: JSON.stringify({ page_key: _pageKey, old_name: catName, new_name: newName, description: desc, output_group: outputGroup, form_visible: visible, category_image: categoryImage, category_images: categoryImages })
+                body: JSON.stringify({ page_key: _pageKey, old_name: catName, new_name: newName, description: desc, output_group: outputGroup, is_cost_group: isCostGroup, form_visible: visible, category_image: categoryImage, category_images: categoryImages })
             }).then(r => r.json()).then(d => {
                 if (d.ok) {
                     if (newName !== catName) {
@@ -1592,6 +1579,37 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         var html = '<form id="li-edit-form" autocomplete="off">';
+
+        // ── Cost Group Total block: show cost group selector + override ─────
+        if (item.metadata && item.metadata.block_type === 'cost_group_total') {
+            var cgHtml = '<div class="li-form-group"><label>Cost Group</label>' +
+                '<select name="cost_group_id" id="cg-total-select" style="width:100%;">' +
+                '<option value="">-- Select Cost Group --</option>';
+            var _cgItems = (window.builderStateCostGroups || {});
+            for (var _gid in _cgItems) {
+                var _gd = _cgItems[_gid];
+                var _sel = (_gid === (item.metadata.cost_group_id || '')) ? ' selected' : '';
+                cgHtml += '<option value="' + _gid + '"' + _sel + '>' + (_gd.label || _gid) + '</option>';
+            }
+            cgHtml += '</select></div>' +
+                '<div class="li-form-group"><label>Override Total (£)</label>' +
+                '<input type="number" name="cost_group_override" step="0.01" min="0" style="width:100%;" value="' + (item.metadata.cost_group_override || '') + '" placeholder="Leave blank to use calculated total">' +
+                '</div>';
+            html += _section('Description', true, [
+                '<div class="li-form-group" style="font-size:.85rem;color:#666;padding:.3rem 0;">This item displays a cost group total with optional override.</div>'
+            ]);
+            html += _section('Cost Group Total', true, [
+                cgHtml
+            ]);
+            html += _section('Meta', false, [
+                _field('line_code', 'Line Code', 'text', item.line_code || '', true),
+                _field('output_group', 'Cost Group', 'text', item.output_group || 'General'),
+                _field('output_title', 'Output Title', 'text', item.output_title || '')
+            ]);
+            html += '</form>';
+            $id('li-editor-content').innerHTML = html;
+            return;
+        }
 
         html += _section('Description', true, [
             _field('internal_description', 'Internal Description', 'text', item.internal_description || ''),
@@ -2088,6 +2106,10 @@ document.addEventListener('DOMContentLoaded', function() {
         'dropdown': function(cfg, fuId) {
             return _field('fu_choices', 'Choices (one per line)', 'textarea', (cfg.choices || []).join('\n'), false, 'fu_choices_' + fuId) +
                    _checkField('fu_include_other', 'Include "Other" field', cfg.include_other === true, 'fu_include_other_' + fuId) +
+                   _checkField('fu_user_edit', 'Set prices per choice', cfg.user_edit === true, 'fu_user_edit_' + fuId) +
+                   '<div id="fu_prices_config_' + fuId + '" style="display:' + (cfg.user_edit ? 'block' : 'none') + '; margin-left:1rem; border-left:2px solid #eee; padding-left:0.5rem;">' +
+                   _field('fu_prices', 'Prices (one per line, matching choices)', 'textarea', (cfg.prices || []).join('\n'), false, 'fu_prices_' + fuId) +
+                   '</div>' +
                    _checkField('fu_cost', 'Cost', cfg.cost === true, 'fu_cost_' + fuId) +
                    _checkField('fu_suffix', 'Suffix', cfg.suffix === true, 'fu_suffix_' + fuId) +
                    '<div id="fu_suffix_config_' + fuId + '" style="display:' + (cfg.suffix ? 'block' : 'none') + '; margin-left:1rem; border-left:2px solid #eee; padding-left:0.5rem;">' +
@@ -2101,14 +2123,18 @@ document.addEventListener('DOMContentLoaded', function() {
                    '<div id="fu_suffix_config_' + fuId + '" style="display:' + (cfg.suffix ? 'block' : 'none') + '; margin-left:1rem; border-left:2px solid #eee; padding-left:0.5rem;">' +
                    _field('fu_suffix_value', 'Suffix value (e.g. m, cm, m²)', 'text', cfg.suffix_value || '', false, 'fu_suffix_value_' + fuId) +
                    '</div>';
+        },
+        'textarea': function(cfg, fuId) {
+            return '';
         }
     };
 
      function _normalizeFollowUpType(type) {
-         if (type === 'Dropdown' || type === 'Single Entry') return type;
+         if (type === 'Dropdown' || type === 'Single Entry' || type === 'Textarea') return type;
          if (type && typeof type === 'string') {
              if (type.startsWith('Dropdown')) return 'Dropdown';
              if (type.startsWith('Single Entry')) return 'Single Entry';
+             if (type.startsWith('Textarea') || type.startsWith('textarea')) return 'Textarea';
          }
          return 'Dropdown';
      }
@@ -2132,6 +2158,7 @@ document.addEventListener('DOMContentLoaded', function() {
          var html = '';
          if (type === 'Dropdown') html = _followUpTemplates.dropdown(cfg, fuId);
          else if (type === 'Single Entry') html = _followUpTemplates.single_entry(cfg, fuId);
+         else if (type === 'Textarea') html = _followUpTemplates.textarea(cfg, fuId);
          
          if (existingEntry) {
              var configDiv2 = existingEntry.querySelector('.fu-config');
@@ -2150,6 +2177,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 '<select class="fu-type-select" data-fu-id="' + fuId + '" style="padding:.25rem .5rem; border:1px solid #ccc; border-radius:4px; font-size:.8rem; margin-bottom:.4rem;">' +
                  '<option value="Dropdown"' + (type === 'Dropdown' ? ' selected' : '') + '>Dropdown</option>' +
                  '<option value="Single Entry"' + (type === 'Single Entry' ? ' selected' : '') + '>Single Entry</option>' +
+                 '<option value="Textarea"' + (type === 'Textarea' ? ' selected' : '') + '>Textarea (larger text box)</option>' +
                 '</select>' +
                '<div class="fu-config" data-fu-id="' + fuId + '">' + html + '</div>' +
                '<div style="display:flex; justify-content:space-between; align-items:center; margin-top:.4rem;">' +
@@ -2184,6 +2212,13 @@ document.addEventListener('DOMContentLoaded', function() {
                  suffixDiv.style.display = suffixCheck.checked ? 'block' : 'none';
              });
          }
+         var pricesCheck = entry.querySelector('[name="fu_user_edit"]');
+         var pricesDiv = entry.querySelector('[id^="fu_prices_config_"]');
+         if (pricesCheck && pricesDiv) {
+             pricesCheck.addEventListener('change', function() {
+                 pricesDiv.style.display = pricesCheck.checked ? 'block' : 'none';
+             });
+         }
      }
 
     function _collectFollowUpConfig() {
@@ -2210,6 +2245,8 @@ document.addEventListener('DOMContentLoaded', function() {
             if (type.startsWith('Dropdown')) {
                 cfg.choices = (getVal('fu_choices') || '').split('\n').filter(Boolean);
                 cfg.include_other = getVal('fu_include_other');
+                cfg.user_edit = getVal('fu_user_edit');
+                cfg.prices = (getVal('fu_prices') || '').split('\n').filter(Boolean).map(function(p) { return parseFloat(p) || 0; });
                 cfg.cost = getVal('fu_cost');
                 cfg.suffix = getVal('fu_suffix');
                 cfg.suffix_value = getVal('fu_suffix_value');
@@ -2263,7 +2300,7 @@ document.addEventListener('DOMContentLoaded', function() {
           }).join('');
           return '<div class="li-form-group">'
               + '<label style="position:relative; display:inline-flex; align-items:center; gap:6px;">' + label + ' '
-              + '<button type="button" id="' + pickerId + '" class="merge-tag-trigger" style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:22px;border:1.5px solid #1b3a6b;border-radius:4px;font-size:.75rem;font-weight:700;color:#1b3a6b;background:#f0f4f9;cursor:pointer;line-height:1;">{ }</button>'
+              + '<button type="button" id="' + pickerId + '" class="merge-tag-trigger" style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:22px;border:1.5px solid #1b3a6b;border-radius:4px;font-size:1rem;font-weight:700;color:#1b3a6b;background:#f0f4f9;cursor:pointer;line-height:1;">+</button>'
               + '<div class="merge-tag-dropdown" data-picker="' + pickerId + '" style="display:none;position:absolute;top:calc(100% + 4px);left:0;background:#fff;border:1px solid #ccc;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,0.15);z-index:300;padding:4px 0;min-width:140px;">'
               + options
               + '</div>'

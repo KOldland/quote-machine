@@ -47,6 +47,8 @@
                 <button type="button" class="btn btn-sidebar"
                         style="width:100%;text-align:left;"
                         onclick="window.location.href='{{ url_for('admin_payment_schedule') }}'">Payment Schedule Config</button>
+                <button type="button" id="btn-cost-categories" class="btn btn-sidebar"
+                        style="width:100%;text-align:left;">Cost Categories</button>
             </div>
 
             <!-- Save As Modal -->
@@ -112,6 +114,25 @@
                     <div style="display:flex;gap:.75rem;justify-content:flex-end;padding-top:.5rem;border-top:1px solid #e5e7eb;">
                         <button type="button" id="btn-add-page-cancel" class="btn" style="background:#fff;color:#374151;border:1px solid #d1d5db;padding:.55rem 1.1rem;border-radius:6px;cursor:pointer;font-size:.9rem;font-weight:500;">Cancel</button>
                         <button type="button" id="btn-add-page-confirm" class="btn" style="background:#1b3a6b;color:#fff;border:none;padding:.55rem 1.1rem;border-radius:6px;cursor:pointer;font-size:.9rem;font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,0.05);">Add Page</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cost Categories Modal -->
+            <div id="cost-categories-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;
+                 background:rgba(0,0,0,0.55);z-index:1200;align-items:center;justify-content:center;
+                 backdrop-filter:blur(2px);">
+                <div style="background:#fff;padding:1.75rem 2rem;border-radius:10px;width:480px;max-width:92%;max-height:85vh;overflow-y:auto;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1f2937;box-shadow:0 20px 25px -5px rgba(0,0,0,0.1),0 10px 10px -5px rgba(0,0,0,0.04);">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;">
+                        <h3 style="margin:0;font-size:1.25rem;font-weight:700;color:#0f172a;letter-spacing:-0.01em;">Cost Categories</h3>
+                        <button type="button" id="btn-cc-close" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#6b7280;line-height:1;">&times;</button>
+                    </div>
+                    <div id="cc-list" style="margin-bottom:1rem;">
+                        <div style="padding:.5rem;color:#6b7280;font-size:.9rem;text-align:center;">Loading...</div>
+                    </div>
+                    <div style="display:flex;gap:.5rem;padding-top:.5rem;border-top:1px solid #e5e7eb;">
+                        <input type="text" id="cc-new-name" placeholder="New cost category name..." style="flex:1;padding:.55rem .75rem;border:1px solid #d1d5db;border-radius:6px;font-size:.9rem;">
+                        <button type="button" id="btn-cc-add" style="background:#1b3a6b;color:#fff;border:none;padding:.55rem 1.1rem;border-radius:6px;cursor:pointer;font-size:.9rem;font-weight:600;">Add</button>
                     </div>
                 </div>
             </div>
@@ -483,6 +504,144 @@
             .catch(function(err) {
                 listEl.innerHTML = '<p style="color:red;">Error loading templates: ' + err.message + '</p>';
             });
+    }
+})();
+</script>
+<script>
+// ── Cost Categories Modal ─────────────────────────────────────────────────
+(function() {
+    var btnCc = document.getElementById('btn-cost-categories');
+    var modal = document.getElementById('cost-categories-modal');
+    var btnClose = document.getElementById('btn-cc-close');
+    var listEl = document.getElementById('cc-list');
+    var newNameInput = document.getElementById('cc-new-name');
+    var btnAdd = document.getElementById('btn-cc-add');
+    if (!btnCc || !modal) return;
+
+    function openModal() {
+        modal.style.display = 'flex';
+        loadList();
+    }
+
+    function closeModal() {
+        modal.style.display = 'none';
+    }
+
+    function loadList() {
+        listEl.innerHTML = '<div style="padding:.5rem;color:#6b7280;text-align:center;">Loading...</div>';
+        var csrf = (document.querySelector('[name=csrf_token]') || {}).value || '';
+        fetch('/builder_beta/cost_groups', {
+            headers: { 'X-CSRFToken': csrf }
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data.success || !data.cost_groups) {
+                listEl.innerHTML = '<div style="padding:.5rem;color:#6b7280;text-align:center;">No cost groups found.</div>';
+                return;
+            }
+            var html = '<div style="display:flex;flex-direction:column;gap:.35rem;">';
+            data.cost_groups.forEach(function(g) {
+                html += '<div class="cc-item" data-id="' + g.id + '" data-label="' + g.label.replace(/"/g,'&quot;') + '" style="display:flex;align-items:center;justify-content:space-between;padding:.55rem .7rem;border:1px solid #e5e7eb;border-radius:6px;background:#f9fafb;">' +
+                    '<div class="cc-label-wrap" style="flex:1;min-width:0;">' +
+                    '<span class="cc-label" style="font-weight:500;cursor:pointer;display:inline-block;">' + g.label + '</span>' +
+                    '<input class="cc-edit" type="text" value="' + g.label.replace(/"/g,'&quot;') + '" style="display:none;width:100%;padding:.3rem .5rem;border:1px solid #1b3a6b;border-radius:4px;font-size:.9rem;box-sizing:border-box;">' +
+                    '</div>' +
+                    '<button type="button" class="cc-delete-btn" style="background:none;border:none;color:#d32f2f;font-size:1.1rem;cursor:pointer;line-height:1;padding:0 4px;" title="Delete">&times;</button>' +
+                    '</div>';
+            });
+            html += '</div>';
+            listEl.innerHTML = html;
+
+            // Wire up inline editing
+            listEl.querySelectorAll('.cc-item').forEach(function(item) {
+                var labelEl = item.querySelector('.cc-label');
+                var editEl = item.querySelector('.cc-edit');
+                var deleteBtn = item.querySelector('.cc-delete-btn');
+                var gid = item.getAttribute('data-id');
+                var csrf = (document.querySelector('[name=csrf_token]') || {}).value || '';
+
+                // Click label -> show input, hide label, focus
+                labelEl.addEventListener('click', function() {
+                    labelEl.style.display = 'none';
+                    editEl.style.display = 'inline-block';
+                    editEl.focus();
+                    editEl.select();
+                });
+
+                // Save on Enter or blur
+                function saveRename() {
+                    var newName = editEl.value.trim();
+                    if (newName && newName !== item.getAttribute('data-label')) {
+                        fetch('/builder_beta/cost_group/save', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
+                            body: JSON.stringify({id: gid, label: newName, description: '', sort_order: 0})
+                        }).then(function(r) { return r.json(); }).then(function(d) {
+                            if (d.success) { window.location.reload(); }
+                            else { alert('Error: ' + (d.error || 'Unknown')); }
+                        }).catch(function() { alert('Network error'); });
+                    } else {
+                        editEl.style.display = 'none';
+                        labelEl.style.display = 'inline-block';
+                    }
+                }
+
+                editEl.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') { e.preventDefault(); saveRename(); }
+                    if (e.key === 'Escape') {
+                        editEl.value = item.getAttribute('data-label');
+                        editEl.style.display = 'none';
+                        labelEl.style.display = 'inline-block';
+                    }
+                });
+                editEl.addEventListener('blur', function() {
+                    // Small delay so click on label works
+                    setTimeout(function() {
+                        if (editEl.style.display !== 'none') saveRename();
+                    }, 150);
+                });
+
+                // Delete
+                deleteBtn.addEventListener('click', function() {
+                    if (confirm('Delete cost group "' + (item.getAttribute('data-label') || gid) + '"? Items will be remapped to General.')) {
+                        fetch('/builder_beta/cost_group/delete', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
+                            body: JSON.stringify({id: gid})
+                        }).then(function(r) { return r.json(); }).then(function(d) {
+                            if (d.success) { window.location.reload(); }
+                            else { alert('Error: ' + (d.error || 'Unknown')); }
+                        }).catch(function() { alert('Network error'); });
+                    }
+                });
+            });
+        })
+        .catch(function() {
+            listEl.innerHTML = '<div style="padding:.5rem;color:#d32f2f;text-align:center;">Error loading cost groups.</div>';
+        });
+    }
+
+    btnCc.addEventListener('click', openModal);
+    if (btnClose) btnClose.addEventListener('click', closeModal);
+    modal.addEventListener('click', function(e) { if (e.target === modal) closeModal(); });
+
+    if (btnAdd && newNameInput) {
+        btnAdd.addEventListener('click', function() {
+            var name = newNameInput.value.trim();
+            if (!name) return;
+            var id = name.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+            var csrf = (document.querySelector('[name=csrf_token]') || {}).value || '';
+            btnAdd.disabled = true;
+            fetch('/builder_beta/cost_group/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+                body: JSON.stringify({ id: id, label: name, description: '', sort_order: 0 })
+            }).then(function(r) { return r.json(); }).then(function(d) {
+                if (d.success) { window.location.reload(); }
+                else { alert('Error: ' + (d.error || 'Unknown')); btnAdd.disabled = false; }
+            }).catch(function() { alert('Network error.'); btnAdd.disabled = false; });
+        });
+        newNameInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') btnAdd.click(); });
     }
 })();
 </script>

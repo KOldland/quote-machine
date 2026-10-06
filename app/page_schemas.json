@@ -379,42 +379,6 @@
             "sub_blocks": []
           },
           {
-            "block_type": "checkbox_group",
-            "id": "materials_page__checkbox_group_1780662574072",
-            "logic_options": {
-              "depends_on_field": "",
-              "depends_on_value": "",
-              "visibility": "always"
-            },
-            "output_options": {
-              "group": "General",
-              "include_in_output": true,
-              "output_label": "New checkbox group",
-              "sort_order": 5,
-              "value_mode": "show_value"
-            },
-            "pricing_options": {
-              "enabled": false,
-              "entered_key": "",
-              "fixed_amount": 0.0,
-              "mode": "none",
-              "percent_of_subtotal": 0.0,
-              "quantity_key": "",
-              "rate": 0.0
-            },
-            "standard": {
-              "dropdown_choices": [],
-              "help_text": "",
-              "label": "New checkbox group",
-              "name": "materials_page__checkbox_group_1780662574072",
-              "placeholder": "",
-              "required": false,
-              "source_prefix": "",
-              "static_content": "",
-              "static_variant": "body"
-            }
-          },
-          {
             "block_type": "line_items_by_category",
             "config": {},
             "id": "materials_page__line_items",
@@ -892,80 +856,8 @@
             "block_type": "line_items_by_category",
             "config": {},
             "id": "additional_costs_page__line_items"
-          },
-          {
-            "block_type": "static_text_heading",
-            "id": "additional_costs_page__electrics_section",
-            "logic_options": {
-              "depends_on_field": "",
-              "depends_on_value": "",
-              "visibility": "always"
-            },
-            "output_options": {
-              "group": "General",
-              "include_in_output": true,
-              "output_label": "Electrics (Kitchen and Loft)",
-              "sort_order": 0,
-              "value_mode": "show_value"
-            },
-            "pricing_options": {
-              "enabled": false,
-              "entered_key": "",
-              "fixed_amount": 0.0,
-              "mode": "none",
-              "percent_of_subtotal": 0.0,
-              "quantity_key": "",
-              "rate": 0.0
-            },
-            "standard": {
-              "dropdown_choices": [],
-              "help_text": "Rates are controlled via Pricing Rules settings below",
-              "label": "Electrics (Kitchen and Loft)",
-              "name": "electrics_section",
-              "placeholder": "",
-              "required": false,
-              "source_prefix": "",
-              "static_content": "",
-              "static_variant": "heading"
-            }
-          },
-          {
-            "block_type": "number_currency_input",
-            "id": "additional_costs_page__other_demolition_cost",
-            "logic_options": {
-              "depends_on_field": "",
-              "depends_on_value": "",
-              "visibility": "always"
-            },
-            "output_options": {
-              "group": "General",
-              "include_in_output": true,
-              "output_label": "Other Demolition Cost",
-              "sort_order": 0,
-              "value_mode": "show_value"
-            },
-            "pricing_options": {
-              "enabled": false,
-              "entered_key": "",
-              "fixed_amount": 0.0,
-              "mode": "none",
-              "percent_of_subtotal": 0.0,
-              "quantity_key": "",
-              "rate": 0.0
-            },
-            "standard": {
-              "dropdown_choices": [],
-              "help_text": "",
-              "label": "Other Demolition Cost",
-              "name": "other_demolition_cost",
-              "placeholder": "",
-              "required": false,
-              "source_prefix": "",
-              "static_content": "",
-              "static_variant": "body"
-            }
           }
-        ],
+          ],
         "categories": [
           {
             "name": "Standard Items",
