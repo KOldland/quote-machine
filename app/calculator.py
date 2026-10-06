@@ -163,6 +163,7 @@ def calculate_quote(
         overrides = (session_overrides or {}).get("overrides", {})
         items: list[dict[str, Any]] = []
         groups: dict[str, list[dict[str, Any]]] = {}
+        calculator_blocks: list[dict[str, Any]] = []
 
         for row in rows:
             item = dict(row)
@@ -408,11 +409,10 @@ def calculate_quote(
                     else:
                         line_total = rate
                         units = 1
-                    # Checkbox extras still apply
+                     # Checkbox extras still apply
                     checkbox_addons = _extract_checkbox_addons(item.get("follow_up_config"), follow_up_data, item.get("line_code"))
                     line_total = line_total + checkbox_addons + addon_amount
-
-            # Apply user price override if present (API-driven overrides bypass allow_user_override)
+             # Apply user price override if present (API-driven overrides bypass allow_user_override)
             if str(question_id) in overrides:
                 override_val = overrides[str(question_id)]
                 user_price = _to_float(override_val)

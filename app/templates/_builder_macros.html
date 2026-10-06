@@ -1,4 +1,4 @@
-{% macro render_properties_panel(selected_block, blocks, pricing_modes, current_page_id) %}
+{% macro render_properties_panel(selected_block, blocks, pricing_modes, current_page_id, cost_groups) %}
 <!-- TEST MARKER: THIS FILE IS BEING SERVED -->
     <div class="builder-properties">
         <div class="properties-header">Block Properties</div>
@@ -46,14 +46,6 @@
                                 <label>Source Prefix</label>
                                 <input type="text" name="standard_source_prefix" value="{{ selected_block.standard.source_prefix }}">
                             </div>
-                            {% elif selected_block.block_type == "static_text_heading" %}
-                            <div class="form-group">
-                                <label>Content</label>
-                                <textarea name="standard_static_content" rows="3">{{ selected_block.standard.static_content }}</textarea>
-                            </div>
-                            <div class="form-group">
-                                <label>Variant</label>
-                                <select name="standard_static_variant">
                                     <option value="body" {% if selected_block.standard.static_variant == "body" %}selected{% endif %}>Body</option>
                                     <option value="heading" {% if selected_block.standard.static_variant == "heading" %}selected{% endif %}>Heading</option>
                                     <option value="subheading" {% if selected_block.standard.static_variant == "subheading" %}selected{% endif %}>Subheading</option>
@@ -84,7 +76,7 @@
                                         {% for block_item in blocks %}
                                             {% if block_item.id != selected_block.id %}
                                             <option value="{{ block_item.id }}" {% if block_item.id == selected_block.logic_options.depends_on_field %}selected{% endif %}>{{ block_item.standard.label }}</option>
-                                            {% endif %}
+                             {% endif %}
                                         {% endfor %}
                                     </select>
                                 </div>
@@ -151,6 +143,22 @@
                                     <label>Percentage (%)</label>
                                     <input type="number" step="0.01" min="0" max="100" name="pricing_percent_of_subtotal" value="{{ selected_block.pricing_options.percent_of_subtotal }}">
                                 </div>
+                                {% elif selected_block.pricing_options.mode == "matrix" %}
+                                <div class="form-group">
+                                    <label>Matrix Types (rows, one per line)</label>
+                                    <textarea name="pricing_matrix_types" rows="4" style="width:100%;font-family:monospace;">{{ selected_block.pricing_options.matrix_types|join('\n') if selected_block.pricing_options.matrix_types else '' }}</textarea>
+                                    <small>e.g. Outrigger, Main Frame</small>
+                                </div>
+                                <div class="form-group">
+                                    <label>Matrix Sizes (columns, one per line)</label>
+                                    <textarea name="pricing_matrix_sizes" rows="4" style="width:100%;font-family:monospace;">{{ selected_block.pricing_options.matrix_sizes|join('\n') if selected_block.pricing_options.matrix_sizes else '' }}</textarea>
+                                    <small>e.g. Small, Medium, Large</small>
+                                </div>
+                                <div class="form-group">
+                                    <label>Matrix Prices (JSON array of arrays, rows x cols)</label>
+                                    <textarea name="pricing_matrix_prices" rows="6" style="width:100%;font-family:monospace;">{{ selected_block.pricing_options.matrix_prices|tojson if selected_block.pricing_options.matrix_prices else '[]' }}</textarea>
+                                    <small>e.g. [[100,150,200],[120,180,240]]</small>
+                                </div>
                                 {% endif %}
                             </div>
                         </div>
@@ -170,10 +178,18 @@
                                 <label>Output Label</label>
                                 <input type="text" name="output_label" value="{{ selected_block.output_options.output_label }}">
                             </div>
-                            <div class="form-group">
-                                <label>Cost Group</label>
-                                <input type="text" name="output_group" value="{{ selected_block.output_options.group }}">
-                            </div>
+                             <div class="form-group">
+                                 <label>Cost Group</label>
+                                 <select name="output_group">
+                                     <option value="">-- Select Cost Group --</option>
+                                     {% for group_id, group_data in cost_groups.items() %}
+                                     <option value="{{ group_id }}" {% if selected_block.output_options.group == group_id %}selected{% endif %}>
+                                         {{ group_data.label }}
+                                     </option>
+                                     {% endfor %}
+                                     <option value="__NEW__">-- Add New Cost Group --</option>
+                                 </select>
+                             </div>
                             <div class="form-group">
                                 <label>Value Mode</label>
                                 <select name="output_value_mode">
@@ -248,7 +264,7 @@
 
 {# ── Session L: 3-Column Line Item Canvas Macros ──────────────────────────── #}
 
-{% macro render_li_sections_panel(li_categories, form_page_key) %}
+{% macro render_li_sections_panel(li_categories, form_page_key, cost_groups) %}
 <div class="li-sections-panel" id="li-sections-panel">
     <div class="li-sections-header">
         <span style="font-weight:700;font-size:.85rem;color:#1b3a6b;">Page Structure</span>
@@ -286,8 +302,16 @@
             <div id="add-cat-inline" style="display:none; margin-top:.4rem;">
                 <input type="text" id="add-cat-name-input" placeholder="Category name…"
                        style="width:100%; font-size:.82rem; padding:.25rem .4rem; border:1px solid #ccc; border-radius:3px; box-sizing:border-box;">
-                <input type="text" id="add-cat-output-group-input" placeholder="Cost group (default: General)"
-                       style="width:100%; font-size:.82rem; padding:.25rem .4rem; border:1px solid #ccc; border-radius:3px; box-sizing:border-box; margin-top:.3rem;">
+                <select id="add-cat-output-group-input"
+                        style="width:100%; font-size:.82rem; padding:.25rem .4rem; border:1px solid #ccc; border-radius:3px; box-sizing:border-box; margin-top:.3rem;">
+                    <option value="">-- Select Cost Group (optional) --</option>
+                    {% if cost_groups is defined and cost_groups %}
+                    {% for group_id, group_data in cost_groups.items() %}
+                    <option value="{{ group_id }}" {% if group_id == 'general' %}selected{% endif %}>{{ group_data.label }}</option>
+                    {% endfor %}
+                    {% endif %}
+                    <option value="__NEW__">-- Add New Cost Group --</option>
+                </select>
                 <div style="display:flex; gap:.4rem; margin-top:.35rem;">
                     <button type="button" id="btn-add-cat-confirm" class="li-save-btn" style="flex:1; margin-top:0;">Save</button>
                     <button type="button" id="btn-add-cat-cancel" style="flex:1; font-size:.78rem; padding:.2rem .4rem; border:1px solid #aaa; background:#fff; border-radius:3px; cursor:pointer;">Cancel</button>
@@ -325,14 +349,8 @@ document.addEventListener('DOMContentLoaded', function() {
             addCatInline.style.display = 'none';
         });
 
-        // Confirm — POST category to backend
-        btnConfirm.addEventListener('click', function() {
-            const pageKey = btnAddCat.dataset.page;
-            if (!pageKey) { alert("Cannot add category: unknown page context."); return; }
-            const catName = addCatInput.value.trim();
-            if (!catName) { addCatInput.focus(); return; }
-            const addCatOutputInput = document.getElementById('add-cat-output-group-input');
-            const catOutputGroup = addCatOutputInput ? addCatOutputInput.value.trim() || 'General' : 'General';
+        // Helper: POST category after cost group is resolved
+        var proceedWithAddCategory = function(pageKey, catName, catOutputGroup) {
             const csrf = (document.querySelector('[name=csrf_token]') || {}).value || '';
             btnConfirm.disabled = true;
             btnConfirm.textContent = 'Saving…';
@@ -383,6 +401,48 @@ document.addEventListener('DOMContentLoaded', function() {
                 btnConfirm.textContent = 'Save';
                 alert('Network error — category was NOT saved.\n\n' + (err && err.message ? err.message : 'Unknown error'));
             });
+        };
+
+        // Confirm — POST category to backend (after cost group is resolved)
+        btnConfirm.addEventListener('click', function() {
+            const pageKey = btnAddCat.dataset.page;
+            if (!pageKey) { alert("Cannot add category: unknown page context."); return; }
+            const catName = addCatInput.value.trim();
+            if (!catName) { addCatInput.focus(); return; }
+            var addCatOutputInput = document.getElementById('add-cat-output-group-input');
+            var catOutputGroup = addCatOutputInput ? addCatOutputInput.value : '';
+            // Handle __NEW__: create the cost group first, then proceed
+            if (catOutputGroup === '__NEW__') {
+                var newGroupName = prompt('Enter name for the new cost group:');
+                if (!newGroupName || newGroupName.trim() === '') {
+                    btnConfirm.disabled = false;
+                    btnConfirm.textContent = 'Save';
+                    return;
+                }
+                var newGroupId = newGroupName.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+                var csrfToken = (document.querySelector('[name=csrf_token]') || {}).value || '';
+                fetch('/builder_beta/cost_group/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                    body: JSON.stringify({ id: newGroupId, label: newGroupName.trim(), description: '', sort_order: 0 })
+                }).then(function(r) { return r.json(); }).then(function(d) {
+                    if (d.success) {
+                        catOutputGroup = newGroupId;
+                        proceedWithAddCategory(pageKey, catName, catOutputGroup);
+                    } else {
+                        alert('Failed to create cost group: ' + (d.error || 'Unknown error'));
+                        btnConfirm.disabled = false;
+                        btnConfirm.textContent = 'Save';
+                    }
+                }).catch(function() {
+                    alert('Network error creating cost group.');
+                    btnConfirm.disabled = false;
+                    btnConfirm.textContent = 'Save';
+                });
+                return;
+            }
+            if (!catOutputGroup || catOutputGroup.trim() === '') catOutputGroup = 'General';
+            proceedWithAddCategory(pageKey, catName, catOutputGroup);
         });
 
         // Enter key in input triggers confirm
@@ -1205,9 +1265,22 @@ document.addEventListener('DOMContentLoaded', function() {
             _field('cat_name', 'Category Name', 'text', catName),
             _field('cat_description', 'Category Description', 'textarea', '')
         ]);
-        html += _section('Cost Group', true, [
-            _field('cat_output_group', 'Cost Group', 'text', data.output_group || 'General')
-        ]);
+        html += '<div class="_field _section"><div class="_section-header _collapsed" onclick="toggleSection(this)">Cost Group <span class="_section-arrow">▸</span></div><div class="_section-body" style="display:none;">' +
+                '<div style="display:flex;gap:0.3rem;align-items:center;">' +
+                '<select name="cat_output_group" id="cat-output-group-select" style="flex:1;">' +
+                '<option value="">-- Select Cost Group --</option>';
+            var _cg = (window.builderStateCostGroups || {});
+            for (var _gid in _cg) {
+                var _gd = _cg[_gid];
+                var _sel = (_gid === (data.output_group || 'General')) ? ' selected' : '';
+                html += '<option value=\"' + _gid + '\"' + _sel + '>' + (_gd.label || _gid) + '</option>';
+            }
+            html += '<option value=\"__NEW__\">-- Add New Cost Group --</option>';
+            html += '</select>' +
+                '<button type=\"button\" id=\"btn-cat-cg-edit\" title=\"Edit Cost Group\" style=\"font-size:0.75rem;padding:0.15rem 0.35rem;border:1px solid #aaa;background:#fff;border-radius:3px;cursor:pointer;\">✏️</button>' +
+                '<button type=\"button\" id=\"btn-cat-cg-delete\" title=\"Delete Cost Group\" style=\"font-size:0.75rem;padding:0.15rem 0.35rem;border:1px solid #d32f2f;background:#fff;color:#d32f2f;border-radius:3px;cursor:pointer;\">🗑</button>' +
+                '</div></div>' +
+                '</div>';
         html += _section('Meta', false, [
             _field('cat_page_key', 'Belongs to Page', 'text', _pageKey, true)
         ]);
@@ -1279,11 +1352,94 @@ document.addEventListener('DOMContentLoaded', function() {
         var newDelC = btnDelC ? btnDelC.cloneNode(true) : null;
         if (newDelC) btnDelC.parentNode.replaceChild(newDelC, btnDelC);
         
+        // ── Cost Group Management (category editor) ─────────────────────
+        var cgSelect = $id('cat-output-group-select');
+        var btnCgEdit = $id('btn-cat-cg-edit');
+        var btnCgDelete = $id('btn-cat-cg-delete');
+
+        if (cgSelect) {
+            // Handle __NEW__: create cost group then select it
+            cgSelect.addEventListener('change', function() {
+                if (cgSelect.value === '__NEW__') {
+                    var newName = prompt('Enter name for new cost group:');
+                    if (!newName || newName.trim() === '') {
+                        cgSelect.value = '';
+                        return;
+                    }
+                    var newId = newName.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+                    var csrf = (document.querySelector('[name=csrf_token]') || {}).value || '';
+                    btnCgEdit.disabled = true;
+                    btnCgDelete.disabled = true;
+                    fetch('/builder_beta/cost_group/save', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+                        body: JSON.stringify({ id: newId, label: newName.trim(), description: '', sort_order: 0 })
+                    }).then(function(r) { return r.json(); }).then(function(d) {
+                        if (d.success) {
+                            window.location.reload();
+                        } else {
+                            alert('Failed to create cost group: ' + (d.error || 'Unknown error'));
+                            cgSelect.value = '';
+                            btnCgEdit.disabled = false;
+                            btnCgDelete.disabled = false;
+                        }
+                    }).catch(function() {
+                        alert('Network error creating cost group.');
+                        cgSelect.value = '';
+                        btnCgEdit.disabled = false;
+                        btnCgDelete.disabled = false;
+                    });
+                }
+            });
+
+            // Edit button
+            if (btnCgEdit) {
+                btnCgEdit.addEventListener('click', function() {
+                    var gid = cgSelect.value;
+                    if (!gid || gid === '' || gid === '__NEW__') return;
+                    var gd = (window.builderStateCostGroups || {})[gid];
+                    if (!gd) return;
+                    var newName = prompt('Enter new name for cost group:', gd.label || '');
+                    if (!newName || newName.trim() === '' || newName.trim() === (gd.label || '')) return;
+                    var csrf = (document.querySelector('[name=csrf_token]') || {}).value || '';
+                    fetch('/builder_beta/cost_group/save', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+                        body: JSON.stringify({ id: gid, label: newName.trim(), description: gd.description || '', sort_order: gd.sort_order || 0, old_id: gid })
+                    }).then(function(r) { return r.json(); }).then(function(d) {
+                        if (d.success) { window.location.reload(); }
+                        else { alert('Failed to update cost group: ' + (d.error || 'Unknown error')); }
+                    }).catch(function() { alert('Network error updating cost group.'); });
+                });
+            }
+
+            // Delete button
+            if (btnCgDelete) {
+                btnCgDelete.addEventListener('click', function() {
+                    var gid = cgSelect.value;
+                    if (!gid || gid === '' || gid === '__NEW__' || gid === 'general') {
+                        if (gid === 'general') alert('Cannot delete the default General cost group.');
+                        return;
+                    }
+                    if (!confirm('Delete this cost group? Items using it will be remapped to General.')) return;
+                    var csrf = (document.querySelector('[name=csrf_token]') || {}).value || '';
+                    fetch('/builder_beta/cost_group/delete', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+                        body: JSON.stringify({ id: gid, remap_to: 'general' })
+                    }).then(function(r) { return r.json(); }).then(function(d) {
+                        if (d.success) { window.location.reload(); }
+                        else { alert('Failed to delete cost group: ' + (d.error || 'Unknown error')); }
+                    }).catch(function() { alert('Network error deleting cost group.'); });
+                });
+            }
+        }
+
         if (newSaveC) newSaveC.addEventListener('click', function() {
             var frm = $id('li-category-edit-form');
             var desc = frm.querySelector('textarea[name="cat_description"]').value;
             var newName = frm.querySelector('input[name="cat_name"]').value;
-            var outputGroup = frm.querySelector('input[name="cat_output_group"]').value || 'General';
+            var outputGroup = (frm.querySelector('select[name="cat_output_group"]') || frm.querySelector('input[name="cat_output_group"]')).value || 'General';
             var visible = $id('cat-visibility-checkbox').checked;
             var categoryImage = (frm.querySelector('input[name="cat_category_image"]') || {}).value || '';
             var categoryImages = [];

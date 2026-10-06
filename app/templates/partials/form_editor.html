@@ -7,7 +7,8 @@
        ──────────────────────────────────────── #}
     {{ builder_macros.render_li_sections_panel(
         li_categories | default([]),
-        current_page_id | default('') ) }}
+        current_page_id | default(''),
+        builder_state.cost_groups | default({}) ) }}
 
     {# ────────────────────────────────────────
        COLUMNS 2 & 3 - Meta + Questions Panel
@@ -23,5 +24,6 @@ window.blocks = {{ (page_config | default({})).get('blocks', []) | tojson | safe
 window.pageId = {{ current_page_id | default('') | tojson | safe }};
 window.selectedBlockId = {{ selected_block_id | default('null') | tojson | safe }};
 window.builderStateQuestionTypes = {{ builder_state.question_types | default({}) | tojson | safe }};
+window.builderStateCostGroups = {{ builder_state.cost_groups | default({}) | tojson | safe }};
 </script>
 

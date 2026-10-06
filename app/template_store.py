@@ -915,6 +915,45 @@ def update_form_template(template_key: str, name: str, description: str, db_path
     conn.close()
 
 
+def update_builder_beta_state(template_key: str, state: dict, db_path: Optional[Path] = None):
+    '''Update the builder_beta state for a given template_key.'''
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    try:
+        # Get the latest version ID for this template
+        latest_version_id = _get_latest_version_id(conn, template_key)
+        if not latest_version_id:
+            return False
+        
+        # Load the existing payload
+        row = conn.execute(
+            "SELECT payload_json FROM form_template_versions WHERE id = ?",
+            (latest_version_id,),
+        ).fetchone()
+        if not row:
+            return False
+            
+        try:
+            payload = json.loads(row[0]) if row[0] else {}
+        except Exception:
+            payload = {}
+        
+        # Update the builder_beta section of the payload
+        payload['builder_beta'] = state
+        
+        # Save the updated payload back to the database
+        conn.execute(
+            "UPDATE form_template_versions SET payload_json = ? WHERE id = ?",
+            (json.dumps(payload, sort_keys=True), latest_version_id),
+        )
+        conn.commit()
+        return True
+    except Exception:
+        return False
+    finally:
+        conn.close()
+
+
 # ---------------------------------------------------------------------------
 def duplicate_form(old_key: str, new_title: str, new_description: str, db_path: Optional[Path] = None) -> str:
     '''Duplicates a form, its pages, categories, and questions.'''

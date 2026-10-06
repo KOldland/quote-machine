@@ -10,7 +10,8 @@
        ──────────────────────────────────────── #}
     {{ builder_macros.render_li_sections_panel(
         li_categories | default([]),
-        current_page_id | default('') ) }}
+        current_page_id | default(''),
+        builder_state.cost_groups | default({}) ) }}
 
     {# ────────────────────────────────────────
        MIDDLE column – Canvas + vertical accordion
@@ -48,6 +49,7 @@ document.addEventListener('DOMContentLoaded', function () {
     window.pageId = {{ current_page_id | default('') | tojson | safe }};
     window.selectedBlockId = {{ selected_block_id | default('null') | tojson | safe }};
     window.builderStateQuestionTypes = {{ builder_state.question_types | default({}) | tojson | safe }};
+    window.builderStateCostGroups = {{ builder_state.cost_groups | default({}) | tojson | safe }};
 </script>
 <script src="{{ url_for('static', filename='js/builder.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/gallery_picker.js') }}" defer></script>

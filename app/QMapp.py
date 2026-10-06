@@ -685,6 +685,20 @@ DEFAULT_BUILDER_BETA_QUESTION_TYPES = {
         'default_label': 'New static text',
         'supports': {'logic': False, 'pricing': False, 'output': True},
     },
+    'calculator': {
+        'label': 'Calculator',
+        'default_label': 'New calculator',
+        'supports': {'logic': True, 'pricing': True, 'output': True},
+        'icon': '#',
+        'description': 'Cost group breakdown with editable quantities — ideal for pricing pages',
+    },
+    'payment_schedule': {
+        'label': 'Payment Schedule',
+        'default_label': 'Payment Schedule',
+        'supports': {'logic': False, 'pricing': False, 'output': True},
+        'icon': '$',
+        'description': 'Payment schedule breakdown based on quote totals — shows deposit, stage payments, and completion amounts',
+    },
 }
 
 ALLOWED_BLOCK_PRICING_MODES = {
@@ -693,7 +707,19 @@ ALLOWED_BLOCK_PRICING_MODES = {
     'entered',
     'quantity_rate',
     'percent_subtotal',
-    'matrix'}
+    'matrix',
+    'calculator'
+}
+
+# Default cost groups with metadata (similar to question types)
+DEFAULT_BUILDER_BETA_COST_GROUPS = {
+    'general': {
+        'label': 'General',
+        'default_label': 'General',
+        'description': 'Default cost group for unclassified items',
+        'sort_order': 0
+    }
+}
 
 
 def get_builder_beta_state():
@@ -721,6 +747,14 @@ def get_builder_beta_state():
         question_types = state['question_types']
     for k, v in DEFAULT_BUILDER_BETA_QUESTION_TYPES.items():
         question_types.setdefault(k, deepcopy(v))
+
+    # 4️⃣① Load/initialise cost group definitions
+    cost_groups = state.get('cost_groups')
+    if not isinstance(cost_groups, dict):
+        state['cost_groups'] = deepcopy(DEFAULT_BUILDER_BETA_COST_GROUPS)
+        cost_groups = state['cost_groups']
+    for k, v in DEFAULT_BUILDER_BETA_COST_GROUPS.items():
+        cost_groups.setdefault(k, deepcopy(v))
 
     # 5️⃣  Load the *pages* from the schema – this is the crucial part.
     #     If the schema contains a 'pages' mapping we honour it; otherwise we
@@ -976,14 +1010,21 @@ def update_builder_beta_page_from_form(page_id, form_data):
             if static_variant not in {'heading', 'subheading', 'body', 'note'}:
                 static_variant = 'body'
             standard['static_variant'] = static_variant
-            standard['static_content'] = (
-                form_data.get('standard_static_content') or standard.get(
-                    'static_content', '')).strip()
+            standard['static_content'] = (form_data.get('standard_static_content') or standard.get('standard_content', '')).strip()
 
             raw_choices = form_data.get('standard_dropdown_choices', '')
             if isinstance(raw_choices, str):
                 standard['dropdown_choices'] = [
                     c.strip() for c in raw_choices.splitlines() if c.strip()]
+            # Calculator: support both checkbox multi-select and legacy textarea
+            calc_checkbox_values = form_data.getlist('calculator_groups')
+            if calc_checkbox_values:
+                standard['calculator_groups'] = list(dict.fromkeys(calc_checkbox_values))
+            else:
+                raw_calculator_groups = form_data.get('standard_calculator_groups', '')
+                if isinstance(raw_calculator_groups, str):
+                    standard['calculator_groups'] = [
+                        g.strip() for g in raw_calculator_groups.splitlines() if g.strip()]
 
             raw_selection_limit = form_data.get('standard_selection_limit')
             if raw_selection_limit is not None and str(raw_selection_limit).strip() != '':
@@ -2823,16 +2864,206 @@ def builder_line_item_duplicate():
             row['price_matrix'] if 'price_matrix' in row.keys() else None,
         ])
         conn.commit()
-        new_id = cur.lastrowid
-        new_row = conn.execute("SELECT * FROM line_items WHERE id = ?", [new_id]).fetchone()
-        return jsonify({'success': True, 'item': dict(new_row)})
+        return jsonify({"success": True, "item": dict(new_row)})
     except Exception as e:
         import traceback
         print(f"[DUPLICATE ERROR] {type(e).__name__}: {e}", flush=True)
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 400
+        return jsonify({"error": str(e)}), 400
     finally:
         conn.close()
+# ── Calculator Preview Route ─────────────────────────────────────────
+@app.route('/builder_beta/calculator_preview', methods=['GET'])
+@require_role('admin')
+def builder_calculator_preview():
+    """Return line items grouped by selected cost groups for the calculator block preview."""
+    page_key = request.args.get('page_key', '')
+    group_ids_param = request.args.get('groups', '')
+    if not group_ids_param:
+        return jsonify({'items': {}, 'error': None})
+    group_ids = [g.strip() for g in group_ids_param.split(',') if g.strip()]
+    from template_store import _default_db_path, _connect
+    db_path = _default_db_path()
+    conn = _connect(db_path)
+    try:
+        items_by_group = {}
+        for gid in group_ids:
+            rows = conn.execute(
+                """SELECT li.line_code, li.internal_description, li.unit_cost,
+                          li.units, li.sort_order, li.category,
+                          li.output_group, li.pricing_mode, li.pricing_visibility
+                   FROM line_items li
+                   WHERE li.output_group = ? AND li.form_page = ?
+                   ORDER BY li.category ASC, li.sort_order ASC, li.line_code ASC""",
+                (gid, page_key)
+            ).fetchall()
+            items_by_group[gid] = [dict(r) for r in rows]
+        return jsonify({'items': items_by_group, 'error': None})
+    except Exception as e:
+        return jsonify({'items': {}, 'error': str(e)})
+    finally:
+        conn.close()
+
+
+# ── Cost Group Management Routes ─────────────────────────────────────
+@app.route('/builder_beta/cost_groups')
+@require_role('admin')
+def builder_cost_groups():
+    """Return all cost groups for management."""
+    state = get_builder_beta_state()
+    cost_groups = state.get('cost_groups', {})
+    # Convert to list for easier consumption by frontend
+    groups_list = []
+    for group_id, group_data in cost_groups.items():
+        groups_list.append({
+            'id': group_id,
+            'label': group_data.get('label', group_id),
+            'description': group_data.get('description', ''),
+            'sort_order': group_data.get('sort_order', 0)
+        })
+    # Sort by sort_order
+    groups_list.sort(key=lambda x: x['sort_order'])
+    return jsonify({'success': True, 'cost_groups': groups_list})
+
+
+@app.route('/builder_beta/cost_group/save', methods=['POST'])
+@require_role('admin')
+def builder_cost_group_save():
+    """Save (create or update) a cost group."""
+    import template_store as ts
+    data = request.get_json(force=True) or {}
+    
+    group_id = data.get('id', '').strip()
+    label = data.get('label', '').strip()
+    description = data.get('description', '').strip()
+    sort_order = data.get('sort_order', 0)
+    
+    if not group_id:
+        return jsonify({'success': False, 'error': 'Cost group ID is required'}), 400
+    if not label:
+        return jsonify({'success': False, 'error': 'Cost group label is required'}), 400
+    
+    # Validate sort_order is an integer
+    try:
+        sort_order = int(sort_order)
+    except (ValueError, TypeError):
+        sort_order = 0
+    
+    state = get_builder_beta_state()
+    if 'cost_groups' not in state:
+        state['cost_groups'] = {}
+    
+    # Check if this is a new group or existing one
+    is_new = group_id not in state['cost_groups']
+    
+    # Update or create the cost group
+    state['cost_groups'][group_id] = {
+        'label': label,
+        'description': description,
+        'sort_order': sort_order
+    }
+    
+    # If renaming an existing group, cascade the update to all references
+    if not is_new and 'old_id' in data and data['old_id'] != group_id:
+        old_id = data['old_id']
+        # Update all line_items that reference the old group
+        conn = ts.get_connection()
+        try:
+            conn.execute(
+                "UPDATE line_items SET output_group = ? WHERE output_group = ?",
+                [group_id, old_id]
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        
+        # Update all category_templates that reference the old group
+        conn = ts.get_connection()
+        try:
+            conn.execute(
+                "UPDATE category_templates SET output_group = ? WHERE output_group = ?",
+                [group_id, old_id]
+            )
+            conn.commit()
+        finally:
+            conn.close()
+    
+    # Save the updated state back to the database
+    ts.update_builder_beta_state(TEMPLATE_STORE_KEY, state)
+    
+    return jsonify({
+        'success': True, 
+        'cost_group': {
+            'id': group_id,
+            'label': label,
+            'description': description,
+            'sort_order': sort_order
+        },
+        'is_new': is_new
+    })
+
+
+@app.route('/builder_beta/cost_group/delete', methods=['POST'])
+@require_role('admin')
+def builder_cost_group_delete():
+    """Delete a cost group and remap its references."""
+    import template_store as ts
+    data = request.get_json(force=True) or {}
+    
+    group_id = data.get('id', '').strip()
+    if not group_id:
+        return jsonify({'success': False, 'error': 'Cost group ID is required'}), 400
+    
+    # Prevent deletion of the default 'general' group
+    if group_id == 'general':
+        return jsonify({'success': False, 'error': 'Cannot delete the default General cost group'}), 400
+    
+    state = get_builder_beta_state()
+    if 'cost_groups' not in state or group_id not in state['cost_groups']:
+        return jsonify({'success': False, 'error': 'Cost group not found'}), 404
+    
+    # Get the remap target (if specified)
+    remap_to = data.get('remap_to', '').strip()
+    if not remap_to:
+        remap_to = 'general'  # Default to general group
+    
+    # Ensure remap_to exists
+    if remap_to not in state['cost_groups']:
+        remap_to = 'general'
+    
+    # Remap all line_items that reference this group
+    conn = ts.get_connection()
+    try:
+        conn.execute(
+            "UPDATE line_items SET output_group = ? WHERE output_group = ?",
+            [remap_to, group_id]
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    
+    # Remap all category_templates that reference this group
+    conn = ts.get_connection()
+    try:
+        conn.execute(
+            "UPDATE category_templates SET output_group = ? WHERE output_group = ?",
+            [remap_to, group_id]
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    
+    # Remove the cost group
+    del state['cost_groups'][group_id]
+    
+    # Save the updated state back to the database
+    ts.update_builder_beta_state(TEMPLATE_STORE_KEY, state)
+    
+    return jsonify({
+        'success': True, 
+        'remapped_to': remap_to,
+        'deleted_id': group_id
+    })
 
 
 @app.route('/builder_beta/line_item_save/<int:item_id>', methods=['POST'])

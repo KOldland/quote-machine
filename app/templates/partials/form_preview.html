@@ -229,18 +229,32 @@
                                     <option value="{{ choice }}">{{ choice }}</option>
                                     {% endfor %}
                                 </select>
-                            {% elif block_type == 'static_text_heading' %}
-                                {% set variant = meta.static_variant | default('body') %}
-                                {% if variant == 'heading' %}
-                                <h3 class="preview-static-heading">{{ meta.static_content or field.label }}</h3>
-                                {% elif variant == 'subheading' %}
-                                <h4 class="preview-static-subheading">{{ meta.static_content or field.label }}</h4>
-                                {% elif variant == 'note' %}
-                                <p class="preview-static-note">{{ meta.static_content or field.label }}</p>
-                                {% else %}
-                                <p class="preview-static-body">{{ meta.static_content or field.label }}</p>
-                                {% endif %}
-                            {% endif %}
+                                 {% elif block_type == 'static_text_heading' %}
+                                 {% set variant = meta.static_variant | default('body') %}
+                                 {% if variant == 'heading' %}
+                                 <h3 class="preview-static-heading">{{ meta.static_content or field.label }}</h3>
+                                 {% elif variant == 'subheading' %}
+                                 <h4 class="preview-static-subheading">{{ meta.static_content or field.label }}</h4>
+                                 {% elif variant == 'note' %}
+                                 <p class="preview-static-note">{{ meta.static_content or field.label }}</p>
+                                 {% else %}
+                                 <p class="preview-static-body">{{ meta.static_content or field.label }}</p>
+                                 {% endif %}
+                                 {% elif block_type == 'calculator' or block_type == 'payment_schedule' %}
+                                 <div class="preview-calculator-block" data-block-type="{{ block_type }}"
+                                      data-calc-groups="{{ meta.standard.calculator_groups | tojson | forceescape }}"
+                                      data-field-name="{{ field.name }}">
+                                     <div class="preview-calculator-header">
+                                         <h4>{{ meta.standard.label }}</h4>
+                                         {% if meta.standard.help_text %}
+                                         <p class="preview-help-text" style="font-size:.85rem;color:#666;">{{ meta.standard.help_text }}</p>
+                                         {% endif %}
+                                     </div>
+                                     <div class="preview-calculator-loading" style="padding:.5rem;color:#888;text-align:center;">
+                                         <span>Loading cost data…</span>
+                                     </div>
+                                 </div>
+                                 {% endif %}
                         </div>
                         {% endif %}
                     {% endif %}
@@ -718,6 +732,8 @@ details[open] > .preview-li-category-header::before {
                 evaluateConditionalFields(fieldId);
             });
         });
+        // ── Calculator / Payment Schedule block rendering ──────────────
+        renderCalculatorBlocks();
     });
 })();
 </script>

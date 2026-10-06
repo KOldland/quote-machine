@@ -169,20 +169,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const meta = builderStateQuestionTypes[type] || {};
         const timestamp = Date.now();
 
-        return {
-            id: `${pageId}__${type}_${timestamp}`,
-            block_type: type,
-            standard: {
-                label: meta.default_label || 'New block',
-                name: `${type}_${timestamp}`,
-                required: false,
-                help_text: '',
-                source_prefix: '',
-                placeholder: '',
-                dropdown_choices: type === 'dropdown_select' || type === 'checkbox_group' ? ['Option 1', 'Option 2'] : [],
-                static_content: '',
-                static_variant: 'body'
-            },
+         return {
+             id: `${pageId}__${type}_${timestamp}`,
+             block_type: type,
+             standard: {
+                 label: meta.default_label || 'New block',
+                 name: `${type}_${timestamp}`,
+                 required: false,
+                 help_text: '',
+                 source_prefix: '',
+                 placeholder: '',
+                 dropdown_choices: type === 'dropdown_select' || type === 'checkbox_group' ? ['Option 1', 'Option 2'] : [],
+                 static_content: '',
+                 static_variant: 'body',
+                 calculator_groups: []
+             },
             logic_options: {
                 visibility: 'always',
                 depends_on_field: '',
@@ -462,6 +463,25 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 `;
                 break;
+            case "matrix":
+                fieldsHtml = `
+                    <div class="form-group">
+                        <label>Matrix Types (rows, one per line)</label>
+                        <textarea name="pricing_matrix_types" rows="4" style="width:100%;font-family:monospace;">${(po.matrix_types || []).join("\n")}</textarea>
+                        <small>e.g. Outrigger, Main Frame</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Matrix Sizes (columns, one per line)</label>
+                        <textarea name="pricing_matrix_sizes" rows="4" style="width:100%;font-family:monospace;">${(po.matrix_sizes || []).join("\n")}</textarea>
+                        <small>e.g. Small, Medium, Large</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Matrix Prices (JSON array of arrays, rows x cols)</label>
+                        <textarea name="pricing_matrix_prices" rows="6" style="width:100%;font-family:monospace;">${JSON.stringify(po.matrix_prices || [], null, 2)}</textarea>
+                        <small>e.g. [[100,150,200],[120,180,240]]</small>
+                    </div>
+                `;
+                break;
             default:
                 fieldsHtml = "";
                 break;
@@ -510,12 +530,22 @@ document.addEventListener('DOMContentLoaded', () => {
             if (choicesTextarea) choicesTextarea.value = block.standard.dropdown_choices.join('\n');
             const sourcePrefixInput = document.querySelector('#prop-fields input[name="standard_source_prefix"]');
             if (sourcePrefixInput) sourcePrefixInput.value = block.standard.source_prefix;
-        } else if (block.block_type === 'static_text_heading') {
-            const contentTextarea = document.querySelector('#prop-fields textarea[name="standard_static_content"]');
-            if (contentTextarea) contentTextarea.value = block.standard.static_content;
-            const variantSelect = document.querySelector('#prop-fields select[name="standard_static_variant"]');
-            if (variantSelect) variantSelect.value = block.standard.static_variant;
-        }
+         } else if (block.block_type === 'static_text_heading') {
+             const contentTextarea = document.querySelector('#prop-fields textarea[name="standard_static_content"]');
+             if (contentTextarea) contentTextarea.value = block.standard.static_content;
+             const variantSelect = document.querySelector('#prop-fields select[name="standard_static_variant"]');
+             if (variantSelect) variantSelect.value = block.standard.static_variant;
+         } else if (block.block_type === 'calculator') {
+             // Set checkboxes for selected cost groups
+             const calcCheckboxes = document.querySelectorAll('#calculator-groups-list input[type="checkbox"][name="calculator_groups"]');
+             const selectedGroups = block.standard.calculator_groups || [];
+             calcCheckboxes.forEach(function(cb) {
+                 cb.checked = selectedGroups.indexOf(cb.value) !== -1;
+             });
+             // Trigger item preview refresh
+             refreshCalculatorPreview(block);
+         }
+
 
         // Logic Options
         document.querySelector('select[name="logic_visibility"]').value = block.logic_options.visibility;
@@ -546,11 +576,193 @@ document.addEventListener('DOMContentLoaded', () => {
         // Output Options
         document.querySelector('input[name="output_include_in_output"]').checked = block.output_options.include_in_output;
         document.querySelector('input[name="output_label"]').value = block.output_options.output_label;
-        document.querySelector('input[name="output_group"]').value = block.output_options.group;
+        
+        // ── Cost Group Managed Select ──────────────────────────────────
+        // Use existing <select name="output_group"> from the template,
+        // set its value, and attach management buttons.
+        const existingSelect = document.querySelector('select[name="output_group"]');
+        if (existingSelect) {
+            existingSelect.value = block.output_options.group || '';
+            
+            // Remove stale management buttons from a previous renderProperties() call
+            const oldMgmt = existingSelect.parentElement?.querySelector('.cost-group-mgmt');
+            if (oldMgmt) oldMgmt.remove();
+            
+            // Build management buttons
+            const btnDiv = document.createElement('div');
+            btnDiv.className = 'cost-group-mgmt';
+            btnDiv.style.cssText = 'display:flex;gap:0.4rem;margin-top:0.25rem;';
+        
+        // Edit button
+            const editBtn = document.createElement('button');
+            editBtn.type = 'button';
+            editBtn.innerHTML = '✏️ Edit';
+            editBtn.title = 'Edit cost group';
+            editBtn.style.cssText = 'font-size:0.78rem;padding:0.15rem 0.4rem;border:1px solid #aaa;background:#fff;border-radius:3px;cursor:pointer;';
+            editBtn.addEventListener('click', async function(e) {
+                e.stopPropagation();
+                const gid = existingSelect.value;
+                if (!gid || gid === '' || gid === '__NEW__') return;
+                const gd = (window.builderStateCostGroups || {})[gid];
+                if (!gd) return;
+                const newName = prompt('Enter new name for cost group:', gd.label || '');
+                if (!newName || newName.trim() === '' || newName.trim() === (gd.label || '')) return;
+                try {
+                    const resp = await fetch('/builder_beta/cost_group/save', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': document.querySelector('[name=csrf_token]')?.value || ''
+                        },
+                        body: JSON.stringify({
+                            id: gid, label: newName.trim(),
+                            description: gd.description || '',
+                            sort_order: gd.sort_order || 0,
+                            old_id: gid
+                        })
+                    });
+                    const data = await resp.json();
+                    if (data.success) { window.location.reload(); }
+                    else { showQmToast('Failed to update cost group: ' + (data.error || 'Unknown error'), false); }
+                } catch (err) { showQmToast('Failed to update cost group: ' + err.message, false); }
+            });
+            btnDiv.appendChild(editBtn);
+            
+            // Delete button
+            const delBtn = document.createElement('button');
+            delBtn.type = 'button';
+            delBtn.innerHTML = '🗑 Delete';
+            delBtn.title = 'Delete cost group';
+            delBtn.style.cssText = 'font-size:0.78rem;padding:0.15rem 0.4rem;border:1px solid #d32f2f;background:#fff;color:#d32f2f;border-radius:3px;cursor:pointer;';
+            delBtn.addEventListener('click', async function(e) {
+                e.stopPropagation();
+                const gid = existingSelect.value;
+                if (!gid || gid === '' || gid === '__NEW__' || gid === 'general') {
+                    if (gid === 'general') alert('Cannot delete the default General cost group.');
+                    return;
+                }
+                if (!confirm('Delete this cost group? Items using it will be remapped to General.')) return;
+                try {
+                    const resp = await fetch('/builder_beta/cost_group/delete', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': document.querySelector('[name=csrf_token]')?.value || ''
+                        },
+                        body: JSON.stringify({ id: gid, remap_to: 'general' })
+                    });
+                    const data = await resp.json();
+                    if (data.success) { window.location.reload(); }
+                    else { showQmToast('Failed to delete cost group: ' + (data.error || 'Unknown error'), false); }
+                } catch (err) { showQmToast('Failed to delete cost group: ' + err.message, false); }
+            });
+            btnDiv.appendChild(delBtn);
+            
+            // Insert buttons after the select
+            existingSelect.parentElement?.insertBefore(btnDiv, existingSelect.nextSibling);
+            
+            // Wire up __NEW__ option handler on the existing select
+            existingSelect.addEventListener('change', async function() {
+                if (this.value === '__NEW__') {
+                    this.value = block.output_options.group || '';
+                    const groupName = prompt('Enter name for new cost group:');
+                    if (groupName && groupName.trim() !== '') {
+                        const groupId = groupName.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+                        try {
+                            const resp = await fetch('/builder_beta/cost_group/save', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRFToken': document.querySelector('[name=csrf_token]')?.value || ''
+                                },
+                                body: JSON.stringify({
+                                    id: groupId, label: groupName.trim(),
+                                    description: '', sort_order: 0
+                                })
+                            });
+                            const data = await resp.json();
+                            if (data.success) { window.location.reload(); }
+                            else { showQmToast('Failed to add cost group: ' + (data.error || 'Unknown error'), false); }
+                        } catch (err) { showQmToast('Failed to add cost group: ' + err.message, false); }
+                    }
+                }
+            });
+        }
+        
+        // Fallback for legacy templates that still use <input name="output_group">
+        const oldInput = document.querySelector('input[name="output_group"]');
+        if (oldInput && !document.querySelector('select[name="output_group"]')) {
+            oldInput.value = block.output_options.group || '';
+        }
+        
+        // Update output value mode select
         document.querySelector('select[name="output_value_mode"]').value = block.output_options.value_mode;
-
+        
         // Update any dynamic options for logic_depends_on_field / pricing_entered_key / pricing_quantity_key
         updateDynamicSelectOptions();
+    }
+
+    function refreshCalculatorPreview(block) {
+        // Get selected cost groups from checkboxes
+        var checkboxes = document.querySelectorAll('#calculator-groups-list input[type="checkbox"][name="calculator_groups"]:checked');
+        var groups = Array.from(checkboxes).map(function(cb) { return cb.value; });
+        var previewWrap = document.getElementById('calculator-items-table-wrap');
+        if (!previewWrap) return;
+        
+        if (groups.length === 0) {
+            previewWrap.innerHTML = '<div style="padding:.5rem;color:#888;">Select cost groups above to preview items.</div>';
+            return;
+        }
+        
+        previewWrap.innerHTML = '<div style="padding:.5rem;color:#888;">Loading preview...</div>';
+        
+        var pageKey = window.pageId || '';
+        fetch('/builder_beta/calculator_preview?page_key=' + encodeURIComponent(pageKey) + '&groups=' + encodeURIComponent(groups.join(',')))
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.error) {
+                    previewWrap.innerHTML = '<div style="padding:.5rem;color:#d32f2f;">Error: ' + data.error + '</div>';
+                    return;
+                }
+                var html = '';
+                for (var gid in data.items) {
+                    var items = data.items[gid];
+                    if (items.length === 0) {
+                        html += '<div style="padding:.3rem .5rem;background:#f0f4ff;font-weight:600;margin-bottom:.2rem;">' + gid + ' <span style="color:#888;">(no items)</span></div>';
+                        continue;
+                    }
+                    html += '<details style="margin-bottom:.2rem;border:1px solid #ddd;border-radius:3px;font-size:.78rem;">' +
+                        '<summary style="padding:.25rem .5rem;background:#f0f4ff;cursor:pointer;font-weight:600;">' +
+                        (window.builderStateCostGroups?.[gid]?.label || gid) +
+                        ' <span style="color:#888;font-weight:400;">(' + items.length + ' items)</span></summary>' +
+                        '<table style="width:100%;border-collapse:collapse;font-size:.75rem;">' +
+                        '<thead><tr style="background:#eef;">' +
+                        '<th style="padding:.2rem .35rem;text-align:left;">Code</th>' +
+                        '<th style="padding:.2rem .35rem;text-align:left;">Description</th>' +
+                        '<th style="padding:.2rem .35rem;text-align:right;">Unit Cost</th>' +
+                        '<th style="padding:.2rem .35rem;text-align:right;">Units</th>' +
+                        '<th style="padding:.2rem .35rem;text-align:right;">Total</th>' +
+                        '</tr></thead><tbody>';
+                    for (var i = 0; i < items.length; i++) {
+                        var it = items[i];
+                        var unitCost = parseFloat(it.unit_cost || 0);
+                        var units = parseInt(it.units || 1);
+                        var total = unitCost * units;
+                        html += '<tr>' +
+                            '<td style="padding:.2rem .35rem;">' + (it.line_code || '') + '</td>' +
+                            '<td style="padding:.2rem .35rem;">' + (it.internal_description || '') + '</td>' +
+                            '<td style="padding:.2rem .35rem;text-align:right;">£' + unitCost.toFixed(2) + '</td>' +
+                            '<td style="padding:.2rem .35rem;text-align:right;">' + units + '</td>' +
+                            '<td style="padding:.2rem .35rem;text-align:right;font-weight:600;">£' + total.toFixed(2) + '</td>' +
+                            '</tr>';
+                    }
+                    html += '</tbody></table></details>';
+                }
+                previewWrap.innerHTML = html;
+            })
+            .catch(function() {
+                previewWrap.innerHTML = '<div style="padding:.5rem;color:#d32f2f;">Network error loading preview.</div>';
+            });
     }
 
     function updateDynamicSelectOptions() {

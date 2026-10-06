@@ -1,0 +1,2601 @@
+{% macro render_properties_panel(selected_block, blocks, pricing_modes, current_page_id, cost_groups) %}
+<!-- TEST MARKER: THIS FILE IS BEING SERVED -->
+    <div class="builder-properties">
+        <div class="properties-header">Block Properties</div>
+        <div class="properties-content" id="properties-content">
+            {% if selected_block %}
+                <form id="block-properties-form" method="POST" action="{{ url_for("builder_beta_page_editor", page_id=current_page_id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="save_block">
+                    <input type="hidden" name="block_id" value="{{ selected_block.id }}">
+                    
+                    <div class="prop-section" id="prop-fields">
+                        <div class="prop-section-header">
+                            <span>Question Fields</span>
+                            <span class="prop-section-toggle">▾</span>
+                        </div>
+                        <div class="prop-section-body">
+                            <div class="form-group">
+                                <label>Label</label>
+                                <input type="text" name="standard_label" value="{{ selected_block.standard.label }}">
+                            </div>
+                            <div class="form-group">
+                                <label>Name (unique identifier)</label>
+                                <input type="text" name="standard_name" value="{{ selected_block.standard.name }}">
+                            </div>
+                            <div class="form-group">
+                                <label>Help Text</label>
+                                <textarea name="standard_help_text">{{ selected_block.standard.help_text }}</textarea>
+                            </div>
+                            <div class="form-group checkbox-group">
+                                <input type="checkbox" name="standard_required" {% if selected_block.standard.required %}checked{% endif %}>
+                                <label>Required</label>
+                            </div>
+                            
+                            {% if selected_block.block_type == "text_input" or selected_block.block_type == "number_currency_input" %}
+                            <div class="form-group">
+                                <label>Placeholder</label>
+                                <input type="text" name="standard_placeholder" value="{{ selected_block.standard.placeholder }}">
+                            </div>
+                            {% elif selected_block.block_type == "dropdown_select" or selected_block.block_type == "checkbox_group" %}
+                            <div class="form-group">
+                                <label>Choices (one per line)</label>
+                                <textarea name="standard_dropdown_choices" rows="4">{{ selected_block.standard.dropdown_choices|join('\n') }}</textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>Source Prefix</label>
+                                <input type="text" name="standard_source_prefix" value="{{ selected_block.standard.source_prefix }}">
+                            </div>
+                            {% elif selected_block.block_type == "static_text_heading" %}
+                            <div class="form-group">
+                                <label>Content</label>
+                                <textarea name="standard_static_content" rows="3">{{ selected_block.standard.static_content }}</textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>Variant</label>
+                                <select name="standard_static_variant">
+                                    <option value="body" {% if selected_block.standard.static_variant == "body" %}selected{% endif %}>Body</option>
+                            {% elif selected_block.block_type == "calculator" %}
+                            <div class="form-group">
+                                <label>Cost Groups Included</label>
+                                <div id="calculator-groups-list" style="max-height:200px;overflow-y:auto;border:1px solid #ddd;padding:.3rem;border-radius:3px;background:#f9f9f9;">
+                                    {% if cost_groups is defined and cost_groups %}
+                                        {% for group_id, group_data in cost_groups.items() %}
+                                        <label style="display:flex;align-items:center;gap:.3rem;padding:.15rem .3rem;font-size:.82rem;cursor:pointer;">
+                                            <input type="checkbox" name="calculator_groups" value="{{ group_id }}"
+                                                {% if group_id in (selected_block.standard.calculator_groups or []) %}checked{% endif %}>
+                                            <span>{{ group_data.label }}</span>
+                                        </label>
+                                        {% endfor %}
+                                    {% else %}
+                                        <div style="color:#888;font-size:.8rem;">No cost groups defined. Create cost groups first in the block's Cost Group selector.</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="form-group" id="calculator-items-preview">
+                                <label>Cost Group Items Preview</label>
+                                <div id="calculator-items-table-wrap" style="font-size:.78rem;border:1px solid #ddd;border-radius:3px;max-height:300px;overflow:auto;background:#fff;">
+                                    <div style="padding:.5rem;color:#888;">Select cost groups above to preview items.</div>
+                                </div>
+                            </div>
+{% endmacro %}
+{% macro render_properties_panel(selected_block, blocks, pricing_modes, current_page_id, cost_groups) %}
+<!-- TEST MARKER: THIS FILE IS BEING SERVED -->
+    <div class="builder-properties">
+        <div class="properties-header">Block Properties</div>
+        <div class="properties-content" id="properties-content">
+            {% if selected_block %}
+                <form id="block-properties-form" method="POST" action="{{ url_for("builder_beta_page_editor", page_id=current_page_id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="save_block">
+                    <input type="hidden" name="block_id" value="{{ selected_block.id }}">
+                    
+                    <div class="prop-section" id="prop-fields">
+                        <div class="prop-section-header">
+                            <span>Question Fields</span>
+                            <span class="prop-section-toggle">▾</span>
+                        </div>
+                        <div class="prop-section-body">
+                            <div class="form-group">
+                                <label>Label</label>
+                                <input type="text" name="standard_label" value="{{ selected_block.standard.label }}">
+                            </div>
+                            <div class="form-group">
+                                <label>Name (unique identifier)</label>
+                                <input type="text" name="standard_name" value="{{ selected_block.standard.name }}">
+                            </div>
+                            <div class="form-group">
+                                <label>Help Text</label>
+                                <textarea name="standard_help_text">{{ selected_block.standard.help_text }}</textarea>
+                            </div>
+                            <div class="form-group checkbox-group">
+                                <input type="checkbox" name="standard_required" {% if selected_block.standard.required %}checked{% endif %}>
+                                <label>Required</label>
+                            </div>
+                            
+                            {% if selected_block.block_type == "text_input" or selected_block.block_type == "number_currency_input" %}
+                            <div class="form-group">
+                                <label>Placeholder</label>
+                                <input type="text" name="standard_placeholder" value="{{ selected_block.standard.placeholder }}">
+                            </div>
+                            {% elif selected_block.block_type == "dropdown_select" or selected_block.block_type == "checkbox_group" %}
+                            <div class="form-group">
+                                <label>Choices (one per line)</label>
+                                <textarea name="standard_dropdown_choices" rows="4">{{ selected_block.standard.dropdown_choices|join('\n') }}</textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>Source Prefix</label>
+                                <input type="text" name="standard_source_prefix" value="{{ selected_block.standard.source_prefix }}">
+                            </div>
+                                    <option value="body" {% if selected_block.standard.static_variant == "body" %}selected{% endif %}>Body</option>
+                                    <option value="heading" {% if selected_block.standard.static_variant == "heading" %}selected{% endif %}>Heading</option>
+                                    <option value="subheading" {% if selected_block.standard.static_variant == "subheading" %}selected{% endif %}>Subheading</option>
+                                    <option value="note" {% if selected_block.standard.static_variant == "note" %}selected{% endif %}>Note</option>
+                                </select>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="prop-section" id="prop-logic">
+                        <div class="prop-section-header">
+                            <span>Logic</span>
+                            <span class="prop-section-toggle">▾</span>
+                        </div>
+                        <div class="prop-section-body">
+                            <div class="form-group">
+                                <label>Visibility</label>
+                                <select name="logic_visibility">
+                                    <option value="always" {% if selected_block.logic_options.visibility == "always" %}selected{% endif %}>Always show</option>
+                                    <option value="conditional" {% if selected_block.logic_options.visibility == "conditional" %}selected{% endif %}>Show conditionally</option>
+                                </select>
+                            </div>
+                            <div id="logic-conditions" style="display: {% if selected_block.logic_options.visibility == "conditional" %}block{% else %}none{% endif %};">
+                                <div class="logic-condition">
+                                    <select name="logic_depends_on_field">
+                                        <option value="">Select field...</option>
+                                        {% for block_item in blocks %}
+                                            {% if block_item.id != selected_block.id %}
+                                            <option value="{{ block_item.id }}" {% if block_item.id == selected_block.logic_options.depends_on_field %}selected{% endif %}>{{ block_item.standard.label }}</option>
+                             {% endif %}
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="logic-condition">
+                                    <input type="text" name="logic_depends_on_value" value="{{ selected_block.logic_options.depends_on_value }}" placeholder="Required value...">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="prop-section" id="prop-pricing">
+                        <div class="prop-section-header">
+                            <span>Pricing</span>
+                            <span class="prop-section-toggle">▾</span>
+                        </div>
+                        <div class="prop-section-body">
+                            <div class="form-group">
+                                <label>Enabled</label>
+                                <div class="form-group checkbox-group">
+                                    <input type="checkbox" name="pricing_enabled" {% if selected_block.pricing_options.enabled %}checked{% endif %}>
+                                    <label>Enable pricing</label>
+                                </div>
+                            </div>
+                            <div class="form-group pricing-mode-select">
+                                <label>Mode</label>
+                                <select name="pricing_mode" onchange="updatePricingFields(this.value)">
+                                    {% for mode in pricing_modes %}
+                                    <option value="{{ mode }}" {% if selected_block.pricing_options.mode == mode %}selected{% endif %}>{{ mode.replace("_", " ").title() }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div id="pricing-fields" class="pricing-fields {% if selected_block.pricing_options.enabled %}active{% endif %}">
+                                {% if selected_block.pricing_options.mode == "fixed" %}
+                                <div class="form-group">
+                                    <label>Fixed Amount (£)</label>
+                                    <input type="number" step="0.01" min="0" name="pricing_fixed_amount" value="{{ selected_block.pricing_options.fixed_amount }}">
+                                </div>
+                                {% elif selected_block.pricing_options.mode == "entered" %}
+                                <div class="form-group">
+                                    <label>Reference Field</label>
+                                    <select name="pricing_entered_key">
+                                        <option value="">Select field...</option>
+                                        {% for block_item in blocks %}
+                                            <option value="{{ block_item.id }}" {% if block_item.id == selected_block.pricing_options.entered_key %}selected{% endif %}>{{ block_item.standard.label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                {% elif selected_block.pricing_options.mode == "quantity_rate" %}
+                                <div class="form-group">
+                                    <label>Quantity Field</label>
+                                    <select name="pricing_quantity_key">
+                                        <option value="">Select field...</option>
+                                        {% for block_item in blocks %}
+                                            <option value="{{ block_item.id }}" {% if block_item.id == selected_block.pricing_options.quantity_key %}selected{% endif %}>{{ block_item.standard.label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Rate (£ per unit)</label>
+                                    <input type="number" step="0.01" min="0" name="pricing_rate" value="{{ selected_block.pricing_options.rate }}">
+                                </div>
+                                {% elif selected_block.pricing_options.mode == "percent_subtotal" %}
+                                <div class="form-group">
+                                    <label>Percentage (%)</label>
+                                    <input type="number" step="0.01" min="0" max="100" name="pricing_percent_of_subtotal" value="{{ selected_block.pricing_options.percent_of_subtotal }}">
+                                </div>
+                                {% elif selected_block.pricing_options.mode == "matrix" %}
+                                <div class="form-group">
+                                    <label>Matrix Types (rows, one per line)</label>
+                                    <textarea name="pricing_matrix_types" rows="4" style="width:100%;font-family:monospace;">{{ selected_block.pricing_options.matrix_types|join('\n') if selected_block.pricing_options.matrix_types else '' }}</textarea>
+                                    <small>e.g. Outrigger, Main Frame</small>
+                                </div>
+                                <div class="form-group">
+                                    <label>Matrix Sizes (columns, one per line)</label>
+                                    <textarea name="pricing_matrix_sizes" rows="4" style="width:100%;font-family:monospace;">{{ selected_block.pricing_options.matrix_sizes|join('\n') if selected_block.pricing_options.matrix_sizes else '' }}</textarea>
+                                    <small>e.g. Small, Medium, Large</small>
+                                </div>
+                                <div class="form-group">
+                                    <label>Matrix Prices (JSON array of arrays, rows x cols)</label>
+                                    <textarea name="pricing_matrix_prices" rows="6" style="width:100%;font-family:monospace;">{{ selected_block.pricing_options.matrix_prices|tojson if selected_block.pricing_options.matrix_prices else '[]' }}</textarea>
+                                    <small>e.g. [[100,150,200],[120,180,240]]</small>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="prop-section" id="prop-output">
+                        <div class="prop-section-header">
+                            <span>Output</span>
+                            <span class="prop-section-toggle">▾</span>
+                        </div>
+                        <div class="prop-section-body">
+                            <div class="form-group checkbox-group">
+                                <input type="checkbox" name="output_include_in_output" {% if selected_block.output_options.include_in_output %}checked{% endif %}>
+                                <label>Include in Output</label>
+                            </div>
+                            <div class="form-group">
+                                <label>Output Label</label>
+                                <input type="text" name="output_label" value="{{ selected_block.output_options.output_label }}">
+                            </div>
+                             <div class="form-group">
+                                 <label>Cost Group</label>
+                                 <select name="output_group">
+                                     <option value="">-- Select Cost Group --</option>
+                                     {% for group_id, group_data in cost_groups.items() %}
+                                     <option value="{{ group_id }}" {% if selected_block.output_options.group == group_id %}selected{% endif %}>
+                                         {{ group_data.label }}
+                                     </option>
+                                     {% endfor %}
+                                     <option value="__NEW__">-- Add New Cost Group --</option>
+                                 </select>
+                             </div>
+                            <div class="form-group">
+                                <label>Value Mode</label>
+                                <select name="output_value_mode">
+                                    <option value="show_value" {% if selected_block.output_options.value_mode == "show_value" %}selected{% endif %}>Show Value</option>
+                                    <option value="show_label" {% if selected_block.output_options.value_mode == "show_label" %}selected{% endif %}>Show Label Only</option>
+                                    <option value="hide_value" {% if selected_block.output_options.value_mode == "hide_value" %}selected{% endif %}>Hide Value</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">Save Block</button>
+                </form>
+            {% else %}
+                <div class="properties-empty">
+                    <p>Select a block to edit its properties</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+{% endmacro %}
+
+{# ── Line Items Canvas Macros ─────────────────────────────────────────────── #}
+
+{% macro render_line_items_canvas() %}
+<div class="li-canvas-wrap" id="li-canvas">
+    <div class="li-canvas-toolbar" style="padding:.6rem .75rem;background:#f8f9fa;border-bottom:1px solid #dee2e6;display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-weight:600;font-size:.9rem;color:#1b3a6b;">Line Items — All Categories</span>
+        <span id="li-save-status" style="font-size:.8rem;color:#28a745;"></span>
+    </div>
+    <div id="li-accordion-container" style="padding:.75rem;overflow-y:auto;max-height:calc(100vh - 160px);">
+        <p style="color:#999;font-size:.9rem;">Loading…</p>
+    </div>
+</div>
+<style>
+.li-category { border:1px solid #dee2e6; border-radius:6px; margin-bottom:.5rem; overflow:hidden; }
+.li-category summary.li-category-header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:.5rem .75rem; background:#f0f4ff; cursor:pointer;
+    font-size:.85rem; font-weight:600; color:#1b3a6b; list-style:none;
+}
+.li-category summary.li-category-header::-webkit-details-marker { display:none; }
+.li-count { font-size:.75rem; color:#6c757d; font-weight:400; }
+.li-items-list { padding:.25rem 0; }
+.li-row {
+    display:grid; grid-template-columns:110px 1fr 90px 30px;
+    gap:.4rem; align-items:center;
+    padding:.3rem .75rem; font-size:.8rem; cursor:pointer;
+    border-bottom:1px solid #f3f3f3;
+    transition:background .1s;
+}
+.li-row:hover { background:#eef2ff; }
+.li-row--selected { background:#dde7ff !important; }
+.li-row-code { font-family:monospace; font-weight:600; color:#344; font-size:.78rem; }
+.li-row-desc { color:#444; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.li-row-role { font-size:.72rem; color:#888; text-align:right; }
+.li-row-visible { text-align:center; font-size:.8rem; }
+</style>
+{% endmacro %}
+
+{% macro render_line_item_properties() %}
+<div class="builder-properties" id="li-properties-panel" style="display:flex;flex-direction:column;height:100%;">
+    <div class="properties-header">Line Item Fields</div>
+    <div class="properties-content" id="li-properties-content" style="overflow-y:auto;flex:1;padding:.75rem;">
+        <div class="properties-empty">
+            <p>Select a line item row to edit its fields</p>
+        </div>
+    </div>
+</div>
+{% endmacro %}
+
+{# ── End Line Items Canvas Macros ─────────────────────────────────────────── #}
+
+{# ── Session L: 3-Column Line Item Canvas Macros ──────────────────────────── #}
+
+{% macro render_li_sections_panel(li_categories, form_page_key, cost_groups) %}
+<div class="li-sections-panel" id="li-sections-panel">
+    <div class="li-sections-header">
+        <span style="font-weight:700;font-size:.85rem;color:#1b3a6b;">Page Structure</span>
+    </div>
+    <div class="li-sections-list" id="li-sections-list">
+        <div class="li-section-item" style="border-bottom:2px solid #dee2e6; margin-bottom:4px; padding-bottom:4px;">
+            <button type="button" class="li-section-btn" id="btn-page-details" data-page="{{ form_page_key }}" style="font-weight:700; width:100%;">
+                Page Details
+            </button>
+        </div>
+        {% if li_categories %}
+            {% for cat in li_categories %}
+            {% set cat_name = cat.name if cat is mapping else cat %}
+            {% set cat_id = cat.id if cat is mapping else cat_name %}
+            <div class="li-section-item" style="display:flex;align-items:center;border-bottom:1px solid #f3f3f3;">
+                <button type="button"
+                        class="li-section-btn"
+                        data-category="{{ cat_name }}"
+                        data-id="{{ cat_id }}"
+                        data-page="{{ form_page_key }}"
+                        style="flex:1;">
+                    {{ cat_name }}
+                </button>
+                <div class="li-reorder-controls" style="display:flex;flex-direction:column;margin-right:4px;">
+                    <button type="button" class="li-move-btn" data-scope="category" data-id="{{ cat_id }}" data-page="{{ form_page_key }}" data-dir="up" style="border:none;background:none;font-size:10px;cursor:pointer;padding:0 4px;color:#888;line-height:1;">▲</button>
+                    <button type="button" class="li-move-btn" data-scope="category" data-id="{{ cat_id }}" data-page="{{ form_page_key }}" data-dir="down" style="border:none;background:none;font-size:10px;cursor:pointer;padding:0 4px;color:#888;line-height:1;">▼</button>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p style="font-size:.8rem;color:#999;padding:.5rem .75rem;">No categories configured for this page.</p>
+        {% endif %}
+        <div style="padding:.5rem .75rem; border-top:1px solid #dee2e6; background:#f0f4ff; margin-top:.5rem;">
+            <button type="button" id="btn-add-category" class="li-save-btn" style="margin-top:0;" data-page="{{ form_page_key }}">Add Category</button>
+            <div id="add-cat-inline" style="display:none; margin-top:.4rem;">
+                <input type="text" id="add-cat-name-input" placeholder="Category name…"
+                       style="width:100%; font-size:.82rem; padding:.25rem .4rem; border:1px solid #ccc; border-radius:3px; box-sizing:border-box;">
+                <select id="add-cat-output-group-input"
+                        style="width:100%; font-size:.82rem; padding:.25rem .4rem; border:1px solid #ccc; border-radius:3px; box-sizing:border-box; margin-top:.3rem;">
+                    <option value="">-- Select Cost Group (optional) --</option>
+                    {% if cost_groups is defined and cost_groups %}
+                    {% for group_id, group_data in cost_groups.items() %}
+                    <option value="{{ group_id }}" {% if group_id == 'general' %}selected{% endif %}>{{ group_data.label }}</option>
+                    {% endfor %}
+                    {% endif %}
+                    <option value="__NEW__">-- Add New Cost Group --</option>
+                </select>
+                <div style="display:flex; gap:.4rem; margin-top:.35rem;">
+                    <button type="button" id="btn-add-cat-confirm" class="li-save-btn" style="flex:1; margin-top:0;">Save</button>
+                    <button type="button" id="btn-add-cat-cancel" style="flex:1; font-size:.78rem; padding:.2rem .4rem; border:1px solid #aaa; background:#fff; border-radius:3px; cursor:pointer;">Cancel</button>
+                </div>
+                <label style="display:flex; align-items:center; gap:.35rem; margin-top:.4rem; font-size:.78rem; color:#444; cursor:pointer;">
+                    <input type="checkbox" id="add-cat-visible"
+                           data-action="toggle-page-visibility"
+                           data-page="{{ form_page_key }}"
+                           checked style="margin:0; cursor:pointer;">
+                    Include in Form
+                </label>
+            </div>
+        </div>
+    </div>{# end li-sections-list #}
+</div>{# end li-sections-panel #}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const btnAddCat    = document.getElementById('btn-add-category');
+    const addCatInline = document.getElementById('add-cat-inline');
+    const addCatInput  = document.getElementById('add-cat-name-input');
+    const btnConfirm   = document.getElementById('btn-add-cat-confirm');
+    const btnCancel    = document.getElementById('btn-add-cat-cancel');
+
+    if (btnAddCat) {
+        // Toggle inline form open/closed
+        btnAddCat.addEventListener('click', function() {
+            const isHidden = addCatInline.style.display === 'none' || addCatInline.style.display === '';
+            addCatInline.style.display = isHidden ? 'block' : 'none';
+            if (isHidden) { addCatInput.focus(); }
+        });
+
+        // Cancel — collapse and clear input
+        btnCancel.addEventListener('click', function() {
+            addCatInput.value = '';
+            addCatInline.style.display = 'none';
+        });
+
+        // Helper: POST category after cost group is resolved
+        var proceedWithAddCategory = function(pageKey, catName, catOutputGroup) {
+            const csrf = (document.querySelector('[name=csrf_token]') || {}).value || '';
+            btnConfirm.disabled = true;
+            btnConfirm.textContent = 'Saving…';
+            fetch('/builder_beta/category/add', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+                body: JSON.stringify({ page_key: pageKey, category_name: catName, output_group: catOutputGroup })
+            })
+            .then(function (r) {
+                // Read status + text first. r.json() throws on non-JSON bodies
+                // (e.g. the 400 HTML page Flask-WTF returns for a stale CSRF
+                // token), which previously surfaced as a misleading
+                // "Network error" even though it was an auth/session problem.
+                return r.text().then(function (text) {
+                    var parsed = null;
+                    try { parsed = JSON.parse(text); } catch (e) { parsed = null; }
+                    return { status: r.status, ok: r.ok, data: parsed, text: text };
+                });
+            })
+            .then(function (res) {
+                if (res.data && res.data.success) {
+                    _saveSelectionState();
+                    window.location.reload();
+                    return;
+                }
+                btnConfirm.disabled = false;
+                btnConfirm.textContent = 'Save';
+                if (res.data && res.data.error) {
+                    alert('Failed to add category: ' + res.data.error);
+                } else if (res.status === 400) {
+                    alert('Could not add category: your session has expired.\n\n'
+                        + 'Nothing was saved. Please reload the page and sign in again.');
+                } else if (res.status === 401 || res.status === 403) {
+                    alert('Could not add category: not authorised (HTTP ' + res.status + ').\n\n'
+                        + 'Please reload the page and sign in again.');
+                } else if (res.status === 0) {
+                    alert('Network error — could not reach the server.\n\n'
+                        + 'The category was NOT saved. Check your connection and try again.');
+                } else {
+                    var snippet = (res.text || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 180);
+                    alert('Could not add category (HTTP ' + res.status + ').\n\n'
+                        + (snippet || 'The server returned an unexpected response.'));
+                }
+            })
+            .catch(function (err) {
+                btnConfirm.disabled = false;
+                btnConfirm.textContent = 'Save';
+                alert('Network error — category was NOT saved.\n\n' + (err && err.message ? err.message : 'Unknown error'));
+            });
+        };
+
+        // Confirm — POST category to backend (after cost group is resolved)
+        btnConfirm.addEventListener('click', function() {
+            const pageKey = btnAddCat.dataset.page;
+            if (!pageKey) { alert("Cannot add category: unknown page context."); return; }
+            const catName = addCatInput.value.trim();
+            if (!catName) { addCatInput.focus(); return; }
+            var addCatOutputInput = document.getElementById('add-cat-output-group-input');
+            var catOutputGroup = addCatOutputInput ? addCatOutputInput.value : '';
+            // Handle __NEW__: create the cost group first, then proceed
+            if (catOutputGroup === '__NEW__') {
+                var newGroupName = prompt('Enter name for the new cost group:');
+                if (!newGroupName || newGroupName.trim() === '') {
+                    btnConfirm.disabled = false;
+                    btnConfirm.textContent = 'Save';
+                    return;
+                }
+                var newGroupId = newGroupName.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+                var csrfToken = (document.querySelector('[name=csrf_token]') || {}).value || '';
+                fetch('/builder_beta/cost_group/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                    body: JSON.stringify({ id: newGroupId, label: newGroupName.trim(), description: '', sort_order: 0 })
+                }).then(function(r) { return r.json(); }).then(function(d) {
+                    if (d.success) {
+                        catOutputGroup = newGroupId;
+                        proceedWithAddCategory(pageKey, catName, catOutputGroup);
+                    } else {
+                        alert('Failed to create cost group: ' + (d.error || 'Unknown error'));
+                        btnConfirm.disabled = false;
+                        btnConfirm.textContent = 'Save';
+                    }
+                }).catch(function() {
+                    alert('Network error creating cost group.');
+                    btnConfirm.disabled = false;
+                    btnConfirm.textContent = 'Save';
+                });
+                return;
+            }
+            if (!catOutputGroup || catOutputGroup.trim() === '') catOutputGroup = 'General';
+            proceedWithAddCategory(pageKey, catName, catOutputGroup);
+        });
+
+        // Enter key in input triggers confirm
+        addCatInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') { btnConfirm.click(); }
+        });
+    }
+});
+    // ══ Images modal (questions + categories) ═══════════════════════════
+    // Owns the single shared modal instance and its listeners so both the
+    // question and category editors can drive it. Exposed on window because
+    // the two editors live in different function scopes.
+    (function () {
+        // ── Images modal (shared by questions and categories) ────────────
+        var questionModalImages = [];
+        var questionModalPendingFile = null;
+        var imagesModalContext = 'question';   // 'question' | 'category'
+        var imagesModalCategoryData = null;
+        var btnQuestionModalBrowse = null;
+        var btnQuestionModalUpload = null;
+        var btnQuestionModalSave = null;
+        var btnQuestionModalClose = null;
+        var questionModalFileInput = null;
+        var questionModalFilename = null;
+        var questionModalImagesList = null;
+        var questionModalTitle = null;
+
+        function renderQuestionModalImages() {
+            if (!questionModalImagesList) return;
+            if (questionModalImages.length === 0) {
+                questionModalImagesList.innerHTML = '<span style="color:#888;font-size:.85rem;">No images attached.</span>';
+                return;
+            }
+            var html = '';
+            questionModalImages.forEach(function(url, idx) {
+                html += '<div style="display:inline-flex;flex-direction:column;align-items:center;gap:4px;border:1px solid #ccc;border-radius:6px;padding:4px;background:#fff;width:110px;">' +
+                    '<img src="' + url + '" style="width:100px;height:80px;object-fit:cover;border-radius:4px;border:1px solid #ddd;">' +
+                    '<button type="button" class="btn-q-modal-remove-item" data-idx="' + idx + '" style="padding:0.2rem 0.5rem;background:#6d0b0b;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:.7rem;width:100%;">Remove</button>' +
+                '</div>';
+            });
+            questionModalImagesList.innerHTML = html;
+            questionModalImagesList.querySelectorAll('.btn-q-modal-remove-item').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var idx = parseInt(this.getAttribute('data-idx'), 10);
+                    if (idx >= 0 && idx < questionModalImages.length) {
+                        questionModalImages.splice(idx, 1);
+                        renderQuestionModalImages();
+                    }
+                });
+            });
+        }
+
+        function openQuestionImagesModal() {
+            openImagesModal('question');
+        }
+
+        // Single entry point for both editors. `ctx` is 'question' or 'category';
+        // `categoryData` is the loaded category payload when editing a category.
+        function openImagesModal(ctx, categoryData) {
+            var questionImagesModal = $id('question-images-modal');
+            if (!questionImagesModal) return;
+            imagesModalContext = ctx || 'question';
+            imagesModalCategoryData = categoryData || null;
+            if (imagesModalContext === 'category') {
+                categoryData = categoryData || {};
+                questionModalImages = (Array.isArray(categoryData.category_images) && categoryData.category_images.length)
+                    ? categoryData.category_images.slice()
+                    : (categoryData.category_image ? [categoryData.category_image] : []);
+            } else {
+                questionModalImages = (_activeItem && _activeItem.question_images && Array.isArray(_activeItem.question_images)) ? _activeItem.question_images.slice() : [];
+            }
+            if (questionModalTitle) {
+                questionModalTitle.textContent = imagesModalContext === 'category' ? 'Category Images' : 'Question Images';
+            }
+            renderQuestionModalImages();
+            questionImagesModal.style.display = 'flex';
+        }
+
+        function closeQuestionImagesModal() {
+            var questionImagesModal = $id('question-images-modal');
+            if (!questionImagesModal) return;
+            questionImagesModal.style.display = 'none';
+            questionModalPendingFile = null;
+            if (questionModalFileInput) questionModalFileInput.value = '';
+            if (questionModalFilename) {
+                questionModalFilename.textContent = '';
+                questionModalFilename.style.color = '#888';
+                questionModalFilename.style.fontStyle = 'italic';
+            }
+            if (btnQuestionModalUpload) btnQuestionModalUpload.disabled = true;
+        }
+
+        // The modal markup is emitted after this <script> in the macro, so the
+        // element lookups below must wait until the DOM has been parsed.
+        function wireImagesModal() {
+            btnQuestionModalBrowse = $id('btn-question-modal-browse');
+            btnQuestionModalUpload = $id('btn-question-modal-upload');
+            btnQuestionModalSave = $id('btn-question-modal-save');
+            btnQuestionModalClose = $id('btn-question-modal-close');
+            questionModalFileInput = $id('question-modal-file-input');
+            questionModalFilename = $id('question-modal-filename');
+            questionModalImagesList = $id('question-modal-images-list');
+            questionModalTitle = $id('question-images-modal-title');
+
+        if (btnQuestionModalClose) {
+            btnQuestionModalClose.addEventListener('click', closeQuestionImagesModal);
+        }
+
+        var questionImagesModal = $id('question-images-modal');
+        if (questionImagesModal) {
+            questionImagesModal.addEventListener('click', function(e) {
+                if (e.target === questionImagesModal) {
+                    closeQuestionImagesModal();
+                }
+            });
+        }
+
+        if (btnQuestionModalBrowse && questionModalFileInput) {
+            btnQuestionModalBrowse.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                questionModalFileInput.click();
+            });
+            questionModalFileInput.addEventListener('change', function() {
+                questionModalPendingFile = this.files && this.files[0];
+                if (questionModalFilename) {
+                    questionModalFilename.textContent = questionModalPendingFile ? questionModalPendingFile.name : 'No file selected';
+                    questionModalFilename.style.color = questionModalPendingFile ? '#1b3a6b' : '#888';
+                    questionModalFilename.style.fontStyle = questionModalPendingFile ? 'normal' : 'italic';
+                }
+                if (btnQuestionModalUpload) {
+                    btnQuestionModalUpload.disabled = !questionModalPendingFile;
+                }
+            });
+        }
+
+        if (btnQuestionModalUpload) {
+            btnQuestionModalUpload.addEventListener('click', function() {
+                if (!questionModalPendingFile) {
+                    alert('Please browse and select an image first.');
+                    return;
+                }
+                var formData = new FormData();
+                formData.append('file', questionModalPendingFile);
+                var csrf = (document.querySelector('[name=csrf_token]') || {}).value || '';
+                btnQuestionModalUpload.disabled = true;
+                btnQuestionModalUpload.textContent = 'Uploading...';
+                fetch('/quote_editor/upload-image', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'X-CSRFToken': csrf },
+                    body: formData
+                })
+                .then(function(r) {
+                    return r.json().then(function(d) { return {status: r.status, data: d}; });
+                })
+                .then(function(result) {
+                    btnQuestionModalUpload.disabled = false;
+                    btnQuestionModalUpload.textContent = 'Upload';
+                    if (result.data.success && result.data.url) {
+                        questionModalImages.push(result.data.url);
+                        renderQuestionModalImages();
+                        questionModalPendingFile = null;
+                        if (questionModalFileInput) questionModalFileInput.value = '';
+                        if (questionModalFilename) {
+                            questionModalFilename.textContent = 'Upload complete';
+                            questionModalFilename.style.color = '#155724';
+                            questionModalFilename.style.fontStyle = 'normal';
+                        }
+                    } else {
+                        alert('Upload failed: ' + (result.data.error || 'Unknown error'));
+                        if (questionModalFilename) {
+                            questionModalFilename.textContent = 'Upload failed';
+                            questionModalFilename.style.color = '#721c24';
+                        }
+                    }
+                })
+                .catch(function(err) {
+                    btnQuestionModalUpload.disabled = false;
+                    btnQuestionModalUpload.textContent = 'Upload';
+                    alert('Upload failed: network error');
+                });
+            });
+        }
+
+        if (btnQuestionModalSave) {
+            btnQuestionModalSave.addEventListener('click', function() {
+                if (imagesModalContext === 'category') {
+                    // Categories persist images through their own form save, which
+                    // already accepts category_image + category_images.
+                    var frm = $id('li-category-edit-form');
+                    if (!frm) { alert('No category selected.'); return; }
+                    var single = frm.querySelector('input[name="cat_category_image"]');
+                    var multi = frm.querySelector('input[name="cat_category_images"]');
+                    if (multi) {
+                        multi.value = JSON.stringify(questionModalImages).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                    }
+                    if (single) single.value = questionModalImages.length ? questionModalImages[0] : '';
+                    if (imagesModalCategoryData) {
+                        imagesModalCategoryData.category_images = questionModalImages.slice();
+                        imagesModalCategoryData.category_image = questionModalImages.length ? questionModalImages[0] : '';
+                    }
+                    closeQuestionImagesModal();
+                    try { if (typeof showQmToast === 'function') showQmToast('Category images updated — save the category to apply', true); } catch(e){}
+                    return;
+                }
+                if (!_activeItem) {
+                    alert('No question selected.');
+                    return;
+                }
+                btnQuestionModalSave.disabled = true;
+                btnQuestionModalSave.textContent = 'Saving...';
+                fetch('/builder_beta/question_images', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json', 'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''},
+                    body: JSON.stringify({ line_item_id: _activeItem.id, images: questionModalImages })
+                })
+                .then(function(r) { 
+                    return r.json().then(function(d) { return {status: r.status, data: d}; }); 
+                })
+                .then(function(result) {
+                    if (result.data.success) {
+                        if (typeof showQmToast === 'function') { showQmToast('Question images saved', true); }
+                        _activeItem.question_images = questionModalImages.slice();
+                        closeQuestionImagesModal();
+                    } else {
+                        alert('Save failed: ' + (result.data.error || 'Unknown error'));
+                    }
+                })
+                .catch(function(e) {
+                    alert('Network error saving question images.');
+                })
+                .finally(function() {
+                    btnQuestionModalSave.disabled = false;
+                    btnQuestionModalSave.textContent = 'Attach Images';
+                });
+            });
+        }
+
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', wireImagesModal);
+        } else {
+            wireImagesModal();
+        }
+
+        // Delegated triggers: bound once at load so they work no matter when the
+        // editor that owns the button renders. The previous approach attached the
+        // listener at the end of the render routine, so any earlier throw left the
+        // button inert with no visible error.
+        document.addEventListener('click', function (e) {
+            var catBtn = e.target.closest && e.target.closest('#btn-cat-images');
+            if (catBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                openImagesModal('category', window.__qmCategoryPayload || null);
+                return;
+            }
+            var qBtn = e.target.closest && e.target.closest('#btn-question-images');
+            if (qBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                openImagesModal('question');
+            }
+        });
+
+        // ── End images modal ──────────────────────────────────────────────
+        window.openImagesModal = openImagesModal;
+        window.closeQuestionImagesModal = closeQuestionImagesModal;
+    })();
+
+</script>
+<style>
+/* Canvas wrapper — shared by all edit-mode views */
+.li-3col-canvas {
+    display: flex; flex-direction: row;
+    height: calc(100vh - 260px); min-height: 400px;
+    border: 1px solid #dee2e6; border-radius: 6px;
+    overflow: hidden; background: #fff;
+}
+.li-sections-panel {
+    width:220px; min-width:180px; border-right:1px solid #dee2e6;
+    background:#f8f9fa; display:flex; flex-direction:column; height:100%; min-height:0;
+}
+.li-sections-header {
+    padding:0 .75rem; height:48px; box-sizing:border-box;
+    border-bottom:1px solid #dee2e6; background:#f0f4ff;
+    display:flex; align-items:center;
+}
+.li-sections-list { padding:.4rem 0; overflow-y:auto; flex:1; }
+/* Prevent breadcrumb trail from wrapping — truncate at panel width */
+.breadcrumb-trail {
+    overflow:hidden; white-space:nowrap; text-overflow:ellipsis; min-width:0;
+}
+.li-section-btn {
+    display:block; text-align:left;
+    padding:.45rem .85rem; border:none; background:none;
+    font-size:.82rem; color:#1b3a6b; cursor:pointer;
+    border-left:3px solid transparent;
+    transition:background .1s, border-color .1s;
+}
+.li-section-btn:hover { background:#e8eeff; }
+.li-section-btn.active {
+    background:#dde7ff; border-left-color:#1b3a6b; font-weight:700;
+}
+</style>
+{% endmacro %}
+
+
+{% macro render_li_question_panel(form_page_key) %}
+<!-- COLUMNS 2 & 3: DETAILS AND QUESTIONS -->
+<div class="li-question-panel" id="li-question-panel" data-page="{{ form_page_key }}" style="display: flex; flex: 1; flex-direction: row; min-width: 0;">
+
+    <!-- ====== COLUMN 2: Meta (Category / Page) ====== -->
+    <div id="col2-meta" style="flex: 1; border-right: 1px solid #dee2e6; display: flex; flex-direction: column; overflow-y: auto; background: #fff;">
+        <div id="li-view-empty" style="display:flex;flex:1;align-items:center;justify-content:center;color:#aaa;font-size:.9rem;min-height: 200px;">
+            Select a category or page details
+        </div>
+        
+        {# View Page — Page Details #}
+        <div id="li-view-page" style="display:none;flex-direction:column;height:100%;">
+            <div class="li-qp-header" style="display:flex;align-items:center;gap:.5rem;padding:0 .75rem;height:48px;box-sizing:border-box;border-bottom:1px solid #dee2e6;background:#f0f4ff;">
+                <span style="font-weight:700;font-size:.85rem;color:#1b3a6b;flex:1;" class="page-title-label">Page Details</span>
+            </div>
+            <div id="li-page-editor-content" style="overflow-y:auto;flex:1;padding:.75rem;">
+                {# populated via JS #}
+            </div>
+        </div>
+
+        {# View One — Category Details #}
+        <div id="li-view-one" style="display:none;flex-direction:column;height:100%;">
+            <div class="li-qp-header" style="display:flex;align-items:center;gap:.5rem;padding:0 .75rem;height:48px;box-sizing:border-box;border-bottom:1px solid #dee2e6;background:#f0f4ff;">
+                <span class="breadcrumb-trail" style="font-weight:600;font-size:.85rem;color:#6c757d;flex:1;">
+                    <span id="li-view-one-title" style="color:#1b3a6b;">Category Details</span>
+                </span>
+            </div>
+            <div id="li-category-content-wrap" style="flex:1; overflow-y:auto; overflow-x:hidden; padding:0;">
+                <div id="li-category-editor" style="padding:0.75rem;">
+                    {# populated via JS #}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====== Vertical resize handle between col2 and col3 ====== -->
+    <div class="resize-handle-vertical" id="resize-handle-col2-col3"></div>
+
+    <!-- ====== COLUMN 3: Questions List & Question Meta ====== -->
+    <div id="col3-questions" style="flex: 1.2; display: flex; flex-direction: column; overflow: hidden; background: #fafafa;">
+        
+        <!-- Top Half: Question List -->
+        <div id="qlist-section" style="flex: 0 0 38%; min-height: 80px; display: flex; flex-direction: column; border-bottom: 2px solid #dee2e6; background: #fff;">
+            <div style="padding: 0 0.75rem; height: 48px; box-sizing: border-box; font-weight:700; color:#1b3a6b; font-size:0.85rem; background:#f0f4ff; border-bottom:1px solid #dee2e6; display: flex; justify-content: space-between; align-items: center;">
+                <span>Questions</span>
+                <span id="li-view-one-count" style="font-size: 0.75rem; font-weight: normal; color: #666;"></span>
+            </div>
+            <div id="li-question-list" style="overflow-y: auto; flex: 1; padding: 0;">
+                <p style="color:#aaa; font-size:0.85rem; text-align:center; margin-top:2rem;">Select a category to see questions</p>
+            </div>
+            <div id="add-question-wrap" style="padding: 0.5rem; background: #fff; border-top: 1px solid #eee; display: none;">
+                <button type="button" id="btn-add-question" style="width: 100%; padding: 0.4rem; background: #1b3a6b; color: #fff; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">Add Question</button>
+            </div>
+        </div>
+
+        <!-- ====== Horizontal resize handle between qlist and qmeta ====== -->
+        <div class="resize-handle-horizontal" id="resize-handle-qlist-qmeta"></div>
+
+        <!-- Bottom Half: Question Editor -->
+        <div id="qmeta-section" style="flex: 1 1 55%; min-height: 80px; display: flex; flex-direction: column; overflow-y: auto; background: #fff;">
+             <div id="li-view-empty-q" style="display:flex;flex:1;align-items:center;justify-content:center;color:#aaa;font-size:.9rem;">
+                 Select a question to edit
+             </div>
+             <div id="li-view-two" style="display:none;flex-direction:column;height:100%;">
+                <div class="li-qp-header" style="display:flex;align-items:center;gap:.5rem;padding:0 .75rem;height:48px;box-sizing:border-box;border-bottom:1px solid #dee2e6;background:#f0f4ff;">
+                    <span id="li-view-two-title" style="font-weight:700;font-size:.85rem;color:#1b3a6b;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Question Meta</span>
+                    <span id="li-save-status-v2" style="font-size:.75rem;color:#28a745;min-width:60px;text-align:right;"></span>
+                </div>
+                <div id="li-editor-content" style="padding:.75rem; background: #fff; flex: 1;">
+                    {# populated via JS #}
+                </div>
+             </div>
+        </div>
+    </div>
+
+</div>
+
+<style>
+.li-question-panel {
+    flex:1; display:flex; flex-direction:column; height:100%;
+    min-width:0; min-height:0; background:#fff;
+    max-width: calc(100% - 220px);
+    overflow: hidden;
+}
+.li-qlist-row {
+    display:grid;
+    grid-template-columns:1fr 40px 30px;
+    gap:.4rem; align-items:center;
+    padding:.35rem .75rem; font-size:.8rem; cursor:pointer;
+    border-bottom:1px solid #f3f3f3; transition:background .1s;
+}
+.li-move-btn:hover { color: #1b3a6b !important; }
+.li-qlist-row:hover { background:#eef2ff; }
+.li-qlist-row.selected { background:#dde7ff; }
+.li-qlist-code { font-family:monospace; font-weight:600; color:#344; font-size:.76rem; }
+.li-qlist-desc { color:#333; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.li-qlist-role { font-size:.7rem; color:#888; text-align:right; }
+.li-qlist-vis { text-align:center; font-size:.8rem; }
+
+/* Editor sections */
+.li-editor-section { border:1px solid #dee2e6; border-radius:5px; margin-bottom:.6rem; overflow:hidden; }
+.li-editor-section-header {
+    padding:.45rem .7rem;
+    background:#f0f4ff; font-size:.82rem; font-weight:700; color:#1b3a6b;
+    cursor:pointer; display:flex; justify-content:space-between; align-items:center;
+}
+.li-editor-section-body { padding:.5rem .7rem; display:block; }
+.li-editor-section-body.collapsed { display:none; }
+.li-form-group { margin-bottom:.55rem; }
+.li-form-group label { display:block; font-size:.75rem; font-weight:600; color:#555; margin-bottom:.2rem; font-family: Arial, sans-serif; }
+.li-form-group input[type="text"],
+.li-form-group input[type="number"],
+.li-form-group textarea,
+.li-form-group select {
+    width:100%; padding:.3rem .45rem; border:1px solid #ced4da; border-radius:4px;
+    font-size:.8rem; color:#333; font-family: Arial, sans-serif;
+}
+.li-form-group textarea { resize:vertical; min-height:52px; }
+.li-save-btn {
+    width:auto; padding:.45rem 1.25rem; margin-top:.5rem;
+    background:#1b3a6b; color:#fff; border:none; border-radius:5px;
+    font-size:.82rem; font-weight:700; cursor:pointer; letter-spacing:.04em;
+}
+.li-save-btn:hover { background:#264d8e; }
+</style>
+
+<script>
+(function () {
+    'use strict';
+
+    // ── State ──────────────────────────────────────────────────────────────
+    var _activeCategory = null;
+    var _activeItem     = null;
+    var _categoryItems  = []; // rows for active category (from last fetch)
+    var _pageKey        = document.getElementById('li-question-panel')
+                              ? document.getElementById('li-question-panel').dataset.page || ''
+                              : '';
+    var _pageTitle      = document.title || 'Page Details';
+
+    function __getCleanPageTitle() {
+        var t = _pageTitle;
+        if(t.includes('-')) t = t.split('-')[0].trim();
+        if(t.includes('|')) t = t.split('|')[0].trim();
+        return t;
+    }
+
+    // ── DOM refs ───────────────────────────────────────────────────────────
+    function $id(id) { return document.getElementById(id); }
+
+    // ── View switching ─────────────────────────────────────────────────────
+    
+    function hideQuestionEditor() {
+        if ($id('li-view-empty-q')) $id('li-view-empty-q').style.display = 'flex';
+        if ($id('li-view-two')) $id('li-view-two').style.display = 'none';
+        _activeItem = null;
+        document.querySelectorAll('.li-qlist-row').forEach(function(r) { r.classList.remove('selected'); });
+    }
+
+    function showEmpty() {
+        $id('li-view-empty').style.display = 'flex';
+        $id('li-view-page').style.display  = 'none';
+        $id('li-view-one').style.display   = 'none';
+        
+        $id('li-question-list').innerHTML = '<p style="color:#aaa; font-size:0.85rem; text-align:center; margin-top:2rem;">Select a category to see questions</p>';
+        $id('li-view-one-count').textContent = '';
+        if ($id('add-question-wrap')) $id('add-question-wrap').style.display = 'none';
+
+        hideQuestionEditor();
+    }
+    function showViewPage() {
+        $id('li-view-empty').style.display = 'none';
+        $id('li-view-page').style.display  = 'flex';
+        $id('li-view-one').style.display   = 'none';
+        
+        $id('li-question-list').innerHTML = '<p style="color:#aaa; font-size:0.85rem; text-align:center; margin-top:2rem;">Page Details selected.<br>Select a category to see its questions.</p>';
+        $id('li-view-one-count').textContent = '';
+        if ($id('add-question-wrap')) $id('add-question-wrap').style.display = 'none';
+
+        hideQuestionEditor();
+        renderPageEditor();
+    }
+    function showViewOne(title) {
+        $id('li-view-empty').style.display = 'none';
+        $id('li-view-page').style.display  = 'none';
+        $id('li-view-one').style.display   = 'flex';
+        
+        if ($id('add-question-wrap')) $id('add-question-wrap').style.display = 'block';
+
+        if (title) {
+            if ($id('li-view-one-title')) $id('li-view-one-title').textContent = 'Category Details: ' + title;
+            renderCategoryEditor(title);
+        }
+        hideQuestionEditor();
+        
+        // Let lists show their components
+    }
+    function showViewTwo(item) {
+        // Keeps the list layer open (ViewOne handles list and cat details now independently of ViewTwo)
+        $id('li-view-empty-q').style.display = 'none';
+        $id('li-view-two').style.display   = 'flex';
+        
+        var name = (item.output_title || item.internal_description || 'Unnamed Question');
+        if ($id('li-view-two-title')) {
+            $id('li-view-two-title').textContent = 'Question: ' + name;
+            $id('li-view-two-title').title = name;
+        }
+        
+        renderEditorForm(item);
+    }
+
+    // ── Breadcrumbs & Global Hooks ─────────────────────────────────────────
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.bc-page')) {
+            e.preventDefault();
+            var btnPage = $id('btn-page-details');
+            if (btnPage) btnPage.click();
+        } else if (e.target.closest('.bc-cat')) {
+            e.preventDefault();
+            var activeBtn = document.querySelector('.li-section-btn[data-category="'+_activeCategory+'"]');
+            if (activeBtn) activeBtn.click();
+        }
+    });
+
+    var btnAddQuestion = $id('btn-add-question');
+    if (btnAddQuestion) {
+        btnAddQuestion.addEventListener('click', function() {
+            if (!_activeCategory) { alert("Please select a category first."); return; }
+            
+            var payload = {
+                page_key: _pageKey,
+                category: _activeCategory,
+                internal_description: "New Question",
+                block_type: "text_input"
+            };
+            
+            btnAddQuestion.disabled = true;
+            btnAddQuestion.textContent = 'Adding...';
+            
+            fetch('/builder_beta/line_item_add', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''},
+                body: JSON.stringify(payload)
+            }).then(r => r.json()).then(d => {
+                btnAddQuestion.disabled = false;
+                btnAddQuestion.textContent = 'Add Question';
+                if (d.success) {
+                    var activeBtn = document.querySelector('.li-section-btn[data-category="'+_activeCategory+'"]');
+                    if (activeBtn) activeBtn.click();
+                } else {
+                    alert('Error adding question: ' + (d.error || 'Unknown error'));
+                }
+            }).catch(e => {
+                btnAddQuestion.disabled = false;
+                btnAddQuestion.textContent = 'Add Question';
+                alert('Network error adding question');
+            });
+        });
+    }
+
+    var pageDetailsBtn = $id('btn-page-details');
+    if (pageDetailsBtn) {
+        pageDetailsBtn.addEventListener('click', function() {
+            document.querySelectorAll('.li-section-btn').forEach(function (b) { b.classList.remove('active'); });
+            pageDetailsBtn.classList.add('active');
+            _activeCategory = null;
+            _saveSelectionState();
+            showViewPage();
+        });
+    }
+
+    // ── Category click ─────────────────────────────────────────────────────
+    document.querySelectorAll('.li-section-btn:not(#btn-page-details)').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            document.querySelectorAll('.li-section-btn').forEach(function (b) { b.classList.remove('active'); });
+            btn.classList.add('active');
+            _activeCategory = btn.dataset.category;
+            _saveSelectionState();
+            var url = '/builder_beta/line_items_json?page=' + encodeURIComponent(_pageKey) + '&category=' + encodeURIComponent(_activeCategory);
+            showViewOne(_activeCategory);
+            $id('li-question-list').innerHTML = '<p style="color:#999;font-size:.8rem;padding:.5rem .75rem;">Loading…</p>';
+            fetch(url, {credentials: 'same-origin'})
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    _categoryItems = [];
+                    if (data.categories && data.categories.length > 0) {
+                        _categoryItems = data.categories[0].items || [];
+                    }
+                    renderQuestionList(_categoryItems);
+                })
+                .catch(function (e) {
+                    $id('li-question-list').innerHTML = '<p style="color:red;font-size:.8rem;padding:.5rem .75rem;">Error loading items.</p>';
+                });
+        });
+    });
+
+    // ── Render question list (View One) ────────────────────────────────────
+    function renderQuestionList(items) {
+        var list = $id('li-question-list');
+        if (!list) return;
+        $id('li-view-one-count').textContent = items.length + ' items';
+        if (!items.length) {
+            list.innerHTML = '<p style="color:#999;font-size:.8rem;padding:.5rem .75rem;">No items in this category.</p>';
+            return;
+        }
+        var html = '';
+        items.forEach(function (item) {
+            var desc = item.internal_description || item.output_title || '—';
+            var vis  = item.form_visible ? '✓' : '–';
+            html += '<div class="li-qlist-row" data-id="' + item.id + '">'
+                +   '<span class="li-qlist-desc" title="' + _esc(desc) + '">' + _esc(desc) + '</span>'
+                +   '<span class="li-qlist-vis">' + vis + '</span>'
+                +   '<div class="li-reorder-controls" style="display:flex;flex-direction:column;align-items:center;">'
+                +       '<button type="button" class="li-move-btn" data-scope="question" data-id="' + item.id + '" data-dir="up" style="border:none;background:none;font-size:10px;cursor:pointer;padding:0 4px;color:#888;">▲</button>'
+                +       '<button type="button" class="li-move-btn" data-scope="question" data-id="' + item.id + '" data-dir="down" style="border:none;background:none;font-size:10px;cursor:pointer;padding:0 4px;color:#888;">▼</button>'
+                +   '</div>'
+                + '</div>';
+        });
+        list.innerHTML = html;
+        list.querySelectorAll('.li-qlist-row').forEach(function (row) {
+            row.addEventListener('click', function (e) {
+                if (e.target.closest('.li-move-btn')) return;
+                list.querySelectorAll('.li-qlist-row').forEach(function (r) { r.classList.remove('selected'); });
+                row.classList.add('selected');
+                var id = parseInt(row.dataset.id, 10);
+                _activeItem = items.find(function (i) { return i.id === id; }) || null;
+                if (_activeItem) {
+                    _saveSelectionState();
+                    showViewTwo(_activeItem);
+                }
+            });
+        });
+        
+        // Re-select active item if applicable
+        if (_activeItem) {
+            var el = list.querySelector('.li-qlist-row[data-id="'+_activeItem.id+'"]');
+            if (el) { el.classList.add('selected'); showViewTwo(_activeItem); }
+        }
+    }
+
+    // ── Reorder AJAX Handler ───────────────────────────────────────────────
+    document.addEventListener('click', function(e) {
+        var btn = e.target.closest('.li-move-btn');
+        if (!btn) return;
+        e.preventDefault();
+        e.stopPropagation();
+
+        var scope = btn.dataset.scope;
+        var dir = btn.dataset.dir;
+        var identifier = scope === 'category' ? btn.dataset.id : parseInt(btn.dataset.id, 10);
+        var pageKey = btn.dataset.page || _pageKey;
+
+        fetch('/builder_beta/swap_order', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''
+            },
+            body: JSON.stringify({
+                scope: scope,
+                identifier: identifier,
+                direction: dir,
+                page_key: pageKey
+            })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                if (scope === 'category') {
+                    _saveSelectionState();
+                    window.location.reload();
+                } else if (scope === 'question') {
+                    var url = '/builder_beta/line_items_json?page=' + encodeURIComponent(_pageKey) + '&category=' + encodeURIComponent(_activeCategory);
+                    fetch(url, {credentials: 'same-origin'})
+                        .then(function(r) { return r.json(); })
+                        .then(function(data) {
+                            _categoryItems = [];
+                            if (data.categories && data.categories.length > 0) {
+                                _categoryItems = data.categories[0].items || [];
+                            }
+                            renderQuestionList(_categoryItems);
+                        });
+                }
+            } else {
+                alert('Swap failed: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(function(e) {
+            alert('Swap request failed.');
+        });
+    });
+
+    // ── Page Reorder AJAX Handler ──────────────────────────────────────────
+    document.addEventListener('click', function(e) {
+        var btn = e.target.closest('.page-reorder-btn');
+        if (!btn) return;
+        e.preventDefault();
+        e.stopPropagation();
+
+        var pageKey = btn.dataset.page;
+        var dir = btn.dataset.dir;
+        if (!pageKey) return;
+
+        fetch('/builder_beta/page/reorder', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''
+            },
+            body: JSON.stringify({
+                page_key: pageKey,
+                direction: dir
+            })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert('Page reorder failed: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(function(e) {
+            alert('Page reorder request failed.');
+        });
+    });
+
+    // ── Render editors ────────────────────────────────────────────────────
+    
+    function renderPageEditor() {
+        fetch('/builder_beta/page_details_json/' + _pageKey).then(r=>r.json()).then(data => {
+            _renderPageEditorHtml(data);
+        }).catch(e => {
+            _renderPageEditorHtml({});
+        });
+    }
+
+    function _renderPageEditorHtml(data) {
+        var html = '<form id="li-page-edit-form" autocomplete="off">';
+        html += _section('Description', true, [
+            _field('page_title', 'Configuration Identifier', 'text', __getCleanPageTitle()),
+            _field('page_description', 'Page Description', 'textarea', '')
+        ]);
+        html += '<div style="position: sticky; bottom: -1.5rem; background: #fff; z-index: 10; margin: 1rem -1.5rem -1.5rem -1.5rem; padding: 1rem 1.5rem 3rem 1.5rem; border-top: 1px solid #ccc; box-shadow: 0 -4px 6px -6px rgba(0,0,0,0.1);">';
+        html += '<div style="display:flex; justify-content:flex-end; align-items:center; margin-bottom:0.8rem;">';
+        html += '  <label style="font-size:.85rem; font-weight:600; color:#1b3a6b; cursor:pointer;"><input type="checkbox" id="page-visibility-checkbox" ' + (data.form_visible !== false ? 'checked' : '') + ' style="margin-right:.4rem;">Page Visible in Form</label>';
+        html += '</div>';
+        html += '<div style="display:flex; justify-content:flex-end; align-items:center; gap: 10px;">';
+        html += '  <button type="button" id="btn-save-page" class="li-save-btn" style="padding:0.45rem; width:auto; margin-top:0; font-size:1.2rem;" title="Save Page"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>';
+        html += '  <button type="button" id="btn-delete-page" class="li-delete-btn" style="padding:0.45rem; background:#6d0b0b; color:#fff; border:none; border-radius:5px; font-weight:700; cursor:pointer; font-size:1.2rem;" title="Delete Page"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>';
+        html += '</div>';
+        html += '</div>';
+        html += '</form>';
+        $id('li-page-editor-content').innerHTML = html;
+        
+        $id('li-page-edit-form').querySelector('input[name="page_title"]').value = data.title || __getCleanPageTitle();
+        $id('li-page-edit-form').querySelector('textarea[name="page_description"]').value = data.description || '';
+        
+        _attachAccordion($id('li-page-editor-content'));
+
+        $id('btn-save-page').addEventListener('click', function(e) {
+            e.preventDefault();
+            var frm = $id('li-page-edit-form');
+            var title = frm.querySelector('input[name="page_title"]').value;
+            var desc = frm.querySelector('textarea[name="page_description"]').value;
+            fetch('/builder_beta/page_details_save/' + _pageKey, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''},
+                body: JSON.stringify({title: title, description: desc})
+            }).then(r => r.json()).then(d => {
+                if (d.ok) {
+                    try { if (typeof showQmToast === 'function') showQmToast('Page saved', true); } catch(e){}
+                    _saveSelectionState();
+                    window.location.reload();
+                }
+                else alert('Error: ' + d.error);
+            }).catch(e => alert('Network Error'));
+        });
+        
+        $id('btn-delete-page').addEventListener('click', function(e) {
+            if (confirm('Deleting this page is permanent. Are you sure?')) {
+                fetch('/builder_beta/page_details_delete/' + _pageKey, {
+                    method: 'POST',
+                    headers: {'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''}
+                }).then(r => r.json()).then(d => {
+                    if (d.ok || d.success) {
+                        // After deleting this page, go back to the empty landing page in edit mode
+                        window.location.href = '/edit_home?edit=1';
+                    } else {
+                        alert('Error: ' + d.error);
+                    }
+                }).catch(e => alert('Network error deleting page.'));
+            }
+        });
+    }
+
+    function renderCategoryEditor(catName) {
+        fetch('/builder_beta/category_details_json?page_key=' + encodeURIComponent(_pageKey) + '&name=' + encodeURIComponent(catName)).then(r=>r.json()).then(data => {
+            _renderCategoryEditorHtml(catName, data);
+        }).catch(e => {
+            _renderCategoryEditorHtml(catName, {});
+        });
+    }
+
+    function _renderCategoryEditorHtml(catName, data) {
+        // Stashed immediately so the delegated image trigger has the payload even
+        // if a later line in this routine throws.
+        window.__qmCategoryPayload = data;
+        var html = '<form id="li-category-edit-form" autocomplete="off" style="display:flex;flex-direction:column;flex:1;max-width:100%;">';
+        html += _section('Description', true, [
+            _field('cat_name', 'Category Name', 'text', catName),
+            _field('cat_description', 'Category Description', 'textarea', '')
+        ]);
+        html += _section('Cost Group', true, [
+            // Cost Group (managed select with inline management)
+            html += '<div class=\"_field\"><label>Cost Group</label>' +
+                '<div style=\"display:flex;gap:0.3rem;align-items:center;\">' +
+                '<select name=\"cat_output_group\" id=\"cat-output-group-select\" style=\"flex:1;\">' +
+                '<option value=\"\">-- Select Cost Group --</option>';
+            var _cg = (window.builderStateCostGroups || {});
+            for (var _gid in _cg) {
+                var _gd = _cg[_gid];
+                var _sel = (_gid === (data.output_group || 'General')) ? ' selected' : '';
+                html += '<option value=\"' + _gid + '\"' + _sel + '>' + (_gd.label || _gid) + '</option>';
+            }
+            html += '<option value=\"__NEW__\">-- Add New Cost Group --</option>';
+            html += '</select>' +
+                '<button type=\"button\" id=\"btn-cat-cg-edit\" title=\"Edit Cost Group\" style=\"font-size:0.75rem;padding:0.15rem 0.35rem;border:1px solid #aaa;background:#fff;border-radius:3px;cursor:pointer;\">✏️</button>' +
+                '<button type=\"button\" id=\"btn-cat-cg-delete\" title=\"Delete Cost Group\" style=\"font-size:0.75rem;padding:0.15rem 0.35rem;border:1px solid #d32f2f;background:#fff;color:#d32f2f;border-radius:3px;cursor:pointer;\">🗑</button>' +
+                '</div></div>'
+        ]);
+        html += _section('Meta', false, [
+            _field('cat_page_key', 'Belongs to Page', 'text', _pageKey, true)
+        ]);
+        // Category images are managed through the shared images modal (same as
+        // questions). The save endpoint already accepts category_image +
+        // category_images, so both are carried in hidden inputs.
+        html += '<input type="hidden" name="cat_category_image" value="' + (data.category_image || '') + '">';
+        html += '<input type="hidden" name="cat_category_images" value=\'' + JSON.stringify(data.category_images || []).replace(/\\/g, '\\\\').replace(/'/g, "\\'") + '\'>';
+
+        // Render sticky action buttons correctly mapping back onto Category View wrapper level
+        var footerHtml = '<div class="cat-sticky-footer" style="background:#fff; margin-top:1rem; padding:.75rem; border-top:1px solid #dee2e6;">';
+        footerHtml += '<div style="display:flex; justify-content:flex-end; align-items:center; margin-bottom:0.8rem;">';
+        footerHtml += '  <label style="font-size:.85rem; font-weight:600; color:#1b3a6b; cursor:pointer;"><input type="checkbox" id="cat-visibility-checkbox" checked style="margin-right:.4rem;">Category Visible in Form</label>';
+        footerHtml += '</div>';
+        footerHtml += '<div style="display:flex; justify-content:flex-end; align-items:center; gap: 10px;">';
+        footerHtml += '  <button type="button" id="btn-cat-images" class="li-save-btn" style="padding:0.45rem; width:auto; margin-top:0; background:#495057;" title="Manage Category Images"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></button>';
+        footerHtml += '  <button type="button" id="btn-cat-save" class="li-save-btn" style="padding:0.45rem; width:auto; margin-top:0;" title="Save Category"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>';
+        footerHtml += '  <button type="button" id="btn-cat-delete" class="li-delete-btn" style="padding:0.45rem; background:#6d0b0b; color:#fff; border:none; border-radius:5px; font-weight:700; cursor:pointer;" title="Delete Category"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>';
+        footerHtml += '  <button type="button" id="btn-cat-move" class="li-save-btn" style="padding:0.45rem; width:auto; margin-top:0; background:#495057;" title="Move Category to Another Page"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>';
+        footerHtml += '</div>';
+        footerHtml += '<div id="cat-move-panel" style="display:none; margin-top:0.75rem; padding:0.75rem; background:#f8f9fa; border:1px solid #dee2e6; border-radius:4px;">';
+        footerHtml += '  <label style="font-size:.8rem; font-weight:600; color:#333; display:block; margin-bottom:0.4rem;">Move category to page:</label>';
+        footerHtml += '  <select id="cat-move-target" style="width:100%; padding:0.4rem; border:1px solid #ccc; border-radius:4px; font-size:.85rem;">';
+        footerHtml += '    <option value="">-- Choose a page --</option>';
+        footerHtml += '  </select>';
+        footerHtml += '  <div style="display:flex; gap:0.5rem; justify-content:flex-end; margin-top:0.5rem;">';
+        footerHtml += '    <button type="button" id="btn-cat-move-cancel" class="btn" style="background:#f0f0f0; color:#333; border:1px solid #ccc; padding:0.35rem 0.9rem; border-radius:4px; cursor:pointer; font-size:.8rem;">Cancel</button>';
+        footerHtml += '    <button type="button" id="btn-cat-move-confirm" class="btn" style="background:#1b3a6b; color:#fff; border:none; padding:0.35rem 0.9rem; border-radius:4px; cursor:pointer; font-size:.8rem;">Move</button>';
+        footerHtml += '  </div>';
+        footerHtml += '</div>';
+        footerHtml += '</div>';
+        footerHtml += '</div>';
+        
+        html += footerHtml;
+        html += '</form>';
+        
+        $id('li-category-editor').innerHTML = html;
+        
+        // Relocate sticky footer bottom of View One container if needed, but since we are appending line item question list above it in form now...
+        var footerNode = $id('li-category-editor').querySelector('.cat-sticky-footer');
+        if (footerNode) {
+            var existingFooters = $id('li-view-one').querySelectorAll('.cat-sticky-footer');
+            existingFooters.forEach(f => f.remove());
+            $id('li-category-content-wrap').appendChild(footerNode); 
+        }
+
+        // Guarded: a missing node here used to throw and abort the rest of the
+        // render, leaving the action-row buttons unwired.
+        try {
+            var catForm = $id('li-category-edit-form');
+            var catDesc = catForm && catForm.querySelector('textarea[name="cat_description"]');
+            if (catDesc) catDesc.value = data.description || '';
+            if ($id('cat-visibility-checkbox')) {
+                $id('cat-visibility-checkbox').checked = (data.form_visible !== false);
+            }
+        } catch (err) {
+            console.error('[CATEGORY] render guard failed', err);
+        }
+
+        _attachAccordion($id('li-category-editor'));
+        
+        // Attach Category actions (targeting the DOM globally since footer moved)
+        var btnSaveC = $id('btn-cat-save');
+        var btnDelC = $id('btn-cat-delete');
+        
+        var newSaveC = btnSaveC ? btnSaveC.cloneNode(true) : null;
+        if (newSaveC) btnSaveC.parentNode.replaceChild(newSaveC, btnSaveC);
+        
+        var newDelC = btnDelC ? btnDelC.cloneNode(true) : null;
+        if (newDelC) btnDelC.parentNode.replaceChild(newDelC, btnDelC);
+        
+        // ── Cost Group Management (category editor) ─────────────────────
+        var cgSelect = $id('cat-output-group-select');
+        var btnCgEdit = $id('btn-cat-cg-edit');
+        var btnCgDelete = $id('btn-cat-cg-delete');
+
+        if (cgSelect) {
+            // Handle __NEW__: create cost group then select it
+            cgSelect.addEventListener('change', function() {
+                if (cgSelect.value === '__NEW__') {
+                    var newName = prompt('Enter name for new cost group:');
+                    if (!newName || newName.trim() === '') {
+                        cgSelect.value = '';
+                        return;
+                    }
+                    var newId = newName.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+                    var csrf = (document.querySelector('[name=csrf_token]') || {}).value || '';
+                    btnCgEdit.disabled = true;
+                    btnCgDelete.disabled = true;
+                    fetch('/builder_beta/cost_group/save', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+                        body: JSON.stringify({ id: newId, label: newName.trim(), description: '', sort_order: 0 })
+                    }).then(function(r) { return r.json(); }).then(function(d) {
+                        if (d.success) {
+                            window.location.reload();
+                        } else {
+                            alert('Failed to create cost group: ' + (d.error || 'Unknown error'));
+                            cgSelect.value = '';
+                            btnCgEdit.disabled = false;
+                            btnCgDelete.disabled = false;
+                        }
+                    }).catch(function() {
+                        alert('Network error creating cost group.');
+                        cgSelect.value = '';
+                        btnCgEdit.disabled = false;
+                        btnCgDelete.disabled = false;
+                    });
+                }
+            });
+
+            // Edit button
+            if (btnCgEdit) {
+                btnCgEdit.addEventListener('click', function() {
+                    var gid = cgSelect.value;
+                    if (!gid || gid === '' || gid === '__NEW__') return;
+                    var gd = (window.builderStateCostGroups || {})[gid];
+                    if (!gd) return;
+                    var newName = prompt('Enter new name for cost group:', gd.label || '');
+                    if (!newName || newName.trim() === '' || newName.trim() === (gd.label || '')) return;
+                    var csrf = (document.querySelector('[name=csrf_token]') || {}).value || '';
+                    fetch('/builder_beta/cost_group/save', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+                        body: JSON.stringify({ id: gid, label: newName.trim(), description: gd.description || '', sort_order: gd.sort_order || 0, old_id: gid })
+                    }).then(function(r) { return r.json(); }).then(function(d) {
+                        if (d.success) { window.location.reload(); }
+                        else { alert('Failed to update cost group: ' + (d.error || 'Unknown error')); }
+                    }).catch(function() { alert('Network error updating cost group.'); });
+                });
+            }
+
+            // Delete button
+            if (btnCgDelete) {
+                btnCgDelete.addEventListener('click', function() {
+                    var gid = cgSelect.value;
+                    if (!gid || gid === '' || gid === '__NEW__' || gid === 'general') {
+                        if (gid === 'general') alert('Cannot delete the default General cost group.');
+                        return;
+                    }
+                    if (!confirm('Delete this cost group? Items using it will be remapped to General.')) return;
+                    var csrf = (document.querySelector('[name=csrf_token]') || {}).value || '';
+                    fetch('/builder_beta/cost_group/delete', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+                        body: JSON.stringify({ id: gid, remap_to: 'general' })
+                    }).then(function(r) { return r.json(); }).then(function(d) {
+                        if (d.success) { window.location.reload(); }
+                        else { alert('Failed to delete cost group: ' + (d.error || 'Unknown error')); }
+                    }).catch(function() { alert('Network error deleting cost group.'); });
+                });
+            }
+        }
+
+        if (newSaveC) newSaveC.addEventListener('click', function() {
+            var frm = $id('li-category-edit-form');
+            var desc = frm.querySelector('textarea[name="cat_description"]').value;
+            var newName = frm.querySelector('input[name="cat_name"]').value;
+            var outputGroup = (frm.querySelector('select[name="cat_output_group"]') || frm.querySelector('input[name="cat_output_group"]')).value || 'General';
+            var visible = $id('cat-visibility-checkbox').checked;
+            var categoryImage = (frm.querySelector('input[name="cat_category_image"]') || {}).value || '';
+            var categoryImages = [];
+            try {
+                categoryImages = JSON.parse((frm.querySelector('input[name="cat_category_images"]') || {}).value || '[]');
+                if (!Array.isArray(categoryImages)) categoryImages = [];
+            } catch (e) { categoryImages = []; }
+            if (!categoryImages.length && categoryImage) categoryImages = [categoryImage];
+            fetch('/builder_beta/category_details_save', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''},
+                body: JSON.stringify({ page_key: _pageKey, old_name: catName, new_name: newName, description: desc, output_group: outputGroup, form_visible: visible, category_image: categoryImage, category_images: categoryImages })
+            }).then(r => r.json()).then(d => {
+                if (d.ok) {
+                    if (newName !== catName) {
+                        _saveSelectionState();
+                        window.location.reload();
+                    }
+                    else {
+                        try { if (typeof showQmToast === 'function') showQmToast('Category saved', true); } catch(e){}
+                        _saveSelectionState();
+                        window.location.reload();
+                    }
+                }
+                else alert('Error: ' + d.error);
+            }).catch(e => alert('Network error.'));
+        });
+        
+        if (newDelC) newDelC.addEventListener('click', function() {
+            if (confirm('Delete category "' + catName + '"? This cannot be undone.')) {
+                var payload = JSON.stringify({ page_key: _pageKey, category_name: catName });
+                console.log('Delete payload:', payload);
+                fetch('/builder_beta/category/delete', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json', 'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''},
+                    body: payload
+                }).then(function(r) {
+                    console.log('Delete response status:', r.status);
+                    return r.json().then(function(data) {
+                        console.log('Delete response data:', data);
+                        return data;
+                    });
+                }).then(function(d) {
+                    if(d.success) {
+                        try { sessionStorage.removeItem('li_activeCategory'); } catch(e){}
+                        try { sessionStorage.removeItem('li_activeItemId'); } catch(e){}
+                        window.location.reload();
+                    }
+                    else alert('Error: ' + (d.error || 'Unknown error'));
+                }).catch(e => {
+                    console.error('Delete network error:', e);
+                    alert('Network error: ' + e.message);
+                });
+            }
+        });
+
+        // Move category to another page
+        var btnMove = $id('btn-cat-move');
+        var movePanel = $id('cat-move-panel');
+        var btnMoveCancel = $id('btn-cat-move-cancel');
+        var btnMoveConfirm = $id('btn-cat-move-confirm');
+        var moveTarget = $id('cat-move-target');
+        if (btnMove && movePanel) {
+            btnMove.addEventListener('click', function() {
+                movePanel.style.display = movePanel.style.display === 'none' ? 'block' : 'none';
+            });
+            if (btnMoveCancel) {
+                btnMoveCancel.addEventListener('click', function() {
+                    movePanel.style.display = 'none';
+                });
+            }
+            if (btnMoveConfirm) {
+                btnMoveConfirm.addEventListener('click', function() {
+                    var target = moveTarget ? moveTarget.value : '';
+                    if (!target) {
+                        alert('Please select a target page.');
+                        return;
+                    }
+                    if (!confirm('Move "' + catName + '" to "' + target + '"? Are you sure?')) return;
+                    btnMoveConfirm.disabled = true;
+                    btnMoveConfirm.textContent = 'Moving…';
+                    fetch('/builder_beta/category/move', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json', 'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''},
+                        body: JSON.stringify({ page_key: _pageKey, category_name: catName, target_page_key: target })
+                    }).then(function(r) { return r.json(); }).then(function(d) {
+                        if (d.success) {
+                            try { showQmToast('Category moved successfully', true); } catch(e){}
+                            window.location.href = '/' + target + '?edit=1';
+                        } else {
+                            alert('Move failed: ' + (d.error || 'Unknown error'));
+                        }
+                    }).catch(function(e) {
+                        alert('Network error moving category.');
+                    }).finally(function() {
+                        btnMoveConfirm.disabled = false;
+                        btnMoveConfirm.textContent = 'Move';
+                    });
+                });
+            }
+
+            // Populate move target dropdown from global pages list
+            console.log('Populating move dropdown. window._allPages:', window._allPages, 'moveTarget:', moveTarget);
+            if (moveTarget && window._allPages && Array.isArray(window._allPages)) {
+                window._allPages.forEach(function(pg) {
+                    if (pg.page_key && pg.page_key !== _pageKey) {
+                        var opt = document.createElement('option');
+                        opt.value = pg.page_key;
+                        opt.textContent = pg.title || pg.page_key;
+                        moveTarget.appendChild(opt);
+                        console.log('Added option:', opt.value, opt.textContent);
+                    }
+                });
+                console.log('Dropdown options after population:', moveTarget.options.length);
+            } else {
+                console.log('Population skipped. moveTarget:', !!moveTarget, 'window._allPages:', !!window._allPages, 'isArray:', Array.isArray(window._allPages));
+            }
+        }
+    }
+
+    function _attachAccordion(container) {
+        if (!container) return;
+        var existing = container._accHandler;
+        if (existing) container.removeEventListener('click', existing);
+        container._accHandler = function(e) {
+            var hdr = e.target.closest('.li-editor-section-header');
+            if (!hdr) return;
+            var body = hdr.nextElementSibling;
+            if (body) {
+                body.classList.toggle('collapsed');
+                var sp = hdr.querySelector('.li-sec-toggle');
+                if (sp) sp.textContent = body.classList.contains('collapsed') ? '▸' : '▾';
+            }
+        };
+        container.addEventListener('click', container._accHandler);
+    }
+
+    // ── Render question editor (View Two) ─────────────────────────────────
+    function renderEditorForm(item) {
+
+        // Question trigger: the button is created by this render pass, so the
+        // listener must be attached here rather than at load time.
+        var btnQuestionImages = $id('btn-question-images');
+        if (btnQuestionImages) {
+            btnQuestionImages.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (typeof window.openImagesModal === 'function') window.openImagesModal('question');
+            });
+        }
+
+        var html = '<form id="li-edit-form" autocomplete="off">';
+
+        html += _section('Description', true, [
+            _field('internal_description', 'Internal Description', 'text', item.internal_description || ''),
+            _field('output_title',         'Output Title',          'text', item.output_title || ''),
+            _field_with_merge_tags('output_notes',    'Output Notes',    item.output_notes || '',    item),
+            _field_with_merge_tags('output_guidance', 'Output Guidance', item.output_guidance || '', item)
+        ]);
+
+        html += _section('Secondary Questions', true, [
+            _checkField('is_follow_up', 'Include follow-up question', item.is_follow_up === 1 || item.is_follow_up === '1'),
+            '<div id="group_follow_up_type" style="display:' + (item.is_follow_up === 1 || item.is_follow_up === '1' ? 'block' : 'none') + ';">' +
+                '<div id="follow-ups-list"></div>' +
+                '<div style="position:relative; display:inline-block; margin-top:.5rem;">' +
+                    '<button type="button" id="btn-add-follow-up" style="padding:.4rem .9rem; background:#1b3a6b; color:#fff; border:1px solid #1b3a6b; border-radius:6px; cursor:pointer; font-size:.8rem; font-weight:600; box-shadow:0 1px 3px rgba(27,58,107,0.2);">Add Follow Up</button>' +
+                    '<div id="fu-type-picker" style="display:none; position:absolute; top:100%; left:0; background:#fff; border:1px solid #ccc; border-radius:4px; box-shadow:0 2px 8px rgba(0,0,0,0.15); z-index:200; min-width:180px; margin-top:4px;">' +
+                        '<button type="button" class="fu-picker-item" data-type="Dropdown" style="display:block; width:100%; text-align:left; padding:8px 12px; background:none; border:none; cursor:pointer; font-size:.85rem; color:#333;">Dropdown</button>' +
+                        '<button type="button" class="fu-picker-item" data-type="Single Entry" style="display:block; width:100%; text-align:left; padding:8px 12px; background:none; border:none; cursor:pointer; font-size:.85rem; color:#333; border-top:1px solid #eee;">Single Entry</button>' +
+                    '</div>' +
+                '</div>' +
+                '<input type="hidden" name="follow_up_config" id="li_follow_up_config_hidden">' +
+            '</div>',
+        ]);
+
+        var qtyOpts = ['Static'];
+        var qtyVals = [''];
+        try {
+            var fuConfig = typeof item.follow_up_config === 'string' ? JSON.parse(item.follow_up_config || '[]') : (item.follow_up_config || []);
+            if (Array.isArray(fuConfig)) {
+                fuConfig.forEach(function(cfg, idx) {
+                    if (cfg && cfg.type && cfg.type.indexOf('Single Entry') !== -1) {
+                        var label = cfg.helper_text || ('Follow-up ' + (idx + 1));
+                        qtyOpts.push('Follow-up: ' + label);
+                        qtyVals.push('follow_up_' + item.line_code + '_' + idx);
+                    }
+                });
+            }
+        } catch (e) {}
+        var qtyOptionsHtml = qtyVals.map(function(v, i) {
+            return '<option value="' + _esc(v) + '"' + ((item.quantity_source || '') === v ? ' selected' : '') + '>' + _esc(qtyOpts[i]) + '</option>';
+        }).join('');
+        var qtyField = '<div class="li-form-group"><label>Units Source</label><select name="quantity_source" id="li_quantity_source">' + qtyOptionsHtml + '</select></div>';
+
+        html += _section('Price', false, [
+            _field('unit_cost', 'Unit Cost (£)', 'number', item.unit_cost != null ? item.unit_cost : ''),
+            _field('units',     'Units',         'number', item.units     != null ? item.units     : '', false, 'li_units'),
+            qtyField,
+            _checkField('price_override_enabled', 'User Can Edit Price', item.pricing_visibility === 'user_edit', 'lich_price_override'),
+        ]);
+
+        // Generate category options
+        var allCats = Array.from(document.querySelectorAll('.li-section-btn')).map(function(btn) { return btn.dataset.category; });
+        if (allCats.length === 0 && window._allCategories) allCats = window._allCategories; // Fallback
+        if (allCats.length === 0 && item.category) allCats = [item.category]; // Fallback to current if none found
+        // Ensure unique categories
+        allCats = allCats.filter(function(v, i, a) { return a.indexOf(v) === i; });
+
+        html += _section('Meta', false, [
+            _field('line_code',       'Line Code',       'text',   item.line_code   || '', true),
+            _field('output_group',    'Cost Group',    'text',   item.output_group || 'General'),
+            _selectField('category',  'Category',        item.category || '', allCats)
+        ]);
+
+        html += _section('Output (Preview)', false, [
+            '<div class="li-form-group"><label>Internal Description</label><p style="font-size:.8rem;color:#555;padding:.2rem 0;margin:0;font-family:Arial,sans-serif;">' + _esc(item.output_title || item.internal_description || '—') + '</p></div>',
+            '<div class="li-form-group"><label>Output Notes</label><p style="font-size:.8rem;color:#555;padding:.2rem 0;margin:0;white-space:pre-wrap;font-family:Arial,sans-serif;">' + _esc(item.output_notes || '—') + '</p></div>',
+            '<div class="li-form-group"><label>Output Guidance</label><p style="font-size:.8rem;color:#555;padding:.2rem 0;margin:0;white-space:pre-wrap;font-family:Arial,sans-serif;">' + _esc(item.output_guidance || '—') + '</p></div>',
+        ]);
+
+        html += '<div style="position: sticky; bottom: -1.5rem; background: #fff; z-index: 10; margin: 1rem -1.5rem -1.5rem -1.5rem; padding: 1rem 1.5rem 3rem 1.5rem; border-top: 1px solid #ccc; box-shadow: 0 -4px 6px -6px rgba(0,0,0,0.1);">';
+        html += '<div style="display:flex; justify-content:flex-end; align-items:center; margin-bottom:0.8rem;">';
+        html += '  <label style="font-size:.85rem; font-weight:600; color:#1b3a6b; cursor:pointer;"><input type="checkbox" name="form_visible" ' + (item.form_visible === 1 || item.form_visible === '1' || item.form_visible === true ? 'checked' : '') + ' style="margin-right:.4rem;">Question Visible in Form</label>';
+        html += '</div>';
+        html += '<div style="display:flex; justify-content:flex-end; align-items:center; gap: 10px;">';
+        html += '  <button type="button" id="btn-duplicate-question" class="li-save-btn" style="padding:0.45rem; width:auto; margin-top:0; background:#6c757d;" title="Duplicate Question"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>';
+        html += '  <button type="button" id="btn-question-images" class="li-save-btn" style="padding:0.45rem; width:auto; margin-top:0; background:#495057;" title="Manage Question Images"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></button>';
+        html += '  <button type="button" id="btn-q-move" class="li-save-btn" style="padding:0.45rem; width:auto; margin-top:0; background:#495057;" title="Move Question to Another Category"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>';
+        html += '  <button type="submit" class="li-save-btn" style="padding:0.45rem; width:auto; margin-top:0;" title="Save Question"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>';
+        html += '  <button type="button" id="btn-delete-question" class="li-delete-btn" style="padding:0.45rem; background:#6d0b0b; color:#fff; border:none; border-radius:5px; font-weight:700; cursor:pointer;" title="Delete Question"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>';
+        html += '</div>';
+        html += '<div id="q-move-panel" style="display:none; margin-top:0.75rem; padding:0.75rem; background:#f8f9fa; border:1px solid #dee2e6; border-radius:4px;">';
+        html += '  <label style="font-size:.8rem; font-weight:600; color:#333; display:block; margin-bottom:0.4rem;">Move question to category:</label>';
+        html += '  <select id="q-move-target" style="width:100%; padding:0.4rem; border:1px solid #ccc; border-radius:4px; font-size:.85rem;">';
+        html += '    <option value="">-- Choose a category --</option>';
+        html += '  </select>';
+        html += '  <div style="display:flex; gap:0.5rem; justify-content:flex-end; margin-top:0.5rem;">';
+        html += '    <button type="button" id="btn-q-move-cancel" class="btn" style="background:#f0f0f0; color:#333; border:1px solid #ccc; padding:0.35rem 0.9rem; border-radius:4px; cursor:pointer; font-size:.8rem;">Cancel</button>';
+        html += '    <button type="button" id="btn-q-move-confirm" class="btn" style="background:#1b3a6b; color:#fff; border:none; padding:0.35rem 0.9rem; border-radius:4px; cursor:pointer; font-size:.8rem;">Move</button>';
+        html += '  </div>';
+        html += '</div>';
+        html += '</div>';
+        html += '</form>';
+        $id('li-editor-content').innerHTML = html;
+
+        // ── Move question to another category ──────────────────────────
+        (function () {
+            var qMovePanel = $id('q-move-panel');
+            var qMoveTarget = $id('q-move-target');
+            var btnQMove = $id('btn-q-move');
+            var btnQMoveCancel = $id('btn-q-move-cancel');
+            var btnQMoveConfirm = $id('btn-q-move-confirm');
+            if (!btnQMove || !qMovePanel) return;
+
+            btnQMove.addEventListener('click', function () {
+                qMovePanel.style.display = (qMovePanel.style.display === 'none' || qMovePanel.style.display === '') ? 'block' : 'none';
+            });
+            if (btnQMoveCancel) {
+                btnQMoveCancel.addEventListener('click', function () { qMovePanel.style.display = 'none'; });
+            }
+
+            // Populate from the live category list so only real targets appear.
+            if (qMoveTarget) {
+                var currentCat = (item && item.category) ? item.category : '';
+                document.querySelectorAll('.li-section-btn[data-category]').forEach(function (b) {
+                    var name = b.getAttribute('data-category');
+                    if (!name || name === currentCat) return;
+                    var opt = document.createElement('option');
+                    opt.value = name;
+                    opt.textContent = name;
+                    qMoveTarget.appendChild(opt);
+                });
+            }
+
+            if (btnQMoveConfirm) {
+                btnQMoveConfirm.addEventListener('click', function () {
+                    var target = qMoveTarget ? qMoveTarget.value : '';
+                    if (!target) { alert('Please select a target category.'); return; }
+                    if (!confirm('Move "' + ((item && item.internal_description) || 'this question') + '" to "' + target + '"?')) return;
+                    btnQMoveConfirm.disabled = true;
+                    btnQMoveConfirm.textContent = 'Moving…';
+                    fetch('/builder_beta/line_item_move', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json', 'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''},
+                        body: JSON.stringify({
+                            line_item_id: item.id,
+                            page_key: _pageKey,
+                            target_page_key: _pageKey,
+                            target_category: target
+                        })
+                    }).then(function (r) { return r.json(); }).then(function (d) {
+                        if (d.success) {
+                            try { showQmToast('Question moved', true); } catch (e) {}
+                            _saveSelectionState();
+                            window.location.reload();
+                        } else {
+                            alert('Move failed: ' + (d.error || 'Unknown error'));
+                            btnQMoveConfirm.disabled = false;
+                            btnQMoveConfirm.textContent = 'Move';
+                        }
+                    }).catch(function (e) {
+                        alert('Network error moving question.');
+                        btnQMoveConfirm.disabled = false;
+                        btnQMoveConfirm.textContent = 'Move';
+                    });
+                });
+            }
+        })();
+        console.log('[EDITOR] Form rendered, btn-question-images:', !!document.getElementById('btn-question-images'), 'btn-duplicate:', !!document.getElementById('btn-duplicate-question'), 'btn-save:', !!document.querySelector('#li-edit-form button[type="submit"]'));
+        
+        // Fallback: add images button via JS if missing from HTML
+        if (!document.getElementById('btn-question-images') && document.getElementById('btn-duplicate-question')) {
+            console.log('[EDITOR] Adding btn-question-images via JS fallback');
+            var dupBtn = document.getElementById('btn-duplicate-question');
+            var saveBtn = document.querySelector('#li-edit-form button[type="submit"]');
+            var imgBtn = document.createElement('button');
+            imgBtn.type = 'button';
+            imgBtn.id = 'btn-question-images';
+            imgBtn.className = 'li-save-btn';
+            imgBtn.style.cssText = 'padding:0.45rem;width:auto;margin-top:0;background:#495057;';
+            imgBtn.title = 'Manage Question Images';
+            imgBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>';
+            if (saveBtn && saveBtn.parentNode) {
+                saveBtn.parentNode.insertBefore(imgBtn, saveBtn);
+            }
+        }
+
+         document.getElementById('li-editor-content').addEventListener('click', function(e) {
+             var option = e.target.closest('.merge-tag-option');
+             if (option) {
+                 e.preventDefault();
+                 var tag = option.getAttribute('data-tag');
+                 var pickerId = option.getAttribute('data-picker');
+                 var picker = $id(pickerId);
+                 var textarea = picker.closest('.li-form-group').querySelector('textarea');
+                 if (!textarea) return;
+                 var start = textarea.selectionStart;
+                 var end = textarea.selectionEnd;
+                 var val = textarea.value;
+                 textarea.value = val.substring(0, start) + tag + val.substring(end);
+                 textarea.selectionStart = textarea.selectionEnd = start + tag.length;
+                 textarea.focus();
+                 var dropdown = document.querySelector('.merge-tag-dropdown[data-picker="' + pickerId + '"]');
+                 if (dropdown) dropdown.style.display = 'none';
+                 var trigger = $id(pickerId);
+                 if (trigger) trigger.classList.remove('active');
+                 return;
+             }
+
+             var trigger = e.target.closest('.merge-tag-trigger');
+             if (!trigger) {
+                 var dropdowns = document.querySelectorAll('.merge-tag-dropdown');
+                 dropdowns.forEach(function(d) { d.style.display = 'none'; });
+                 var triggers = document.querySelectorAll('.merge-tag-trigger');
+                 triggers.forEach(function(t) { t.classList.remove('active'); });
+                 return;
+             }
+              var pickerId = trigger.id;
+              var dropdown = document.querySelector('.merge-tag-dropdown[data-picker="' + pickerId + '"]');
+              if (!dropdown) return;
+              var isOpen = dropdown.style.display === 'block';
+              var dropdowns = document.querySelectorAll('.merge-tag-dropdown');
+              dropdowns.forEach(function(d) { d.style.display = 'none'; });
+              var triggers = document.querySelectorAll('.merge-tag-trigger');
+              triggers.forEach(function(t) { t.classList.remove('active'); });
+               if (!isOpen) {
+                   dropdown.style.display = 'block';
+                   trigger.classList.add('active');
+               }
+           });
+
+        // Follow-up toggle logic
+        var isFollowUpCheck = $id('lich_is_follow_up');
+        var followUpTypeGroup = $id('group_follow_up_type');
+        var configHidden = $id('li_follow_up_config_hidden');
+
+            if (isFollowUpCheck && followUpTypeGroup) {
+                isFollowUpCheck.addEventListener('change', function() {
+                    followUpTypeGroup.style.display = isFollowUpCheck.checked ? 'block' : 'none';
+                    if (isFollowUpCheck.checked) {
+                        if ($id('follow-ups-list').children.length === 0) {
+                            _renderFollowUpConfig('Dropdown', {});
+                        }
+                    }
+                });
+            }
+
+            function _syncUnitsField() {
+                var qtySelect = $id('li_quantity_source');
+                var unitsInput = $id('li_units');
+                if (!qtySelect || !unitsInput) return;
+                var disabled = qtySelect.value && qtySelect.value.trim() !== '';
+                unitsInput.disabled = disabled;
+                unitsInput.style.opacity = disabled ? '0.5' : '1';
+                unitsInput.title = disabled ? 'Quantity is driven by follow-up answer' : '';
+            }
+
+            var qtySelect = $id('li_quantity_source');
+            if (qtySelect) {
+                qtySelect.addEventListener('change', _syncUnitsField);
+                _syncUnitsField();
+            }
+
+        if ($id('btn-add-follow-up')) {
+            $id('btn-add-follow-up').addEventListener('click', function(e) {
+                e.stopPropagation();
+                var picker = $id('fu-type-picker');
+                if (!picker) return;
+                var btnRect = this.getBoundingClientRect();
+                picker.style.position = 'fixed';
+                picker.style.top = (btnRect.bottom + 4) + 'px';
+                picker.style.left = btnRect.left + 'px';
+                picker.style.display = picker.style.display === 'none' || picker.style.display === '' ? 'block' : 'none';
+            });
+        }
+
+        document.addEventListener('click', function(e) {
+            var picker = $id('fu-type-picker');
+            var btn = $id('btn-add-follow-up');
+            if (picker && btn && !picker.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+                picker.style.display = 'none';
+            }
+        });
+
+        if (followUpTypeGroup) {
+            followUpTypeGroup.addEventListener('click', function(e) {
+                if (e.target && e.target.classList && e.target.classList.contains('fu-picker-item')) {
+                    e.preventDefault();
+                    var type = e.target.dataset.type;
+                    var picker = $id('fu-type-picker');
+                    if (picker) picker.style.display = 'none';
+                    _renderFollowUpConfig(type, {});
+                }
+            });
+        }
+
+        // Initial render if active
+        if (item.is_follow_up === 1 || item.is_follow_up === '1') {
+            var cfg = {};
+            try { 
+                cfg = JSON.parse(item.follow_up_config || '[]'); 
+            } catch(e) {
+                console.error("Failed to parse follow_up_config JSON for item ID " + item.id + ":", e, item.follow_up_config);
+                cfg = [];
+            }
+            if (!Array.isArray(cfg)) cfg = [cfg];
+            if (cfg.length === 0) cfg = [{ type: item.follow_up_type || 'Dropdown' }];
+            cfg.forEach(function(c) {
+                _renderFollowUpConfig(c.type || 'Dropdown', c);
+            });
+        }
+
+        // Collapsible section headers
+        _attachAccordion($id('li-editor-content'));
+
+        // Duplicate question
+        var dupBtn = $id('btn-duplicate-question');
+        if (dupBtn) {
+            dupBtn.addEventListener('click', function() {
+                fetch('/builder_beta/line_item_duplicate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''
+                    },
+                    body: JSON.stringify({ line_code: item.line_code, page_key: _pageKey, category: item.category })
+                }).then(function(r) { return r.json(); }).then(function(d) {
+                    if (d.ok || d.success) {
+                        _activeItem = null;
+                        _saveSelectionState();
+                        var activeBtn = document.querySelector('.li-section-btn[data-category="'+_activeCategory+'"]');
+                        if (activeBtn) activeBtn.click();
+                        showViewOne(_activeCategory);
+                    } else {
+                        alert('Failed to duplicate question: ' + (d.error || 'Unknown error'));
+                    }
+                }).catch(e => alert('Network Error duplicating question.'));
+            });
+        }
+
+        // Delete question
+        var delBtn = $id('btn-delete-question');
+        if (delBtn) {
+            delBtn.addEventListener('click', function() {
+                if (confirm('Deleting this question is permanent. Are you sure?')) {
+                    fetch('/builder_beta/line_item_delete', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''
+                        },
+                        body: JSON.stringify({ line_code: item.line_code })
+                    }).then(function(r) { return r.json(); }).then(function(d) {
+                        if (d.ok || d.success) {
+                            _activeItem = null;
+                            _saveSelectionState();
+                            // Question deleted - refresh the list view programmatically
+                            var activeBtn = document.querySelector('.li-section-btn[data-category="'+_activeCategory+'"]');
+                            if (activeBtn) activeBtn.click();
+                            showViewOne(_activeCategory);
+                        } else {
+                            alert('Failed to delete question: ' + (d.error || 'Unknown error'));
+                        }
+                    }).catch(e => alert('Network Error deleting question.'));
+                }
+            });
+        }
+
+        // Save
+        var form = $id('li-edit-form');
+        if (form) {
+            form.addEventListener('submit', function (e) {
+                e.preventDefault();
+                var payload = {};
+                
+                // Collect specialized follow-up config before standard gathering
+                if ($id('li_follow_up_config_hidden')) {
+                    $id('li_follow_up_config_hidden').value = _collectFollowUpConfig();
+                }
+
+                var fields = form.querySelectorAll('[name]');
+                fields.forEach(function (f) {
+                    if (f.name.startsWith('fu_')) return; // Skip internal follow-up fields
+                    if (f.type === 'checkbox') {
+                        payload[f.name] = f.checked ? 1 : 0;
+                    } else {
+                        payload[f.name] = f.value;
+                    }
+                });
+                
+                // Map pricing visibility checkbox
+                if (payload.price_override_enabled !== undefined) {
+                    payload.pricing_visibility = payload.price_override_enabled ? 'user_edit' : 'admin_only';
+                    delete payload.price_override_enabled;
+                }
+
+                // Remove readonly line_code from payload
+                delete payload['line_code'];
+
+                // Backward compatibility: set follow_up_type from first follow-up entry
+                var fuEntries = document.querySelectorAll('.fu-entry');
+                if (fuEntries.length > 0) {
+                    var firstTypeSelect = fuEntries[0].querySelector('.fu-type-select');
+                    if (firstTypeSelect) {
+                        payload['follow_up_type'] = firstTypeSelect.value;
+                    }
+                }
+
+                var saveBtn = form.querySelector('.li-save-btn');
+                if (saveBtn) {
+                    saveBtn.disabled = true;
+                    saveBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>';
+                }
+                fetch('/builder_beta/line_item_save/' + item.id, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''
+                    },
+                    body: JSON.stringify(payload)
+                })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.ok) {
+                        // Update cache
+                        Object.assign(item, payload);
+                        
+                        if (saveBtn) {
+                            saveBtn.disabled = false;
+                            saveBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>';
+                        }
+                        if (typeof showQmToast === 'function') { showQmToast('Question saved', true); }
+                        _saveSelectionState();
+                        window.location.reload();
+                        // Refresh view-two title
+                        $id('li-view-two-title').textContent = 'Question: ' + (item.output_title || item.internal_description || 'Unnamed Question');
+                        $id('li-view-two-title').title = $id('li-view-two-title').textContent;
+                    } else {
+                        
+                        if (saveBtn) {
+                            saveBtn.disabled = false;
+                            saveBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>';
+                        }
+                    }
+                })
+                .catch(function () {
+                    
+                    if (saveBtn) {
+                        saveBtn.disabled = false;
+                        saveBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>';
+                    }
+             });
+         });
+
+
+        // Auto-save Internal Description on blur / Enter
+            var titleField = form.querySelector('[name="internal_description"]');
+            if (titleField) {
+                function saveTitleField() {
+                    var newVal = titleField.value.trim();
+                    if (!newVal) return;
+                    if (newVal === (item.internal_description || '')) return;
+
+                    fetch('/builder_beta/line_item_save/' + item.id, {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''
+                        },
+                        body: JSON.stringify({ internal_description: newVal })
+                    })
+                    .then(function (r) { return r.json(); })   // ← ADD THIS LINE
+                    .then(function (data) {
+                        if (data.ok) {
+                            item.internal_description = newVal;
+                            
+                            if (typeof showQmToast === 'function') { showQmToast('Title saved', true); }
+                            // Update the question list row and header
+                            $id('li-view-two-title').textContent = 'Question: ' + newVal;
+                            $id('li-view-two-title').title = newVal;
+                            // Update the list row description
+                            var selRow = document.querySelector('.li-qlist-row.selected .li-qlist-desc');
+                            if (selRow) { selRow.textContent = newVal; selRow.title = newVal; }
+                        }
+                    })
+                    .catch(function () {
+                        titleField.value = item.internal_description || '';
+                    });
+                }
+
+                titleField.addEventListener('blur', saveTitleField);
+                titleField.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        titleField.blur();
+                    }
+                });
+            }
+        }
+    }
+
+    // ── Follow-up Config Rendering ─────────────────────────────────────────
+    var _followUpTemplates = {
+        'dropdown': function(cfg, fuId) {
+            return _field('fu_choices', 'Choices (one per line)', 'textarea', (cfg.choices || []).join('\n'), false, 'fu_choices_' + fuId) +
+                   _checkField('fu_include_other', 'Include "Other" field', cfg.include_other === true, 'fu_include_other_' + fuId) +
+                   _checkField('fu_cost', 'Cost', cfg.cost === true, 'fu_cost_' + fuId) +
+                   _checkField('fu_suffix', 'Suffix', cfg.suffix === true, 'fu_suffix_' + fuId) +
+                   '<div id="fu_suffix_config_' + fuId + '" style="display:' + (cfg.suffix ? 'block' : 'none') + '; margin-left:1rem; border-left:2px solid #eee; padding-left:0.5rem;">' +
+                   _field('fu_suffix_value', 'Suffix value (e.g. m, cm, m²)', 'text', cfg.suffix_value || '', false, 'fu_suffix_value_' + fuId) +
+                   '</div>';
+        },
+        'single_entry': function(cfg, fuId) {
+            return _field('fu_helper_text', 'Helper Text', 'text', cfg.helper_text || '', false, 'fu_helper_text_' + fuId) +
+                   _checkField('fu_cost', 'Cost', cfg.cost === true, 'fu_cost_' + fuId) +
+                   _checkField('fu_suffix', 'Suffix', cfg.suffix === true, 'fu_suffix_' + fuId) +
+                   '<div id="fu_suffix_config_' + fuId + '" style="display:' + (cfg.suffix ? 'block' : 'none') + '; margin-left:1rem; border-left:2px solid #eee; padding-left:0.5rem;">' +
+                   _field('fu_suffix_value', 'Suffix value (e.g. m, cm, m²)', 'text', cfg.suffix_value || '', false, 'fu_suffix_value_' + fuId) +
+                   '</div>';
+        }
+    };
+
+     function _normalizeFollowUpType(type) {
+         if (type === 'Dropdown' || type === 'Single Entry') return type;
+         if (type && typeof type === 'string') {
+             if (type.startsWith('Dropdown')) return 'Dropdown';
+             if (type.startsWith('Single Entry')) return 'Single Entry';
+         }
+         return 'Dropdown';
+     }
+
+     function _renderFollowUpConfig(type, cfg, existingEntry) {
+         var container = $id('follow-ups-list');
+         if (!container) return;
+
+         type = _normalizeFollowUpType(type);
+         cfg = cfg || {};
+         
+         var fuId;
+         if (existingEntry) {
+             fuId = existingEntry.dataset.fuId;
+             var configDiv = existingEntry.querySelector('.fu-config');
+             if (configDiv) configDiv.innerHTML = '';
+         } else {
+             fuId = 'fu_' + Date.now() + '_' + Math.floor(Math.random()*1000);
+         }
+         
+         var html = '';
+         if (type === 'Dropdown') html = _followUpTemplates.dropdown(cfg, fuId);
+         else if (type === 'Single Entry') html = _followUpTemplates.single_entry(cfg, fuId);
+         
+         if (existingEntry) {
+             var configDiv2 = existingEntry.querySelector('.fu-config');
+             if (configDiv2) {
+                 configDiv2.innerHTML = html;
+                 var typeSelect = configDiv2.previousElementSibling;
+                 if (typeSelect && typeSelect.classList.contains('fu-type-select')) {
+                     typeSelect.value = type;
+                 }
+             }
+             _attachFollowUpListeners(existingEntry);
+             return;
+         }
+         
+         html = '<div class="fu-entry" data-fu-id="' + fuId + '" style="border:1px solid #e2e8f0; border-radius:6px; padding:.6rem; margin-bottom:.5rem; background:#fafafa;">' +
+                '<select class="fu-type-select" data-fu-id="' + fuId + '" style="padding:.25rem .5rem; border:1px solid #ccc; border-radius:4px; font-size:.8rem; margin-bottom:.4rem;">' +
+                 '<option value="Dropdown"' + (type === 'Dropdown' ? ' selected' : '') + '>Dropdown</option>' +
+                 '<option value="Single Entry"' + (type === 'Single Entry' ? ' selected' : '') + '>Single Entry</option>' +
+                '</select>' +
+               '<div class="fu-config" data-fu-id="' + fuId + '">' + html + '</div>' +
+               '<div style="display:flex; justify-content:space-between; align-items:center; margin-top:.4rem;">' +
+               '<span></span>' +
+               '<button type="button" class="fu-remove-btn" data-fu-id="' + fuId + '" style="background:none; border:none; color:#dc3545; cursor:pointer; font-size:.85rem; font-weight:700;">Remove</button>' +
+               '</div>' +
+               '</div>';
+        
+        container.insertAdjacentHTML('beforeend', html);
+
+        var entry = container.querySelector('[data-fu-id="' + fuId + '"]');
+        var typeSelect = entry.querySelector('.fu-type-select');
+        var configDiv = entry.querySelector('.fu-config');
+        var removeBtn = entry.querySelector('.fu-remove-btn');
+
+        typeSelect.addEventListener('change', function() {
+            _renderFollowUpConfig(typeSelect.value, {}, entry);
+        });
+
+        removeBtn.addEventListener('click', function() {
+            entry.remove();
+        });
+
+        _attachFollowUpListeners(entry);
+    }
+
+     function _attachFollowUpListeners(entry) {
+         var suffixCheck = entry.querySelector('[name="fu_suffix"]');
+         var suffixDiv = entry.querySelector('[id^="fu_suffix_config_"]');
+         if (suffixCheck && suffixDiv) {
+             suffixCheck.addEventListener('change', function() {
+                 suffixDiv.style.display = suffixCheck.checked ? 'block' : 'none';
+             });
+         }
+     }
+
+    function _collectFollowUpConfig() {
+        var container = $id('follow-ups-list');
+        if (!container) return '[]';
+        var entries = container.querySelectorAll('.fu-entry');
+        var configs = [];
+        
+        entries.forEach(function(entry) {
+            var fuId = entry.dataset.fuId;
+            var typeSelect = entry.querySelector('.fu-type-select');
+             var type = typeSelect ? typeSelect.value : 'Dropdown';
+            var cfg = {};
+            
+            var getVal = function(name) {
+                var el = entry.querySelector('[name="' + name + '"]');
+                if (!el) return undefined;
+                if (el.type === 'checkbox') return el.checked;
+                return el.value;
+            };
+
+            cfg.type = type;
+
+            if (type.startsWith('Dropdown')) {
+                cfg.choices = (getVal('fu_choices') || '').split('\n').filter(Boolean);
+                cfg.include_other = getVal('fu_include_other');
+                cfg.cost = getVal('fu_cost');
+                cfg.suffix = getVal('fu_suffix');
+                cfg.suffix_value = getVal('fu_suffix_value');
+            } else {
+                cfg.helper_text = getVal('fu_helper_text');
+                cfg.cost = getVal('fu_cost');
+                cfg.suffix = getVal('fu_suffix');
+                cfg.suffix_value = getVal('fu_suffix_value');
+            }
+            configs.push(cfg);
+        });
+        
+        return JSON.stringify(configs);
+    }
+
+    // ── Helpers ────────────────────────────────────────────────────────────
+    function _esc(s) {
+        return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function _section(title, open, fieldHtmlArr) {
+        return '<div class="li-editor-section">'
+            + '<div class="li-editor-section-header">'
+            + '<span>' + title + '</span><span class="li-sec-toggle">' + (open ? '▾' : '▸') + '</span>'
+            + '</div>'
+            + '<div class="li-editor-section-body' + (open ? '' : ' collapsed') + '">'
+            + fieldHtmlArr.join('')
+            + '</div></div>';
+    }
+
+    function _field(name, label, type, value, readonly, id) {
+        var ro = readonly ? ' readonly style="background:#f5f5f5;"' : '';
+        var idAttr = id ? ' id="' + id + '"' : '';
+        if (type === 'textarea') {
+            return '<div class="li-form-group"><label>' + label + '</label>'
+                + '<textarea name="' + name + '"' + idAttr + (readonly?' readonly style="background:#f5f5f5;"':'') + '>' + _esc(value) + '</textarea></div>';
+        }
+        return '<div class="li-form-group"><label>' + label + '</label>'
+            + '<input type="' + type + '" name="' + name + '"' + idAttr + ' value="' + _esc(value) + '"' + ro + '></div>';
+    }
+
+      function _field_with_merge_tags(name, label, value, item) {
+          var pickerId = 'merge_picker_' + name;
+          var options = [
+              '{selected}',
+              '{one}',
+              '{two}',
+              '{three}'
+          ].map(function(tag) {
+              return '<button type="button" class="merge-tag-option" data-tag="' + tag + '" data-picker="' + pickerId + '" style="display:block; width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:.8rem; cursor:pointer;">' + tag + '</button>';
+          }).join('');
+          return '<div class="li-form-group">'
+              + '<label style="position:relative; display:inline-flex; align-items:center; gap:6px;">' + label + ' '
+              + '<button type="button" id="' + pickerId + '" class="merge-tag-trigger" style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:22px;border:1.5px solid #1b3a6b;border-radius:4px;font-size:.75rem;font-weight:700;color:#1b3a6b;background:#f0f4f9;cursor:pointer;line-height:1;">{ }</button>'
+              + '<div class="merge-tag-dropdown" data-picker="' + pickerId + '" style="display:none;position:absolute;top:calc(100% + 4px);left:0;background:#fff;border:1px solid #ccc;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,0.15);z-index:300;padding:4px 0;min-width:140px;">'
+              + options
+              + '</div>'
+              + '</label>'
+              + '<textarea name="' + name + '" class="merge-tag-textarea" style="width:100%;margin-top:6px;">' + _esc(value) + '</textarea>'
+              + '</div>';
+      }
+
+    function _selectField(name, label, value, options) {
+        var opts = options.map(function (o) {
+            return '<option value="' + _esc(o) + '"' + (o === value ? ' selected' : '') + '>' + _esc(o) + '</option>';
+        }).join('');
+        return '<div class="li-form-group"><label>' + label + '</label><select name="' + name + '">' + opts + '</select></div>';
+    }
+
+    function _checkField(name, label, checked, specific_id) {
+        var id = specific_id || 'lich_' + name; // Standard prefix for checkboxes
+        return '<div class="li-form-group" style="display:flex;align-items:center;gap:.4rem;">'
+            + '<input type="checkbox" name="' + name + '" id="' + id + '"' + (checked ? ' checked' : '') + ' style="width:auto;">'
+            + '<label for="' + id + '" style="margin:0;font-weight:400;">' + label + '</label></div>';
+    }
+
+    // Accordion handler reference — defined here for removeEventListener support
+    var _accordionHandler = null;
+
+    // ── Selection persistence ──────────────────────────────────────────────
+    function _saveSelectionState() {
+        try {
+            if (_activeCategory) sessionStorage.setItem('li_activeCategory', _activeCategory);
+            if (_activeItem) sessionStorage.setItem('li_activeItemId', _activeItem.id);
+        } catch (e) {}
+    }
+
+    function _restoreSelectionState() {
+        try {
+            var cat = sessionStorage.getItem('li_activeCategory');
+            var itemId = sessionStorage.getItem('li_activeItemId');
+            if (cat) {
+                var catBtn = document.querySelector('.li-section-btn[data-category="' + cat + '"]');
+                if (catBtn) {
+                    catBtn.click();
+                    if (itemId) {
+                        // Wait for question list to load, then select item
+                        var checkInterval = setInterval(function () {
+                            var row = document.querySelector('.li-qlist-row[data-id="' + itemId + '"]');
+                            if (row) {
+                                clearInterval(checkInterval);
+                                row.click();
+                            }
+                        }, 100);
+                        setTimeout(function () { clearInterval(checkInterval); }, 5000);
+                    }
+                }
+            }
+        } catch (e) {}
+    }
+
+    // Init — default to Page Details view
+    var pageDetailsBtn = $id('btn-page-details');
+    if (pageDetailsBtn) {
+        pageDetailsBtn.click();
+    } else {
+        showEmpty();
+    }
+    _restoreSelectionState();
+
+    // ── Draggable resize handles ──────────────────────────────────────────
+    function initResizeHandles() {
+        // Horizontal resize between qlist and qmeta
+        var hHandle = $id('resize-handle-qlist-qmeta');
+        var qlist = $id('qlist-section');
+        var qmeta = $id('qmeta-section');
+        var col3 = $id('col3-questions');
+        
+        if (hHandle && qlist && qmeta && col3) {
+            var isResizing = false;
+            var startY, startQlistFlex, startQmetaFlex;
+            
+            hHandle.addEventListener('mousedown', function(e) {
+                isResizing = true;
+                startY = e.clientY;
+                var col3Height = col3.offsetHeight;
+                startQlistFlex = qlist.offsetHeight / col3Height * 100;
+                startQmetaFlex = qmeta.offsetHeight / col3Height * 100;
+                hHandle.classList.add('active');
+                document.body.style.cursor = 'row-resize';
+                document.body.style.userSelect = 'none';
+                e.preventDefault();
+            });
+            
+            document.addEventListener('mousemove', function(e) {
+                if (!isResizing) return;
+                var deltaY = e.clientY - startY;
+                var col3Height = col3.offsetHeight;
+                var deltaPercent = (deltaY / col3Height) * 100;
+                
+                var newQlistPct = Math.max(10, Math.min(90, startQlistFlex + deltaPercent));
+                var newQmetaPct = 100 - newQlistPct;
+                
+                qlist.style.flex = '0 0 ' + newQlistPct + '%';
+                qmeta.style.flex = '1 1 ' + newQmetaPct + '%';
+            });
+            
+            document.addEventListener('mouseup', function() {
+                if (isResizing) {
+                    isResizing = false;
+                    hHandle.classList.remove('active');
+                    document.body.style.cursor = '';
+                    document.body.style.userSelect = '';
+                }
+            });
+        }
+        
+        // Vertical resize between col2 and col3
+        var vHandle = $id('resize-handle-col2-col3');
+        var col2 = $id('col2-meta');
+        var col3 = $id('col3-questions');
+        var parent = $id('li-question-panel');
+        
+        if (vHandle && col2 && col3 && parent) {
+            var isVResizing = false;
+            var startX, startCol2Flex, startCol3Flex;
+            
+            vHandle.addEventListener('mousedown', function(e) {
+                isVResizing = true;
+                startX = e.clientX;
+                var parentWidth = parent.offsetWidth;
+                startCol2Flex = col2.offsetWidth / parentWidth * 100;
+                startCol3Flex = col3.offsetWidth / parentWidth * 100;
+                vHandle.classList.add('active');
+                document.body.style.cursor = 'col-resize';
+                document.body.style.userSelect = 'none';
+                e.preventDefault();
+            });
+            
+            document.addEventListener('mousemove', function(e) {
+                if (!isVResizing) return;
+                var deltaX = e.clientX - startX;
+                var parentWidth = parent.offsetWidth;
+                var deltaPercent = (deltaX / parentWidth) * 100;
+                
+                var newCol2Pct = Math.max(15, Math.min(60, startCol2Flex + deltaPercent));
+                var newCol3Pct = 100 - newCol2Pct;
+                
+                col2.style.flex = '0 0 ' + newCol2Pct + '%';
+                col3.style.flex = '1 1 ' + newCol3Pct + '%';
+            });
+            
+            document.addEventListener('mouseup', function() {
+                if (isVResizing) {
+                    isVResizing = false;
+                    vHandle.classList.remove('active');
+                    document.body.style.cursor = '';
+                    document.body.style.userSelect = '';
+                }
+            });
+        }
+    }
+    
+    initResizeHandles();
+
+}());
+</script>
+
+    <!-- Question Images Modal -->
+    <div id="question-images-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;
+         background:rgba(0,0,0,0.55);z-index:1200;align-items:center;justify-content:center;
+         backdrop-filter:blur(2px);">
+        <div style="background:#fff;padding:1.5rem 1.75rem;border-radius:10px;width:560px;max-width:92%;max-height:85vh;overflow-y:auto;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1f2937;box-shadow:0 20px 25px -5px rgba(0,0,0,0.1),0 10px 10px -5px rgba(0,0,0,0.04);">
+            <h3 id="question-images-modal-title" style="margin:0 0 1rem 0;font-size:1.15rem;font-weight:700;color:#0f172a;">Question Images</h3>
+            <div id="question-modal-images-list" style="display:flex;flex-wrap:wrap;gap:0.75rem;margin-bottom:1rem;min-height:60px;"></div>
+            <div style="border-top:1px solid #e5e7eb;padding-top:0.75rem;margin-bottom:0.75rem;">
+                <label style="display:block;margin-bottom:.35rem;font-size:.8rem;font-weight:600;color:#374151;">Add Image</label>
+                <input type="file" id="question-modal-file-input" accept="image/*" style="display:none;">
+                <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
+                    <button type="button" id="btn-question-modal-browse" class="btn" style="background:#f0f0f0;color:#333;border:1px solid #ccc;padding:.45rem .9rem;border-radius:6px;cursor:pointer;font-size:.85rem;font-weight:500;">Browse</button>
+                    <button type="button" id="btn-question-modal-upload" class="btn" style="background:#155724;color:#fff;border:none;padding:.45rem .9rem;border-radius:6px;cursor:pointer;font-size:.85rem;font-weight:600;" disabled>Upload</button>
+                    <span id="question-modal-filename" style="font-size:.8rem;color:#888;font-style:italic;"></span>
+                </div>
+            </div>
+            <div style="display:flex;gap:.75rem;justify-content:flex-end;padding-top:.5rem;border-top:1px solid #e5e7eb;">
+                <button type="button" id="btn-question-modal-close" class="btn" style="background:#fff;color:#374151;border:1px solid #d1d5db;padding:.55rem 1.1rem;border-radius:6px;cursor:pointer;font-size:.9rem;font-weight:500;">Cancel</button>
+                <button type="button" id="btn-question-modal-save" class="btn" style="background:#1b3a6b;color:#fff;border:none;padding:.55rem 1.1rem;border-radius:6px;cursor:pointer;font-size:.9rem;font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,0.05);">Attach Images</button>
+            </div>
+        </div>
+    </div>
+{% endmacro %}
+
+{# ── End Session L Macros ──────────────────────────────────────────────────── #}
+
+{% macro render_canvas_content(current_page, selected_block_id) %}
+    <div class="builder-canvas-wrapper" id="builder-canvas">
+        <div class="canvas-page-selector">
+            <h2 id="canvas-page-title">{{ current_page.title }}</h2>
+        </div>
+        <div class="canvas-content" id="canvas-content">
+            {% if current_page.blocks %}
+                {% for block in current_page.blocks %}
+                <div class="question-block {{ "selected" if block.id == selected_block_id else "" }}{% if block.hidden %} block-is-hidden{% endif %}" 
+                     data-block-id="{{ block.id }}" 
+                     data-type="{{ block.block_type }}"
+                     draggable="true"
+                     style="{% if block.hidden %}opacity:0.45;{% endif %}">
+                    <div class="question-block-header">
+                        <span class="drag-handle">⠿</span>
+                        <span class="block-type-badge">{{ block.block_type }}</span>
+                        {% if block.hidden %}<span style="background:#6d0b0b;color:#fff;font-size:.65rem;font-weight:700;padding:.15rem .4rem;border-radius:3px;margin-left:.3rem;letter-spacing:.04em;">HIDDEN</span>{% endif %}
+                        <span class="block-title">{% if block.hidden %}<s>{{ block.standard.label }}</s>{% else %}{{ block.standard.label }}{% endif %}</span>
+                        <div class="block-actions">
+                            <button type="button" class="block-action-btn" data-action="duplicate" title="Duplicate"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+                            <button type="button" class="block-action-btn" data-action="edit" title="Edit"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+                            <button type="button" class="block-action-btn delete" data-action="delete" title="Delete"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>
+                        </div>
+                    </div>
+                    <div class="question-block-body">
+                        {% if block.block_type == "checkbox_group" %}
+                        <div class="checkbox-options">
+                            {% for choice in block.standard.dropdown_choices %}
+                            <div class="checkbox-option">
+                                <input type="checkbox" id="{{ block.id }}_opt_{{ loop.index }}" checked>
+                                <label for="{{ block.id }}_opt_{{ loop.index }}">{{ choice }}</label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% elif block.block_type == "text_input" %}
+                        <div style="padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem; color: #666;">
+                            {{ block.standard.placeholder or "Enter text..." }}
+                        </div>
+                        {% elif block.block_type == "number_currency_input" %}
+                        <div style="padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem; color: #666;">
+                            £{{ block.standard.placeholder or "0.00" }}
+                        </div>
+                        {% elif block.block_type == "dropdown_select" %}
+                        <select style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem;">
+                            {% for choice in block.standard.dropdown_choices %}<option>{{ choice }}</option>{% endfor %}
+                        </select>
+                        {% elif block.block_type == "static_text_heading" %}
+                            {% set variant_tag = "h3" if block.standard.static_variant == "heading" else "h4" if block.standard.static_variant == "subheading" else "p" %}
+                            <{{ variant_tag }} style="margin: 0; color: #333;">{{ block.standard.static_content or block.standard.label }}</{{ variant_tag }}>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+            <div class="canvas-empty">
+                <div class="canvas-empty-icon"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg></div>
+                <p>No questions yet. Click "+ Add Question" in the sidebar to add your first question.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+{% endmacro %}
