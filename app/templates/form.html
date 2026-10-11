@@ -49,6 +49,8 @@
                         onclick="window.location.href='{{ url_for('admin_payment_schedule') }}'">Payment Schedule Config</button>
                 <button type="button" id="btn-cost-categories" class="btn btn-sidebar"
                         style="width:100%;text-align:left;">Cost Categories</button>
+                <button type="button" id="btn-new-session" class="btn btn-sidebar"
+                        style="width:100%;text-align:left;background:#6d0b0b;color:#fff;border:1px solid #6d0b0b;">New Session</button>
             </div>
 
             <!-- Save As Modal -->
@@ -130,9 +132,9 @@
                     <div id="cc-list" style="margin-bottom:1rem;">
                         <div style="padding:.5rem;color:#6b7280;font-size:.9rem;text-align:center;">Loading...</div>
                     </div>
-                    <div style="display:flex;gap:.5rem;padding-top:.5rem;border-top:1px solid #e5e7eb;">
-                        <input type="text" id="cc-new-name" placeholder="New cost category name..." style="flex:1;padding:.55rem .75rem;border:1px solid #d1d5db;border-radius:6px;font-size:.9rem;">
-                        <button type="button" id="btn-cc-add" style="background:#1b3a6b;color:#fff;border:none;padding:.55rem 1.1rem;border-radius:6px;cursor:pointer;font-size:.9rem;font-weight:600;">Add</button>
+                    <div style="display:flex;gap:.5rem;padding:.55rem .75rem;border-top:1px solid #e5e7eb;">
+                        <input type="text" id="cc-new-name" placeholder="New cost category name..." style="flex:1;padding:.45rem .6rem;border:1px solid #d1d5db;border-radius:6px;font-size:.9rem;">
+                        <button type="button" id="btn-cc-add" style="background:#1b3a6b;color:#fff;border:none;padding:.35rem .85rem;border-radius:6px;cursor:pointer;font-size:.9rem;font-weight:600;">Add</button>
                     </div>
                 </div>
             </div>
@@ -221,6 +223,34 @@
         .finally(function() {
             btnQuickSave.disabled = false;
             btnQuickSave.textContent = 'Quick Save';
+        });
+    });
+})();
+// ── New Session ─────────────────────────────────────────────────────────
+(function() {
+    var btnNewSession = document.getElementById('btn-new-session');
+    if (!btnNewSession) return;
+    btnNewSession.addEventListener('click', function() {
+        if (!confirm('Start a new session? Current form data will be cleared. Saved quotes are not affected.')) return;
+        btnNewSession.disabled = true;
+        btnNewSession.textContent = 'Clearing…';
+        var csrf = (document.querySelector('[name=csrf_token]') || {}).value || '';
+        fetch('/session/clear', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrf }
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                window.location.href = '/';
+            } else {
+                alert('Failed: ' + (data.error || 'Unknown'));
+            }
+        })
+        .catch(function() { alert('Network error.'); })
+        .finally(function() {
+            btnNewSession.disabled = false;
+            btnNewSession.textContent = 'New Session';
         });
     });
 })();

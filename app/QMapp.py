@@ -729,6 +729,13 @@ DEFAULT_BUILDER_BETA_QUESTION_TYPES = {
         'icon': '$',
         'description': 'Payment schedule breakdown based on quote totals — shows deposit, stage payments, and completion amounts',
     },
+    'page_total': {
+        'label': 'Page Total',
+        'default_label': 'Page Total',
+        'supports': {'logic': False, 'pricing': False, 'output': True},
+        'icon': 'Σ',
+        'description': 'Totals one or more cost groups on this page',
+    },
 }
 
 ALLOWED_BLOCK_PRICING_MODES = {
@@ -1257,6 +1264,56 @@ def compile_builder_beta_page_to_runtime_schema(page_id):
                 },
                 'config': {'page_key': page_id},
             })
+
+    # Add modules from page metadata (if enabled by admin via module picker)
+    try:
+        import sqlite3 as _sq3
+        from pathlib import Path as _P
+        _db = str(_P(__file__).parent / 'template_store.sqlite3')
+        _conn = _sq3.connect(_db)
+        _row = _conn.execute(
+            "SELECT metadata_json FROM page_templates WHERE page_key = ? AND form_template_version_id IN "
+            "(SELECT id FROM form_template_versions WHERE form_template_id = "
+            "(SELECT id FROM form_templates WHERE key = ?) ORDER BY version DESC LIMIT 1)",
+            (page_id, TEMPLATE_STORE_KEY)
+        ).fetchone()
+        _conn.close()
+        if _row and _row[0]:
+            import json as _j
+            _meta = _j.loads(_row[0]) if isinstance(_row[0], str) else _row[0]
+            if isinstance(_meta, dict):
+                _modules = _meta.get('modules', [])
+                if isinstance(_modules, list):
+                    # Check if each module is already in compiled_fields
+                    _existing_types = {f.get('builder_beta_meta',{}).get('block_type') for f in compiled_fields}
+                    for _mod_type in _modules:
+                        if _mod_type not in _existing_types:
+                            _label = {
+                                'payment_schedule': 'Payment Schedule',
+                                'page_total': 'Page Total',
+                            }.get(_mod_type, _mod_type.replace('_', ' ').title())
+                            compiled_fields.append({
+                                'id': page_id + '_mod_' + _mod_type,
+                                'name': page_id + '_' + _mod_type,
+                                'label': _label,
+                                'note': '',
+                                'hidden': False,
+                                'type': _mod_type,
+                                'builder_beta_meta': {
+                                    'block_type': _mod_type,
+                                    'standard': {'label': _label},
+                                    'placeholder': '',
+                                    'dropdown_choices': [],
+                                    'selection_limit': None,
+                                    'static_content': '',
+                                    'static_variant': 'body',
+                                    'logic_options': {},
+                                    'pricing_options': {},
+                                    'output_options': {},
+                                },
+                            })
+    except Exception:
+        pass
 
     return {
         'id': page_id,
@@ -1931,11 +1988,25 @@ def builder_page_details_json(page_key):
         conn.close()
         return jsonify({})
     row = conn.execute(
-        "SELECT title, description FROM page_templates WHERE page_key = ? AND form_template_version_id = ?",
+        "SELECT title, description, metadata_json FROM page_templates WHERE page_key = ? AND form_template_version_id = ?",
         [page_key, latest_version_id]).fetchone()
     conn.close()
     if row:
-        return jsonify(dict(row))
+        result = dict(row)
+        # Extract visibility flags from metadata_json
+        meta = {}
+        try:
+            import json as _j
+            meta = _j.loads(result.pop('metadata_json', '{}'))
+        except Exception:
+            meta = {}
+        result['form_visible'] = meta.get('form_visible', True)
+        result['quote_visible'] = meta.get('quote_visible', True)
+        result['title'] = meta.get('title', result['title'])
+        result['modules'] = meta.get('modules', [])
+        result['page_total'] = meta.get('page_total', {})
+        result['image_upload'] = meta.get('image_upload', {})
+        return jsonify(result)
     return jsonify({})
 
 @app.route('/form_editor')
@@ -2144,6 +2215,14 @@ def admin_payment_schedule():
         temp_kitchen_line_code = str(data.get('temp_kitchen_line_code', settings.get('temp_kitchen_line_code', 'pl6')))
         temp_kitchen_cost = float(data.get('temp_kitchen_cost', settings.get('temp_kitchen_cost', 250.0)))
         glazing_cost = float(data.get('glazing_cost', settings.get('glazing_cost', 500.0)))
+        deposit_enabled = bool(data.get('deposit_enabled', settings.get('deposit_enabled', True)))
+        completion_enabled = bool(data.get('completion_enabled', settings.get('completion_enabled', True)))
+        initial_payment_enabled = bool(data.get('initial_payment_enabled', settings.get('initial_payment_enabled', True)))
+        initial_payment_rounding = str(data.get('initial_payment_rounding', settings.get('initial_payment_rounding', 'none')))
+        initial_payment_floors = data.get('initial_payment_floors', settings.get('initial_payment_floors'))
+        weekly_payment_auto = bool(data.get('weekly_payment_auto', settings.get('weekly_payment_auto', True)))
+        show_temp_kitchen = bool(data.get('show_temp_kitchen', settings.get('show_temp_kitchen', True)))
+        show_glazing = bool(data.get('show_glazing', settings.get('show_glazing', True)))
 
         ts.upsert_payment_schedule_block(
             template_key='builder_beta',
@@ -2159,6 +2238,14 @@ def admin_payment_schedule():
             temp_kitchen_line_code=temp_kitchen_line_code,
             temp_kitchen_cost=temp_kitchen_cost,
             glazing_cost=glazing_cost,
+            deposit_enabled=deposit_enabled,
+            completion_enabled=completion_enabled,
+            initial_payment_enabled=initial_payment_enabled,
+            initial_payment_rounding=initial_payment_rounding,
+            initial_payment_floors=initial_payment_floors,
+            weekly_payment_auto=weekly_payment_auto,
+            show_temp_kitchen=show_temp_kitchen,
+            show_glazing=show_glazing,
         )
         return jsonify({'success': True})
 
@@ -2184,6 +2271,116 @@ def admin_payment_schedule():
     )
 
 
+@app.route('/admin/payment-schedule-data')
+@require_role('admin')
+def admin_payment_schedule_data():
+    import template_store as ts
+    settings = ts.get_payment_schedule_block('builder_beta')
+    return jsonify({'success': True, 'settings': settings})
+
+@app.route('/builder_beta/payment_schedule_preview', methods=['POST'])
+@require_role('admin')
+def builder_payment_schedule_preview():
+    """Compute payment schedule preview for FORM MODE."""
+    import template_store as ts
+    import calculator as calc
+    data = request.get_json(force=True) or {}
+    basic_build = float(data.get('basic_build', 0))
+    weekly_count = int(data.get('weekly_count', 4))
+    has_temp_kitchen = bool(data.get('has_temp_kitchen', True))
+    has_glazing = bool(data.get('has_glazing', False))
+    sow_levels = data.get('sow_levels')
+    ps = ts.get_payment_schedule_block('builder_beta')
+    
+    # If sow_levels provided and auto is on, override weekly_count
+    weekly_auto = bool(ps.get('weekly_payment_auto', True))
+    if weekly_auto and sow_levels and isinstance(sow_levels, list) and len(sow_levels) > 0:
+        nums = [int(s) for s in sow_levels if s is not None]
+        if nums:
+            weekly_count = max(nums)
+    weekly_count = max(weekly_count, 1)
+    
+    # Compute initial payment with multi-floor support
+    initial_pct = float(ps.get('initial_payment_pct', 0.05))
+    raw_initial = round(basic_build * initial_pct, 2)
+    floors = ps.get('initial_payment_floors', [])
+    initial_payment = raw_initial
+    if floors and isinstance(floors, list):
+        for floor in floors:
+            ceiling = float(floor.get('ceiling', 0))
+            payment = float(floor.get('payment', 0))
+            if basic_build <= ceiling:
+                initial_payment = max(raw_initial, payment)
+                break
+        else:
+            # Above all ceilings — use last floor's payment
+            if floors:
+                initial_payment = max(raw_initial, float(floors[-1].get('payment', 0)))
+    # Rounding
+    rounding = ps.get('initial_payment_rounding', 'none')
+    if rounding == '100':
+        initial_payment = round(initial_payment / 100) * 100
+    elif rounding == '1000':
+        initial_payment = round(initial_payment / 1000) * 1000
+
+    completion_pool_pct = float(ps.get('completion_meeting_plus_3rd_pct', 0.35))
+    completion_pool = round(basic_build * completion_pool_pct, 2)
+    pool_after_stages = round(basic_build - initial_payment - completion_pool, 2)
+
+    temp_kitchen_cost = float(ps.get('temp_kitchen_cost', 250.0))
+    glazing_cost = float(ps.get('glazing_cost', 500.0))
+    
+    has_temp_kitchen = has_temp_kitchen
+    has_glazing = has_glazing
+    
+    if not has_temp_kitchen:
+        pool_after_stages += temp_kitchen_cost
+    
+    weekly_count = max(weekly_count, 1)
+    weekly_amount = round(pool_after_stages / weekly_count, 2)
+    final_adjustment = 0.0
+    if not has_temp_kitchen:
+        final_adjustment += temp_kitchen_cost
+    if has_glazing:
+        final_adjustment += glazing_cost
+    
+    final_weekly = round(weekly_amount + final_adjustment, 2)
+    regular_weekly = round(pool_after_stages - final_weekly, 2) if weekly_count > 1 else 0
+
+    schedule = [
+        {"stage": "Initial Payment", "amount": initial_payment, "note": ""},
+        {"stage": "Com. Meeting", "amount": round(completion_pool / 2, 2), "note": ""},
+        {"stage": "3rd Payment", "amount": round(completion_pool / 2, 2), "note": ""},
+    ]
+    for i in range(1, weekly_count + 1):
+        if i == weekly_count:
+            schedule.append({"stage": f"Week {i}", "amount": final_weekly, "note": ""})
+        else:
+            schedule.append({"stage": f"Week {i}", "amount": regular_weekly, "note": ""})
+    
+    return jsonify({
+        'success': True,
+        'basic_build': basic_build,
+        'initial_payment': initial_payment,
+        'completion_pool': completion_pool,
+        'pool_after_stages': pool_after_stages,
+        'schedule': schedule,
+        'total': round(sum(s['amount'] for s in schedule), 2),
+        'has_temp_kitchen': has_temp_kitchen,
+        'has_glazing': has_glazing,
+    })
+
+@app.route('/session/clear', methods=['POST'])
+@require_role('admin')
+def session_clear():
+    """Clear form/quote editing state from the session but stay logged in."""
+    role = session.get('role')
+    username = session.get('username')
+    session.clear()
+    session['role'] = role
+    session['username'] = username
+    session.modified = True
+    return jsonify({'success': True})
 @app.route('/builder_beta/line_item_move', methods=['POST'])
 @require_role('admin')
 def builder_line_item_move():
@@ -2273,6 +2470,8 @@ def builder_page_details_save(page_key):
     data = request.get_json(force=True) or {}
     title = data.get('title', '')
     desc = data.get('description', '')
+    form_visible = data.get('form_visible', True)
+    quote_visible = data.get('quote_visible', True)
     conn = sqlite3.connect(db)
     # Get latest version id
     latest_version_row = conn.execute(
@@ -2290,13 +2489,185 @@ def builder_page_details_save(page_key):
     if latest_version_id is None:
         conn.close()
         return jsonify({'ok': False, 'error': 'Template version not found'}), 404
+    # Read existing metadata_json
+    existing_row = conn.execute(
+        "SELECT metadata_json FROM page_templates WHERE page_key = ? AND form_template_version_id = ?",
+        [page_key, latest_version_id]).fetchone()
+    meta = {}
+    if existing_row and existing_row[0]:
+        try:
+            meta = json.loads(existing_row[0]) if isinstance(existing_row[0], str) else existing_row[0]
+        except Exception:
+            pass
+@app.route('/builder_beta/page_modules_save/<page_key>', methods=['POST'])
+@require_role('admin')
+def builder_page_modules_save(page_key):
+    """Save the list of enabled modules for a page."""
+    import sqlite3
+    from pathlib import Path
+    import json as _j
+    db = str(Path(__file__).parent / 'template_store.sqlite3')
+    data = request.get_json(force=True) or {}
+    modules = data.get('modules', [])
+    if not isinstance(modules, list):
+        return jsonify({'ok': False, 'error': 'modules must be a list'}), 400
+    conn = sqlite3.connect(db)
+    lv = conn.execute("SELECT MAX(id) FROM form_template_versions WHERE form_template_id = (SELECT id FROM form_templates WHERE key = ?)", (TEMPLATE_STORE_KEY,)).fetchone()
+    lid = int(lv[0]) if lv and lv[0] else None
+    if not lid:
+        conn.close()
+        return jsonify({'ok': False, 'error': 'No version'}), 404
+    existing = conn.execute("SELECT metadata_json FROM page_templates WHERE page_key = ? AND form_template_version_id = ?", [page_key, lid]).fetchone()
+    meta = {}
+    if existing and existing[0]:
+        try: meta = _j.loads(existing[0]) if isinstance(existing[0], str) else existing[0]
+        except: meta = {}
+    if not isinstance(meta, dict): meta = {}
+    meta['modules'] = modules
+    conn.execute("UPDATE page_templates SET metadata_json = ? WHERE page_key = ? AND form_template_version_id = ?", [_j.dumps(meta), page_key, lid])
+    conn.commit()
+    conn.close()
+    return jsonify({'ok': True})
+    if not isinstance(meta, dict):
+        meta = {}
+    meta['form_visible'] = form_visible
+    meta['quote_visible'] = quote_visible
+    meta['title'] = title
     conn.execute(
-        "UPDATE page_templates SET title = ?, description = ? WHERE page_key = ? AND form_template_version_id = ?", [
-            title, desc, page_key, latest_version_id])
+        "UPDATE page_templates SET title = ?, description = ?, metadata_json = ? WHERE page_key = ? AND form_template_version_id = ?", [
+            title, desc, json.dumps(meta), page_key, latest_version_id])
     conn.commit()
     conn.close()
     return jsonify({'ok': True})
 
+@app.route('/builder_beta/image_upload_save/<page_key>', methods=['POST'])
+@require_role('admin')
+def builder_image_upload_save(page_key):
+    """Save image upload module config (which slot to display)."""
+    import sqlite3
+    from pathlib import Path
+    import json as _j
+    db = str(Path(__file__).parent / 'template_store.sqlite3')
+    data = request.get_json(force=True) or {}
+    slot = data.get('slot', 'cover_image')
+    label = data.get('label', 'Uploaded Image')
+    conn = sqlite3.connect(db)
+    lv = conn.execute("SELECT MAX(id) FROM form_template_versions WHERE form_template_id = (SELECT id FROM form_templates WHERE key = ?)", (TEMPLATE_STORE_KEY,)).fetchone()
+    lid = int(lv[0]) if lv and lv[0] else None
+    if not lid:
+        conn.close()
+        return jsonify({'ok': False, 'error': 'No version'}), 404
+    existing = conn.execute("SELECT metadata_json FROM page_templates WHERE page_key = ? AND form_template_version_id = ?", [page_key, lid]).fetchone()
+    meta = {}
+    if existing and existing[0]:
+        try: meta = _j.loads(existing[0]) if isinstance(existing[0], str) else existing[0]
+        except: meta = {}
+    if not isinstance(meta, dict): meta = {}
+    meta['image_upload'] = {'slot': slot, 'label': label}
+    conn.execute("UPDATE page_templates SET metadata_json = ? WHERE page_key = ? AND form_template_version_id = ?", [_j.dumps(meta), page_key, lid])
+    conn.commit()
+    conn.close()
+    return jsonify({'ok': True})
+@app.route('/builder_beta/page_total_calc', methods=['POST'])
+@require_role('admin')
+def builder_page_total_calc():
+    """Calculate the total for selected cost groups on a page."""
+    import sqlite3
+    from pathlib import Path
+    import json as _j
+    db = str(Path(__file__).parent / 'template_store.sqlite3')
+    data = request.get_json(force=True) or {}
+    page_key = data.get('page_key', '')
+    groups = data.get('groups', [])
+    if not page_key or not groups:
+        return jsonify({'success': False, 'error': 'page_key and groups required'}), 400
+    conn = sqlite3.connect(db)
+    conn.row_factory = sqlite3.Row
+    try:
+        rows = conn.execute(
+            "SELECT * FROM line_items WHERE form_page = ?", [page_key]
+        ).fetchall()
+        totals = {}
+        for r in rows:
+            item = dict(r)
+            og = item.get('output_group') or 'General'
+            unit_cost = float(item.get('unit_cost') or 0)
+            units = float(item.get('units') or 1)
+            line_total = round(unit_cost * units, 2)
+            totals[og] = totals.get(og, 0) + line_total
+        selected_total = round(sum(totals.get(g, 0) for g in groups), 2)
+        return jsonify({'success': True, 'total': selected_total, 'groups': groups, 'subtotals': {g: totals.get(g, 0) for g in groups}})
+    finally:
+        conn.close()
+
+
+@app.route('/builder_beta/page_total_save/<page_key>', methods=['POST'])
+@require_role('admin')
+def builder_page_total_save(page_key):
+    """Save page total module config (label, included cost groups)."""
+    import sqlite3
+    from pathlib import Path
+    import json as _j
+    db = str(Path(__file__).parent / 'template_store.sqlite3')
+    data = request.get_json(force=True) or {}
+    label = data.get('label', 'Page Total')
+    groups = data.get('groups', [])
+    form_visible = data.get('form_visible', True)
+    quote_visible = data.get('quote_visible', True)
+    conn = sqlite3.connect(db)
+    lv = conn.execute("SELECT MAX(id) FROM form_template_versions WHERE form_template_id = (SELECT id FROM form_templates WHERE key = ?)", (TEMPLATE_STORE_KEY,)).fetchone()
+    lid = int(lv[0]) if lv and lv[0] else None
+    if not lid:
+        conn.close()
+        return jsonify({'ok': False, 'error': 'No version'}), 404
+    existing = conn.execute("SELECT metadata_json FROM page_templates WHERE page_key = ? AND form_template_version_id = ?", [page_key, lid]).fetchone()
+    meta = {}
+    if existing and existing[0]:
+        try: meta = _j.loads(existing[0]) if isinstance(existing[0], str) else existing[0]
+        except: meta = {}
+    if not isinstance(meta, dict): meta = {}
+    meta['page_total'] = {'label': label, 'groups': groups, 'form_visible': form_visible, 'quote_visible': quote_visible}
+    conn.execute("UPDATE page_templates SET metadata_json = ? WHERE page_key = ? AND form_template_version_id = ?", [_j.dumps(meta), page_key, lid])
+    conn.commit()
+    conn.close()
+    return jsonify({'ok': True})
+
+@app.route('/builder_beta/module_delete/<page_key>', methods=['POST'])
+@require_role('admin')
+def builder_module_delete(page_key):
+    """Remove a module type from a page's metadata."""
+    import sqlite3
+    from pathlib import Path
+    import json as _j
+    db = str(Path(__file__).parent / 'template_store.sqlite3')
+    data = request.get_json(force=True) or {}
+    mod_type = data.get('mod_type', '')
+    if not mod_type:
+        return jsonify({'ok': False, 'error': 'mod_type required'}), 400
+    conn = sqlite3.connect(db)
+    lv = conn.execute("SELECT MAX(id) FROM form_template_versions WHERE form_template_id = (SELECT id FROM form_templates WHERE key = ?)", (TEMPLATE_STORE_KEY,)).fetchone()
+    lid = int(lv[0]) if lv and lv[0] else None
+    if not lid:
+        conn.close()
+        return jsonify({'ok': False, 'error': 'No version'}), 404
+    existing = conn.execute("SELECT metadata_json FROM page_templates WHERE page_key = ? AND form_template_version_id = ?", [page_key, lid]).fetchone()
+    meta = {}
+    if existing and existing[0]:
+        try: meta = _j.loads(existing[0]) if isinstance(existing[0], str) else existing[0]
+        except: meta = {}
+    if not isinstance(meta, dict): meta = {}
+    # Remove from modules list
+    modules = meta.get('modules', [])
+    if mod_type in modules:
+        modules.remove(mod_type)
+    meta['modules'] = modules
+    # Clean up module-specific config stored under the type key
+    if mod_type in meta:
+        del meta[mod_type]
+    conn.execute("UPDATE page_templates SET metadata_json = ? WHERE page_key = ? AND form_template_version_id = ?", [_j.dumps(meta), page_key, lid])
+    conn.commit()
+    conn.close()
+    return jsonify({'ok': True})
 
 @app.route('/builder_beta/category_details_json')
 @app.route('/builder_beta/category_details_json')
@@ -2447,6 +2818,35 @@ def builder_category_details_save():
         conn.close()
 
 
+def _get_page_visibility(page_key: str) -> dict:
+    """Return {form_visible, quote_visible} for a page, defaulting both to True."""
+    try:
+        import sqlite3
+        from pathlib import Path
+        db = str(Path(__file__).parent / 'template_store.sqlite3')
+        conn = sqlite3.connect(db)
+        row = conn.execute(
+            "SELECT metadata_json FROM page_templates WHERE page_key = ? "
+            "AND form_template_version_id IN (SELECT id FROM form_template_versions "
+            "WHERE form_template_id = (SELECT id FROM form_templates WHERE key = ?) "
+            "ORDER BY version DESC LIMIT 1)",
+            (page_key, TEMPLATE_STORE_KEY)
+        ).fetchone()
+        conn.close()
+        if row and row[0]:
+            try:
+                meta = json.loads(row[0]) if isinstance(row[0], str) else row[0]
+                return {
+                    'form_visible': meta.get('form_visible', True),
+                    'quote_visible': meta.get('quote_visible', True),
+                }
+            except Exception:
+                pass
+    except Exception:
+        pass
+    return {'form_visible': True, 'quote_visible': True}
+
+
 @app.route('/builder_beta/category/add', methods=['POST'])
 @require_role('admin')
 def builder_beta_category_add():
@@ -2477,7 +2877,7 @@ def builder_beta_category_add():
             )
             conn2.commit()
             conn2.close()
-            res = {'success': True}
+            return jsonify({'success': True})
         if res.get('success') and is_cost_group:
             # Update the newly created category to mark it as a cost group section
             try:
@@ -2493,11 +2893,6 @@ def builder_beta_category_add():
                 conn2.close()
             except Exception:
                 pass
-        res = _ts.add_category(
-            data['page_key'],
-            data['category_name'],
-            template_key=TEMPLATE_STORE_KEY,
-            output_group=output_group)
         print(f"[CAT_ADD_DEBUG] res={res!r}", file=sys.stderr)
         if res.get('success'):
             return jsonify({'success': True})
@@ -3116,6 +3511,15 @@ def builder_cost_group_save():
     # Save the updated state back to the database
     ts.update_builder_beta_state(TEMPLATE_STORE_KEY, state)
     
+    # Refresh the in-memory cache so the UI sees new cost groups immediately
+    try:
+        from template_store import load_template_payload
+        db_payload = load_template_payload(TEMPLATE_STORE_KEY)
+        if db_payload:
+            globals()['page_schemas'] = db_payload
+    except Exception:
+        pass
+    
     return jsonify({
         'success': True, 
         'cost_group': {
@@ -3156,8 +3560,12 @@ def builder_cost_group_delete():
     if remap_to not in state['cost_groups']:
         remap_to = 'general'
     
+    import sqlite3
+    from pathlib import Path
+    _db = str(Path(__file__).parent / 'template_store.sqlite3')
+    
     # Remap all line_items that reference this group
-    conn = ts.get_connection()
+    conn = sqlite3.connect(_db)
     try:
         conn.execute(
             "UPDATE line_items SET output_group = ? WHERE output_group = ?",
@@ -3168,7 +3576,7 @@ def builder_cost_group_delete():
         conn.close()
     
     # Remap all category_templates that reference this group
-    conn = ts.get_connection()
+    conn = sqlite3.connect(_db)
     try:
         conn.execute(
             "UPDATE category_templates SET output_group = ? WHERE output_group = ?",
@@ -3215,8 +3623,8 @@ def builder_line_item_save(item_id):
             if key in data:
                 sets.append(f'{key} = ?')
                 params.append(data[key])
-        # Cost group total fields: store in metadata_json
-        if 'cost_group_id' in data or 'cost_group_override' in data:
+        # Cost group total fields & sow_level: store in metadata_json
+        if 'cost_group_id' in data or 'cost_group_override' in data or 'sow_level' in data:
             existing_row = conn.execute("SELECT metadata_json FROM line_items WHERE id = ?", (item_id,)).fetchone()
             existing_meta = {}
             if existing_row and existing_row[0]:
@@ -3233,6 +3641,11 @@ def builder_line_item_save(item_id):
                     existing_meta['cost_group_override'] = float(data['cost_group_override']) if data['cost_group_override'] else ''
                 except (TypeError, ValueError):
                     existing_meta['cost_group_override'] = ''
+            if 'sow_level' in data:
+                try:
+                    existing_meta['sow_level'] = int(data['sow_level']) if data['sow_level'] != '' else ''
+                except (TypeError, ValueError):
+                    existing_meta['sow_level'] = ''
             sets.append('metadata_json = ?')
             params.append(json.dumps(existing_meta))
         if 'pricing_matrix_types' in data or 'pricing_matrix_sizes' in data or 'pricing_matrix_prices' in data:
@@ -3619,6 +4032,45 @@ def builder_swap_order():
 
             conn.commit()
             return jsonify({'success': True})
+        elif scope == 'module':
+            # Swap module order in metadata_json.modules list
+            if not page_key:
+                return jsonify({'error': 'page_key is required for module scope'}), 400
+            import json as _j
+            existing = conn.execute(
+                "SELECT metadata_json FROM page_templates WHERE page_key = ? AND form_template_version_id = ?",
+                [page_key, latest_version_id]
+            ).fetchone()
+            meta = {}
+            if existing and existing[0]:
+                try: meta = _j.loads(existing[0]) if isinstance(existing[0], str) else existing[0]
+                except: meta = {}
+            if not isinstance(meta, dict): meta = {}
+            modules = meta.get('modules', [])
+            if not modules:
+                return jsonify({'error': 'No modules to reorder'}), 400
+            # Find current module index
+            mod_type = (identifier or '').strip()
+            cur_idx = None
+            for i, m in enumerate(modules):
+                if m == mod_type:
+                    cur_idx = i
+                    break
+            if cur_idx is None:
+                return jsonify({'error': f'Module {mod_type} not found'}), 404
+            # Find adjacent module index
+            adj_idx = cur_idx - 1 if direction == 'up' else cur_idx + 1
+            if adj_idx < 0 or adj_idx >= len(modules):
+                return jsonify({'error': 'No adjacent module in that direction'}), 400
+            # Swap
+            modules[cur_idx], modules[adj_idx] = modules[adj_idx], modules[cur_idx]
+            meta['modules'] = modules
+            conn.execute(
+                "UPDATE page_templates SET metadata_json = ? WHERE page_key = ? AND form_template_version_id = ?",
+                [_j.dumps(meta), page_key, latest_version_id]
+            )
+            conn.commit()
+            return jsonify({'success': True})
         else:
             return jsonify({'error': f'Unknown scope: {scope}'}), 400
     except Exception as e:
@@ -3930,6 +4382,24 @@ def dynamic_page(page_id):
     if page_id not in all_pages:
         abort(404)
 
+    # Check form_visible — redirect to next visible page if hidden
+    vis = _get_page_visibility(page_id)
+    if not vis.get('form_visible', True):
+        # Find the next visible page to redirect to
+        import template_store as _ts_nav
+        ordered = _ts_nav.get_all_pages(template_key=TEMPLATE_STORE_KEY)
+        next_key = None
+        found = False
+        for pg in ordered:
+            if found and _get_page_visibility(pg['page_key']).get('form_visible', True):
+                next_key = pg['page_key']
+                break
+            if pg['page_key'] == page_id:
+                found = True
+        if not next_key:
+            next_key = 'review'
+        return redirect(url_for('dynamic_page', page_id=next_key))
+
     session['last_visited'] = page_id
     page = all_pages[page_id]
     page_schema = compile_builder_beta_page_to_runtime_schema(page_id)
@@ -3962,6 +4432,30 @@ def dynamic_page(page_id):
         session['data'] = form_data
         session.modified = True
 
+        # ── Auto-create quote draft on first form save ─────────────────
+        active_quote_id = session.get('active_quote_id')
+        if not active_quote_id:
+            try:
+                import template_store as _ts_q
+                quote_name = "Form Draft"
+                client_name = form_data.get('client_address', '')[:100]
+                _ts_q.save_quote(
+                    form_key=session.get('template_key', 'builder_beta'),
+                    blocks_json=[],
+                    name=quote_name,
+                    client_name=client_name,
+                    form_data={'data': form_data, 'checkbox_data': checkbox_data, 'template_key': session.get('template_key', 'builder_beta')},
+                )
+                # Get the last inserted quote
+                _conn = _ts_q._connect(_ts_q._default_db_path())
+                _row = _conn.execute("SELECT MAX(id) FROM saved_quotes").fetchone()
+                if _row and _row[0]:
+                    session['active_quote_id'] = int(_row[0])
+                    active_quote_id = int(_row[0])
+                _conn.close()
+            except Exception:
+                pass
+
         # ── Form → Quote live sync ──────────────────────────────────────
         active_quote_id = session.get('active_quote_id')
         if active_quote_id:
@@ -3970,6 +4464,7 @@ def dynamic_page(page_id):
                 quote = get_saved_quote(int(active_quote_id), session.get('template_key', 'builder_beta'))
                 if quote:
                     blocks = quote.get('blocks_json', [])
+                    needs_calc = False
                     for block in blocks:
                         if not block.get('source_page') or not block.get('source_block_id'):
                             continue
@@ -3994,12 +4489,32 @@ def dynamic_page(page_id):
                             block['snapshot']['value'] = value if isinstance(value, str) else ', '.join(value)
                             block['flags'] = block.get('flags', {})
                             block['flags']['source_dirty'] = True
+                            needs_calc = True
+                    # Recalculate calculator/payment_schedule blocks if form data changed
+                    if needs_calc:
+                        try:
+                            import calculator
+                            calc_result = calculator.calculate_quote(
+                                session.get('template_key', 'builder_beta'),
+                                session.get('data', {}),
+                                session.get('session_overrides', {}),
+                                session.get('checkbox_data', {}),
+                            )
+                            for block in blocks:
+                                bt = block.get('type')
+                                if bt in ('calculator', 'payment_schedule') and not block.get('flags', {}).get('editor_dirty'):
+                                    block['snapshot'] = calc_result
+                                    block['flags'] = block.get('flags', {})
+                                    block['flags']['source_dirty'] = True
+                        except Exception:
+                            pass
                     update_saved_quote(
                         quote_id=int(active_quote_id),
                         form_key=session.get('template_key', 'builder_beta'),
                         name=quote.get('name', 'Quote'),
                         blocks_json=blocks,
                         settings=quote.get('settings_json', {}),
+                        form_data={'data': session.get('data', {}), 'checkbox_data': session.get('checkbox_data', {}), 'template_key': session.get('template_key', 'builder_beta')},
                     )
             except Exception:
                 pass
@@ -4100,6 +4615,27 @@ def dynamic_page(page_id):
 @app.route('/', methods=['POST', 'GET'])
 def index():
     session['last_visited'] = 'index'
+
+    # ── Auto-restore the latest saved quote on first load ──────────────
+    if not session.get('data') and request.method == 'GET':
+        try:
+            import template_store as _ts_r
+            _conn_r = _ts_r._connect(_ts_r._default_db_path())
+            _row_r = _conn_r.execute(
+                "SELECT id, form_data FROM saved_quotes ORDER BY id DESC LIMIT 1"
+            ).fetchone()
+            if _row_r and _row_r['form_data']:
+                import json
+                fd = json.loads(_row_r['form_data']) if isinstance(_row_r['form_data'], str) else _row_r['form_data']
+                if isinstance(fd, dict):
+                    session['data'] = fd.get('data', {})
+                    session['checkbox_data'] = fd.get('checkbox_data', {})
+                    session['active_quote_id'] = int(_row_r['id'])
+                    session['template_key'] = fd.get('template_key', session.get('template_key', 'builder_beta'))
+                    session.modified = True
+            _conn_r.close()
+        except Exception:
+            pass
 
     # Get the first DYNAMIC page by display_order (skip redundant index page)
     ordered_pages = get_all_pages(template_key=TEMPLATE_STORE_KEY)
@@ -4855,6 +5391,54 @@ def review():
             checkbox_data[key] = value
         session['checkbox_data'] = checkbox_data
         session.modified = True
+        # ── Review → Quote live sync ────────────────────────────────────
+        active_quote_id = session.get('active_quote_id')
+        if active_quote_id:
+            try:
+                from quote_editor_routes import get_saved_quote, update_saved_quote
+                quote = get_saved_quote(int(active_quote_id), session.get('template_key', 'builder_beta'))
+                if quote:
+                    blocks = quote.get('blocks_json', [])
+                    for block in blocks:
+                        if block.get('flags', {}).get('editor_dirty'):
+                            continue
+                        if block.get('type') == 'form_question':
+                            sid = block.get('source_block_id', '')
+                            cb = checkbox_data.get(sid)
+                            if isinstance(cb, dict):
+                                val = cb.get('preselected', [])
+                            elif cb:
+                                val = cb
+                            else:
+                                val = session.get('data', {}).get(sid, '')
+                            block.setdefault('snapshot', {})['value'] = val if isinstance(val, str) else ', '.join(val)
+                            block.setdefault('flags', {})['source_dirty'] = True
+                    try:
+                        import calculator
+                        calc_result = calculator.calculate_quote(
+                            session.get('template_key', 'builder_beta'),
+                            session.get('data', {}),
+                            session.get('session_overrides', {}),
+                            session.get('checkbox_data', {}),
+                        )
+                        for block in blocks:
+                            bt = block.get('type')
+                            if bt in ('calculator', 'payment_schedule') and not block.get('flags', {}).get('editor_dirty'):
+                                block['snapshot'] = calc_result
+                                block.setdefault('flags', {})['source_dirty'] = True
+                    except Exception:
+                        pass
+                    update_saved_quote(
+                        quote_id=int(active_quote_id),
+                        form_key=session.get('template_key', 'builder_beta'),
+                        name=quote.get('name', 'Quote'),
+                        blocks_json=blocks,
+                        settings=quote.get('settings_json', {}),
+                        form_data={'data': session.get('data', {}), 'checkbox_data': session.get('checkbox_data', {}), 'template_key': session.get('template_key', 'builder_beta')},
+                    )
+            except Exception:
+                pass
+        # ── End Review → Quote sync ─────────────────────────────────────
         return redirect(url_for('review'))
 
     # ── Build review_data: the user's form answers grouped by page (section) ──
@@ -5061,6 +5645,31 @@ def api_line_item_override():
     session.modified = True
     return jsonify({'success': True, 'scope': 'project', 'line_code': line_code, 'unit_cost': unit_cost})
 
+
+@app.route('/builder_beta/upload_image', methods=['POST'])
+@require_role('admin')
+def builder_upload_image():
+    """Upload an image for the image_upload module. Returns the URL."""
+    import os
+    from werkzeug.utils import secure_filename
+    project_title = session.get('data', {}).get('client_address', 'Unnamed_Project')
+    safe_title = secure_filename(project_title)[:50]
+    project_folder = os.path.join(app.config['UPLOAD_FOLDER'], safe_title)
+    os.makedirs(project_folder, exist_ok=True)
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': 'No file provided'}), 400
+    file = request.files['file']
+    if not file or not file.filename:
+        return jsonify({'success': False, 'error': 'Empty file'}), 400
+    if not allowed_file(file.filename):
+        return jsonify({'success': False, 'error': 'File type not allowed (jpg, png, gif, jpeg only)'}), 400
+    field_name = request.form.get('field_name', 'upload')
+    ext = file.filename.rsplit('.', 1)[1].lower()
+    filename = f"{field_name}_{int(__import__('time').time())}.{ext}"
+    save_path = os.path.join(project_folder, filename)
+    file.save(save_path)
+    url = url_for('static', filename=f'uploads/{safe_title}/{filename}')
+    return jsonify({'success': True, 'url': url, 'filename': filename})
 
 @app.route('/quote_editor', methods=['GET', 'POST'])
 def quote_editor():

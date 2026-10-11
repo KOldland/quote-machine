@@ -1,5 +1,78 @@
 {
   "builder_beta": {
+    "cost_groups": {
+      "aluminium_capping": {
+        "description": "",
+        "label": "Aluminium Capping",
+        "sort_order": 0
+      },
+      "building_works": {
+        "description": "",
+        "label": "Building Works",
+        "sort_order": 0
+      },
+      "electrics": {
+        "description": "",
+        "label": "Electrics",
+        "sort_order": 0
+      },
+      "general": {
+        "default_label": "General",
+        "description": "Default cost group for unclassified items",
+        "label": "General",
+        "sort_order": 0
+      },
+      "glass_valley": {
+        "description": "",
+        "label": "Glass Valley",
+        "sort_order": 0
+      },
+      "ground_floor_wc_finishing_works": {
+        "description": "",
+        "label": "Ground Floor WC Finishing Works",
+        "sort_order": 0
+      },
+      "kitchen_finishing_works": {
+        "description": "",
+        "label": "Kitchen Finishing Works",
+        "sort_order": 0
+      },
+      "plumbing": {
+        "description": "",
+        "label": "Plumbing",
+        "sort_order": 0
+      },
+      "pre_project_package": {
+        "description": "",
+        "label": "Pre-Project Package",
+        "sort_order": 0
+      },
+      "skylights": {
+        "description": "",
+        "label": "Skylights",
+        "sort_order": 0
+      },
+      "sliding_doors": {
+        "description": "",
+        "label": "Sliding Doors",
+        "sort_order": 0
+      },
+      "utility_room_finishing_works": {
+        "description": "",
+        "label": "Utility Room Finishing Works",
+        "sort_order": 0
+      },
+      "velux_windows": {
+        "description": "",
+        "label": "Velux Windows",
+        "sort_order": 0
+      },
+      "sash_windows": {
+        "label": "Sash Windows",
+        "description": "",
+        "sort_order": 0
+      }
+    },
     "pages": {
       "special_notes_page": {
         "blocks": [
@@ -11,11 +84,15 @@
         ],
         "categories": [
           {
+            "description": "",
             "name": "Special Notes",
             "output_group": "General",
             "sort_order": 0
           }
         ],
+        "display_order": 0,
+        "id": "special_notes_page",
+        "navigation": {},
         "title": "Special Notes"
       },
       "summary_page": {
@@ -28,36 +105,45 @@
         ],
         "categories": [
           {
+            "description": "",
             "name": "Work Summary",
             "output_group": "General",
             "sort_order": 0
           },
           {
+            "description": "",
             "name": "Size of Extension",
             "output_group": "General",
             "sort_order": 1
           },
           {
+            "description": "",
             "name": "Boundary Lines",
             "output_group": "General",
             "sort_order": 2
           },
           {
+            "description": "",
             "name": "Basement",
             "output_group": "General",
             "sort_order": 3
           },
           {
+            "description": "",
             "name": "Council",
             "output_group": "General",
             "sort_order": 4
           },
           {
+            "description": "",
             "name": "Planning Permission",
             "output_group": "General",
             "sort_order": 5
           }
         ],
+        "display_order": 1,
+        "id": "summary_page",
+        "navigation": {},
         "title": "Building Works"
       },
       "materials_page": {
@@ -418,41 +504,51 @@
         ],
         "categories": [
           {
+            "description": "",
             "name": "External Wall Finish & Height",
             "output_group": "General",
             "sort_order": 0
           },
           {
+            "description": "",
             "name": "External Roofing Finish",
             "output_group": "General",
             "sort_order": 1
           },
           {
+            "description": "",
             "name": "Floor Structure",
             "output_group": "General",
             "sort_order": 2
           },
           {
+            "description": "",
             "name": "Plastering",
             "output_group": "General",
             "sort_order": 3
           },
           {
+            "description": "",
             "name": "Internal doors",
             "output_group": "General",
             "sort_order": 4
           },
           {
+            "description": "",
             "name": "Drainage",
             "output_group": "General",
             "sort_order": 5
           },
           {
+            "description": "",
             "name": "Waste & Parking",
             "output_group": "General",
             "sort_order": 6
           }
         ],
+        "display_order": 2,
+        "id": "materials_page",
+        "navigation": {},
         "title": "Materials and Details"
       },
       "further_requirements_page": {
@@ -649,16 +745,21 @@
         ],
         "categories": [
           {
+            "description": "",
             "name": "Further Requirements & Considerations",
             "output_group": "General",
             "sort_order": 0
           },
           {
+            "description": "",
             "name": "Demolition Works",
             "output_group": "General",
             "sort_order": 1
           }
         ],
+        "display_order": 3,
+        "id": "further_requirements_page",
+        "navigation": {},
         "title": "Further Requirements and Considerations"
       },
       "additional_building_work_page": {
@@ -671,11 +772,15 @@
         ],
         "categories": [
           {
+            "description": "",
             "name": "Additional Building Works",
             "output_group": "General",
             "sort_order": 0
           }
         ],
+        "display_order": 4,
+        "id": "additional_building_work_page",
+        "navigation": {},
         "title": "Additional Building Works"
       },
       "image_upload_page": {
@@ -754,6 +859,9 @@
           }
         ],
         "categories": [],
+        "display_order": 5,
+        "id": "image_upload_page",
+        "navigation": {},
         "title": "Image Upload"
       },
       "index": {
@@ -832,22 +940,36 @@
           }
         ],
         "categories": [],
+        "display_order": 6,
+        "id": "index",
+        "navigation": {},
         "title": "Project Details"
       },
       "schedule_of_works": {
-        "blocks": [],
+        "blocks": [
+          {
+            "block_type": "line_items_by_category",
+            "config": {},
+            "id": "schedule_of_works__line_items"
+          }
+        ],
         "categories": [
           {
+            "description": "",
             "name": "Extension Schedule of Works",
             "output_group": "General",
             "sort_order": 0
           },
           {
+            "description": "",
             "name": "Additional Building Items Schedule of Works",
             "output_group": "General",
             "sort_order": 1
           }
         ],
+        "display_order": 7,
+        "id": "schedule_of_works",
+        "navigation": {},
         "title": "Schedule of Works"
       },
       "additional_costs_page": {
@@ -860,52 +982,83 @@
         ],
         "categories": [
           {
+            "description": "",
             "name": "Standard Items",
             "output_group": "General",
             "sort_order": 0
           },
           {
+            "description": "",
             "name": "Electrics",
             "output_group": "General",
             "sort_order": 1
           },
           {
+            "description": " As per the new kitchen, utility & WC designs. Price includes installing necessary hot, cold and waste outlet pipes only. It also includes connecting the gas to the hob if required. Connecting of the pipes to the new appliances is to be carried out by the kitchen fitters. This price DOES NOT include radiators, sanitary items or the supplying & fitting of the kitchen units/ appliances.",
             "name": "Plumbing",
             "output_group": "General",
             "sort_order": 2
           },
           {
+            "description": "",
             "name": "Skylights",
             "output_group": "General",
             "sort_order": 3
           },
           {
+            "description": "",
             "name": "Velux",
             "output_group": "General",
             "sort_order": 4
           },
           {
+            "description": "",
             "name": "Aluminium Capping",
             "output_group": "General",
             "sort_order": 5
           },
           {
+            "description": "",
             "name": "Glass Valley",
             "output_group": "General",
             "sort_order": 6
           },
           {
+            "description": "",
             "name": "Sliding Doors",
             "output_group": "General",
             "sort_order": 7
           },
           {
+            "description": "",
             "name": "Sash Windows",
             "output_group": "General",
             "sort_order": 8
           }
         ],
+        "display_order": 8,
+        "id": "additional_costs_page",
+        "navigation": {
+          "next_endpoint": "pricing_categories"
+        },
         "title": "Additional Costs"
+      },
+      "pricing_categories": {
+        "blocks": [
+          {
+            "block_type": "line_items_by_category",
+            "config": {},
+            "id": "pricing_categories__line_items"
+          }
+        ],
+        "categories": [],
+        "display_order": 17,
+        "id": "pricing_categories",
+        "navigation": {
+          "previous_endpoint": "additional_costs_page",
+          "next_endpoint": "optional_extras_page"
+        },
+        "title": "Pricing Categories"
       },
       "optional_extras_page": {
         "blocks": [
@@ -917,120 +1070,236 @@
         ],
         "categories": [
           {
+            "description": "",
             "name": "Optional Extras",
             "output_group": "General",
             "sort_order": 0
-          },
-          {
-            "name": "Chimneys",
-            "output_group": "General",
-            "sort_order": 1
           }
         ],
+        "display_order": 10,
+        "id": "optional_extras_page",
+        "navigation": {
+          "next_endpoint": "pricing_categories",
+          "previous_endpoint": "pricing_categories"
+        },
         "title": "Optional Extras"
       },
       "contingency": {
-        "blocks": [],
+        "blocks": [
+          {
+            "block_type": "line_items_by_category",
+            "config": {},
+            "id": "contingency__line_items"
+          }
+        ],
         "categories": [
           {
+            "description": "",
             "name": "Contingency",
             "output_group": "General",
             "sort_order": 0
           }
         ],
+        "display_order": 11,
+        "id": "contingency",
+        "navigation": {
+          "next_endpoint": "pricing_categories",
+          "previous_endpoint": "pricing_categories"
+        },
         "title": "Contingency"
       },
       "finishing_works": {
-        "blocks": [],
-        "categories": [
+        "blocks": [
           {
-            "name": "Finishing Works",
-            "output_group": "General",
-            "sort_order": 1
-          },
-          {
-            "name": "Finishing Works Optional Extras",
-            "output_group": "General",
-            "sort_order": 2
+            "block_type": "line_items_by_category",
+            "config": {},
+            "id": "finishing_works__line_items"
           }
         ],
-        "title": "Finishing Works",
-        "navigation": {
-          "next_endpoint": "finish_sched_work"
-        }
-      },
-      "additional_notes": {
-        "blocks": [],
         "categories": [
           {
-            "name": "Additional Notes",
+            "description": "",
+            "name": "Finishing Works",
             "output_group": "General",
             "sort_order": 0
           },
           {
-            "name": "ZZ Network Probe",
-            "sort_order": 1,
-            "description": ""
+            "description": "",
+            "name": "Details & Materials Summary",
+            "output_group": "General",
+            "sort_order": 1
           }
         ],
-        "title": "Additional Notes",
+        "display_order": 13,
+        "id": "finishing_works",
         "navigation": {
-          "next_endpoint": "finish_sched_work",
-          "previous_endpoint": "finish_sched_work"
-        }
+          "next_endpoint": "pricing_categories",
+          "previous_endpoint": "pricing_categories"
+        },
+        "title": "Finishing Works"
       },
-      "pricing_categories": {
-        "blocks": [],
+      "finish_sched_work": {
+        "blocks": [
+          {
+            "block_type": "line_items_by_category",
+            "config": {},
+            "id": "finish_sched_work__line_items"
+          }
+        ],
         "categories": [
           {
-            "name": "pricing category",
+            "description": "",
+            "name": "Finishing Schedule of Works",
+            "output_group": "General",
+            "sort_order": 0
+          }
+        ],
+        "display_order": 14,
+        "id": "finish_sched_work",
+        "navigation": {
+          "next_endpoint": "pricing_categories",
+          "previous_endpoint": "pricing_categories"
+        },
+        "title": "Finishing Schedule of Works"
+      },
+      "finishing_works_opt_ext": {
+        "blocks": [
+          {
+            "block_type": "line_items_by_category",
+            "config": {},
+            "id": "finishing_works_opt_ext__line_items"
+          }
+        ],
+        "categories": [
+          {
+            "description": "",
+            "name": "1st Floor Bathroom Refurbishment",
+            "output_group": "General",
+            "sort_order": 0
+          },
+          {
+            "description": "",
+            "name": "Brick Slips",
             "output_group": "General",
             "sort_order": 1
           },
           {
-            "name": "Building Works",
-            "sort_order": 2,
-            "description": ""
-          },
-          {
-            "name": "Pre-Project Package",
-            "sort_order": 3,
-            "description": ""
+            "description": "",
+            "name": "Flush External Patio",
+            "output_group": "General",
+            "sort_order": 2
           }
         ],
-        "title": "Pricing Categories",
+        "display_order": 15,
+        "id": "finishing_works_opt_ext",
         "navigation": {
-          "previous_endpoint": "finish_sched_work"
+          "next_endpoint": "pricing_categories",
+          "previous_endpoint": "pricing_categories"
+        },
+        "title": "Finishing Works Optional Extras"
+      },
+      "additional_notes": {
+        "blocks": [
+          {
+            "block_type": "line_items_by_category",
+            "config": {},
+            "id": "additional_notes__line_items"
+          }
+        ],
+        "categories": [
+          {
+            "description": "",
+            "name": "Additional Notes",
+            "output_group": "General",
+            "sort_order": 0
+          }
+        ],
+        "display_order": 16,
+        "id": "additional_notes",
+        "navigation": {
+          "previous_endpoint": "pricing_categories"
+        },
+        "title": "Additional Notes"
+      }
+    },
+    "question_types": {
+      "calculator": {
+        "default_label": "New calculator",
+        "description": "Cost group breakdown with editable quantities \u2014 ideal for pricing pages",
+        "icon": "#",
+        "label": "Calculator",
+        "supports": {
+          "logic": true,
+          "output": true,
+          "pricing": true
         }
       },
-      "finish_sched_work": {
-        "categories": [
-          {
-            "name": "Finishing Schedule of Works",
-            "sort_order": 0,
-            "description": ""
-          }
-        ]
+      "checkbox_group": {
+        "default_label": "New checkbox group",
+        "label": "Checkbox Group",
+        "supports": {
+          "logic": true,
+          "output": true,
+          "pricing": true
+        }
       },
-      "finishing_works_opt_ext": {
-        "categories": [
-          {
-            "name": "1st Floor Bathroom Refurbishment",
-            "sort_order": 3,
-            "description": ""
-          },
-          {
-            "name": "Brick Slips",
-            "sort_order": 2,
-            "description": ""
-          },
-          {
-            "name": "Flush External Patio",
-            "sort_order": 3,
-            "description": ""
-          }
-        ]
+      "dropdown_select": {
+        "default_label": "New dropdown select",
+        "label": "Dropdown Select",
+        "supports": {
+          "logic": true,
+          "output": true,
+          "pricing": true
+        }
+      },
+      "number_currency_input": {
+        "default_label": "New number/currency input",
+        "label": "Number/Currency Input",
+        "supports": {
+          "logic": true,
+          "output": true,
+          "pricing": true
+        }
+      },
+      "payment_schedule": {
+        "default_label": "Payment Schedule",
+        "description": "Payment schedule breakdown based on quote totals \u2014 shows deposit, stage payments, and completion amounts",
+        "icon": "$",
+        "label": "Payment Schedule",
+        "supports": {
+          "logic": false,
+          "output": true,
+          "pricing": false
+        }
+      },
+      "static_text_heading": {
+        "default_label": "New static text",
+        "label": "Static Text/Heading",
+        "supports": {
+          "logic": false,
+          "output": true,
+          "pricing": false
+        }
+      },
+      "text_input": {
+        "default_label": "New text input",
+        "label": "Text Input",
+        "supports": {
+          "logic": true,
+          "output": true,
+          "pricing": true
+        }
+      },
+      "textarea_input": {
+        "default_label": "New larger text box",
+        "label": "Larger Text Box",
+        "supports": {
+          "logic": true,
+          "output": true,
+          "pricing": true
+        }
       }
-    }
+    },
+    "version": 1
   }
 }

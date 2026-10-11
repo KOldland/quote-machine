@@ -141,6 +141,33 @@
                 </table>
               {% endif %}
               <p class="grand-total">Grand Total: {{ "%.2f"|format(snapshot.grand_total) }}</p>
+            {% elif gblock.type == 'payment_schedule' %}
+              {% set ps = gblock.snapshot.payment_schedule %}
+              {% if ps %}
+              <table class="calc-table">
+                <thead><tr><th>Stage</th><th>Amount</th></tr></thead>
+                <tbody>
+                  {% for entry in ps %}
+                  <tr>
+                    <td>{{ entry.stage }}{% if entry.note %}<br><small>{{ entry.note }}</small>{% endif %}</td>
+                    <td>{{ "%.2f"|format(entry.amount) }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+              {% endif %}
+            {% elif gblock.type == 'page_total' %}
+              <p style="font-weight:600;text-align:right;margin-top:8px;">
+                {{ gblock.snapshot.label | default('Page Total') }}:
+                {{ "%.2f"|format(gblock.snapshot.total | default(0)) }}
+              </p>
+            {% elif gblock.type == 'image_upload' %}
+              {% set img_url = gblock.snapshot.image_url | default('') %}
+              {% if img_url %}
+              <img src="{{ img_url }}" alt="Uploaded Image" style="max-width:100%;max-height:300px;border-radius:4px;" />
+              {% else %}
+              <p style="color:#999;font-style:italic;">No image uploaded.</p>
+              {% endif %}
             {% elif gblock.type == 'image' %}
               <img src="{{ gblock.snapshot.url }}" alt="Image" />
             {% elif gblock.type == 'image_group' %}
@@ -190,8 +217,30 @@
             </table>
           {% endif %}
           <p class="grand-total">Grand Total: {{ "%.2f"|format(snapshot.grand_total) }}</p>
+        {% elif block.type == 'payment_schedule' %}
+          {% set ps = block.snapshot.payment_schedule %}
+          {% if ps %}
+          <table class="calc-table">
+            <thead><tr><th>Stage</th><th>Amount</th></tr></thead>
+            <tbody>
+              {% for entry in ps %}
+              <tr>
+                <td>{{ entry.stage }}{% if entry.note %}<br><small>{{ entry.note }}</small>{% endif %}</td>
+                <td>{{ "%.2f"|format(entry.amount) }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% endif %}
         {% elif block.type == 'notes' %}
           <div class="qe-notes">{{ block.snapshot.content | safe }}</div>
+        {% elif block.type == 'image_upload' %}
+          {% set img_url = block.snapshot.image_url | default('') %}
+          {% if img_url %}
+          <img src="{{ img_url }}" alt="Uploaded Image" style="max-width:100%;max-height:300px;border-radius:4px;" />
+          {% else %}
+          <p style="color:#999;font-style:italic;">No image uploaded.</p>
+          {% endif %}
         {% elif block.type == 'image' %}
           <img src="{{ block.snapshot.url }}" alt="Image" />
         {% elif block.type == 'image_group' %}

@@ -34,6 +34,11 @@ from template_store import (
     get_line_items_by_codes,
     get_line_items_for_page,
     get_all_pages,
+    list_output_templates,
+    save_theme,
+    get_theme,
+    apply_theme_to_blocks,
+    delete_theme,
 )
 
 quote_editor_bp = Blueprint('quote_editor', __name__)
@@ -194,6 +199,87 @@ def save_quote_route():
         settings=settings,
         form_data=form_data,
     )
+# ── Quote Themes ───────────────────────────────────────────────────
+
+@quote_editor_bp.route('/quote_editor/themes', methods=['GET'])
+def themes_list():
+    form_key = session.get('template_key', 'builder_beta')
+    themes = list_output_templates(form_key)
+    return jsonify({'success': True, 'themes': themes})
+
+
+@quote_editor_bp.route('/quote_editor/themes/<int:theme_id>', methods=['GET'])
+def get_theme_route(theme_id):
+    form_key = session.get('template_key', 'builder_beta')
+    theme = get_theme(theme_id, form_key)
+    if not theme:
+        return jsonify({'success': False, 'error': 'Theme not found'}), 404
+    return jsonify({'success': True, 'theme': {
+        **theme,
+        'settings': {'document_styles': theme.get('css', {})},
+    }})
+
+
+# Look up theme by name (used by existing JS that passes theme name)
+@quote_editor_bp.route('/quote_editor/themes/by-name/<name>', methods=['GET'])
+def get_theme_by_name_route(name):
+    form_key = session.get('template_key', 'builder_beta')
+    themes = list_output_templates(form_key)
+    for t in themes:
+        if t.get('name') == name:
+            return get_theme_route(t['id'])
+    return jsonify({'success': False, 'error': 'Theme not found'}), 404
+
+
+@quote_editor_bp.route('/quote_editor/themes', methods=['POST'])
+def save_theme_route():
+    """Save a theme from the current quote's block formatting.
+
+    Compatible with both the JS format (settings_json.document_styles)
+    and the new format (blocks, css).
+    """
+    form_key = session.get('template_key', 'builder_beta')
+    data = request.get_json(force=True) or {}
+    name = (data.get('name') or '').strip()
+    if not name:
+        return jsonify({'success': False, 'error': 'Theme name is required'}), 400
+
+    # Extract CSS from whichever format the client sends
+    css = data.get('css', {})
+    settings_json = data.get('settings_json', {})
+    if isinstance(settings_json, dict) and settings_json.get('document_styles'):
+        css = settings_json['document_styles']
+
+    blocks = data.get('blocks', [])
+    result = save_theme(
+        form_key,
+        name=name,
+        css_json=css,
+        source_blocks=blocks,
+        is_default=data.get('is_default', False),
+    )
+    if not result:
+        return jsonify({'success': False, 'error': 'Could not save theme'}), 500
+    return jsonify({'success': True, 'theme': result})
+
+
+@quote_editor_bp.route('/quote_editor/themes/<int:theme_id>/apply', methods=['POST'])
+def apply_theme_route(theme_id):
+    """Apply a theme's block defaults to the given blocks and return them."""
+    form_key = session.get('template_key', 'builder_beta')
+    data = request.get_json(force=True) or {}
+    blocks = data.get('blocks', [])
+    updated = apply_theme_to_blocks(theme_id, blocks, form_key)
+    return jsonify({'success': True, 'blocks': updated})
+
+
+@quote_editor_bp.route('/quote_editor/themes/<int:theme_id>', methods=['DELETE'])
+def delete_theme_route(theme_id):
+    form_key = session.get('template_key', 'builder_beta')
+    ok = delete_theme(theme_id, form_key)
+    if not ok:
+        return jsonify({'success': False, 'error': 'Theme not found'}), 404
+    return jsonify({'success': True})
     if not quote:
         return jsonify({'success': False, 'error': 'Form template not found'}), 404
     return jsonify({'success': True, 'quote': quote}), 201
@@ -207,12 +293,18 @@ def load_quote_route(quote_id):
         return jsonify({'success': False, 'error': 'Quote not found'}), 404
     session['active_quote_id'] = quote_id
     form_data = quote.get('form_data') or {}
-    if 'data' not in session:
-        session['data'] = form_data.get('data', {})
-    if 'checkbox_data' not in session:
-        session['checkbox_data'] = form_data.get('checkbox_data', {})
-    if form_data.get('template_key') and 'template_key' not in session:
+    # Always restore form data from the loaded quote — overwrite session
+    session['data'] = form_data.get('data', {})
+    session['checkbox_data'] = form_data.get('checkbox_data', {})
+    if form_data.get('template_key'):
         session['template_key'] = form_data['template_key']
+    # Restore manual blocks (calculator, image groups, payment schedule, etc.)
+    all_blocks = quote.get('blocks_json', [])
+    manual_blocks = [
+        b for b in all_blocks
+        if b.get('type') not in ('page_title', 'category_title', 'form_question')
+    ]
+    session['quote_editor_pending_blocks'] = manual_blocks
     session.pop('legacy_spreadsheet_data', None)
     session.pop('old_form_answers', None)
     session.modified = True
@@ -896,6 +988,41 @@ def add_calc_block():
     return jsonify({'success': True, 'block': block})
 
 
+@quote_editor_bp.route('/quote_editor/add-payment-schedule-block', methods=['GET'])
+def add_payment_schedule_block():
+    """Return a payment_schedule block with current calculator snapshot data."""
+    form_key = session.get('template_key', 'builder_beta')
+    form_data = session.get('data', {})
+    follow_up_data = session.get('checkbox_data', {})
+    session_overrides = session.get('session_overrides', {})
+    try:
+        import calculator
+        calc_result = calculator.calculate_quote(form_key, form_data, session_overrides, follow_up_data)
+    except Exception:
+        calc_result = {}
+    # Ensure payment_schedule key exists
+    if 'payment_schedule' not in calc_result:
+        calc_result['payment_schedule'] = []
+    block = {
+        'id': f"payment_schedule__{int(__import__('time').time())}",
+        'type': 'payment_schedule',
+        'snapshot': calc_result,
+        'editor_overrides': {},
+        'flags': {
+            'source_dirty': False,
+            'editor_dirty': False,
+        },
+        'settings': {
+            'margin_top': 8,
+            'margin_bottom': 8,
+            'padding': 12,
+            'alignment': 'left',
+            'font_size': 14,
+        },
+    }
+    return jsonify({'success': True, 'block': block})
+
+
 @quote_editor_bp.route('/quote_editor/add-image-group-block', methods=['GET'])
 def add_image_group_block():
     images = session.get('uploaded_images', [])
@@ -1167,6 +1294,33 @@ def _build_page_blocks(page_key, page, form_data, checkbox_data):
     return snapshot_blocks
 
 
+def _get_page_visibility(page_key: str) -> dict:
+    """Return {form_visible, quote_visible} for a page, defaulting both to True."""
+    try:
+        import sqlite3
+        conn = sqlite3.connect(str(DB_PATH))
+        row = conn.execute(
+            "SELECT metadata_json FROM page_templates WHERE page_key = ? "
+            "AND form_template_version_id IN (SELECT id FROM form_template_versions "
+            "WHERE form_template_id = (SELECT id FROM form_templates WHERE key = ?) "
+            "ORDER BY version DESC LIMIT 1)",
+            (page_key, session.get('template_key', 'builder_beta'))
+        ).fetchone()
+        conn.close()
+        if row and row[0]:
+            try:
+                meta = json.loads(row[0]) if isinstance(row[0], str) else row[0]
+                return {
+                    'form_visible': meta.get('form_visible', True),
+                    'quote_visible': meta.get('quote_visible', True),
+                }
+            except Exception:
+                pass
+    except Exception:
+        pass
+    return {'form_visible': True, 'quote_visible': True}
+
+
 def build_quote_editor_blocks_for_all_pages():
     """Build blocks for every page in the current form template."""
     form_key = session.get('template_key', 'builder_beta')
@@ -1188,6 +1342,9 @@ def build_quote_editor_blocks_for_all_pages():
     checkbox_data = session.get('checkbox_data', {})
     all_blocks = []
     for page_key, page in pages.items():
+        vis = _get_page_visibility(page_key)
+        if not vis.get('quote_visible', True):
+            continue
         page_blocks = _build_page_blocks(page_key, page, form_data, checkbox_data)
         all_blocks.extend(page_blocks)
     return all_blocks
@@ -1196,10 +1353,20 @@ def build_quote_editor_blocks_for_all_pages():
 def get_quote_editor_blocks():
     """Return the full set of blocks for the quote editor.
 
-    This always includes every page from the form template, plus any
-    manually-added blocks the user has created in the quote editor itself
-    (calculator, image groups, etc.).
+    When an active saved quote exists, return its saved blocks so that
+    any edits made in the quote editor (deleted headings, reordered blocks,
+    formatting) are preserved.  Otherwise rebuild fresh from form data.
     """
+    active_id = session.get('active_quote_id')
+    if active_id:
+        try:
+            from template_store import get_saved_quote
+            saved = get_saved_quote(int(active_id), session.get('template_key', 'builder_beta'))
+            if saved:
+                return saved.get('blocks_json', [])
+        except Exception:
+            pass
+    # No saved quote available — build fresh from session form data
     form_blocks = build_quote_editor_blocks_for_all_pages()
     manual_blocks = [
         b for b in session.get('quote_editor_pending_blocks', [])

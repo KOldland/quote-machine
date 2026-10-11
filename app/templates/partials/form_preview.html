@@ -257,8 +257,8 @@
                                  {% else %}
                                  <p class="preview-static-body">{{ meta.static_content or field.label }}</p>
                                  {% endif %}
-                                 {% elif block_type == 'calculator' or block_type == 'payment_schedule' %}
-                                 <div class="preview-calculator-block" data-block-type="{{ block_type }}"
+                                 {% elif block_type == 'calculator' %}
+                                 <div class="preview-calculator-block" data-block-type="calculator"
                                       data-calc-groups="{{ meta.standard.calculator_groups | tojson | forceescape }}"
                                       data-field-name="{{ field.name }}">
                                      <div class="preview-calculator-header">
@@ -271,6 +271,60 @@
                                          <span>Loading cost data…</span>
                                      </div>
                                  </div>
+                                 {% elif block_type == 'payment_schedule' %}
+                                 <div class="preview-payment-schedule" data-block-type="payment_schedule"
+                                      data-field-name="{{ field.name }}"
+                                      id="ps-block-{{ field.name }}">
+                                     <div style="margin-bottom:.75rem;">
+                                         <h4>Payment Schedule</h4>
+                                     </div>
+                                     <div id="ps-loading-{{ field.name }}" style="padding:.5rem;color:#888;text-align:center;">Loading…</div>
+                                     <div id="ps-content-{{ field.name }}" style="display:none;">
+                                         <div id="ps-table-wrap-{{ field.name }}"></div>
+                                         <div id="ps-options-{{ field.name }}" style="margin-top:.75rem;padding:.5rem;background:#f8faff;border:1px solid #dee2e6;border-radius:4px;">
+                                             <label style="font-size:.85rem;display:inline-flex;align-items:center;gap:.4rem;margin-right:.75rem;">
+                                                 <input type="checkbox" id="ps-tk-{{ field.name }}" checked> Temp Kitchen Removal
+                                             </label>
+                                             <label style="font-size:.85rem;display:inline-flex;align-items:center;gap:.4rem;">
+                                                 <input type="checkbox" id="ps-glz-{{ field.name }}"> Glazing
+                                             </label>
+                                             <label style="font-size:.85rem;display:inline-flex;align-items:center;gap:.4rem;margin-left:.75rem;">
+                                                 Weekly Payments:
+                                                 <input type="number" id="ps-wc-{{ field.name }}" min="1" max="20" step="1" value="4" style="width:50px;padding:0.2rem .3rem;border:1px solid #ccc;border-radius:3px;">
+                                             </label>
+                                         </div>
+                                     </div>
+                                 </div>
+<script>
+(function() {
+    var fname = document.querySelector('[id^="ps-block-"]');
+    if (!fname) return;
+    var id = fname.id.replace('ps-block-','');
+    if (!id) return;
+    var loading = document.getElementById('ps-loading-'+id);
+    var content = document.getElementById('ps-content-'+id);
+    var tableWrap = document.getElementById('ps-table-wrap-'+id);
+    var tkEl = document.getElementById('ps-tk-'+id);
+    var glzEl = document.getElementById('ps-glz-'+id);
+    var wcEl = document.getElementById('ps-wc-'+id);
+    if (!loading||!content||!tableWrap||!tkEl||!glzEl||!wcEl) return;
+    function ls() {
+        loading.style.display='block'; content.style.display='none';
+        fetch('/builder_beta/payment_schedule_preview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({basic_build:50000,weekly_count:parseInt(wcEl.value,10)||4,has_temp_kitchen:tkEl.checked,has_glazing:glzEl.checked})})
+        .then(function(r){return r.json()})
+        .then(function(d){
+            if(!d.success) return;
+            loading.style.display='none'; content.style.display='block';
+            var h='<table style=\"width:100%;border-collapse:collapse;font-size:.85rem;\"><thead><tr><th style=\"text-align:left;padding:.4rem;border-bottom:1px solid #dee2e6;\">Stage</th><th style=\"text-align:right;padding:.4rem;border-bottom:1px solid #dee2e6;\">Amount</th></tr></thead><tbody>';
+            for(var i=0;i<d.schedule.length;i++){h+='<tr><td style=\"padding:.3rem .4rem;border-bottom:1px solid #eee;\">'+d.schedule[i].stage+'</td><td style=\"padding:.3rem .4rem;text-align:right;border-bottom:1px solid #eee;\">£'+d.schedule[i].amount.toFixed(2)+'</td></tr>';}
+            h+='<tr style=\"font-weight:700;background:#f0f4ff;\"><td style=\"padding:.3rem .4rem;border-top:2px solid #1b3a6b;\">Total</td><td style=\"padding:.3rem .4rem;text-align:right;border-top:2px solid #1b3a6b;\">£'+d.total.toFixed(2)+'</td></tr></tbody></table>';
+            tableWrap.innerHTML=h;
+        }).catch(function(){loading.innerHTML='<p style=\"color:red;\">Error loading payment schedule.</p>';});
+    }
+    tkEl.addEventListener('change',ls); glzEl.addEventListener('change',ls); wcEl.addEventListener('change',ls); wcEl.addEventListener('input',ls);
+    ls();
+})();
+</script>
                                  {% elif block_type == 'cost_group_total' %}
                                  <div class="preview-cost-group-total" data-block-type="cost_group_total"
                                       data-cost-group-id="{{ meta.standard.cost_group_id | default('') }}"
@@ -282,6 +336,43 @@
                                          <span>Loading cost group data…</span>
                                      </div>
                                  </div>
+{% elif block_type == 'page_total' %}
+                                 <div class="preview-page-total" data-block-type="page_total" data-field-name="{{ field.name }}">
+                                     <div style="margin-bottom:.75rem;">
+                                         <h4>{{ meta.standard.label | default('Page Total') }}</h4>
+                                     </div>
+                                     <div id="pt-content-{{ field.name }}" style="padding:.5rem 0;font-size:.95rem;font-weight:600;text-align:right;">
+                                         <span>Loading…</span>
+                                     </div>
+                                 </div>
+                                 <script>
+                                 (function() {
+                                     var fname = {{ field.name | tojson }};
+                                     if (!fname) return;
+                                     var el = document.getElementById('pt-content-' + fname);
+                                     if (!el) return;
+                                     var pageKey = {{ request.path.split('/')[1] | default('') | tojson }};
+                                     fetch('/builder_beta/page_details_json/' + encodeURIComponent(pageKey))
+                                     .then(function(r) { return r.json(); })
+                                     .then(function(data) {
+                                         var cfg = (data.metadata_json && JSON.parse(data.metadata_json).page_total) || {};
+                                         var groups = cfg.groups || [];
+                                         if (!groups.length) { el.innerHTML = '<span>£0.00</span>'; return; }
+                                         fetch('/builder_beta/page_total_calc', {
+                                             method: 'POST',
+                                             headers: {'Content-Type': 'application/json'},
+                                             body: JSON.stringify({page_key: pageKey, groups: groups})
+                                         })
+                                         .then(function(r) { return r.json(); })
+                                         .then(function(d) {
+                                             if (d.success) { el.innerHTML = '<span>' + (cfg.label || 'Page Total') + ': £' + d.total.toFixed(2) + '</span>'; }
+                                             else { el.innerHTML = '<span>£0.00</span>'; }
+                                         })
+                                         .catch(function() { el.innerHTML = '<span>£0.00</span>'; });
+                                     })
+                                     .catch(function() { el.innerHTML = '<span>£0.00</span>'; });
+                                 })();
+                                 </script>
                                  {% endif %}
                         </div>
                         {% endif %}

@@ -8,6 +8,7 @@
     form_question: { label: 'Question', icon: '📋' },
     notes: { label: 'Notes', icon: '📝' },
     calculator: { label: 'Calculator', icon: '🧮' },
+    payment_schedule: { label: 'Payment Schedule', icon: '£' },
     image_group: { label: 'Image Group', icon: '🖼️' },
     image: { label: 'Image', icon: '🖼️' },
     page_break: { label: 'Page Break', icon: '↵' },
@@ -1371,7 +1372,7 @@ const IMAGE_FRAMES = [
       container.querySelectorAll('[data-load-theme]').forEach(btn => {
         btn.addEventListener('click', async () => {
           const name = btn.dataset.loadTheme;
-          const r = await fetch(`/quote_editor/themes/${encodeURIComponent(name)}`);
+          const r = await fetch(`/quote_editor/themes/by-name/${encodeURIComponent(name)}`);
           const d = await r.json();
           if (d.success && d.theme) {
             const settings = d.theme.settings || {};

@@ -87,3 +87,4 @@ but is **free text**, defaults to `'General'`, and **every row in the DB is
 - **Two interpreters in play** — `start_flask.sh` and the `venv/bin/python -m flask`
   command are different processes; template edits can appear "missing" if the other
   one is serving. Standardise on one.
+

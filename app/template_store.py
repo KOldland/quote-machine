@@ -1653,6 +1653,15 @@ def upsert_payment_schedule_block(
     temp_kitchen_line_code: str = "pl6",
     temp_kitchen_cost: float = 250.0,
     glazing_cost: float = 500.0,
+    # New fields
+    deposit_enabled: bool = True,
+    completion_enabled: bool = True,
+    initial_payment_enabled: bool = True,
+    initial_payment_rounding: str = "none",
+    initial_payment_floors: Optional[list[dict]] = None,
+    weekly_payment_auto: bool = True,
+    show_temp_kitchen: bool = True,
+    show_glazing: bool = True,
     db_path: Optional[Path] = None,
 ) -> None:
     """Persist payment-schedule defaults into form_templates.settings_json."""
@@ -1684,6 +1693,17 @@ def upsert_payment_schedule_block(
         "temp_kitchen_line_code": temp_kitchen_line_code,
         "temp_kitchen_cost": temp_kitchen_cost,
         "glazing_cost": glazing_cost,
+        "deposit_enabled": deposit_enabled,
+        "completion_enabled": completion_enabled,
+        "initial_payment_enabled": initial_payment_enabled,
+        "initial_payment_rounding": initial_payment_rounding,
+        "initial_payment_floors": initial_payment_floors or [
+            {"ceiling": 70000, "payment": 3000},
+            {"ceiling": 90000, "payment": 4000},
+        ],
+        "weekly_payment_auto": weekly_payment_auto,
+        "show_temp_kitchen": show_temp_kitchen,
+        "show_glazing": show_glazing,
     }
 
     conn.execute(
@@ -1725,6 +1745,17 @@ def get_payment_schedule_block(
             "temp_kitchen_line_code": "pl6",
             "temp_kitchen_cost": 250.0,
             "glazing_cost": 500.0,
+            "deposit_enabled": True,
+            "completion_enabled": True,
+            "initial_payment_enabled": True,
+            "initial_payment_rounding": "none",
+            "initial_payment_floors": [
+                {"ceiling": 70000, "payment": 3000},
+                {"ceiling": 90000, "payment": 4000},
+            ],
+            "weekly_payment_auto": True,
+            "show_temp_kitchen": True,
+            "show_glazing": True,
         })
 
     return {
@@ -1741,6 +1772,17 @@ def get_payment_schedule_block(
         "temp_kitchen_line_code": "pl6",
         "temp_kitchen_cost": 250.0,
         "glazing_cost": 500.0,
+        "deposit_enabled": True,
+        "completion_enabled": True,
+        "initial_payment_enabled": True,
+        "initial_payment_rounding": "none",
+        "initial_payment_floors": [
+            {"ceiling": 70000, "payment": 3000},
+            {"ceiling": 90000, "payment": 4000},
+        ],
+        "weekly_payment_auto": True,
+        "show_temp_kitchen": True,
+        "show_glazing": True,
     }
 
 # ── Output Template CRUD ──────────────────────────────────────────────
@@ -1933,34 +1975,151 @@ def create_quote_editor_layout(
     form_key: str,
     name: str = "Default",
     blocks_json: Optional[list] = None,
-    is_default: bool = True,
     settings: Optional[dict] = None,
+    is_default: bool = False,
     db_path: Optional[Path] = None,
 ) -> Optional[dict]:
+    """Create a new quote editor layout."""
     path = db_path or _default_db_path()
     conn = _connect(path)
     try:
         ft_id = _get_form_template_id(conn, form_key)
         if not ft_id:
             return None
+        if is_default:
+            conn.execute(
+                "UPDATE quote_editor_layouts SET is_default = 0 WHERE form_template_id = ?",
+                (ft_id,)
+            )
         cur = conn.execute(
-            """
-            INSERT INTO quote_editor_layouts
-                (form_template_id, name, blocks_json, is_default, settings_json)
-            VALUES (?, ?, ?, ?, ?)
-            """,
-            (ft_id, name, json.dumps(blocks_json or []), 1 if is_default else 0, json.dumps(settings or {})),
+            "INSERT INTO quote_editor_layouts (form_template_id, name, blocks_json, settings_json, is_default) VALUES (?, ?, ?, ?, ?)",
+            (ft_id, name, json.dumps(blocks_json or []), json.dumps(settings or {}), 1 if is_default else 0)
         )
         conn.commit()
         row = conn.execute("SELECT * FROM quote_editor_layouts WHERE id = ?", (cur.lastrowid,)).fetchone()
-        result = dict(row) if row else None
-        if result:
-            result["blocks_json"] = json.loads(result.get("blocks_json", "[]"))
-            result["settings_json"] = json.loads(result.get("settings_json", "{}"))
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+# ── Quote Themes ──────────────────────────────────────────────────
+
+def save_theme(
+    form_key: str,
+    name: str,
+    css_json: Optional[dict] = None,
+    block_defaults_json: Optional[dict] = None,
+    source_blocks: Optional[list] = None,
+    is_default: bool = False,
+    db_path: Optional[Path] = None,
+) -> Optional[dict]:
+    """Save a theme extracted from a quote's blocks.
+
+    *css_json* — CSS styles for the output.
+    *block_defaults_json* — per-block-type formatting defaults.
+    *source_blocks* — if provided, extract block_defaults from live blocks.
+    """
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    try:
+        ft_row = conn.execute(
+            "SELECT id FROM form_templates WHERE key = ?", (form_key,)
+        ).fetchone()
+        if not ft_row:
+            return None
+        ft_id = int(ft_row["id"])
+
+        # Extract block defaults from source blocks if not provided directly
+        if source_blocks and not block_defaults_json:
+            block_defaults_json = {}
+            for b in source_blocks:
+                bt = b.get('type')
+                if bt and bt not in block_defaults_json:
+                    s = b.get('settings', {})
+                    if s:
+                        block_defaults_json[bt] = {
+                            'margin_top': s.get('margin_top', 8),
+                            'margin_bottom': s.get('margin_bottom', 8),
+                            'padding': s.get('padding', 12),
+                            'alignment': s.get('alignment', 'left'),
+                            'font_size': s.get('font_size', 14),
+                        }
+
+        theme_payload = {
+            'block_defaults': block_defaults_json or {},
+        }
+
+        # Check if a theme with this name already exists — update it
+        existing = conn.execute(
+            "SELECT id FROM output_templates WHERE form_template_id = ? AND name = ?",
+            (ft_id, name)
+        ).fetchone()
+        if existing:
+            conn.execute(
+                "UPDATE output_templates SET sections_json = ?, css_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (json.dumps(theme_payload), json.dumps(css_json or {}), int(existing["id"]))
+            )
+            conn.commit()
+            return {"id": int(existing["id"]), "action": "updated", "name": name}
+        else:
+            cur = conn.execute(
+                "INSERT INTO output_templates (form_template_id, name, sections_json, css_json, is_default) VALUES (?, ?, ?, ?, ?)",
+                (ft_id, name, json.dumps(theme_payload), json.dumps(css_json or {}), 1 if is_default else 0)
+            )
+            conn.commit()
+            return {"id": cur.lastrowid, "action": "created", "name": name}
+    finally:
+        conn.close()
+
+
+def get_theme(theme_id: int, form_key: str, db_path: Optional[Path] = None) -> Optional[dict]:
+    """Return a single theme by id."""
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    try:
+        row = conn.execute(
+            """SELECT ot.id, ot.name, ot.sections_json, ot.css_json, ot.is_default, ot.created_at, ot.updated_at
+               FROM output_templates ot
+               JOIN form_templates ft ON ft.id = ot.form_template_id
+               WHERE ot.id = ? AND ft.key = ?""",
+            (theme_id, form_key)
+        ).fetchone()
+        if not row:
+            return None
+        result = dict(row)
+        result['block_defaults'] = json.loads(result.pop('sections_json', '{}')).get('block_defaults', {})
+        result['css'] = json.loads(result.pop('css_json', '{}'))
         return result
     finally:
         conn.close()
 
+
+def apply_theme_to_blocks(theme_id: int, blocks: list, form_key: str, db_path: Optional[Path] = None) -> list:
+    """Apply theme block_defaults onto a list of blocks (in-place + returned)."""
+    theme = get_theme(theme_id, form_key, db_path=db_path)
+    if not theme:
+        return blocks
+    defaults = theme.get('block_defaults', {})
+    for block in blocks:
+        bt = block.get('type')
+        if bt in defaults:
+            block['settings'] = dict(defaults[bt])
+    return blocks
+
+
+def delete_theme(theme_id: int, form_key: str, db_path: Optional[Path] = None) -> bool:
+    """Delete a theme by id."""
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    try:
+        cur = conn.execute(
+            "DELETE FROM output_templates WHERE id = ? AND form_template_id IN (SELECT id FROM form_templates WHERE key = ?)",
+            (theme_id, form_key)
+        )
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
 
 def get_quote_editor_layout(
     form_key: str,

@@ -150,7 +150,7 @@ def calculate_quote(
                    unit_cost, units, output_title, output_notes, output_guidance,
                    output_group, pricing_visibility, allow_user_override,
                    include_default, sort_order, form_page, quantity_source, pricing_mode,
-                   addon_amount, follow_up_config, price_matrix
+                   addon_amount, follow_up_config, price_matrix, metadata_json
             FROM line_items
             WHERE form_page IN ({placeholders})
             ORDER BY output_group, sort_order, line_code
@@ -437,6 +437,16 @@ def calculate_quote(
             item["units"] = units
             item["line_total"] = round(line_total, 2)
 
+            # Parse metadata_json for sow_level etc.
+            meta_raw = item.get("metadata_json")
+            if meta_raw:
+                try:
+                    item["metadata"] = json.loads(meta_raw) if isinstance(meta_raw, str) else meta_raw
+                except Exception:
+                    item["metadata"] = {}
+            else:
+                item["metadata"] = {}
+
             # Only include visible or priced items
             if item.get("pricing_visibility") != "hidden":
                 group_name = item.get("output_group") or "General"
@@ -520,17 +530,47 @@ def calculate_quote(
         basic_build = round(sum(it["line_total"] for it in basic_build_items), 2)
 
         initial_pct = float(ps_settings.get("initial_payment_pct", 0.05))
-        initial_floor = float(ps_settings.get("initial_payment_floor", 3000.0))
-        ceiling_threshold = float(ps_settings.get("initial_payment_ceiling_threshold", 70000.0))
-        floor_above_ceiling = float(ps_settings.get("initial_payment_floor_above_ceiling", 4000.0))
-        completion_pool_pct = float(ps_settings.get("completion_meeting_plus_3rd_pct", 0.35))
-        weekly_count = int(ps_settings.get("weekly_payment_count", 4))
-
+        floors = ps_settings.get("initial_payment_floors", [])
+        if not isinstance(floors, list):
+            floors = []
         raw_initial = round(basic_build * initial_pct, 2)
-        if basic_build <= ceiling_threshold:
-            initial_payment = max(raw_initial, initial_floor)
+        initial_payment = raw_initial
+        # Multi-floor logic
+        if floors:
+            for floor in floors:
+                ceiling = float(floor.get("ceiling", 0))
+                payment = float(floor.get("payment", 0))
+                if basic_build <= ceiling:
+                    initial_payment = max(raw_initial, payment)
+                    break
+            else:
+                # Above all ceilings — use last floor's payment
+                initial_payment = max(raw_initial, float(floors[-1].get("payment", 0)))
+        # Rounding
+        rounding = ps_settings.get("initial_payment_rounding", "none")
+        if rounding == "100":
+            initial_payment = round(initial_payment / 100) * 100
+        elif rounding == "1000":
+            initial_payment = round(initial_payment / 1000) * 1000
+
+        completion_pool_pct = float(ps_settings.get("completion_meeting_plus_3rd_pct", 0.35))
+
+        # ── SOW auto-calculation for weekly payment count ─────────────────
+        weekly_auto = bool(ps_settings.get("weekly_payment_auto", True))
+        if weekly_auto and items:
+            sow_levels = []
+            for it in items:
+                meta = it.get("metadata") or {}
+                sl = meta.get("sow_level")
+                if sl is not None:
+                    try:
+                        sow_levels.append(int(sl))
+                    except (TypeError, ValueError):
+                        pass
+            weekly_count = max(sow_levels) if sow_levels else int(ps_settings.get("weekly_payment_count", 4))
         else:
-            initial_payment = max(raw_initial, floor_above_ceiling)
+            weekly_count = int(ps_settings.get("weekly_payment_count", 4))
+        weekly_count = max(weekly_count, 1)
 
         completion_pool = round(basic_build * completion_pool_pct, 2)
 

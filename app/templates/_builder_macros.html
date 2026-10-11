@@ -275,10 +275,10 @@
                 Page Details
             </button>
         </div>
-        {% if li_categories %}
+{% if li_categories %}
             {% for cat in li_categories %}
             {% set cat_name = cat.name if cat is mapping else cat %}
-            {% set cat_id = cat.id if cat is mapping else cat_name %}
+            {% set cat_id = (cat.id if (cat is mapping and cat.id) else cat_name) | string %}
             <div class="li-section-item" style="display:flex;align-items:center;border-bottom:1px solid #f3f3f3;">
                 <button type="button"
                         class="li-section-btn"
@@ -298,16 +298,23 @@
         {% else %}
             <p style="font-size:.8rem;color:#999;padding:.5rem .75rem;">No categories configured for this page.</p>
         {% endif %}
-        <div style="padding:.5rem .75rem; border-top:1px solid #dee2e6; background:#f0f4ff; margin-top:.5rem;">
-            <div style="display:flex;gap:.4rem;">
-                <button type="button" id="btn-add-category" class="li-save-btn" style="flex:1; margin-top:0;" data-page="{{ form_page_key }}">+ Category</button>
-                <button type="button" id="btn-add-costgroup-section" class="li-save-btn" style="flex:1; margin-top:0; background:#2d5a3b; color:#fff;" data-page="{{ form_page_key }}">+ Cost Group</button>
+</div>{# end li-sections-list #}
+
+<hr style=\"border:none;border-top:1px solid #dee2e6;margin:.5rem 0;\" />
+            <div style="display:flex;gap:.6rem;justify-content:center;margin-top:1.25rem;margin-bottom:.75rem;flex-wrap:wrap;">
+                <button type="button" id="btn-add-category" class="li-save-btn" style="padding:0.45rem; width:auto; margin-top:0;" data-page="{{ form_page_key }}" title="Add Category"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="3" rx="1"/><rect x="6" y="10" width="12" height="3" rx="1"/><rect x="7" y="15" width="10" height="3" rx="1"/></svg></button>
+                <button type="button" id="btn-add-costgroup-section" class="li-save-btn" style="padding:0.45rem; width:auto; margin-top:0; background:#2d5a3b; color:#fff;" data-page="{{ form_page_key }}" title="Add Cost Group Section"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><text x="12" y="16.5" text-anchor="middle" font-family="serif" font-size="15" font-weight="bold" fill="currentColor">&pound;</text></svg></button>
+                <button type="button" id="btn-add-payment-schedule" class="li-save-btn" style="padding:0.45rem; width:auto; margin-top:0;" data-page="{{ form_page_key }}" title="Add Payment Schedule"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="6" width="14" height="10" rx="1"/><line x1="8" y1="10" x2="16" y2="10"/></svg></button>
+                <button type="button" id="btn-add-page-total" class="li-save-btn" style="padding:0.45rem; width:auto; margin-top:0;" data-page="{{ form_page_key }}" title="Add Page Total"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4h11"/><path d="M8 10h17"/><path d="M5 16h20"/></svg></button>
+                <button type="button" id="btn-add-image-module" class="li-save-btn" style="padding:0.45rem; width:auto; margin-top:0; background:#495057; color:#fff;" data-page="{{ form_page_key }}" title="Add Image"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="12" cy="12" r="4"/></svg></button>
             </div>
+<hr style=\"border:none;border-top:1px solid #dee2e6;margin:.35rem 0;\" />
             <div id="add-cat-inline" style="display:none; margin-top:.4rem;">
                 <input type="text" id="add-cat-name-input" placeholder="Name..."
                        style="width:100%; font-size:.82rem; padding:.25rem .4rem; border:1px solid #ccc; border-radius:3px; box-sizing:border-box;">
+                <div id="add-cat-output-group-wrap" style="margin-top:.3rem;">
                 <select id="add-cat-output-group-input"
-                        style="width:100%; font-size:.82rem; padding:.25rem .4rem; border:1px solid #ccc; border-radius:3px; box-sizing:border-box; margin-top:.3rem;">
+                        style="width:100%; font-size:.82rem; padding:.25rem .4rem; border:1px solid #ccc; border-radius:3px; box-sizing:border-box;">
                     <option value="">-- Select Cost Group (optional) --</option>
                     {% if cost_groups is defined and cost_groups %}
                     {% for group_id, group_data in cost_groups.items() %}
@@ -316,6 +323,7 @@
                     {% endif %}
                     <option value="__NEW__">-- Add New Cost Group --</option>
                 </select>
+                </div>
                 <div style="display:flex; gap:.4rem; margin-top:.35rem;">
                     <button type="button" id="btn-add-cat-confirm" class="li-save-btn" style="flex:1; margin-top:0;">Save</button>
                     <button type="button" id="btn-add-cat-cancel" style="flex:1; font-size:.78rem; padding:.2rem .4rem; border:1px solid #aaa; background:#fff; border-radius:3px; cursor:pointer;">Cancel</button>
@@ -329,8 +337,7 @@
                 </label>
                 <input type="hidden" id="add-cat-type" value="category">
             </div>
-        </div>
-    </div>{# end li-sections-list #}
+    
 </div>{# end li-sections-panel #}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -349,6 +356,8 @@ document.addEventListener('DOMContentLoaded', function() {
             addCatInput.placeholder = 'Category name...';
             addCatInline.style.display = 'block';
             addCatInput.focus();
+            var cgWrap = document.getElementById('add-cat-output-group-wrap');
+            if (cgWrap) cgWrap.style.display = 'block';
         });
     }
     if (btnAddCostGroup) {
@@ -357,6 +366,43 @@ document.addEventListener('DOMContentLoaded', function() {
             addCatInput.placeholder = 'Cost Group section name...';
             addCatInline.style.display = 'block';
             addCatInput.focus();
+            var cgWrap = document.getElementById('add-cat-output-group-wrap');
+            if (cgWrap) cgWrap.style.display = 'block';
+        });
+    }
+
+// ── Module buttons ─────────────────────────────────────────────────
+    var btnPaymentSchedule = document.getElementById('btn-add-payment-schedule');
+    var btnPageTotal = document.getElementById('btn-add-page-total');
+    var btnImageModule = document.getElementById('btn-add-image-module');
+    if (btnPaymentSchedule) {
+        btnPaymentSchedule.addEventListener('click', function() {
+            addCatType.value = 'module_payment_schedule';
+            addCatInput.placeholder = 'Payment Schedule name...';
+            addCatInline.style.display = 'block';
+            addCatInput.focus();
+            var cgWrap = document.getElementById('add-cat-output-group-wrap');
+            if (cgWrap) cgWrap.style.display = 'none';
+        });
+    }
+    if (btnPageTotal) {
+        btnPageTotal.addEventListener('click', function() {
+            addCatType.value = 'module_page_total';
+            addCatInput.placeholder = 'Total name...';
+            addCatInline.style.display = 'block';
+            addCatInput.focus();
+            var cgWrap = document.getElementById('add-cat-output-group-wrap');
+            if (cgWrap) cgWrap.style.display = 'none';
+        });
+    }
+    if (btnImageModule) {
+        btnImageModule.addEventListener('click', function() {
+            addCatType.value = 'module_image_upload';
+            addCatInput.placeholder = 'Image module name...';
+            addCatInline.style.display = 'block';
+            addCatInput.focus();
+            var cgWrap = document.getElementById('add-cat-output-group-wrap');
+            if (cgWrap) cgWrap.style.display = 'none';
         });
     }
 
@@ -365,6 +411,8 @@ document.addEventListener('DOMContentLoaded', function() {
         btnCancel.addEventListener('click', function() {
             addCatInput.value = '';
             addCatInline.style.display = 'none';
+            var at = document.getElementById('add-cat-type');
+            if (at) at.value = 'category';
         });
 
         // Helper: POST category after cost group is resolved
@@ -391,7 +439,7 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(function (res) {
                 if (res.data && res.data.success) {
-                    _saveSelectionState();
+                    try { _saveSelectionState(); } catch(e) {}
                     window.location.reload();
                     return;
                 }
@@ -425,6 +473,45 @@ document.addEventListener('DOMContentLoaded', function() {
         btnConfirm.addEventListener('click', function() {
             const pageKey = btnAddCat.dataset.page;
             if (!pageKey) { alert("Cannot add category: unknown page context."); return; }
+// Check if this is a module type
+            var modType = addCatType.value;
+            if (modType && modType.startsWith('module_')) {
+                if (!pageKey) {
+                    alert('Cannot add module: no page context.');
+                    btnConfirm.disabled = false;
+                    btnConfirm.textContent = 'Save';
+                    return;
+                }
+                btnConfirm.disabled = true;
+                btnConfirm.textContent = 'Saving…';
+                var actualType = modType.replace('module_', '');
+                var csrfT = (document.querySelector('[name=csrf_token]')||{}).value||'';
+                // Fetch existing modules, merge, then save
+                fetch('/builder_beta/page_details_json/' + encodeURIComponent(pageKey))
+                .then(function(r){return r.json()})
+                .then(function(pageData){
+                    var existing = pageData.modules || [];
+                    if (existing.indexOf(actualType) === -1) existing.push(actualType);
+                    return fetch('/builder_beta/page_modules_save/' + pageKey, {
+                        method: 'POST',
+                        headers: {'Content-Type':'application/json','X-CSRFToken':csrfT},
+                        body: JSON.stringify({modules: existing})
+                    }).then(function(r){return r.json()});
+                }).then(function(d){
+                    if(d && d.ok) {
+                        window.location.reload();
+                    } else {
+                        alert('Error saving module: '+((d&&d.error)||'Unknown'));
+                        btnConfirm.disabled = false;
+                        btnConfirm.textContent = 'Save';
+                    }
+                }).catch(function(){
+                    alert('Network error saving module.');
+                    btnConfirm.disabled = false;
+                    btnConfirm.textContent = 'Save';
+                });
+                return;
+            }
             const catName = addCatInput.value.trim();
             if (!catName) { addCatInput.focus(); return; }
             var addCatOutputInput = document.getElementById('add-cat-output-group-input');
@@ -745,6 +832,7 @@ document.addEventListener('DOMContentLoaded', function() {
 .li-sections-panel {
     width:220px; min-width:180px; border-right:1px solid #dee2e6;
     background:#f8f9fa; display:flex; flex-direction:column; height:100%; min-height:0;
+    padding:0 2%;
 }
 .li-sections-header {
     padding:0 .75rem; height:48px; box-sizing:border-box;
@@ -1031,6 +1119,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     var pageDetailsBtn = $id('btn-page-details');
+    var paymentScheduleBtn = $id('btn-payment-schedule');
+    var pageTotalBtn = $id('btn-page-total');
+    var imageUploadBtn = ('btn-image-upload');
     if (pageDetailsBtn) {
         pageDetailsBtn.addEventListener('click', function() {
             document.querySelectorAll('.li-section-btn').forEach(function (b) { b.classList.remove('active'); });
@@ -1041,16 +1132,28 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // ── Category click ─────────────────────────────────────────────────────
-    document.querySelectorAll('.li-section-btn:not(#btn-page-details)').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            document.querySelectorAll('.li-section-btn').forEach(function (b) { b.classList.remove('active'); });
-            btn.classList.add('active');
-            _activeCategory = btn.dataset.category;
+    // ── Category / Module click ──────────────────────────────────────────
+    document.addEventListener('click', function(e) {
+        var btn = e.target.closest('.li-section-btn:not(#btn-page-details)');
+        if (!btn) return;
+        document.querySelectorAll('.li-section-btn').forEach(function (b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        
+        // Check if this is a module button
+        var modType = btn.getAttribute('data-module');
+        if (modType) {
+            _activeCategory = null;
             _saveSelectionState();
-            
-            // Check if this is a cost group section
-            if (btn.getAttribute('data-is-cost-group') === '1') {
+            if (modType === 'payment_schedule') { showViewPaymentSchedule(); return; }
+            if (modType === 'page_total') { showViewPageTotal(); return; }
+            if (modType === 'image_upload') { showViewImageUpload(); return; }
+        }
+        
+        _activeCategory = btn.dataset.category;
+        _saveSelectionState();
+        
+        // Check if this is a cost group section
+        if (btn.getAttribute('data-is-cost-group') === '1') {
                 showViewCostGroup(_activeCategory);
                 return;
             }
@@ -1078,7 +1181,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (ql) ql.innerHTML = '<p style="color:red;font-size:.8rem;padding:.5rem .75rem;">Error loading items: ' + (e && e.message ? e.message : 'unknown') + '</p>';
                 });
         });
-    });
 
     // ── Render question list (View One) ────────────────────────────────────
     function renderQuestionList(items) {
@@ -1133,7 +1235,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         var scope = btn.dataset.scope;
         var dir = btn.dataset.dir;
-        var identifier = scope === 'category' ? btn.dataset.id : parseInt(btn.dataset.id, 10);
+        var identifier = scope === 'category' ? (btn.dataset.id || btn.dataset.category || '') : btn.dataset.id;
         var pageKey = btn.dataset.page || _pageKey;
 
         fetch('/builder_beta/swap_order', {
@@ -1227,9 +1329,24 @@ document.addEventListener('DOMContentLoaded', function() {
             _field('page_title', 'Configuration Identifier', 'text', __getCleanPageTitle()),
             _field('page_description', 'Page Description', 'textarea', '')
         ]);
+        // Add Modules section
+        var availModules = ['payment_schedule', 'page_total', 'image_upload'];
+        var enabledModules = data.modules || [];
+        var modHtml = '';
+        for (var i = 0; i < availModules.length; i++) {
+            var m = availModules[i];
+            var label = {payment_schedule: 'Payment Schedule', page_total: 'Page Total', image_upload: 'Image Upload'}[m] || m;
+            var chk = enabledModules.indexOf(m) > -1 ? ' checked' : '';
+            modHtml += '<label style=\"display:flex;align-items:center;gap:.4rem;font-size:.85rem;padding:.15rem 0;\"><input type=\"checkbox\" class=\"page-module-cb\" value=\"' + m + '\"' + chk + '> ' + label + '</label>';
+        }
+        html += _section('Modules', false, [
+            '<div style=\"padding:.3rem 0;font-size:.82rem;color:#666;\">Enable modules for this page:</div>',
+            modHtml
+        ]);
         html += '<div style="position: sticky; bottom: -1.5rem; background: #fff; z-index: 10; margin: 1rem -1.5rem -1.5rem -1.5rem; padding: 1rem 1.5rem 3rem 1.5rem; border-top: 1px solid #ccc; box-shadow: 0 -4px 6px -6px rgba(0,0,0,0.1);">';
         html += '<div style="display:flex; justify-content:flex-end; align-items:center; margin-bottom:0.8rem;">';
-        html += '  <label style="font-size:.85rem; font-weight:600; color:#1b3a6b; cursor:pointer;"><input type="checkbox" id="page-visibility-checkbox" ' + (data.form_visible !== false ? 'checked' : '') + ' style="margin-right:.4rem;">Page Visible in Form</label>';
+        html += '  <label style="font-size:.85rem; font-weight:600; color:#1b3a6b; cursor:pointer; margin-right:1rem;"><input type="checkbox" id="page-visibility-checkbox" ' + (data.form_visible !== false ? 'checked' : '') + ' style="margin-right:.4rem;">Visible in Form</label>';
+        html += '  <label style="font-size:.85rem; font-weight:600; color:#1b3a6b; cursor:pointer;"><input type="checkbox" id="page-quote-visibility-checkbox" ' + (data.quote_visible !== false ? 'checked' : '') + ' style="margin-right:.4rem;">Visible in Quote</label>';
         html += '</div>';
         html += '<div style="display:flex; justify-content:flex-end; align-items:center; gap: 10px;">';
         html += '  <button type="button" id="btn-save-page" class="li-save-btn" style="padding:0.45rem; width:auto; margin-top:0; font-size:1.2rem;" title="Save Page"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>';
@@ -1252,7 +1369,7 @@ document.addEventListener('DOMContentLoaded', function() {
             fetch('/builder_beta/page_details_save/' + _pageKey, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json', 'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''},
-                body: JSON.stringify({title: title, description: desc})
+                body: JSON.stringify({title: title, description: desc, form_visible: $id('page-visibility-checkbox').checked, quote_visible: $id('page-quote-visibility-checkbox').checked})
             }).then(r => r.json()).then(d => {
                 if (d.ok) {
                     try { if (typeof showQmToast === 'function') showQmToast('Page saved', true); } catch(e){}
@@ -1324,8 +1441,6 @@ document.addEventListener('DOMContentLoaded', function() {
         // Render sticky action buttons correctly mapping back onto Category View wrapper level
         var footerHtml = '<div class="cat-sticky-footer" style="background:#fff; margin-top:1rem; padding:.75rem; border-top:1px solid #dee2e6;">';
         footerHtml += '<div style="display:flex; justify-content:flex-end; align-items:center; margin-bottom:0.8rem;">';
-        footerHtml += '  <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.85rem;font-weight:600;color:#1b3a6b;"><input type="checkbox" id="cat-is-cost-group"' + (data.is_cost_group ? ' checked' : '') + ' style="margin-right:.4rem;">Cost Group - show item totals with override</label>'
-        footerHtml += '</div>';
         footerHtml += '<div style="display:flex; justify-content:flex-end; align-items:center; margin-bottom:0.8rem;">';
         footerHtml += '  <label style="font-size:.85rem; font-weight:600; color:#1b3a6b; cursor:pointer;"><input type="checkbox" id="cat-visibility-checkbox" checked style="margin-right:.4rem;">Category Visible in Form</label>';
         footerHtml += '</div>';
@@ -1554,11 +1669,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 '<div class="li-form-group"><label>Section Name</label><input type="text" name="cat_name" value="' + (data.name || catName) + '" style="width:100%;"></div>'
             ]);
             html += '<div style="display:flex;gap:.5rem;justify-content:flex-end;padding:.75rem;border-top:1px solid #dee2e6;">' +
-                '<button type="button" id="btn-cg-delete" style="padding:.45rem 1rem;background:#d32f2f;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:.85rem;">Delete</button>' +
-                '<button type="submit" class="li-save-btn" style="padding:.45rem 1rem;">Save</button>' +
+                '<button type="submit" class="li-save-btn" style="padding:0.45rem; width:auto; margin-top:0;" title="Save Cost Group Section"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>' +
+                '<button type="button" id="btn-cg-delete" class="li-delete-btn" style="padding:0.45rem; background:#6d0b0b; color:#fff; border:none; border-radius:5px; font-weight:700; cursor:pointer;" title="Delete Cost Group Section"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>' +
                 '</div>';
             html += '</form>';
             $id('li-category-editor').innerHTML = html;
+            _attachAccordion($id('li-category-editor'));
 
             // Save handler
             var form = $id('li-category-edit-form');
@@ -1611,6 +1727,259 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(function() {
             $id('li-category-editor').innerHTML = '<p style="color:red;padding:.5rem;">Error loading cost group section.</p>';
+        });
+    }
+
+function showViewPaymentSchedule() {
+        $id('li-view-empty').style.display = 'none';
+        $id('li-view-page').style.display  = 'none';
+        $id('li-view-one').style.display   = 'flex';
+        if ($id('li-view-one-title')) {
+            $id('li-view-one-title').textContent = 'Payment Schedule Configuration';
+        }
+        $id('li-view-empty-q').style.display = 'none';
+        $id('li-view-two').style.display = 'none';
+        var qlist = $id('li-question-list');
+        if (qlist) {
+            qlist.innerHTML = '<p style="color:#aaa;font-size:0.85rem;text-align:center;margin-top:2rem;">Payment schedule settings panel.</p>';
+        }
+        $id('li-view-one-count').textContent = '';
+        if ($id('add-question-wrap')) $id('add-question-wrap').style.display = 'none';
+        $id('li-category-editor').innerHTML = '<p style="color:#999;padding:.5rem;">Loading…</p>';
+        fetch('/admin/payment-schedule-data')
+        .then(function(r) { return r.json(); })
+        .then(function(data) { _renderPaymentScheduleForm(data.settings || {}); })
+        .catch(function() { $id('li-category-editor').innerHTML = '<p style="color:red;padding:.5rem;">Error loading payment schedule.</p>'; });
+    }
+
+function showViewPageTotal() {
+        $id('li-view-empty').style.display = 'none';
+        $id('li-view-page').style.display  = 'none';
+        $id('li-view-one').style.display   = 'flex';
+        if ($id('li-view-one-title')) {
+            $id('li-view-one-title').textContent = 'Page Total Configuration';
+        }
+        $id('li-view-empty-q').style.display = 'none';
+        $id('li-view-two').style.display = 'none';
+        var qlist = $id('li-question-list');
+        if (qlist) {
+            qlist.innerHTML = '<p style="color:#aaa;font-size:0.85rem;text-align:center;margin-top:2rem;">Page Total settings panel.</p>';
+        }
+        $id('li-view-one-count').textContent = '';
+        if ($id('add-question-wrap')) $id('add-question-wrap').style.display = 'none';
+        // Load existing config and render form
+        fetch('/builder_beta/page_details_json/' + _pageKey)
+        .then(function(r) { return r.json(); })
+        .then(function(data) { _renderPageTotalForm(data); })
+        .catch(function() { _renderPageTotalForm({}); });
+    }
+
+    function _renderPageTotalForm(existing) {
+        var cfg = existing.page_total || {};
+        var cgList = window.builderStateCostGroups || {};
+        var html = '<form id="pt-edit-form" autocomplete="off">';
+        html += '<div class="li-form-group"><label style="font-weight:600;">Label</label>';
+        html += '<input type="text" id="pt-label" value="' + (cfg.label || 'Page Total') + '" style="width:100%;padding:0.3rem .5rem;border:1px solid #ccc;border-radius:3px;"></div>';
+        html += '<div style="padding:.5rem 0;"><label style="font-weight:600;display:block;margin-bottom:.3rem;">Include Cost Groups</label>';
+        var selected = cfg.groups || [];
+        for (var gid in cgList) {
+            var gd = cgList[gid];
+            var chk = selected.indexOf(gid) > -1 || selected.length === 0 ? ' checked' : '';
+            html += '<label style="display:flex;align-items:center;gap:.4rem;font-size:.85rem;padding:.15rem 0;"><input type="checkbox" class="pt-cg-check" value="' + gid + '"' + chk + '> ' + (gd.label || gid) + '</label>';
+        }
+        html += '</div>';
+        html += '<div style="padding:.5rem 0;border-top:1px solid #dee2e6;margin-top:.5rem;"><label style="font-weight:600;display:block;margin-bottom:.3rem;">Visibility</label>';
+        var fv = cfg.form_visible !== false;
+        var qv = cfg.quote_visible !== false;
+        html += '<label style="display:flex;align-items:center;gap:.4rem;font-size:.85rem;padding:.15rem 0;"><input type="checkbox" id="pt-form-vis"' + (fv ? ' checked' : '') + '> Visible in Form</label>';
+        html += '<label style="display:flex;align-items:center;gap:.4rem;font-size:.85rem;padding:.15rem 0;"><input type="checkbox" id="pt-quote-vis"' + (qv ? ' checked' : '') + '> Visible in Quote</label>';
+        html += '</div>';
+        html += '<div style="display:flex;gap:.5rem;justify-content:flex-end;padding:.75rem 0;border-top:1px solid #dee2e6;margin-top:.75rem;">';
+        html += '<button type="submit" class="li-save-btn" style="padding:0.45rem 1rem;width:auto;margin-top:0;" title="Save Page Total"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button></div></form>';
+        $id('li-category-editor').innerHTML = html;
+        var form = $id('pt-edit-form');
+        if (!form) return;
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            var label = $id('pt-label').value.trim() || 'Page Total';
+            var groups = [];
+            document.querySelectorAll('.pt-cg-check:checked').forEach(function(cb) { groups.push(cb.value); });
+            var ptFormVis = $id('pt-form-vis') ? $id('pt-form-vis').checked : true;
+            var ptQuoteVis = $id('pt-quote-vis') ? $id('pt-quote-vis').checked : true;
+            var csrf = (document.querySelector('[name=csrf_token]')||{}).value||'';
+            fetch('/builder_beta/page_total_save/' + _pageKey, {
+                method: 'POST',
+                headers: {'Content-Type':'application/json','X-CSRFToken':csrf},
+                body: JSON.stringify({label: label, groups: groups, form_visible: ptFormVis, quote_visible: ptQuoteVis})
+            }).then(function(r){return r.json();}).then(function(d){
+                if(d.ok) { alert('Page Total config saved.'); }
+                else { alert('Error: '+(d.error||'Unknown')); }
+            }).catch(function(){ alert('Network error.'); });
+        });
+    }
+
+function showViewImageUpload() {
+        $id('li-view-empty').style.display = 'none';
+        $id('li-view-page').style.display  = 'none';
+        $id('li-view-one').style.display   = 'flex';
+        if ($id('li-view-one-title')) {
+            $id('li-view-one-title').textContent = 'Image Upload Configuration';
+        }
+        $id('li-view-empty-q').style.display = 'none';
+        $id('li-view-two').style.display = 'none';
+        var qlist = $id('li-question-list');
+        if (qlist) {
+            qlist.innerHTML = '<p style="color:#aaa;font-size:0.85rem;text-align:center;margin-top:2rem;">Image settings panel.</p>';
+        }
+        $id('li-view-one-count').textContent = '';
+        if ($id('add-question-wrap')) $id('add-question-wrap').style.display = 'none';
+        // Load existing config from page metadata
+        fetch('/builder_beta/page_details_json/' + _pageKey)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var cfg = data.image_upload || {};
+            var slot = cfg.slot || 'cover_image';
+            var html = '<form id="iu-edit-form" autocomplete="off">';
+            html += '<div class="li-form-group"><label style="font-weight:600;">Image Slot</label>';
+            html += '<select id="iu-slot" style="width:100%;padding:0.3rem .5rem;border:1px solid #ccc;border-radius:3px;">';
+            var slots = [
+                {v:'cover_image', l:'Cover Image'},
+                {v:'cgi_image', l:'CGI / CAD'},
+                {v:'floorplan_image', l:'Floorplan'},
+                {v:'site_images', l:'Site Images'}
+            ];
+            for (var i = 0; i < slots.length; i++) {
+                var sel = slots[i].v === slot ? ' selected' : '';
+                html += '<option value="' + slots[i].v + '"' + sel + '>' + slots[i].l + '</option>';
+            }
+            html += '</select></div>';
+            html += '<div class="li-form-group"><label style="font-weight:600;">Label</label>';
+            html += '<input type="text" id="iu-label" value="' + (cfg.label || 'Uploaded Image') + '" style="width:100%;padding:0.3rem .5rem;border:1px solid #ccc;border-radius:3px;"></div>';
+            html += '<div style="display:flex;gap:.5rem;justify-content:flex-end;padding:.75rem 0;border-top:1px solid #dee2e6;margin-top:.75rem;">';
+            html += '<button type="submit" class="li-save-btn" style="padding:0.45rem 1rem;width:auto;margin-top:0;" title="Save Image Configuration"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button></div>';
+            html += '</form>';
+            $id('li-category-editor').innerHTML = html;
+            var form = $id('iu-edit-form');
+            if (!form) return;
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                var slot = $id('iu-slot').value;
+                var label = $id('iu-label').value.trim() || 'Uploaded Image';
+                var csrf = (document.querySelector('[name=csrf_token]')||{}).value||'';
+                fetch('/builder_beta/image_upload_save/' + _pageKey, {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json','X-CSRFToken':csrf},
+                    body: JSON.stringify({slot: slot, label: label})
+                }).then(function(r){return r.json();}).then(function(d){
+                    if(d.ok) { alert('Image config saved.'); }
+                    else { alert('Error: '+(d.error||'Unknown')); }
+                }).catch(function(){ alert('Network error.'); });
+            });
+        })
+        .catch(function() {
+            $id('li-category-editor').innerHTML = '<p style="color:red;padding:.5rem;">Error loading page config.</p>';
+        });
+    }
+
+    function _renderPaymentScheduleForm(ps) {
+        var html = '<form id="ps-edit-form" autocomplete="off">';
+        function _c(v) { return v ? ' checked' : ''; }
+        function _s(v, val) { return v === val ? ' selected' : ''; }
+        // Deposit
+        html += '<div class="li-form-group" style="display:flex;align-items:center;gap:.5rem;padding:.5rem 0;">';
+        html += '<input type="checkbox" id="ps-deposit-enabled"' + _c(ps.deposit_enabled !== false) + '>';
+        html += '<label for="ps-deposit-enabled" style="font-weight:600;">Deposit (%)</label>';
+        html += '<input type="number" step="0.5" min="0" max="100" id="ps-deposit-pct" value="' + ((ps.deposit_pct || 0.10) * 100) + '" style="width:70px;padding:0.25rem .4rem;border:1px solid #ccc;border-radius:3px;font-size:.85rem;"></div>';
+        // On-Completion
+        html += '<div class="li-form-group" style="display:flex;align-items:center;gap:.5rem;padding:.5rem 0;">';
+        html += '<input type="checkbox" id="ps-completion-enabled"' + _c(ps.completion_enabled !== false) + '>';
+        html += '<label for="ps-completion-enabled" style="font-weight:600;">On-Completion (%)</label>';
+        html += '<input type="number" step="0.5" min="0" max="100" id="ps-completion-pct" value="' + ((ps.completion_pct || 0.10) * 100) + '" style="width:70px;padding:0.25rem .4rem;border:1px solid #ccc;border-radius:3px;font-size:.85rem;"></div>';
+        // Initial Payment
+        html += '<div class="li-form-group" style="display:flex;align-items:center;gap:.5rem;padding:.5rem 0;flex-wrap:wrap;">';
+        html += '<input type="checkbox" id="ps-initial-enabled"' + _c(ps.initial_payment_enabled !== false) + '>';
+        html += '<label for="ps-initial-enabled" style="font-weight:600;">Initial Payment</label>';
+        html += '<input type="number" step="0.5" min="0" max="100" id="ps-initial-pct" value="' + ((ps.initial_payment_pct || 0.05) * 100) + '" style="width:70px;padding:0.25rem .4rem;border:1px solid #ccc;border-radius:3px;font-size:.85rem;">';
+        html += '<label style="font-size:.8rem;color:#666;">Rounding:</label>';
+        html += '<select id="ps-initial-rounding" style="padding:0.25rem .4rem;border:1px solid #ccc;border-radius:3px;font-size:.85rem;">';
+        html += '<option value="none"' + _s(ps.initial_payment_rounding, 'none') + '>None</option>';
+        html += '<option value="100"' + _s(ps.initial_payment_rounding, '100') + '>Nearest £100</option>';
+        html += '<option value="1000"' + _s(ps.initial_payment_rounding, '1000') + '>Nearest £1,000</option></select></div>';
+        // Floors
+        html += '<div style="padding:.5rem 0;"><label style="font-weight:600;display:block;margin-bottom:.3rem;">Initial Payment Floors</label>';
+        html += '<table id="ps-floors-table" style="width:100%;border-collapse:collapse;font-size:.82rem;">';
+        html += '<thead><tr><th style="text-align:left;padding:.2rem;border-bottom:1px solid #dee2e6;">Ceiling (£)</th><th style="text-align:left;padding:.2rem;border-bottom:1px solid #dee2e6;">Payment (£)</th><th style="width:30px;"></th></tr></thead>';
+        html += '<tbody id="ps-floors-body">';
+        var floors = ps.initial_payment_floors || [{ceiling:70000,payment:3000},{ceiling:90000,payment:4000}];
+        for (var i = 0; i < floors.length; i++) {
+            html += '<tr><td><input type="number" step="100" min="0" class="ps-floor-ceiling" value="' + (floors[i].ceiling||'') + '" style="width:100%;padding:0.2rem .3rem;border:1px solid #ccc;border-radius:2px;"></td>';
+            html += '<td><input type="number" step="100" min="0" class="ps-floor-payment" value="' + (floors[i].payment||'') + '" style="width:100%;padding:0.2rem .3rem;border:1px solid #ccc;border-radius:2px;"></td>';
+            html += '<td><button type="button" class="ps-floor-remove" style="background:none;border:none;color:#6d0b0b;cursor:pointer;font-size:1.1rem;">×</button></td></tr>';
+        }
+        html += '</tbody></table>';
+        html += '<button type="button" id="ps-floor-add" style="margin-top:.3rem;padding:0.2rem .6rem;font-size:.8rem;border:1px solid #aaa;background:#fff;border-radius:3px;cursor:pointer;">+ Add Floor</button></div>';
+        // Weekly
+        html += '<div class="li-form-group" style="display:flex;align-items:center;gap:.5rem;padding:.5rem 0;flex-wrap:wrap;">';
+        html += '<label style="font-weight:600;">Weekly Payment Count</label>';
+        html += '<input type="number" step="1" min="1" max="20" id="ps-weekly-count" value="' + (ps.weekly_payment_count||4) + '" style="width:60px;padding:0.25rem .4rem;border:1px solid #ccc;border-radius:3px;font-size:.85rem;">';
+        html += '<label style="font-size:.8rem;color:#666;"><input type="checkbox" id="ps-weekly-auto"' + _c(ps.weekly_payment_auto !== false) + '> Auto from SOW</label></div>';
+        // Form mode options
+        html += '<div style="border-top:1px solid #dee2e6;margin-top:.5rem;padding-top:.5rem;"><label style="font-weight:600;display:block;margin-bottom:.3rem;">Form Mode Options</label>';
+        html += '<div style="display:flex;gap:1rem;flex-wrap:wrap;">';
+        html += '<label style="font-size:.85rem;"><input type="checkbox" id="ps-show-temp-kitchen"' + _c(ps.show_temp_kitchen !== false) + '> Show Temp Kitchen</label>';
+        html += '<label style="font-size:.85rem;"><input type="checkbox" id="ps-show-glazing"' + _c(ps.show_glazing !== false) + '> Show Glazing</label></div></div>';
+        // Buttons
+        html += '<div style="display:flex;gap:.5rem;justify-content:flex-end;padding:.75rem 0;border-top:1px solid #dee2e6;margin-top:.75rem;">';
+        html += '<button type="submit" class="li-save-btn" style="padding:0.45rem 1rem;width:auto;margin-top:0;" title="Save Payment Schedule Settings"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button></div>';
+        html += '</form>';
+        $id('li-category-editor').innerHTML = html;
+        // Floor add/remove
+        $id('ps-floor-add').addEventListener('click', function() {
+            var tbody = $id('ps-floors-body');
+            var tr = document.createElement('tr');
+            tr.innerHTML = '<td><input type="number" step="100" min="0" class="ps-floor-ceiling" value="" style="width:100%;padding:0.2rem .3rem;border:1px solid #ccc;border-radius:2px;"></td><td><input type="number" step="100" min="0" class="ps-floor-payment" value="" style="width:100%;padding:0.2rem .3rem;border:1px solid #ccc;border-radius:2px;"></td><td><button type="button" class="ps-floor-remove" style="background:none;border:none;color:#6d0b0b;cursor:pointer;font-size:1.1rem;">×</button></td>';
+            tbody.appendChild(tr);
+        });
+        document.addEventListener('click', function(ev) {
+            if (ev.target.classList.contains('ps-floor-remove')) {
+                var tr = ev.target.closest('tr');
+                if (tr && $id('ps-floors-body').children.length > 1) tr.remove();
+            }
+        });
+        // Save
+        var form = $id('ps-edit-form');
+        if (!form) return;
+        form.addEventListener('submit', function(ev) {
+            ev.preventDefault();
+            var floors = [];
+            document.querySelectorAll('#ps-floors-body tr').forEach(function(tr) {
+                var c = parseFloat(tr.querySelector('.ps-floor-ceiling').value);
+                var p = parseFloat(tr.querySelector('.ps-floor-payment').value);
+                if (!isNaN(c) && !isNaN(p)) floors.push({ceiling: c, payment: p});
+            });
+            var csrf = (document.querySelector('[name=csrf_token]')||{}).value||'';
+            fetch('/admin/payment-schedule', {
+                method: 'POST',
+                headers: {'Content-Type':'application/json','X-CSRFToken':csrf},
+                body: JSON.stringify({
+                    deposit_enabled: $id('ps-deposit-enabled').checked,
+                    deposit_pct: parseFloat($id('ps-deposit-pct').value)/100||0.10,
+                    completion_enabled: $id('ps-completion-enabled').checked,
+                    completion_pct: parseFloat($id('ps-completion-pct').value)/100||0.10,
+                    initial_payment_enabled: $id('ps-initial-enabled').checked,
+                    initial_payment_pct: parseFloat($id('ps-initial-pct').value)/100||0.05,
+                    initial_payment_rounding: $id('ps-initial-rounding').value,
+                    initial_payment_floors: floors,
+                    weekly_payment_count: parseInt($id('ps-weekly-count').value,10)||4,
+                    weekly_payment_auto: $id('ps-weekly-auto').checked,
+                    show_temp_kitchen: $id('ps-show-temp-kitchen').checked,
+                    show_glazing: $id('ps-show-glazing').checked,
+                    allow_user_override: true
+                })
+            }).then(function(r){return r.json();}).then(function(d){
+                if(d.success){ alert('Saved successfully.'); }
+                else { alert('Error: '+(d.error||'Unknown')); }
+            }).catch(function(){ alert('Network error.'); });
         });
     }
 
@@ -1707,7 +2076,8 @@ document.addEventListener('DOMContentLoaded', function() {
         html += _section('Meta', false, [
             _field('line_code',       'Line Code',       'text',   item.line_code   || '', true),
             _field('output_group',    'Cost Group',    'text',   item.output_group || 'General'),
-            _selectField('category',  'Category',        item.category || '', allCats)
+            _selectField('category',  'Category',        item.category || '', allCats),
+            _field('sow_level',       'SOW Level',       'number', (item.metadata && item.metadata.sow_level) || '')
         ]);
 
         html += _section('Output (Preview)', false, [
@@ -2500,6 +2870,12 @@ document.addEventListener('DOMContentLoaded', function() {
     
     initResizeHandles();
 
+window.showViewPaymentSchedule = showViewPaymentSchedule;
+window.showViewPageTotal = showViewPageTotal;
+window.showViewImageUpload = showViewImageUpload;
+window.showViewCostGroup = showViewCostGroup;
+window.showViewOne = showViewOne;
+window.showViewPage = showViewPage;
 }());
 </script>
 
