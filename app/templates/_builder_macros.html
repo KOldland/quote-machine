@@ -286,8 +286,12 @@
                         data-id="{{ cat_id }}"
                         data-page="{{ form_page_key }}"
                         data-is-cost-group="{{ cat.is_cost_group if cat is mapping and cat.is_cost_group else 0 }}"
+                        data-is-module="{{ cat.is_module if cat is mapping and cat.is_module else 0 }}"
+                        data-module-type="{{ cat.module_type if cat is mapping and cat.module_type else '' }}"
                         style="flex:1;">
-                    {% if cat is mapping and cat.is_cost_group %}<span style="background:#2d5a3b;color:#fff;font-size:.6rem;font-weight:700;padding:.12rem .35rem;border-radius:3px;margin-right:.3rem;">CG</span>{% endif %}{{ cat_name }}
+                    {% if cat is mapping and cat.is_cost_group %}<span style="background:#2d5a3b;color:#fff;font-size:.6rem;font-weight:700;padding:.12rem .35rem;border-radius:3px;margin-right:.3rem;">CG</span>{% endif %}
+                    {% if cat is mapping and cat.is_module %}<span style="background:#495057;color:#fff;font-size:.6rem;font-weight:700;padding:.12rem .35rem;border-radius:3px;margin-right:.3rem;">{{ {'payment_schedule':'PS','page_total':'&Sigma;','image_upload':'IMG'}.get(cat.module_type, 'M') | safe }}</span>{% endif %}
+                    {{ cat_name }}
                 </button>
                 <div class="li-reorder-controls" style="display:flex;flex-direction:column;margin-right:4px;">
                     <button type="button" class="li-move-btn" data-scope="category" data-id="{{ cat_id }}" data-page="{{ form_page_key }}" data-dir="up" style="border:none;background:none;font-size:10px;cursor:pointer;padding:0 4px;color:#888;line-height:1;">▲</button>
@@ -486,19 +490,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 btnConfirm.textContent = 'Saving…';
                 var actualType = modType.replace('module_', '');
                 var csrfT = (document.querySelector('[name=csrf_token]')||{}).value||'';
-                // Fetch existing modules, merge, then save
-                fetch('/builder_beta/page_details_json/' + encodeURIComponent(pageKey))
-                .then(function(r){return r.json()})
-                .then(function(pageData){
-                    var existing = pageData.modules || [];
-                    if (existing.indexOf(actualType) === -1) existing.push(actualType);
-                    return fetch('/builder_beta/page_modules_save/' + pageKey, {
-                        method: 'POST',
-                        headers: {'Content-Type':'application/json','X-CSRFToken':csrfT},
-                        body: JSON.stringify({modules: existing})
-                    }).then(function(r){return r.json()});
-                }).then(function(d){
-                    if(d && d.ok) {
+                var labelMap = {module_payment_schedule: 'Payment Schedule', module_page_total: 'Page Total', module_image_upload: 'Image Upload'};
+                var moduleName = addCatInput.value.trim() || labelMap[modType] || actualType.replace('_', ' ').replace(/\b\w/g, function(l){return l.toUpperCase();});
+                // Create a category_templates entry with module flags
+                fetch('/builder_beta/category/add', {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json','X-CSRFToken':csrfT},
+                    body: JSON.stringify({
+                        page_key: pageKey,
+                        category_name: moduleName,
+                        output_group: 'General',
+                        is_cost_group: 0,
+                        is_module: 1,
+                        module_type: actualType
+                    })
+                }).then(function(r){return r.json()}).then(function(d){
+                    if(d && d.success) {
                         window.location.reload();
                     } else {
                         alert('Error saving module: '+((d&&d.error)||'Unknown'));
@@ -1139,11 +1146,21 @@ document.addEventListener('DOMContentLoaded', function() {
         document.querySelectorAll('.li-section-btn').forEach(function (b) { b.classList.remove('active'); });
         btn.classList.add('active');
         
-        // Check if this is a module button
-        var modType = btn.getAttribute('data-module');
+        // Check if this is a module button (from JS injection OR from unified category_templates)
+        var modType = btn.getAttribute('data-module') || btn.getAttribute('data-module-type');
         if (modType) {
             _activeCategory = null;
             _saveSelectionState();
+            if (modType === 'payment_schedule') { showViewPaymentSchedule(); return; }
+            if (modType === 'page_total') { showViewPageTotal(); return; }
+            if (modType === 'image_upload') { showViewImageUpload(); return; }
+        }
+        
+        // Check if this is a module via is-module flag (from unified category_templates)
+        if (btn.getAttribute('data-is-module') === '1') {
+            _activeCategory = null;
+            _saveSelectionState();
+            var modType = btn.getAttribute('data-module-type') || '';
             if (modType === 'payment_schedule') { showViewPaymentSchedule(); return; }
             if (modType === 'page_total') { showViewPageTotal(); return; }
             if (modType === 'image_upload') { showViewImageUpload(); return; }

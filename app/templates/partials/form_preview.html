@@ -348,6 +348,7 @@
                                  <script>
                                  (function() {
                                      var fname = {{ field.name | tojson }};
+                                     var ptLabel = {{ meta.standard.label | tojson }};
                                      if (!fname) return;
                                      var el = document.getElementById('pt-content-' + fname);
                                      if (!el) return;
@@ -355,7 +356,7 @@
                                      fetch('/builder_beta/page_details_json/' + encodeURIComponent(pageKey))
                                      .then(function(r) { return r.json(); })
                                      .then(function(data) {
-                                         var cfg = (data.metadata_json && JSON.parse(data.metadata_json).page_total) || {};
+                                         var cfg = data.page_total || {};
                                          var groups = cfg.groups || [];
                                          if (!groups.length) { el.innerHTML = '<span>£0.00</span>'; return; }
                                          fetch('/builder_beta/page_total_calc', {
@@ -365,14 +366,12 @@
                                          })
                                          .then(function(r) { return r.json(); })
                                          .then(function(d) {
-                                             if (d.success) { el.innerHTML = '<span>' + (cfg.label || 'Page Total') + ': £' + d.total.toFixed(2) + '</span>'; }
+                                             if (d.success) { el.innerHTML = '<span>' + ptLabel + ': £' + d.total.toFixed(2) + '</span>'; }
                                              else { el.innerHTML = '<span>£0.00</span>'; }
                                          })
                                          .catch(function() { el.innerHTML = '<span>£0.00</span>'; });
                                      })
-                                     .catch(function() { el.innerHTML = '<span>£0.00</span>'; });
-                                 })();
-                                 </script>
+                                     .catch(function() { el.innerHTML = '<span>£0.00</span>'; });                               </script>
                                  {% endif %}
                         </div>
                         {% endif %}

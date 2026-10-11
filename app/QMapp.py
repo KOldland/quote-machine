@@ -325,7 +325,8 @@ def _get_li_categories_from_schema(page_id: str):
         conn = _connect(db)
         rows = conn.execute(
             """SELECT ct.name, ct.display_order, ct.output_group, ct.is_cost_group,
-                      ct.cost_group_override_allowed, ct.image_url, ct.description
+                      ct.cost_group_override_allowed, ct.image_url, ct.description,
+                      ct.is_module, ct.module_type
                FROM category_templates ct
                JOIN page_templates pt ON pt.id = ct.page_template_id
                JOIN form_template_versions ftv ON ftv.id = ct.form_template_version_id
@@ -341,6 +342,15 @@ def _get_li_categories_from_schema(page_id: str):
                 result.append(cat_dict[name])
             else:
                 result.append({'name': name, 'is_cost_group': 0, 'output_group': 'General', 'display_order': 0})
+        # Also include module entries from category_templates (is_module=1)
+        for r in rows:
+            d = dict(r)
+            if d.get('is_module'):
+                # Check it's not already added (unlikely but safe)
+                if not any(item.get('name') == d['name'] for item in result):
+                    result.append(d)
+        # Re-sort by display_order
+        result.sort(key=lambda x: x.get('display_order', 0))
         return result
     except Exception:
         pass
@@ -1271,6 +1281,50 @@ def compile_builder_beta_page_to_runtime_schema(page_id):
         from pathlib import Path as _P
         _db = str(_P(__file__).parent / 'template_store.sqlite3')
         _conn = _sq3.connect(_db)
+        
+        # First: read modules from category_templates (unified system - is_module=1)
+        _mod_rows = _conn.execute(
+            "SELECT ct.name, ct.module_type FROM category_templates ct "
+            "JOIN page_templates pt ON pt.id = ct.page_template_id "
+            "WHERE pt.page_key = ? AND pt.form_template_version_id IN "
+            "(SELECT id FROM form_template_versions WHERE form_template_id = "
+            "(SELECT id FROM form_templates WHERE key = ?) ORDER BY version DESC LIMIT 1) "
+            "AND ct.is_module = 1 ORDER BY ct.display_order ASC",
+            (page_id, TEMPLATE_STORE_KEY)
+        ).fetchall()
+        
+        _existing_types = {f.get('builder_beta_meta',{}).get('block_type') for f in compiled_fields}
+        
+        for _mod_row in _mod_rows:
+            _mod_type = _mod_row['module_type']
+            _mod_label = _mod_row['name'] or {
+                'payment_schedule': 'Payment Schedule',
+                'page_total': 'Page Total',
+            }.get(_mod_type, _mod_type.replace('_', ' ').title())
+            if _mod_type not in _existing_types:
+                compiled_fields.append({
+                    'id': page_id + '_mod_' + _mod_type,
+                    'name': page_id + '_' + _mod_type,
+                    'label': _mod_label,
+                    'note': '',
+                    'hidden': False,
+                    'type': _mod_type,
+                    'builder_beta_meta': {
+                        'block_type': _mod_type,
+                        'standard': {'label': _mod_label},
+                        'placeholder': '',
+                        'dropdown_choices': [],
+                        'selection_limit': None,
+                        'static_content': '',
+                        'static_variant': 'body',
+                        'logic_options': {},
+                        'pricing_options': {},
+                        'output_options': {},
+                    },
+                })
+                _existing_types.add(_mod_type)
+        
+        # Also read from legacy metadata_json.modules for backward compatibility
         _row = _conn.execute(
             "SELECT metadata_json FROM page_templates WHERE page_key = ? AND form_template_version_id IN "
             "(SELECT id FROM form_template_versions WHERE form_template_id = "
@@ -1284,8 +1338,6 @@ def compile_builder_beta_page_to_runtime_schema(page_id):
             if isinstance(_meta, dict):
                 _modules = _meta.get('modules', [])
                 if isinstance(_modules, list):
-                    # Check if each module is already in compiled_fields
-                    _existing_types = {f.get('builder_beta_meta',{}).get('block_type') for f in compiled_fields}
                     for _mod_type in _modules:
                         if _mod_type not in _existing_types:
                             _label = {
@@ -2628,6 +2680,11 @@ def builder_page_total_save(page_key):
     if not isinstance(meta, dict): meta = {}
     meta['page_total'] = {'label': label, 'groups': groups, 'form_visible': form_visible, 'quote_visible': quote_visible}
     conn.execute("UPDATE page_templates SET metadata_json = ? WHERE page_key = ? AND form_template_version_id = ?", [_j.dumps(meta), page_key, lid])
+    # Also propagate label to category_templates name for unified sidebar + form rendering
+    conn.execute(
+        "UPDATE category_templates SET name = ? WHERE module_type = ? AND page_template_id IN (SELECT id FROM page_templates WHERE page_key = ? AND form_template_version_id = ?)",
+        [label, 'page_total', page_key, lid]
+    )
     conn.commit()
     conn.close()
     return jsonify({'ok': True})
@@ -2635,7 +2692,7 @@ def builder_page_total_save(page_key):
 @app.route('/builder_beta/module_delete/<page_key>', methods=['POST'])
 @require_role('admin')
 def builder_module_delete(page_key):
-    """Remove a module type from a page's metadata."""
+    """Remove a module entry from category_templates (and legacy metadata_json)."""
     import sqlite3
     from pathlib import Path
     import json as _j
@@ -2650,18 +2707,22 @@ def builder_module_delete(page_key):
     if not lid:
         conn.close()
         return jsonify({'ok': False, 'error': 'No version'}), 404
+    # Delete from category_templates (the primary storage for modules)
+    conn.execute(
+        "DELETE FROM category_templates WHERE module_type = ? AND page_template_id IN (SELECT id FROM page_templates WHERE page_key = ? AND form_template_version_id = ?)",
+        [mod_type, page_key, lid]
+    )
+    # Also clean up legacy metadata_json.modules list
     existing = conn.execute("SELECT metadata_json FROM page_templates WHERE page_key = ? AND form_template_version_id = ?", [page_key, lid]).fetchone()
     meta = {}
     if existing and existing[0]:
         try: meta = _j.loads(existing[0]) if isinstance(existing[0], str) else existing[0]
         except: meta = {}
     if not isinstance(meta, dict): meta = {}
-    # Remove from modules list
     modules = meta.get('modules', [])
     if mod_type in modules:
         modules.remove(mod_type)
     meta['modules'] = modules
-    # Clean up module-specific config stored under the type key
     if mod_type in meta:
         del meta[mod_type]
     conn.execute("UPDATE page_templates SET metadata_json = ? WHERE page_key = ? AND form_template_version_id = ?", [_j.dumps(meta), page_key, lid])
@@ -2865,6 +2926,23 @@ def builder_beta_category_add():
             data['category_name'],
             template_key=TEMPLATE_STORE_KEY,
             output_group=output_group)
+        # If this is a module entry, set is_module and module_type on the newly created category
+        is_module = data.get('is_module', 0)
+        module_type = data.get('module_type', '')
+        if res.get('success') and (is_module or module_type):
+            try:
+                import sqlite3
+                from pathlib import Path
+                db = str(Path(__file__).parent / 'template_store.sqlite3')
+                conn2 = sqlite3.connect(db)
+                conn2.execute(
+                    "UPDATE category_templates SET is_module = ?, module_type = ? WHERE name = ? AND page_template_id IN (SELECT id FROM page_templates WHERE page_key = ?)",
+                    (1 if is_module else 0, module_type, data['category_name'], data['page_key'])
+                )
+                conn2.commit()
+                conn2.close()
+            except Exception:
+                pass
         # If this is a cost group section and the name already exists, update the existing entry
         if is_cost_group and not res.get('success') and res.get('duplicate'):
             import sqlite3
@@ -4061,7 +4139,7 @@ def builder_swap_order():
             # Find adjacent module index
             adj_idx = cur_idx - 1 if direction == 'up' else cur_idx + 1
             if adj_idx < 0 or adj_idx >= len(modules):
-                return jsonify({'error': 'No adjacent module in that direction'}), 400
+                return jsonify({'success': True}), 200
             # Swap
             modules[cur_idx], modules[adj_idx] = modules[adj_idx], modules[cur_idx]
             meta['modules'] = modules
