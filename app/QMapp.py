@@ -1367,52 +1367,50 @@ def compile_builder_beta_page_to_runtime_schema(page_id):
     except Exception:
         pass
 
-    return {
-        'id': page_id,
-        'title': page.get('title', page_id.replace('_', ' ').title()),
-        'navigation': deepcopy(page.get('navigation', {})),
-        'fields': compiled_fields,
-    }
-
     # Add cost group sections (from category_templates with is_cost_group=1)
     try:
         from template_store import _default_db_path, _connect
         import sqlite3
-        db = _default_db_path()
-        conn = _connect(db)
+        _db2 = _default_db_path()
+        _conn2 = _connect(_db2)
         try:
-            version_id = conn.execute(
+            _ver_row = _conn2.execute(
                 "SELECT ftv.id FROM form_template_versions ftv JOIN form_templates ft ON ft.id = ftv.form_template_id WHERE ft.key = ? ORDER BY ftv.version DESC LIMIT 1",
                 (TEMPLATE_STORE_KEY,)
             ).fetchone()
-            ver = int(version_id[0]) if version_id else None
+            _ver = int(_ver_row[0]) if _ver_row else None
         except Exception:
-            ver = None
-        if ver:
-            cg_rows = conn.execute(
+            _ver = None
+        if _ver:
+            _cg_rows = _conn2.execute(
                 """SELECT name, output_group, cost_group_override_allowed
                    FROM category_templates ct
                    JOIN page_templates pt ON pt.id = ct.page_template_id
                    WHERE pt.page_key = ? AND pt.form_template_version_id = ? AND ct.is_cost_group = 1
                    ORDER BY ct.display_order ASC""",
-                (page_id, ver)
+                (page_id, _ver)
             ).fetchall()
-            for row in cg_rows:
-                compiled_fields.append({
-                    'id': page_id + '_cg_' + (row['name'] or '').replace(' ', '_'),
-                    'name': page_id + '_cost_group_' + (row['name'] or '').replace(' ', '_'),
-                    'label': row['name'] or 'Cost Group',
-                    'note': '',
-                    'hidden': False,
-                    'type': 'cost_group_section',
-                    'builder_beta_meta': {
-                        'block_type': 'cost_group_section',
-                        'cost_group_id': row['output_group'] or '',
-                        'override_allowed': bool(row['cost_group_override_allowed']),
-                    },
-                    'config': {'page_key': page_id},
-                })
-        conn.close()
+            for _row in _cg_rows:
+                _cg_id = (_row['name'] or '').replace(' ', '_')
+                _field_id = page_id + '_cg_' + _cg_id
+                # Check if already added
+                _already = any(f.get('id') == _field_id for f in compiled_fields)
+                if not _already:
+                    compiled_fields.append({
+                        'id': _field_id,
+                        'name': page_id + '_cost_group_' + _cg_id,
+                        'label': _row['name'] or 'Cost Group',
+                        'note': '',
+                        'hidden': False,
+                        'type': 'cost_group_section',
+                        'builder_beta_meta': {
+                            'block_type': 'cost_group_section',
+                            'cost_group_id': _row['output_group'] or '',
+                            'override_allowed': bool(_row['cost_group_override_allowed']),
+                        },
+                        'config': {'page_key': page_id},
+                    })
+        _conn2.close()
     except Exception:
         pass
 
@@ -1422,7 +1420,6 @@ def compile_builder_beta_page_to_runtime_schema(page_id):
         'navigation': deepcopy(page.get('navigation', {})),
         'fields': compiled_fields,
     }
-
 
 def _apply_conditional_visibility(page_schema, form_data, checkbox_data):
     field_hidden = {}
@@ -1455,137 +1452,6 @@ def _apply_conditional_visibility(page_schema, form_data, checkbox_data):
             field['hidden'] = str(current_value).strip() != str(required_value).strip()
         field_hidden[field.get('id')] = field['hidden']
 
-
-# Dynamic – prefers template store, falls back to sheet data
-
-
-def _builder_beta_checkbox_options(field_schema, sheet_data):
-    source = field_schema.get('source', {})
-    prefix = str(source.get('prefix', '') or '')
-
-    if TEMPLATE_STORE_READ_ENABLED and prefix:
-        db_options = load_option_set(prefix, TEMPLATE_STORE_KEY)
-        if db_options is not None:
-            return db_options
-
-    options = []
-
-    for row in sheet_data:
-        line_code = row.get('Line Code', '').strip()
-        internal_description = row.get('Internal Description', '').strip()
-        include = row.get('Include', '').strip()
-
-        if not line_code_matches_source(
-                line_code, prefix, source.get('suffix')):
-            continue
-
-        options.append({
-            'value': line_code,
-            'label': internal_description,
-            'is_included': include == 'Y',
-        })
-
-    return options
-
-
-def build_builder_beta_runtime_context(page_id, sheet_data, page_answers):
-    compiled_page = compile_builder_beta_page_to_runtime_schema(page_id)
-    if not compiled_page:
-        return None
-
-    # If page_answers is a complex checkbox_data dict, extract the specific field preselection
-    # or fallback to direct name access if it's a flat dict.
-    def get_preselected(name):
-        if not isinstance(page_answers, dict):
-            return []
-        # If we passed the whole checkbox_data dict
-        if name in page_answers and isinstance(
-                page_answers[name], dict) and 'preselected' in page_answers[name]:
-            return page_answers[name]['preselected']
-        # If we passed a flat answers dict
-        return page_answers.get(name, [])
-
-    runtime_fields = []
-    for field in compiled_page.get('fields', []):
-        meta = field.get('builder_beta_meta', {})
-        block_type = meta.get('block_type', 'checkbox_group')
-        field_name = field.get('name')
-        field_entry = {
-            'id': field.get('id'),
-            'name': field_name,
-            'label': field.get('label', field_name),
-            'note': field.get('note', ''),
-            'block_type': block_type,
-            'type': block_type,
-            'builder_beta_meta': deepcopy(meta),
-            'placeholder': meta.get('placeholder', ''),
-            'static_content': meta.get('static_content', ''),
-            'static_variant': meta.get('static_variant', 'body'),
-        }
-
-        if block_type == 'checkbox_group':
-            options = _builder_beta_checkbox_options(field, sheet_data)
-            stored = get_preselected(field_name)
-            if not isinstance(stored, list):
-                stored = []
-            if not stored:
-                stored = [option['value']
-                          for option in options if option.get('is_included')]
-            field_entry['options'] = options
-            field_entry['value'] = stored
-
-        elif block_type == 'dropdown_select':
-            choices = meta.get('dropdown_choices', [])
-            if not isinstance(choices, list):
-                choices = []
-            field_entry['choices'] = choices
-            field_entry['value'] = str(page_answers.get(field_name, '') or '')
-
-        elif block_type in {'text_input', 'number_currency_input'}:
-            field_entry['value'] = str(page_answers.get(field_name, '') or '')
-        elif block_type == 'line_items_by_category':
-            _li_raw = _get_line_items_for_page(page_id)
-            if isinstance(_li_raw, dict):
-                li_groups = [
-                    {'category': c, 'items': [
-                        {'value': r.get('line_code', ''),
-                         'label': r.get('internal_description') or r.get('line_code', ''),
-                         'id': r.get('id', 0),
-                         'unit_cost': r.get('unit_cost', 0),
-                         'units': r.get('units', 1),
-                         'allow_user_override': r.get('allow_user_override', 0),
-                         'pricing_visibility': r.get('pricing_visibility', 'admin_only'),
-                         'include_default': r.get('include_default') or 'N',
-                         'is_follow_up': r.get('is_follow_up') or 0,
-                         'follow_up_type': r.get('follow_up_type') or '',
-                         'follow_up_config': r.get('follow_up_config') or '{}'}
-                        for r in v
-                    ]}
-                    for c, v in _li_raw.items()
-                ]
-            else:
-                li_groups = _li_raw
-            stored = get_preselected(field_name)
-            if not isinstance(stored, list):
-                stored = []
-            if not stored:
-                stored = []
-                for grp in (li_groups or []):
-                    if not isinstance(grp, dict):
-                        continue
-                    for item in (grp.get('items') or []):
-                        if not isinstance(item, dict):
-                            continue
-                        if item.get('include_default') == 'Y' and item.get(
-                                'value'):
-                            stored.append(item['value'])
-            field_entry['li_groups'] = li_groups
-            field_entry['value'] = stored
-
-        runtime_fields.append(field_entry)
-
-    compiled_page['fields'] = runtime_fields
-    return compiled_page
 
 def resolve_builder_beta_navigation_targets(page_id, runtime_page):
     state = get_builder_beta_state()
@@ -2628,7 +2494,8 @@ def builder_image_upload_save(page_key):
 @app.route('/builder_beta/page_total_calc', methods=['POST'])
 @require_role('admin')
 def builder_page_total_calc():
-    """Calculate the total for selected cost groups on a page."""
+    """Calculate the total for selected cost groups on a page.
+    Uses category-level cost group assignment (category_templates.output_group)."""
     import sqlite3
     from pathlib import Path
     import json as _j
@@ -2641,19 +2508,48 @@ def builder_page_total_calc():
     conn = sqlite3.connect(db)
     conn.row_factory = sqlite3.Row
     try:
-        rows = conn.execute(
-            "SELECT * FROM line_items WHERE form_page = ?", [page_key]
+        # Step 1: find categories routed to the requested cost groups
+        placeholders = ','.join(['?' for _ in groups])
+        cat_rows = conn.execute(
+            f"""SELECT ct.name, ct.output_group
+                FROM category_templates ct
+                WHERE ct.output_group IN ({placeholders})
+                AND ct.form_template_version_id = (
+                    SELECT MAX(ftv.id) FROM form_template_versions ftv
+                    JOIN form_templates ft ON ft.id = ftv.form_template_id
+                    WHERE ft.key = ?
+                )""",
+            groups + ['builder_beta']
         ).fetchall()
+        
+        cg_to_cats = {}
+        for r in cat_rows:
+            og = r['output_group']
+            if og not in cg_to_cats:
+                cg_to_cats[og] = []
+            cg_to_cats[og].append(r['name'])
+        
+        # Step 2: fetch line items from ALL pages whose category matches
         totals = {}
-        for r in rows:
-            item = dict(r)
-            og = item.get('output_group') or 'General'
-            unit_cost = float(item.get('unit_cost') or 0)
-            units = float(item.get('units') or 1)
-            line_total = round(unit_cost * units, 2)
-            totals[og] = totals.get(og, 0) + line_total
+        for gid in groups:
+            cat_names = cg_to_cats.get(gid, [])
+            if not cat_names:
+                continue
+            cat_ph = ','.join(['?' for _ in cat_names])
+            rows = conn.execute(
+                f"""SELECT unit_cost, units FROM line_items
+                    WHERE category IN ({cat_ph})""",
+                cat_names
+            ).fetchall()
+            group_total = 0
+            for r in rows:
+                unit_cost = float(r['unit_cost'] or 0)
+                units = float(r['units'] or 1)
+                group_total += round(unit_cost * units, 2)
+            totals[gid] = group_total
+        
         selected_total = round(sum(totals.get(g, 0) for g in groups), 2)
-        return jsonify({'success': True, 'total': selected_total, 'groups': groups, 'subtotals': {g: totals.get(g, 0) for g in groups}})
+        return jsonify({'success': True, 'total': selected_total, 'groups': groups, 'subtotals': dict(totals)})
     finally:
         conn.close()
 
@@ -3479,7 +3375,10 @@ def builder_line_item_duplicate():
 @app.route('/builder_beta/calculator_preview', methods=['GET'])
 @require_role('admin')
 def builder_calculator_preview():
-    """Return line items grouped by selected cost groups for the calculator block preview."""
+    """Return line items for selected cost groups using category-level routing.
+    A category is routed to a cost group when category_templates.output_group
+    matches the cost group id. All line items in that category are included,
+    regardless of which form_page they belong to."""
     page_key = request.args.get('page_key', '')
     group_ids_param = request.args.get('groups', '')
     if not group_ids_param:
@@ -3489,16 +3388,47 @@ def builder_calculator_preview():
     db_path = _default_db_path()
     conn = _connect(db_path)
     try:
+        # Step 1: find all category names routed to the requested cost groups
+        # A category is routed to cost group X when ct.output_group = X
+        placeholders = ','.join(['?' for _ in group_ids])
+        cat_rows = conn.execute(
+            f"""SELECT ct.name, ct.output_group
+                FROM category_templates ct
+                WHERE ct.output_group IN ({placeholders})
+                AND ct.form_template_version_id = (
+                    SELECT MAX(ftv.id) FROM form_template_versions ftv
+                    JOIN form_templates ft ON ft.id = ftv.form_template_id
+                    WHERE ft.key = ?
+                )""",
+            group_ids + ['builder_beta']
+        ).fetchall()
+        
+        # Build mapping: output_group -> list of category names
+        cg_to_cats = {}
+        for r in cat_rows:
+            og = r['output_group']
+            if og not in cg_to_cats:
+                cg_to_cats[og] = []
+            cg_to_cats[og].append(r['name'])
+        
+        # Step 2: fetch line items from ALL pages whose category matches
         items_by_group = {}
         for gid in group_ids:
+            cat_names = cg_to_cats.get(gid, [])
+            if not cat_names:
+                items_by_group[gid] = []
+                continue
+            # Build placeholders for category names
+            cat_placeholders = ','.join(['?' for _ in cat_names])
             rows = conn.execute(
-                """SELECT li.line_code, li.internal_description, li.unit_cost,
+                f"""SELECT li.line_code, li.internal_description, li.unit_cost,
                           li.units, li.sort_order, li.category,
-                          li.output_group, li.pricing_mode, li.pricing_visibility
+                          li.output_group, li.pricing_mode, li.pricing_visibility,
+                          li.form_page
                    FROM line_items li
-                   WHERE li.output_group = ? AND li.form_page = ?
+                   WHERE li.category IN ({cat_placeholders})
                    ORDER BY li.category ASC, li.sort_order ASC, li.line_code ASC""",
-                (gid, page_key)
+                cat_names
             ).fetchall()
             items_by_group[gid] = [dict(r) for r in rows]
         return jsonify({'items': items_by_group, 'error': None})
@@ -4708,6 +4638,8 @@ def dynamic_page(page_id):
                         ]}
                         for c, v in _li_raw.items()
                     ]
+                    # Exclude groups with no items
+                    li_groups_data = [g for g in li_groups_data if g['items']]
                 break
 
     return render_template(
