@@ -1550,6 +1550,11 @@ def build_builder_beta_runtime_context(page_id, sheet_data, page_answers):
                     {'category': c, 'items': [
                         {'value': r.get('line_code', ''),
                          'label': r.get('internal_description') or r.get('line_code', ''),
+                         'id': r.get('id', 0),
+                         'unit_cost': r.get('unit_cost', 0),
+                         'units': r.get('units', 1),
+                         'allow_user_override': r.get('allow_user_override', 0),
+                         'pricing_visibility': r.get('pricing_visibility', 'admin_only'),
                          'include_default': r.get('include_default') or 'N',
                          'is_follow_up': r.get('is_follow_up') or 0,
                          'follow_up_type': r.get('follow_up_type') or '',
@@ -4506,8 +4511,34 @@ def dynamic_page(page_id):
                     checkbox_data[key] = values[0] if values else ''
                 else:
                     checkbox_data[key] = values if len(values) > 1 else (values[0] if values else '')
+        
+        # Handle line item price overrides (named like {field_name}_price_{line_code})
+        # Only confirmed prices are submitted (unconfirmed inputs are disabled via JS)
+        session_overrides = session.setdefault('session_overrides', {})
+        overrides = session_overrides.setdefault('overrides', {})
+        for key, val in request.form.items():
+            if '_price_' in key:
+                # Extract line_code from key: {field_name}_price_{line_code}
+                # We need to look up the item_id from the line_code
+                try:
+                    line_code = key.split('_price_')[-1]
+                    # Look up item_id from line_items table
+                    import template_store as _ts_li
+                    db_path = _ts_li._default_db_path()
+                    _conn = _ts_li._connect(db_path)
+                    row = _conn.execute(
+                        "SELECT id FROM line_items WHERE line_code = ? LIMIT 1",
+                        (line_code,)
+                    ).fetchone()
+                    _conn.close()
+                    if row and val not in ('', None):
+                        overrides[str(row['id'])] = float(val)
+                except Exception:
+                    pass
+        
         session['checkbox_data'] = checkbox_data
         session['data'] = form_data
+        session['session_overrides'] = session_overrides
         session.modified = True
 
         # ── Auto-create quote draft on first form save ─────────────────
@@ -4639,15 +4670,17 @@ def dynamic_page(page_id):
             li_categories=_li_cats,
             **_get_runtime_quote_context()
         )
+
     else:
         page_config = page_schema
 
         # Compute line-items group data for line_items_by_category blocks
         li_groups_data = None
         saved_cb = session.get('checkbox_data', {})
+        session_overrides = session.get('session_overrides', {}).get('overrides', {})
         for field in page_schema.get('fields', []):
             if field.get('type') == 'line_items_by_category':
-                field_name = field.get('name') or block.get('id')
+                field_name = field.get('name') or field.get('id')
                 _saved = saved_cb.get(field_name)
                 if isinstance(_saved, dict):
                     _saved = _saved.get('preselected', [])
@@ -4659,12 +4692,18 @@ def dynamic_page(page_id):
                         {'category': c, 'items': [
                             {'value': r.get('line_code', ''),
                              'label': r.get('internal_description') or r.get('line_code', ''),
+                             'unit_cost': r.get('unit_cost', 0),
+                             'units': r.get('units', 1),
+                             'allow_user_override': r.get('allow_user_override', 0),
+                             'pricing_visibility': r.get('pricing_visibility', 'admin_only'),
+                             'id': r.get('id'),
                              'include_default': r.get('include_default') or 'N',
                              'is_follow_up': r.get('is_follow_up') or 0,
                              'follow_up_type': r.get('follow_up_type') or '',
                              'follow_up_config': r.get('follow_up_config') or '{}',
                              'checked': (r.get('line_code', '') in _saved) if _saved
-                                        else (r.get('include_default') == 'Y')}
+                                         else (r.get('include_default') == 'Y'),
+                             'saved_override': session_overrides.get(str(r.get('id')), '')}
                             for r in v
                         ]}
                         for c, v in _li_raw.items()

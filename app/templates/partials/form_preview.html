@@ -45,15 +45,35 @@
                                         </summary>
                                         <div class="preview-li-items">
 {% for item in group['items'] %}
- <label class="preview-li-item">
-     <input type="checkbox" class="preview-checkbox-input"
-            name="{{ field.name }}" value="{{ item.value }}"
-            {% if item.checked %}checked{% endif %}
-            data-follow-up="{{ item.is_follow_up }}"
-            data-follow-up-type="{{ item.follow_up_type }}"
-            data-follow-up-config="{{ item.follow_up_config | e }}">
-     <span class="preview-li-item-label">{{ item.label }}</span>
- </label>
+  <label class="preview-li-item">
+      <input type="checkbox" class="preview-checkbox-input"
+             name="{{ field.name }}" value="{{ item.value }}"
+             {% if item.checked %}checked{% endif %}
+             data-follow-up="{{ item.is_follow_up }}"
+             data-follow-up-type="{{ item.follow_up_type }}"
+             data-follow-up-config="{{ item.follow_up_config | e }}"
+             {% if item.pricing_visibility == 'user_edit' %}data-price-for="{{ item.value }}"{% endif %}>
+      <span class="preview-li-item-label">{{ item.label }}</span>
+  </label>
+  {% if item.pricing_visibility == 'user_edit' %}
+  <div class="preview-li-price-row" style="margin-top:0.2rem; margin-left:1.5rem; display:none; align-items:center; gap:.4rem; flex-wrap:wrap;"
+       data-line-code="{{ item.value }}"
+       data-item-id="{{ item.id }}"
+       data-default-price="{{ item.unit_cost }}">
+      <span style="font-size:.8rem; color:#666;">Price (£):</span>
+      <input type="number" class="form-input preview-li-price-input"
+             name="{{ field.name }}_price_{{ item.value }}"
+             value="{{ item.unit_cost }}"
+             step="0.01" min="0"
+             data-price-confirmed="0"
+             style="width:120px; padding:.2rem .4rem; font-size:.85rem;">
+      <button type="button" class="preview-li-price-confirm"
+              style="padding:.2rem .5rem; font-size:.75rem; border:1px solid #1b3a6b; background:#1b3a6b; color:#fff; border-radius:3px; cursor:pointer;">
+          Confirm
+      </button>
+      <span class="preview-li-price-status" style="font-size:.75rem; color:#28a745; display:none;">✓ Confirmed</span>
+  </div>
+  {% endif %}
   {% if item.is_follow_up %}
   {% set _saved = saved_form_data | default({}) %}
   <div class="preview-follow-up" data-follow-up-for="{{ item.value }}" style="display:none; margin-left:2rem; margin-bottom:0.5rem;">
@@ -851,6 +871,7 @@ details[open] > .preview-li-category-header::before {
             });
         });
         // ── Calculator / Payment Schedule block rendering ──────────────
+        var renderCalculatorBlocks = function() {};
         renderCalculatorBlocks();
         // ── Cost Group Section rendering (form mode) ─────────────────────
         document.querySelectorAll('.preview-cg-details').forEach(function(details) {
@@ -906,5 +927,55 @@ details[open] > .preview-li-category-header::before {
             });
         });
     });
+
+// Expose init function for dynamic content
+window.initLineItemPriceOverrides = function() {
+    var found = document.querySelectorAll('.preview-li-item input[type="checkbox"][data-price-for]').length;
+    console.log('initLineItemPriceOverrides: found', found, 'checkboxes with data-price-for');
+    document.querySelectorAll('.preview-li-item input[type="checkbox"][data-price-for]').forEach(function(cb) {
+        var lineCode = cb.getAttribute('data-price-for');
+        if (!lineCode) return;
+        var priceRow = document.querySelector('.preview-li-price-row[data-line-code="' + lineCode + '"]');
+        if (!priceRow) return;
+        priceRow.style.display = cb.checked ? 'flex' : 'none';
+        var priceInput = priceRow.querySelector('.preview-li-price-input');
+        var confirmBtn = priceRow.querySelector('.preview-li-price-confirm');
+        var statusEl = priceRow.querySelector('.preview-li-price-status');
+        var defaultPrice = parseFloat(priceRow.getAttribute('data-default-price')) || 0;
+
+        cb.addEventListener('change', function() {
+            priceRow.style.display = cb.checked ? 'flex' : 'none';
+            if (!cb.checked) {
+                priceInput.value = defaultPrice;
+                priceInput.setAttribute('data-price-confirmed', '0');
+                confirmBtn.textContent = 'Confirm';
+                confirmBtn.style.display = 'inline-block';
+                statusEl.style.display = 'none';
+            }
+        });
+
+        confirmBtn.addEventListener('click', function() {
+            var val = parseFloat(priceInput.value);
+            if (isNaN(val) || val < 0) {
+                alert('Please enter a valid price');
+                return;
+            }
+            priceInput.setAttribute('data-price-confirmed', '1');
+            confirmBtn.style.display = 'none';
+            statusEl.style.display = 'inline';
+        });
+
+        priceInput.addEventListener('input', function() {
+            if (priceInput.getAttribute('data-price-confirmed') === '1') {
+                priceInput.setAttribute('data-price-confirmed', '0');
+                confirmBtn.style.display = 'inline-block';
+                statusEl.style.display = 'none';
+            }
+        });
+    });
+};
+
+window.initLineItemPriceOverrides();
+
 })();
 </script>
