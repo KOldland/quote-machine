@@ -2459,10 +2459,53 @@ def builder_page_total_calc():
                 group_total += round(unit_cost * units, 2)
             totals[gid] = group_total
         
+        # Step 3: apply any session overrides for these groups
+        try:
+            cg_ovr = (session.get('session_overrides', {}) or {}).get('cg_overrides', {}) or {}
+            for gid in groups:
+                if gid in cg_ovr:
+                    totals[gid] = float(cg_ovr[gid])
+        except Exception:
+            pass
+        
         selected_total = round(sum(totals.get(g, 0) for g in groups), 2)
         return jsonify({'success': True, 'total': selected_total, 'groups': groups, 'subtotals': dict(totals)})
     finally:
         conn.close()
+
+
+@app.route('/builder_beta/cg_override_save', methods=['POST'])
+@csrf.exempt
+def builder_cg_override_save():
+    """Save a cost group override to the session."""
+    data = request.get_json(force=True) or {}
+    cg_id = data.get('cg_id', '')
+    value = data.get('value')
+    if not cg_id or value is None:
+        return jsonify({'ok': False, 'error': 'cg_id and value required'}), 400
+    try:
+        val = float(value)
+    except (TypeError, ValueError):
+        return jsonify({'ok': False, 'error': 'Invalid value'}), 400
+    session_overrides = session.setdefault('session_overrides', {})
+    cg_overrides = session_overrides.setdefault('cg_overrides', {})
+    cg_overrides[cg_id] = val
+    session.modified = True
+    return jsonify({'ok': True})
+
+@app.route('/builder_beta/cg_override_revert', methods=['POST'])
+@csrf.exempt
+def builder_cg_override_revert():
+    """Remove a cost group override from the session."""
+    data = request.get_json(force=True) or {}
+    cg_id = data.get('cg_id', '')
+    if not cg_id:
+        return jsonify({'ok': False, 'error': 'cg_id required'}), 400
+    session_overrides = session.setdefault('session_overrides', {})
+    cg_overrides = session_overrides.setdefault('cg_overrides', {})
+    cg_overrides.pop(cg_id, None)
+    session.modified = True
+    return jsonify({'ok': True})
 
 
 @app.route('/builder_beta/page_total_save/<page_key>', methods=['POST'])
@@ -4284,11 +4327,13 @@ def template_preview(template_key):
 def _get_runtime_quote_context():
     """Return the runtime quote context variables needed by the template."""
     data = session.get("data", {})
+    cg_overrides = (session.get('session_overrides', {}) or {}).get('cg_overrides', {}) or {}
     return {
         "client_address": data.get("client_address", ""),
         "proposal_date": data.get("Date", ""),
         "quote_ref": data.get("quote_ref", ""),
         "client_name": data.get("client_name", ""),
+        "_session_cg_overrides_json": json.dumps(cg_overrides),
     }
 
 @app.route('/login', methods=['GET', 'POST'])
