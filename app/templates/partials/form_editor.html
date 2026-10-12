@@ -27,32 +27,53 @@ window.builderStateQuestionTypes = {{ builder_state.question_types | default({})
 window.builderStateCostGroups = {{ builder_state.cost_groups | default({}) | tojson | safe }};
 </script>
 <script>
-// Module sidebar injection — reads module blocks from window.blocks
+// Unified sidebar injection — reads all relevant block types from window.blocks
 (function() {
     var blocks = window.blocks || [];
     var list = document.getElementById('li-sections-list');
     if (!list) return;
-    var existing = document.querySelectorAll('.li-section-btn[data-module]');
-    if (existing.length > 0) return;
-    var badges = {payment_schedule: 'PS', page_total: 'Σ', image_upload: 'IMG'};
-    var labels  = {payment_schedule: 'Payment Schedule', page_total: 'Page Total', image_upload: 'Image Upload'};
+    // Skip if already rendered
+    var existing = document.querySelectorAll('.li-section-btn[data-module], .li-section-btn[data-category]');
+    if (existing.length > 1) return;
     var pageId = window.pageId || '';
+    var badges = {
+        payment_schedule: 'PS',
+        page_total: 'Σ',
+        image_upload: 'IMG',
+        cost_group_section: 'CG'
+    };
+    var labels = {
+        payment_schedule: 'Payment Schedule',
+        page_total: 'Page Total',
+        image_upload: 'Image Upload'
+    };
     for (var i = 0; i < blocks.length; i++) {
-        var bt = blocks[i].block_type;
-        if (bt !== 'page_total' && bt !== 'payment_schedule' && bt !== 'image_upload') continue;
+        var b = blocks[i];
+        var bt = b.block_type;
+        if (bt !== 'page_total' && bt !== 'payment_schedule' && bt !== 'image_upload' && bt !== 'cost_group_section') continue;
         var badge = badges[bt] || 'M';
-        var label = (blocks[i].standard || {}).label || labels[bt] || bt;
-        var html = '<div class=li-section-item style="display:flex;align-items:center;border-bottom:1px solid #f3f3f3;">'
-            + '<button type=button class=li-section-btn data-module=' + bt + ' style=flex:1;>'
-            + '<span style=background:#495057;color:#fff;font-size:.6rem;font-weight:700;padding:.12rem .35rem;border-radius:3px;margin-right:.3rem;>' + badge + '</span>'
+        var label = (b.standard || {}).label || labels[bt] || bt;
+        var isCG = (bt === 'cost_group_section');
+        // Build the HTML
+        var html = '<div class=li-section-item style="display:flex;align-items:center;border-bottom:1px solid #f3f3f3;">';
+        if (isCG) {
+            html += '<button type=button class=li-section-btn data-category=' + encodeURIComponent(label) + ' data-is-cost-group=1 data-id=' + encodeURIComponent(label) + ' data-page=' + pageId + ' style=flex:1;>';
+        } else {
+            html += '<button type=button class=li-section-btn data-module=' + bt + ' style=flex:1;>';
+        }
+        html += '<span style=background:#495057;color:#fff;font-size:.6rem;font-weight:700;padding:.12rem .35rem;border-radius:3px;margin-right:.3rem;>' + badge + '</span>'
             + label
-            + '</button>'
-            + '<div class=li-reorder-controls style=display:flex;flex-direction:column;margin-right:4px;>'
+            + '</button>';
+        // Reorder controls — for all block types
+        html += '<div class=li-reorder-controls style=display:flex;flex-direction:column;margin-right:4px;>'
             + '<button type=button class=li-move-btn data-scope=module_block data-id=' + bt + ' data-page=' + pageId + ' data-dir=up style=border:none;background:none;font-size:10px;cursor:pointer;padding:0 4px;color:#888;line-height:1;>▲</button>'
             + '<button type=button class=li-move-btn data-scope=module_block data-id=' + bt + ' data-page=' + pageId + ' data-dir=down style=border:none;background:none;font-size:10px;cursor:pointer;padding:0 4px;color:#888;line-height:1;>▼</button>'
-            + '</div>'
-            + '<button type=button class=li-del-module-btn data-scope=module data-id=' + bt + ' data-page=' + pageId + ' style=border:none;background:none;color:#b00;font-size:1.1rem;cursor:pointer;padding:0 6px;line-height:1; title="Remove module">×</button>'
             + '</div>';
+        if (!isCG) {
+            // Delete button only for non-cost-group blocks
+            html += '<button type=button class=li-del-module-btn data-scope=module data-id=' + bt + ' data-page=' + pageId + ' style=border:none;background:none;color:#b00;font-size:1.1rem;cursor:pointer;padding:0 6px;line-height:1; title="Remove module">×</button>';
+        }
+        html += '</div>';
         var temp = document.createElement('div');
         temp.innerHTML = html;
         list.appendChild(temp.firstChild);

@@ -344,10 +344,11 @@ def _get_li_categories_from_schema(page_id: str):
                 result.append({'name': name, 'is_cost_group': 0, 'output_group': 'General', 'display_order': 0})
         result.sort(key=lambda x: x.get('display_order', 0))
         # Strip any stale rows whose name matches a known module type
-        # (these are leftovers from an earlier bug that created categories
-        #  instead of blocks — they have no business in the sidebar)
         _MODULE_TYPE_NAMES = {'page_total', 'payment_schedule', 'image_upload'}
         result = [r for r in result if r.get('name') not in _MODULE_TYPE_NAMES]
+        # Also remove cost group sections — they are now blocks in
+        # page_schemas.json and rendered via the module injection JS.
+        result = [r for r in result if not r.get('is_cost_group')]
         return result
     except Exception:
         pass
@@ -1220,7 +1221,6 @@ def compile_builder_beta_page_to_runtime_schema(page_id):
         return None
 
     compiled_fields = []
-    module_fields = []   # held back until after cost-group sections
 
     for block in page.get('blocks', []):
         block_type = block.get('block_type', 'checkbox_group')
@@ -1262,14 +1262,21 @@ def compile_builder_beta_page_to_runtime_schema(page_id):
                 'type': 'line_items_by_category',
                 'config': deepcopy(block.get('config', {})),
             })
-        elif block_type in ('page_total', 'payment_schedule', 'image_upload'):
-            # Module blocks — hold back until after cost-group sections
-            module_fields.append({
+        elif block_type in ('page_total', 'payment_schedule', 'image_upload', 'cost_group_section'):
+            # Module blocks and cost-group section blocks — include at
+            # their natural position in the blocks list
+            field_entry = {
                 **common_payload,
                 'type': block_type,
                 'label': field_label,
                 'config': deepcopy(block.get('config', {})),
-            })
+            }
+            # For cost_group_section, inject metadata the template expects
+            if block_type == 'cost_group_section':
+                _cfg = block.get('config', {})
+                field_entry.setdefault('builder_beta_meta', {})['cost_group_id'] = _cfg.get('cost_group_id', '')
+                field_entry.setdefault('builder_beta_meta', {})['override_allowed'] = bool(_cfg.get('override_allowed', False))
+            compiled_fields.append(field_entry)
         else:
             # Renders by block_type in the form templates, so pass the real
             # label through. A "[beta:<type>]" marker was used here to flag
@@ -1315,56 +1322,6 @@ def compile_builder_beta_page_to_runtime_schema(page_id):
                 'config': {'page_key': page_id},
             })
 
-
-    # Add cost group sections (from category_templates with is_cost_group=1)
-    try:
-        from template_store import _default_db_path, _connect
-        import sqlite3
-        _db2 = _default_db_path()
-        _conn2 = _connect(_db2)
-        try:
-            _ver_row = _conn2.execute(
-                "SELECT ftv.id FROM form_template_versions ftv JOIN form_templates ft ON ft.id = ftv.form_template_id WHERE ft.key = ? ORDER BY ftv.version DESC LIMIT 1",
-                (TEMPLATE_STORE_KEY,)
-            ).fetchone()
-            _ver = int(_ver_row[0]) if _ver_row else None
-        except Exception:
-            _ver = None
-        if _ver:
-            _cg_rows = _conn2.execute(
-                """SELECT name, output_group, cost_group_override_allowed
-                   FROM category_templates ct
-                   JOIN page_templates pt ON pt.id = ct.page_template_id
-                   WHERE pt.page_key = ? AND pt.form_template_version_id = ? AND ct.is_cost_group = 1
-                   ORDER BY ct.display_order ASC""",
-                (page_id, _ver)
-            ).fetchall()
-            for _row in _cg_rows:
-                _cg_id = (_row['name'] or '').replace(' ', '_')
-                _field_id = page_id + '_cg_' + _cg_id
-                # Check if already added
-                _already = any(f.get('id') == _field_id for f in compiled_fields)
-                if not _already:
-                    compiled_fields.append({
-                        'id': _field_id,
-                        'name': page_id + '_cost_group_' + _cg_id,
-                        'label': _row['name'] or 'Cost Group',
-                        'note': '',
-                        'hidden': False,
-                        'type': 'cost_group_section',
-                        'builder_beta_meta': {
-                            'block_type': 'cost_group_section',
-                            'cost_group_id': _row['output_group'] or '',
-                            'override_allowed': bool(_row['cost_group_override_allowed']),
-                        },
-                        'config': {'page_key': page_id},
-                    })
-        _conn2.close()
-    except Exception:
-        pass
-
-    # Append module blocks (page_total, payment_schedule, etc.) after cost groups
-    compiled_fields.extend(module_fields)
 
     return {
         'id': page_id,
@@ -3879,7 +3836,8 @@ def builder_swap_order():
             conn.commit()
             return jsonify({'success': True})
         elif scope == 'module_block':
-            # Reorder a module block within the page's blocks list
+            # Reorder a module block relative to its neighbours in the
+            # blocks list (which may be other blocks or modules).
             if not page_key:
                 return jsonify({'error': 'page_key is required for module_block scope'}), 400
             if not identifier:

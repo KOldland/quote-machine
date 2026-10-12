@@ -1070,10 +1070,183 @@
       "pricing_categories": {
         "blocks": [
           {
+            "block_type": "line_items_by_category",
+            "config": {},
+            "id": "pricing_categories__line_items"
+          },
+          {
+            "id": "pricing_categories__cg_building_works_1791806676122",
+            "block_type": "cost_group_section",
+            "standard": {
+              "label": "Building Works",
+              "name": "pricing_categories__cg_building_works_1791806676122",
+              "required": false,
+              "help_text": "",
+              "source_prefix": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "selection_limit": null,
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "config": {
+              "cost_group_id": "building_works",
+              "override_allowed": false
+            },
+            "display_order": 0
+          },
+          {
+            "id": "pricing_categories__cg_pre-project_package_1791806676122",
+            "block_type": "cost_group_section",
+            "standard": {
+              "label": "Pre-Project Package",
+              "name": "pricing_categories__cg_pre-project_package_1791806676122",
+              "required": false,
+              "help_text": "",
+              "source_prefix": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "selection_limit": null,
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "config": {
+              "cost_group_id": "pre_project_package",
+              "override_allowed": false
+            },
+            "display_order": 1
+          },
+          {
+            "id": "pricing_categories__cg_electrics_1791806676122",
+            "block_type": "cost_group_section",
+            "standard": {
+              "label": "Electrics",
+              "name": "pricing_categories__cg_electrics_1791806676122",
+              "required": false,
+              "help_text": "",
+              "source_prefix": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "selection_limit": null,
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "config": {
+              "cost_group_id": "electrics",
+              "override_allowed": false
+            },
+            "display_order": 2
+          },
+          {
+            "id": "pricing_categories__cg_plumbing_1791806676122",
+            "block_type": "cost_group_section",
+            "standard": {
+              "label": "Plumbing",
+              "name": "pricing_categories__cg_plumbing_1791806676122",
+              "required": false,
+              "help_text": "",
+              "source_prefix": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "selection_limit": null,
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "config": {
+              "cost_group_id": "plumbing",
+              "override_allowed": false
+            },
+            "display_order": 3
+          },
+          {
+            "id": "pricing_categories__cg_skylights_1791806676122",
+            "block_type": "cost_group_section",
+            "standard": {
+              "label": "Skylights",
+              "name": "pricing_categories__cg_skylights_1791806676122",
+              "required": false,
+              "help_text": "",
+              "source_prefix": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "selection_limit": null,
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "config": {
+              "cost_group_id": "skylights",
+              "override_allowed": false
+            },
+            "display_order": 4
+          },
+          {
+            "id": "pricing_categories__cg_velux_windows_1791806676122",
+            "block_type": "cost_group_section",
+            "standard": {
+              "label": "Velux Windows",
+              "name": "pricing_categories__cg_velux_windows_1791806676122",
+              "required": false,
+              "help_text": "",
+              "source_prefix": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "selection_limit": null,
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "config": {
+              "cost_group_id": "velux_windows",
+              "override_allowed": false
+            },
+            "display_order": 5
+          },
+          {
+            "id": "pricing_categories__cg_glass_valley_1791806676122",
+            "block_type": "cost_group_section",
+            "standard": {
+              "label": "Glass Valley",
+              "name": "pricing_categories__cg_glass_valley_1791806676122",
+              "required": false,
+              "help_text": "",
+              "source_prefix": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "selection_limit": null,
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "config": {
+              "cost_group_id": "glass_valley",
+              "override_allowed": false
+            },
+            "display_order": 7
+          },
+          {
+            "id": "pricing_categories__cg_aluminium_capping_1791806676122",
+            "block_type": "cost_group_section",
+            "standard": {
+              "label": "Aluminium Capping",
+              "name": "pricing_categories__cg_aluminium_capping_1791806676122",
+              "required": false,
+              "help_text": "",
+              "source_prefix": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "selection_limit": null,
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "config": {
+              "cost_group_id": "aluminium_capping",
+              "override_allowed": false
+            },
+            "display_order": 8
+          },
+          {
             "id": "pricing_categories__page_total_1791804048415",
             "block_type": "page_total",
             "standard": {
-              "label": "Test Total 5",
+              "label": "Pricing Summary",
               "name": "pricing_categories__page_total_1791804048415",
               "required": false,
               "help_text": "",
@@ -1120,11 +1293,6 @@
               "form_visible": true,
               "quote_visible": true
             }
-          },
-          {
-            "block_type": "line_items_by_category",
-            "config": {},
-            "id": "pricing_categories__line_items"
           }
         ],
         "categories": [
