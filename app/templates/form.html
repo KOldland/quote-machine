@@ -183,6 +183,7 @@
 {% block content %}
 <div class="form-builder-container" data-page-key="{{ current_page_id }}">
     <script>window._sessionCgOverrides = {{ _session_cg_overrides_json | default('{}') | safe }};</script>
+    <script>window._sessionLiOverrides = {{ _session_li_overrides_json | default('{}') | safe }};</script>
     {% if edit_mode %}
         {% include "partials/form_editor.html" %}
     {% else %}

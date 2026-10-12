@@ -2508,6 +2508,26 @@ def builder_cg_override_revert():
     return jsonify({'ok': True})
 
 
+@app.route('/builder_beta/li_override_save', methods=['POST'])
+@csrf.exempt
+def builder_li_override_save():
+    """Save a line item override to the session."""
+    data = request.get_json(force=True) or {}
+    item_id = data.get('item_id', '')
+    value = data.get('value')
+    if not item_id or value is None:
+        return jsonify({'ok': False, 'error': 'item_id and value required'}), 400
+    try:
+        val = float(value)
+    except (TypeError, ValueError):
+        return jsonify({'ok': False, 'error': 'Invalid value'}), 400
+    session_overrides = session.setdefault('session_overrides', {})
+    overrides = session_overrides.setdefault('overrides', {})
+    overrides[item_id] = val
+    session.modified = True
+    return jsonify({'ok': True})
+
+
 @app.route('/builder_beta/page_total_save/<page_key>', methods=['POST'])
 @require_role('admin')
 def builder_page_total_save(page_key):
@@ -4327,13 +4347,16 @@ def template_preview(template_key):
 def _get_runtime_quote_context():
     """Return the runtime quote context variables needed by the template."""
     data = session.get("data", {})
-    cg_overrides = (session.get('session_overrides', {}) or {}).get('cg_overrides', {}) or {}
+    session_overrides = session.get('session_overrides', {}) or {}
+    cg_overrides = session_overrides.get('cg_overrides', {}) or {}
+    li_overrides = session_overrides.get('overrides', {}) or {}
     return {
         "client_address": data.get("client_address", ""),
         "proposal_date": data.get("Date", ""),
         "quote_ref": data.get("quote_ref", ""),
         "client_name": data.get("client_name", ""),
         "_session_cg_overrides_json": json.dumps(cg_overrides),
+        "_session_li_overrides_json": json.dumps(li_overrides),
     }
 
 @app.route('/login', methods=['GET', 'POST'])
