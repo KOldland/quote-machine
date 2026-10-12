@@ -61,7 +61,7 @@ window.builderStateCostGroups = {{ builder_state.cost_groups | default({}) | toj
         } else {
             html += '<button type=button class=li-section-btn data-module=' + bt + ' style=flex:1;>';
         }
-        html += '<span style=background:#495057;color:#fff;font-size:.6rem;font-weight:700;padding:.12rem .35rem;border-radius:3px;margin-right:.3rem;>' + badge + '</span>'
+        html += '<span style="display:inline-block;min-width:1.8rem;text-align:center;background:#495057;color:#fff;font-size:.6rem;font-weight:700;padding:.12rem .2rem;border-radius:3px;margin-right:.5rem;">' + badge + '</span>'
             + label
             + '</button>';
         // Reorder controls — for all block types
@@ -69,10 +69,7 @@ window.builderStateCostGroups = {{ builder_state.cost_groups | default({}) | toj
             + '<button type=button class=li-move-btn data-scope=module_block data-id=' + bt + ' data-page=' + pageId + ' data-dir=up style=border:none;background:none;font-size:10px;cursor:pointer;padding:0 4px;color:#888;line-height:1;>▲</button>'
             + '<button type=button class=li-move-btn data-scope=module_block data-id=' + bt + ' data-page=' + pageId + ' data-dir=down style=border:none;background:none;font-size:10px;cursor:pointer;padding:0 4px;color:#888;line-height:1;>▼</button>'
             + '</div>';
-        if (!isCG) {
-            // Delete button only for non-cost-group blocks
-            html += '<button type=button class=li-del-module-btn data-scope=module data-id=' + bt + ' data-page=' + pageId + ' style=border:none;background:none;color:#b00;font-size:1.1rem;cursor:pointer;padding:0 6px;line-height:1; title="Remove module">×</button>';
-        }
+
         html += '</div>';
         var temp = document.createElement('div');
         temp.innerHTML = html;

@@ -287,7 +287,8 @@
                         data-page="{{ form_page_key }}"
                         data-is-cost-group="{{ cat.is_cost_group if cat is mapping and cat.is_cost_group else 0 }}"
                         style="flex:1;">
-                    {% if cat is mapping and cat.is_cost_group %}<span style="background:#2d5a3b;color:#fff;font-size:.6rem;font-weight:700;padding:.12rem .35rem;border-radius:3px;margin-right:.3rem;">CG</span>{% endif %}
+                    {% if cat is mapping and cat.is_cost_group %}<span style="background:#2d5a3b;color:#fff;font-size:.6rem;font-weight:700;display:inline-block;min-width:1.8rem;text-align:center;padding:.12rem .2rem;border-radius:3px;margin-right:.5rem;">CG</span>{% endif %}
+                    {% if cat is mapping and not cat.is_cost_group %}<span style="background:#6c757d;color:#fff;font-size:.6rem;font-weight:700;display:inline-block;min-width:1.8rem;text-align:center;padding:.12rem .2rem;border-radius:3px;margin-right:.5rem;">C</span>{% endif %}
                     {{ cat_name }}
                 </button>
                 <div class="li-reorder-controls" style="display:flex;flex-direction:column;margin-right:4px;">
@@ -1806,7 +1807,9 @@ function showViewPageTotal() {
         html += '<label style="display:flex;align-items:center;gap:.4rem;font-size:.85rem;padding:.15rem 0;"><input type="checkbox" id="pt-quote-vis"' + (qv ? ' checked' : '') + '> Visible in Quote</label>';
         html += '</div>';
         html += '<div style="display:flex;gap:.5rem;justify-content:flex-end;padding:.75rem 0;border-top:1px solid #dee2e6;margin-top:.75rem;">';
-        html += '<button type="submit" class="li-save-btn" style="padding:0.45rem 1rem;width:auto;margin-top:0;" title="Save Page Total"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button></div></form>';
+        html += '<button type="submit" class="li-save-btn" style="padding:0.45rem 1rem;width:auto;margin-top:0;" title="Save Page Total"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>';
+        html += '<button type="button" id="btn-pt-delete" class="li-delete-btn" style="padding:0.45rem; background:#6d0b0b; color:#fff; border:none; border-radius:5px; font-weight:700; cursor:pointer;" title="Delete Page Total"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>';
+        html += '</div></form>';
         $id('li-category-editor').innerHTML = html;
         var form = $id('pt-edit-form');
         if (!form) return;
@@ -1827,6 +1830,22 @@ function showViewPageTotal() {
                 else { alert('Error: '+(d.error||'Unknown')); }
             }).catch(function(){ alert('Network error.'); });
         });
+        // Delete button handler
+        var btnDelPt = $id('btn-pt-delete');
+        if (btnDelPt) {
+            btnDelPt.addEventListener('click', function(e) {
+                if (!confirm('Delete this Page Total module?')) return;
+                var csrf = (document.querySelector('[name=csrf_token]')||{}).value||'';
+                fetch('/builder_beta/module_block_delete/' + _pageKey, {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json','X-CSRFToken':csrf},
+                    body: JSON.stringify({module_type: 'page_total'})
+                }).then(function(r){return r.json();}).then(function(d){
+                    if(d.ok) { window.location.reload(); }
+                    else { alert('Error: '+(d.error||'Unknown')); }
+                }).catch(function(){ alert('Network error.'); });
+            });
+        }
     }
 
 function showViewImageUpload() {

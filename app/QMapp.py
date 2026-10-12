@@ -2455,7 +2455,7 @@ def builder_page_total_calc():
             group_total = 0
             for r in rows:
                 unit_cost = float(r['unit_cost'] or 0)
-                units = float(r['units'] or 1)
+                units = float(r['units'] or 0)
                 group_total += round(unit_cost * units, 2)
             totals[gid] = group_total
         
