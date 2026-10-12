@@ -1,3 +1,9 @@
+<script>
+{% if builder_state is defined %}
+window.builderStateCostGroups = {{ builder_state.cost_groups | default({}) | tojson | safe }};
+window.builderStateQuestionTypes = {{ builder_state.question_types | default({}) | tojson | safe }};
+{% endif %}
+</script>
 <div class="preview-container">
     <div class="preview-header">
         <h3 class="preview-title">{{ title | default('Form Preview') }}</h3>
@@ -901,7 +907,7 @@ details[open] > .preview-li-category-header::before {
                 }
                 html += '</div>' +
                     '<details style="margin-top:.3rem;border:1px solid #dee2e6;border-radius:4px;padding:.3rem;">' +
-                    '<summary style="cursor:pointer;font-size:.82rem;color:#1b3a6b;font-weight:600;padding:.25rem .5rem;">Details (\u00a9' + items.length + ' items)</summary>' +
+                    '<summary style="cursor:pointer;font-size:.82rem;color:#1b3a6b;font-weight:600;padding:.25rem .5rem;">Details (' + items.length + ' items)</summary>' +
                     '<table style="width:100%;border-collapse:collapse;font-size:.78rem;">' +
                     '<thead><tr style="background:#f0f4ff;">' +
                     '<th style="padding:.2rem .4rem;text-align:left;">Item</th>' +
@@ -912,7 +918,7 @@ details[open] > .preview-li-category-header::before {
                 items.forEach(function(it) {
                     var lineTotal = (parseFloat(it.unit_cost || 0) || 0) * (parseInt(it.units || 1) || 1);
                     html += '<tr>' +
-                        '<td style="padding:.2rem .4rem;">' + (it.internal_description || it.line_code || 'Item') + '</td>' +
+                        '<td style="padding:.2rem .4rem;">' + (it.output_title || it.internal_description || it.line_code || 'Item') + '</td>' +
                         '<td style="padding:.2rem .4rem;text-align:right;">\u00a3' + (parseFloat(it.unit_cost || 0) || 0).toFixed(2) + '</td>' +
                         '<td style="padding:.2rem .4rem;text-align:center;">' + (parseInt(it.units || 1) || 1) + '</td>' +
                         '<td style="padding:.2rem .4rem;text-align:right;font-weight:600;">\u00a3' + lineTotal.toFixed(2) + '</td>' +

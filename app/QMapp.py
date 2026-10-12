@@ -3421,7 +3421,7 @@ def builder_calculator_preview():
             # Build placeholders for category names
             cat_placeholders = ','.join(['?' for _ in cat_names])
             rows = conn.execute(
-                f"""SELECT li.line_code, li.internal_description, li.unit_cost,
+                f"""SELECT li.line_code, li.internal_description, li.output_title, li.unit_cost,
                           li.units, li.sort_order, li.category,
                           li.output_group, li.pricing_mode, li.pricing_visibility,
                           li.form_page
