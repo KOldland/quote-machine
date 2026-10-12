@@ -20,70 +20,42 @@
 
 {# ── Inject builder state for the JS editor ── #}
 <script>
-window.blocks = {{ (page_config | default({})).get('blocks', []) | tojson | safe }};
+window.blocks = {{ (current_page.blocks if current_page else []) | tojson | safe }};
 window.pageId = {{ current_page_id | default('') | tojson | safe }};
 window.selectedBlockId = {{ selected_block_id | default('null') | tojson | safe }};
 window.builderStateQuestionTypes = {{ builder_state.question_types | default({}) | tojson | safe }};
 window.builderStateCostGroups = {{ builder_state.cost_groups | default({}) | tojson | safe }};
 </script>
 <script>
-// Legacy module injection — modules are now stored in category_templates
-// and rendered by the Jinja2 template. This script only catches any stray
-// legacy metadata_json.modules that have not yet been migrated.
+// Module sidebar injection — reads module blocks from window.blocks
 (function() {
-    var pageId = window.pageId;
-    if (!pageId) return;
-    fetch('/builder_beta/page_details_json/' + encodeURIComponent(pageId))
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-        var modules = data.modules || [];
-        if (!modules.length) return;
-        // Already rendered by template? (has data-module-type)
-        var existing = document.querySelectorAll('.li-section-btn[data-module-type]');
-        if (existing.length > 0) return;
-        var list = document.getElementById('li-sections-list');
-        if (!list) return;
-        var labelMap = {payment_schedule: 'Payment Schedule', page_total: 'Page Total', image_upload: 'Image'};
-        var badgeMap = {payment_schedule: 'PS', page_total: '&Sigma;', image_upload: 'IMG'};
-        for (var i = 0; i < modules.length; i++) {
-            var m = modules[i];
-            var badge = badgeMap[m] || 'M';
-            var label = labelMap[m] || m.replace('_', ' ').replace(/\w/g, function(l){return l.toUpperCase();});
-            var div = document.createElement('div');
-            div.className = 'li-section-item';
-            div.style.cssText = 'display:flex;align-items:center;border-bottom:1px solid #f3f3f3;';
-            div.innerHTML = '<button type="button" class="li-section-btn" data-module="' + m + '" style="flex:1;">'
-                + '<span style="background:#495057;color:#fff;font-size:.6rem;font-weight:700;padding:.12rem .35rem;border-radius:3px;margin-right:.3rem;">' + badge + '</span>' + label
-                + '</button>'
-                + '<div class="li-reorder-controls" style="display:flex;flex-direction:column;margin-right:4px;">'
-                + '<button type="button" class="li-move-btn" data-scope="category" data-id="' + m + '" data-page="' + pageId + '" data-dir="up" style="border:none;background:none;font-size:10px;cursor:pointer;padding:0 4px;color:#888;line-height:1;">&#9650;</button>'
-                + '<button type="button" class="li-move-btn" data-scope="category" data-id="' + m + '" data-page="' + pageId + '" data-dir="down" style="border:none;background:none;font-size:10px;cursor:pointer;padding:0 4px;color:#888;line-height:1;">&#9660;</button>'
-                + '</div>'
-                + '<button type="button" class="li-del-module-btn" data-scope="module" data-id="' + m + '" data-page="' + pageId + '" style="border:none;background:none;color:#b00;font-size:1.1rem;cursor:pointer;padding:0 6px;line-height:1;" title="Remove module">&times;</button>';
-            list.appendChild(div);
-        }
-    })
-    .catch(function() {});
+    var blocks = window.blocks || [];
+    var list = document.getElementById('li-sections-list');
+    if (!list) return;
+    var existing = document.querySelectorAll('.li-section-btn[data-module]');
+    if (existing.length > 0) return;
+    var badges = {payment_schedule: 'PS', page_total: 'Σ', image_upload: 'IMG'};
+    var labels  = {payment_schedule: 'Payment Schedule', page_total: 'Page Total', image_upload: 'Image Upload'};
+    var pageId = window.pageId || '';
+    for (var i = 0; i < blocks.length; i++) {
+        var bt = blocks[i].block_type;
+        if (bt !== 'page_total' && bt !== 'payment_schedule' && bt !== 'image_upload') continue;
+        var badge = badges[bt] || 'M';
+        var label = (blocks[i].standard || {}).label || labels[bt] || bt;
+        var html = '<div class=li-section-item style="display:flex;align-items:center;border-bottom:1px solid #f3f3f3;">'
+            + '<button type=button class=li-section-btn data-module=' + bt + ' style=flex:1;>'
+            + '<span style=background:#495057;color:#fff;font-size:.6rem;font-weight:700;padding:.12rem .35rem;border-radius:3px;margin-right:.3rem;>' + badge + '</span>'
+            + label
+            + '</button>'
+            + '<div class=li-reorder-controls style=display:flex;flex-direction:column;margin-right:4px;>'
+            + '<button type=button class=li-move-btn data-scope=module_block data-id=' + bt + ' data-page=' + pageId + ' data-dir=up style=border:none;background:none;font-size:10px;cursor:pointer;padding:0 4px;color:#888;line-height:1;>▲</button>'
+            + '<button type=button class=li-move-btn data-scope=module_block data-id=' + bt + ' data-page=' + pageId + ' data-dir=down style=border:none;background:none;font-size:10px;cursor:pointer;padding:0 4px;color:#888;line-height:1;>▼</button>'
+            + '</div>'
+            + '<button type=button class=li-del-module-btn data-scope=module data-id=' + bt + ' data-page=' + pageId + ' style=border:none;background:none;color:#b00;font-size:1.1rem;cursor:pointer;padding:0 6px;line-height:1; title="Remove module">×</button>'
+            + '</div>';
+        var temp = document.createElement('div');
+        temp.innerHTML = html;
+        list.appendChild(temp.firstChild);
+    }
 })();
-// Handle module delete button clicks
-    document.addEventListener('click', function(e) {
-        var btn = e.target.closest('.li-del-module-btn');
-        if (!btn) return;
-        e.preventDefault();
-        e.stopPropagation();
-        var modType = btn.dataset.id;
-        var page = btn.dataset.page;
-        if (!modType || !page) return;
-        var label = {payment_schedule:'Payment Schedule', page_total:'Page Total', image_upload:'Image Upload'}[modType] || modType;
-        if (!confirm('Remove "' + label + '" from this page?')) return;
-        var csrf = (document.querySelector('[name=csrf_token]') || {}).value || '';
-        fetch('/builder_beta/module_block_delete/' + encodeURIComponent(page), {
-            method: 'POST',
-            headers: {'Content-Type':'application/json','X-CSRFToken':csrf},
-            body: JSON.stringify({mod_type: modType})
-        }).then(function(r){return r.json()}).then(function(d){
-            if (d.ok) { window.location.reload(); }
-            else { alert('Error: '+(d.error||'Unknown')); }
-        }).catch(function(){ alert('Network error deleting module.'); });
-    });
 </script>

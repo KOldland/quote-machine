@@ -286,11 +286,8 @@
                         data-id="{{ cat_id }}"
                         data-page="{{ form_page_key }}"
                         data-is-cost-group="{{ cat.is_cost_group if cat is mapping and cat.is_cost_group else 0 }}"
-                        data-is-module="{{ cat.is_module if cat is mapping and cat.is_module else 0 }}"
-                        data-module-type="{{ cat.module_type if cat is mapping and cat.module_type else '' }}"
                         style="flex:1;">
                     {% if cat is mapping and cat.is_cost_group %}<span style="background:#2d5a3b;color:#fff;font-size:.6rem;font-weight:700;padding:.12rem .35rem;border-radius:3px;margin-right:.3rem;">CG</span>{% endif %}
-                    {% if cat is mapping and cat.is_module %}<span style="background:#495057;color:#fff;font-size:.6rem;font-weight:700;padding:.12rem .35rem;border-radius:3px;margin-right:.3rem;">{{ {'payment_schedule':'PS','page_total':'&Sigma;','image_upload':'IMG'}.get(cat.module_type, 'M') | safe }}</span>{% endif %}
                     {{ cat_name }}
                 </button>
                 <div class="li-reorder-controls" style="display:flex;flex-direction:column;margin-right:4px;">
@@ -1142,8 +1139,8 @@ document.addEventListener('DOMContentLoaded', function() {
         document.querySelectorAll('.li-section-btn').forEach(function (b) { b.classList.remove('active'); });
         btn.classList.add('active');
         
-        // Check if this is a module button (from JS injection OR from unified category_templates)
-        var modType = btn.getAttribute('data-module') || btn.getAttribute('data-module-type');
+        // Check if this is a module button (data-module set by block-based injection JS)
+        var modType = btn.getAttribute('data-module');
         if (modType) {
             _activeCategory = null;
             _saveSelectionState();
@@ -1151,17 +1148,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (modType === 'page_total') { showViewPageTotal(); return; }
             if (modType === 'image_upload') { showViewImageUpload(); return; }
         }
-        
-        // Check if this is a module via is-module flag (from unified category_templates)
-        if (btn.getAttribute('data-is-module') === '1') {
-            _activeCategory = null;
-            _saveSelectionState();
-            var modType = btn.getAttribute('data-module-type') || '';
-            if (modType === 'payment_schedule') { showViewPaymentSchedule(); return; }
-            if (modType === 'page_total') { showViewPageTotal(); return; }
-            if (modType === 'image_upload') { showViewImageUpload(); return; }
-        }
-        
+
         _activeCategory = btn.dataset.category;
         _saveSelectionState();
         
@@ -1269,6 +1256,8 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.success) {
                 if (scope === 'category') {
                     _saveSelectionState();
+                    window.location.reload();
+                } else if (scope === 'module_block') {
                     window.location.reload();
                 } else if (scope === 'question') {
                     var url = '/builder_beta/line_items_json?page=' + encodeURIComponent(_pageKey) + '&category=' + encodeURIComponent(_activeCategory);
@@ -1780,11 +1769,20 @@ function showViewPageTotal() {
         }
         $id('li-view-one-count').textContent = '';
         if ($id('add-question-wrap')) $id('add-question-wrap').style.display = 'none';
-        // Load existing config and render form
-        fetch('/builder_beta/page_details_json/' + _pageKey)
-        .then(function(r) { return r.json(); })
-        .then(function(data) { _renderPageTotalForm(data); })
-        .catch(function() { _renderPageTotalForm({}); });
+        // Read config from the page_total block in window.blocks (module-based system)
+        var cfg = {label: 'Page Total', groups: [], form_visible: true, quote_visible: true};
+        var blocks = window.blocks || [];
+        for (var i = 0; i < blocks.length; i++) {
+            if (blocks[i].block_type === 'page_total') {
+                var bc = blocks[i].config || {};
+                cfg.label = (blocks[i].standard || {}).label || 'Page Total';
+                cfg.groups = bc.groups || [];
+                cfg.form_visible = bc.form_visible !== false;
+                cfg.quote_visible = bc.quote_visible !== false;
+                break;
+            }
+        }
+        _renderPageTotalForm({page_total: cfg});
     }
 
     function _renderPageTotalForm(existing) {

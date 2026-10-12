@@ -22,9 +22,9 @@
         "label": "General",
         "sort_order": 0
       },
-      "glass_valle": {
+      "glass_valley": {
         "description": "",
-        "label": "Glass Valle",
+        "label": "Glass Valley",
         "sort_order": 0
       },
       "plumbing": {
@@ -34,7 +34,7 @@
       },
       "pre_project_package": {
         "description": "",
-        "label": "Pre Project Package",
+        "label": "Pre-Project Package",
         "sort_order": 0
       },
       "skylights": {
@@ -1070,16 +1070,11 @@
       "pricing_categories": {
         "blocks": [
           {
-            "block_type": "line_items_by_category",
-            "config": {},
-            "id": "pricing_categories__line_items"
-          },
-          {
-            "id": "pricing_categories__page_total_1791792937116",
+            "id": "pricing_categories__page_total_1791804048415",
             "block_type": "page_total",
             "standard": {
-              "label": "test total4",
-              "name": "pricing_categories__page_total_1791792937116",
+              "label": "Test Total 5",
+              "name": "pricing_categories__page_total_1791804048415",
               "required": false,
               "help_text": "",
               "source_prefix": "",
@@ -1109,7 +1104,27 @@
               "group": "General",
               "sort_order": 1,
               "value_mode": "show_value"
+            },
+            "config": {
+              "groups": [
+                "aluminium_capping",
+                "building_works",
+                "electrics",
+                "general",
+                "glass_valley",
+                "plumbing",
+                "pre_project_package",
+                "skylights",
+                "velux_windows"
+              ],
+              "form_visible": true,
+              "quote_visible": true
             }
+          },
+          {
+            "block_type": "line_items_by_category",
+            "config": {},
+            "id": "pricing_categories__line_items"
           }
         ],
         "categories": [
@@ -1147,19 +1162,19 @@
             "description": "",
             "name": "Velux Windows",
             "output_group": "velux_windows",
-            "sort_order": 5
+            "sort_order": 6
           },
           {
             "description": "",
             "name": "Glass Valley",
             "output_group": "glass_valley",
-            "sort_order": 6
+            "sort_order": 7
           },
           {
             "description": "",
             "name": "Aluminium Capping",
             "output_group": "aluminium_capping",
-            "sort_order": 7
+            "sort_order": 8
           }
         ],
         "display_order": 10,

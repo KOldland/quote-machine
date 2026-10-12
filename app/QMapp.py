@@ -342,15 +342,12 @@ def _get_li_categories_from_schema(page_id: str):
                 result.append(cat_dict[name])
             else:
                 result.append({'name': name, 'is_cost_group': 0, 'output_group': 'General', 'display_order': 0})
-        # Also include module entries from category_templates (is_module=1)
-        for r in rows:
-            d = dict(r)
-            if d.get('is_module'):
-                # Check it's not already added (unlikely but safe)
-                if not any(item.get('name') == d['name'] for item in result):
-                    result.append(d)
-        # Re-sort by display_order
         result.sort(key=lambda x: x.get('display_order', 0))
+        # Strip any stale rows whose name matches a known module type
+        # (these are leftovers from an earlier bug that created categories
+        #  instead of blocks — they have no business in the sidebar)
+        _MODULE_TYPE_NAMES = {'page_total', 'payment_schedule', 'image_upload'}
+        result = [r for r in result if r.get('name') not in _MODULE_TYPE_NAMES]
         return result
     except Exception:
         pass
@@ -1223,6 +1220,8 @@ def compile_builder_beta_page_to_runtime_schema(page_id):
         return None
 
     compiled_fields = []
+    module_fields = []   # held back until after cost-group sections
+
     for block in page.get('blocks', []):
         block_type = block.get('block_type', 'checkbox_group')
         standard = block.get('standard', {})
@@ -1261,6 +1260,14 @@ def compile_builder_beta_page_to_runtime_schema(page_id):
             compiled_fields.append({
                 **common_payload,
                 'type': 'line_items_by_category',
+                'config': deepcopy(block.get('config', {})),
+            })
+        elif block_type in ('page_total', 'payment_schedule', 'image_upload'):
+            # Module blocks — hold back until after cost-group sections
+            module_fields.append({
+                **common_payload,
+                'type': block_type,
+                'label': field_label,
                 'config': deepcopy(block.get('config', {})),
             })
         else:
@@ -1355,6 +1362,9 @@ def compile_builder_beta_page_to_runtime_schema(page_id):
         _conn2.close()
     except Exception:
         pass
+
+    # Append module blocks (page_total, payment_schedule, etc.) after cost groups
+    compiled_fields.extend(module_fields)
 
     return {
         'id': page_id,
@@ -2501,37 +2511,28 @@ def builder_page_total_calc():
 @app.route('/builder_beta/page_total_save/<page_key>', methods=['POST'])
 @require_role('admin')
 def builder_page_total_save(page_key):
-    """Save page total module config (label, included cost groups)."""
-    import sqlite3
-    from pathlib import Path
-    import json as _j
-    db = str(Path(__file__).parent / 'template_store.sqlite3')
+    """Save page total module config (label, included cost groups).
+    Config lives in the page_total block's config field — not in metadata_json."""
     data = request.get_json(force=True) or {}
     label = data.get('label', 'Page Total')
     groups = data.get('groups', [])
     form_visible = data.get('form_visible', True)
     quote_visible = data.get('quote_visible', True)
-    conn = sqlite3.connect(db)
-    lv = conn.execute("SELECT MAX(id) FROM form_template_versions WHERE form_template_id = (SELECT id FROM form_templates WHERE key = ?)", (TEMPLATE_STORE_KEY,)).fetchone()
-    lid = int(lv[0]) if lv and lv[0] else None
-    if not lid:
-        conn.close()
-        return jsonify({'ok': False, 'error': 'No version'}), 404
-    existing = conn.execute("SELECT metadata_json FROM page_templates WHERE page_key = ? AND form_template_version_id = ?", [page_key, lid]).fetchone()
-    meta = {}
-    if existing and existing[0]:
-        try: meta = _j.loads(existing[0]) if isinstance(existing[0], str) else existing[0]
-        except: meta = {}
-    if not isinstance(meta, dict): meta = {}
-    meta['page_total'] = {'label': label, 'groups': groups, 'form_visible': form_visible, 'quote_visible': quote_visible}
-    conn.execute("UPDATE page_templates SET metadata_json = ? WHERE page_key = ? AND form_template_version_id = ?", [_j.dumps(meta), page_key, lid])
-    # Also propagate label to category_templates name for unified sidebar + form rendering
-    conn.execute(
-        "UPDATE category_templates SET name = ? WHERE module_type = ? AND page_template_id IN (SELECT id FROM page_templates WHERE page_key = ? AND form_template_version_id = ?)",
-        [label, 'page_total', page_key, lid]
-    )
-    conn.commit()
-    conn.close()
+    # Write directly to the page_total block in page_schemas.json
+    bb_pages = page_schemas.setdefault('builder_beta', {}).setdefault('pages', {})
+    page = bb_pages.get(page_key)
+    if not page:
+        return jsonify({'ok': False, 'error': 'Page not found'}), 404
+    for block in page.setdefault('blocks', []):
+        if block.get('block_type') == 'page_total':
+            block.setdefault('config', {})
+            block['config']['groups'] = groups
+            block['config']['form_visible'] = form_visible
+            block['config']['quote_visible'] = quote_visible
+            if label:
+                block.setdefault('standard', {})['label'] = label
+            break
+    save_page_schemas()
     return jsonify({'ok': True})
 
 @app.route('/builder_beta/module_block_add/<page_id>', methods=['POST'])
@@ -2543,7 +2544,7 @@ def builder_module_block_add(page_id):
     label = data.get('label', '')
     if not mod_type or not page_id:
         return jsonify({'ok': False, 'error': 'module_type and page_id required'}), 400
-    # Modify page_schemas directly, not a deep copy
+    # Modify page_schemas directly
     bb_pages = page_schemas.setdefault('builder_beta', {}).setdefault('pages', {})
     page = bb_pages.get(page_id)
     if not page:
@@ -2553,58 +2554,6 @@ def builder_module_block_add(page_id):
     if label:
         new_block['standard']['label'] = label
     blocks.append(new_block)
-    # Also persist to the legacy DB (category_templates + metadata_json)
-    # so the build-mode sidebar and page_total_save endpoint can find the module.
-    try:
-        import sqlite3
-        from pathlib import Path
-        _db = str(Path(__file__).parent / 'template_store.sqlite3')
-        _conn2 = sqlite3.connect(_db)
-        _ver_row = _conn2.execute(
-            "SELECT ftv.id FROM form_template_versions ftv "
-            "JOIN form_templates ft ON ft.id = ftv.form_template_id "
-            "WHERE ft.key = ? ORDER BY ftv.version DESC LIMIT 1",
-            (TEMPLATE_STORE_KEY,)
-        ).fetchone()
-        _lid = int(_ver_row[0]) if _ver_row else None
-        if _lid:
-            _pt_row = _conn2.execute(
-                "SELECT id FROM page_templates WHERE page_key = ? AND form_template_version_id = ?",
-                (page_id, _lid)
-            ).fetchone()
-            if _pt_row:
-                _pid = int(_pt_row[0])
-                # Upsert category_template row for the module
-                _existing = _conn2.execute(
-                    "SELECT id FROM category_templates WHERE module_type = ? AND page_template_id = ?",
-                    (mod_type, _pid)
-                ).fetchone()
-                if not _existing:
-                    _conn2.execute(
-                        "INSERT INTO category_templates (page_template_id, name, display_order, output_group, is_cost_group, is_module, module_type, form_template_version_id) VALUES (?, ?, ?, ?, 0, 1, ?, ?)",
-                        (_pid, new_block['standard']['label'], len(blocks), 'General', mod_type, _lid)
-                    )
-                # Update metadata_json.modules list
-                _meta_row = _conn2.execute(
-                    "SELECT metadata_json FROM page_templates WHERE id = ?", (_pid,)
-                ).fetchone()
-                _meta = {}
-                if _meta_row and _meta_row[0]:
-                    try: _meta = json.loads(_meta_row[0])
-                    except: _meta = {}
-                if not isinstance(_meta, dict): _meta = {}
-                _modules = _meta.get('modules', [])
-                if mod_type not in _modules:
-                    _modules.append(mod_type)
-                _meta['modules'] = _modules
-                _conn2.execute(
-                    "UPDATE page_templates SET metadata_json = ? WHERE id = ?",
-                    (json.dumps(_meta), _pid)
-                )
-                _conn2.commit()
-        _conn2.close()
-    except Exception:
-        pass
     save_page_schemas()
     return jsonify({'ok': True})
 
@@ -2626,60 +2575,6 @@ def builder_module_block_delete(page_id):
         return jsonify({'ok': False, 'error': 'No block found with that type'}), 404
     page['blocks'] = new_blocks
     save_page_schemas()
-    # Also clean up legacy DB entries (category_templates + metadata_json)
-    try:
-        import sqlite3
-        from pathlib import Path
-        _db = str(Path(__file__).parent / 'template_store.sqlite3')
-        _conn2 = sqlite3.connect(_db)
-        _ver_row = _conn2.execute(
-            "SELECT ftv.id FROM form_template_versions ftv "
-            "JOIN form_templates ft ON ft.id = ftv.form_template_id "
-            "WHERE ft.key = ? ORDER BY ftv.version DESC LIMIT 1",
-            (TEMPLATE_STORE_KEY,)
-        ).fetchone()
-        _lid = int(_ver_row[0]) if _ver_row else None
-        if _lid:
-            _pt_row = _conn2.execute(
-                "SELECT id FROM page_templates WHERE page_key = ? AND form_template_version_id = ?",
-                (page_id, _lid)
-            ).fetchone()
-            if _pt_row:
-                _pid = int(_pt_row[0])
-                # Remove category_template row for this module type
-                _conn2.execute(
-                    "DELETE FROM category_templates WHERE module_type = ? AND page_template_id = ?",
-                    (mod_type, _pid)
-                )
-                # Remove module type from metadata_json.modules
-                _meta_row = _conn2.execute(
-                    "SELECT metadata_json FROM page_templates WHERE id = ?", (_pid,)
-                ).fetchone()
-                if _meta_row and _meta_row[0]:
-                    try:
-                        _meta = json.loads(_meta_row[0])
-                        if isinstance(_meta, dict):
-                            _modules = _meta.get('modules', [])
-                            if mod_type in _modules:
-                                _modules.remove(mod_type)
-                            _meta['modules'] = _modules
-                            _conn2.execute(
-                                "UPDATE page_templates SET metadata_json = ? WHERE id = ?",
-                                (json.dumps(_meta), _pid)
-                            )
-                            # Also remove page_total from metadata
-                            if mod_type == 'page_total' and 'page_total' in _meta:
-                                del _meta['page_total']
-                                _conn2.execute(
-                                    "UPDATE page_templates SET metadata_json = ? WHERE id = ?",
-                                    (json.dumps(_meta), _pid)
-                                )
-                    except Exception:
-                        pass
-                _conn2.commit()
-        _conn2.close()
-    except Exception:
-        pass
     return jsonify({'ok': True})
 
 @app.route('/builder_beta/category_details_json')
@@ -3982,6 +3877,32 @@ def builder_swap_order():
                 "UPDATE line_items SET sort_order = ? WHERE id = ?", [
                     cur_sort, adj['id']])
             conn.commit()
+            return jsonify({'success': True})
+        elif scope == 'module_block':
+            # Reorder a module block within the page's blocks list
+            if not page_key:
+                return jsonify({'error': 'page_key is required for module_block scope'}), 400
+            if not identifier:
+                return jsonify({'error': 'identifier (block_type) is required'}), 400
+            bb_pages = page_schemas.setdefault('builder_beta', {}).setdefault('pages', {})
+            pg = bb_pages.get(page_key)
+            if not pg:
+                return jsonify({'error': 'Page not found'}), 404
+            blocks = pg.get('blocks', [])
+            # Find current block index by block_type
+            cur_idx = None
+            for i, b in enumerate(blocks):
+                if b.get('block_type') == identifier:
+                    cur_idx = i
+                    break
+            if cur_idx is None:
+                return jsonify({'error': f'No block with type "{identifier}" found'}), 404
+            swap_idx = cur_idx - 1 if direction == 'up' else cur_idx + 1
+            if swap_idx < 0 or swap_idx >= len(blocks):
+                return jsonify({'error': 'Already at edge — cannot move further'}), 400
+            # Swap the two blocks
+            blocks[cur_idx], blocks[swap_idx] = blocks[swap_idx], blocks[cur_idx]
+            save_page_schemas()
             return jsonify({'success': True})
         elif scope == 'category':
             # Swap category order using the deduplicated category list

@@ -371,35 +371,30 @@ window.builderStateQuestionTypes = {{ builder_state.question_types | default({})
                                          <span>Loading…</span>
                                      </div>
                                  </div>
-                                 <script>
-                                 (function() {
-                                     var fname = {{ field.name | tojson }};
-                                     var ptLabel = {{ field.label | tojson }};
-                                     if (!fname) return;
-                                     var el = document.getElementById('pt-content-' + fname);
-                                     if (!el) return;
-                                     var pageKey = {{ request.path.split('/')[1] | default('') | tojson }};
-                                     fetch('/builder_beta/page_details_json/' + encodeURIComponent(pageKey))
-                                     .then(function(r) { return r.json(); })
-                                     .then(function(data) {
-                                         var cfg = data.page_total || {};
-                                         var groups = cfg.groups || [];
-                                         if (!groups.length) { el.innerHTML = '<span>£0.00</span>'; return; }
-                                         fetch('/builder_beta/page_total_calc', {
-                                             method: 'POST',
-                                             headers: {'Content-Type': 'application/json'},
-                                             body: JSON.stringify({page_key: pageKey, groups: groups})
-                                         })
-                                         .then(function(r) { return r.json(); })
-                                         .then(function(d) {
-                                             if (d.success) { el.innerHTML = '<span>' + ptLabel + ': £' + d.total.toFixed(2) + '</span>'; }
-                                             else { el.innerHTML = '<span>£0.00</span>'; }
-                                         })
-                                         .catch(function() { el.innerHTML = '<span>£0.00</span>'; });
-                                     })
-                                     .catch(function() { el.innerHTML = '<span>£0.00</span>'; });
-                                })();
-                                </script>
+                                  <script>
+                                  (function() {
+                                      var fname = {{ field.name | tojson }};
+                                      var ptLabel = {{ field.label | tojson }};
+                                      if (!fname) return;
+                                      var el = document.getElementById('pt-content-' + fname);
+                                      if (!el) return;
+                                      var pageKey = {{ request.path.split('/')[1] | default('') | tojson }};
+                                      // Read groups from the compiled field config (saved by page_total_save)
+                                      var groups = {{ (field.config.groups if field.config and field.config.groups else []) | tojson }};
+                                      if (!groups || !groups.length) { el.innerHTML = '<span>£0.00</span>'; return; }
+                                      fetch('/builder_beta/page_total_calc', {
+                                          method: 'POST',
+                                          headers: {'Content-Type': 'application/json'},
+                                          body: JSON.stringify({page_key: pageKey, groups: groups})
+                                      })
+                                      .then(function(r) { return r.json(); })
+                                      .then(function(d) {
+                                          if (d.success) { el.innerHTML = '<span>' + ptLabel + ': £' + d.total.toFixed(2) + '</span>'; }
+                                          else { el.innerHTML = '<span>£0.00</span>'; }
+                                      })
+                                      .catch(function() { el.innerHTML = '<span>£0.00</span>'; });
+                                  })();
+                                  </script>
                                  {% endif %}
                         </div>
                         {% endif %}
