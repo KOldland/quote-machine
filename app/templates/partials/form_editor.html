@@ -77,7 +77,7 @@ window.builderStateCostGroups = {{ builder_state.cost_groups | default({}) | toj
         var label = {payment_schedule:'Payment Schedule', page_total:'Page Total', image_upload:'Image Upload'}[modType] || modType;
         if (!confirm('Remove "' + label + '" from this page?')) return;
         var csrf = (document.querySelector('[name=csrf_token]') || {}).value || '';
-        fetch('/builder_beta/module_delete/' + encodeURIComponent(page), {
+        fetch('/builder_beta/module_block_delete/' + encodeURIComponent(page), {
             method: 'POST',
             headers: {'Content-Type':'application/json','X-CSRFToken':csrf},
             body: JSON.stringify({mod_type: modType})

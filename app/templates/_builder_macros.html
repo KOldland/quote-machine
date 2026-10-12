@@ -492,20 +492,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 var csrfT = (document.querySelector('[name=csrf_token]')||{}).value||'';
                 var labelMap = {module_payment_schedule: 'Payment Schedule', module_page_total: 'Page Total', module_image_upload: 'Image Upload'};
                 var moduleName = addCatInput.value.trim() || labelMap[modType] || actualType.replace('_', ' ').replace(/\b\w/g, function(l){return l.toUpperCase();});
-                // Create a category_templates entry with module flags
-                fetch('/builder_beta/category/add', {
+                // Add a proper block to the page schema
+                fetch('/builder_beta/module_block_add/' + encodeURIComponent(pageKey), {
                     method: 'POST',
                     headers: {'Content-Type':'application/json','X-CSRFToken':csrfT},
                     body: JSON.stringify({
-                        page_key: pageKey,
-                        category_name: moduleName,
-                        output_group: 'General',
-                        is_cost_group: 0,
-                        is_module: 1,
-                        module_type: actualType
+                        module_type: actualType,
+                        label: moduleName
                     })
                 }).then(function(r){return r.json()}).then(function(d){
-                    if(d && d.success) {
+                    if(d && d.ok) {
                         window.location.reload();
                     } else {
                         alert('Error saving module: '+((d&&d.error)||'Unknown'));

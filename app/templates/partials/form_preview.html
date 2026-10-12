@@ -365,7 +365,7 @@ window.builderStateQuestionTypes = {{ builder_state.question_types | default({})
 {% elif block_type == 'page_total' %}
                                  <div class="preview-page-total" data-block-type="page_total" data-field-name="{{ field.name }}">
                                      <div style="margin-bottom:.75rem;">
-                                         <h4>{{ meta.standard.label | default('Page Total') }}</h4>
+                                         <h4>{{ field.label | default('Page Total') }}</h4>
                                      </div>
                                      <div id="pt-content-{{ field.name }}" style="padding:.5rem 0;font-size:.95rem;font-weight:600;text-align:right;">
                                          <span>Loading…</span>
@@ -374,7 +374,7 @@ window.builderStateQuestionTypes = {{ builder_state.question_types | default({})
                                  <script>
                                  (function() {
                                      var fname = {{ field.name | tojson }};
-                                     var ptLabel = {{ meta.standard.label | tojson }};
+                                     var ptLabel = {{ field.label | tojson }};
                                      if (!fname) return;
                                      var el = document.getElementById('pt-content-' + fname);
                                      if (!el) return;
@@ -397,7 +397,9 @@ window.builderStateQuestionTypes = {{ builder_state.question_types | default({})
                                          })
                                          .catch(function() { el.innerHTML = '<span>£0.00</span>'; });
                                      })
-                                     .catch(function() { el.innerHTML = '<span>£0.00</span>'; });                               </script>
+                                     .catch(function() { el.innerHTML = '<span>£0.00</span>'; });
+                                })();
+                                </script>
                                  {% endif %}
                         </div>
                         {% endif %}
