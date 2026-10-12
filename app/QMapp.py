@@ -2665,9 +2665,14 @@ def builder_category_details_save():
     from pathlib import Path
     db = str(Path(__file__).parent / 'template_store.sqlite3')
     data = request.get_json(force=True) or {}
+    from urllib.parse import unquote
     page_key = data.get('page_key')
     old_name = data.get('old_name')
+    if old_name:
+        old_name = unquote(old_name)
     new_name = data.get('new_name')
+    if new_name:
+        new_name = unquote(new_name)
     desc = data.get('description', '')
     output_group = data.get('output_group', 'General')
     is_cost_group = data.get('is_cost_group', False)
@@ -2730,6 +2735,23 @@ def builder_category_details_save():
                 )
         conn.commit()
         print(f"[CAT_SAVE] Synced {len(category_images)} images to category_images table", flush=True)
+
+        # Sync changes to the corresponding block in page_schemas.json
+        if is_cost_group:
+            try:
+                bb = page_schemas.setdefault('builder_beta', {}).setdefault('pages', {})
+                pg = bb.get(page_key)
+                if pg:
+                    for blk in pg.setdefault('blocks', []):
+                        if blk.get('block_type') == 'cost_group_section' and blk.get('standard', {}).get('label') == old_name:
+                            blk.setdefault('config', {})['cost_group_id'] = output_group or ''
+                            blk.setdefault('config', {})['override_allowed'] = bool(data.get('cost_group_override_allowed'))
+                            if new_name != old_name:
+                                blk.setdefault('standard', {})['label'] = new_name
+                            break
+                save_page_schemas()
+            except Exception as e:
+                print(f"[CAT_SAVE] Block sync failed: {e}", flush=True)
 
         # Cascading update: line_items category linking to match if changed
         if old_name != new_name:
@@ -2838,6 +2860,38 @@ def builder_beta_category_add():
                 conn2.close()
             except Exception:
                 pass
+            # Also create a block in page_schemas.json for the cost group section
+            try:
+                import time
+                bb = page_schemas.setdefault('builder_beta', {}).setdefault('pages', {})
+                pg = bb.get(data['page_key'])
+                if pg:
+                    block_id = f"{data['page_key']}__cg_{data['category_name'].lower().replace(' ', '_')}_{int(time.time() * 1000)}"
+                    new_block = {
+                        'id': block_id,
+                        'block_type': 'cost_group_section',
+                        'standard': {
+                            'label': data['category_name'],
+                            'name': block_id,
+                            'required': False,
+                            'help_text': '',
+                            'source_prefix': '',
+                            'placeholder': '',
+                            'dropdown_choices': [],
+                            'selection_limit': None,
+                            'static_content': '',
+                            'static_variant': 'body',
+                        },
+                        'config': {
+                            'cost_group_id': output_group or '',
+                            'override_allowed': False,
+                        },
+                        'display_order': len(pg.get('blocks', [])),
+                    }
+                    pg.setdefault('blocks', []).append(new_block)
+                    save_page_schemas()
+            except Exception as e:
+                print(f"[CAT_ADD] Block creation failed: {e}", flush=True)
         print(f"[CAT_ADD_DEBUG] res={res!r}", file=sys.stderr)
         if res.get('success'):
             return jsonify({'success': True})
@@ -3007,6 +3061,16 @@ def builder_category_delete():
                 )
         
         conn.commit()
+        # Remove the corresponding block from page_schemas.json
+        try:
+            bb = page_schemas.setdefault('builder_beta', {}).setdefault('pages', {})
+            pg = bb.get(page_key)
+            if pg:
+                blocks = pg.get('blocks', [])
+                pg['blocks'] = [b for b in blocks if not (b.get('block_type') == 'cost_group_section' and b.get('standard', {}).get('label') == category_name)]
+                save_page_schemas()
+        except Exception as e:
+            print(f"[CAT_DELETE] Block removal failed: {e}", flush=True)
         return jsonify({'success': True})
     except Exception as e:
         import traceback

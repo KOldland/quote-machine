@@ -57,7 +57,7 @@ window.builderStateCostGroups = {{ builder_state.cost_groups | default({}) | toj
         // Build the HTML
         var html = '<div class=li-section-item style="display:flex;align-items:center;border-bottom:1px solid #f3f3f3;">';
         if (isCG) {
-            html += '<button type=button class=li-section-btn data-category=' + encodeURIComponent(label) + ' data-is-cost-group=1 data-id=' + encodeURIComponent(label) + ' data-page=' + pageId + ' style=flex:1;>';
+            html += '<button type=button class=li-section-btn data-category="' + label + '" data-is-cost-group=1 data-id="' + label + '" data-page=' + pageId + ' style=flex:1;>';
         } else {
             html += '<button type=button class=li-section-btn data-module=' + bt + ' style=flex:1;>';
         }

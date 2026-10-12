@@ -32,7 +32,7 @@ window.builderStateQuestionTypes = {{ builder_state.question_types | default({})
             </form>
         {% elif page_schema and page_schema.fields %}
             {# ── Dynamic page: render fields from the compiled schema ── #}
-            <form method="POST" action="{{ request.path }}" class="preview-form-content" id="preview-form-content">
+            <form method="POST" action="{{ request.path }}" class="preview-form-content" id="preview-form-content" novalidate>
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 {% for field in page_schema.fields %}
                     {% if not field.hidden %}

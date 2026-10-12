@@ -1423,7 +1423,7 @@ document.addEventListener('DOMContentLoaded', function() {
         var _cgList = (window.builderStateCostGroups || {});
         for (var _gid in _cgList) {
             var _gd = _cgList[_gid];
-            var _sel = (_gid === (data.output_group || 'General')) ? ' selected' : '';
+            var _sel = (_gid.toLowerCase() === (data.output_group || 'General').toLowerCase()) ? ' selected' : '';
             _cgHtml += '<option value="' + _gid + '"' + _sel + '>' + (_gd.label || _gid) + '</option>';
         }
         _cgHtml += '<option value="__NEW__">-- Add New Cost Group --</option>';
@@ -1657,7 +1657,7 @@ document.addEventListener('DOMContentLoaded', function() {
             var _cgList = (window.builderStateCostGroups || {});
             for (var _gid in _cgList) {
                 var _gd = _cgList[_gid];
-                var _sel = (_gid === (data.output_group || '')) ? ' selected' : '';
+                var _sel = (_gid.toLowerCase() === (data.output_group || '').toLowerCase()) ? ' selected' : '';
                 cgHtml += '<option value="' + _gid + '"' + _sel + '>' + (_gd.label || _gid) + '</option>';
             }
             cgHtml += '</select></div>' +
