@@ -1091,7 +1091,7 @@
             },
             "config": {
               "cost_group_id": "building_works",
-              "override_allowed": false
+              "override_allowed": true
             },
             "display_order": 0
           },
@@ -1112,7 +1112,7 @@
             },
             "config": {
               "cost_group_id": "pre_project_package",
-              "override_allowed": false
+              "override_allowed": true
             },
             "display_order": 1
           },

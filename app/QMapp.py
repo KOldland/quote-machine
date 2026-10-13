@@ -3403,12 +3403,15 @@ def builder_line_item_duplicate():
         conn.close()
 # ── Calculator Preview Route ─────────────────────────────────────────
 @app.route('/builder_beta/calculator_preview', methods=['GET'])
-@require_role('admin')
+@csrf.exempt
 def builder_calculator_preview():
     """Return line items for selected cost groups using category-level routing.
     A category is routed to a cost group when category_templates.output_group
     matches the cost group id. All line items in that category are included,
-    regardless of which form_page they belong to."""
+    regardless of which form_page they belong to.
+
+    Called from the customer-facing form preview (cost group accordions),
+    so it must not require admin role."""
     page_key = request.args.get('page_key', '')
     group_ids_param = request.args.get('groups', '')
     if not group_ids_param:
@@ -3451,7 +3454,7 @@ def builder_calculator_preview():
             # Build placeholders for category names
             cat_placeholders = ','.join(['?' for _ in cat_names])
             rows = conn.execute(
-                f"""SELECT li.line_code, li.internal_description, li.output_title, li.unit_cost,
+                f"""SELECT li.id, li.line_code, li.internal_description, li.output_title, li.unit_cost,
                           li.units, li.sort_order, li.category,
                           li.output_group, li.pricing_mode, li.pricing_visibility,
                           li.form_page
@@ -3461,6 +3464,37 @@ def builder_calculator_preview():
                 cat_names
             ).fetchall()
             items_by_group[gid] = [dict(r) for r in rows]
+        
+        # Mark items as checked/unchecked and apply price overrides from session
+        # The user checks items on INPUT pages (e.g. additional_costs_page).
+        # Those checked values are stored in checkbox_data as {page_key}__line_items.
+        # On the REVIEW page (pricing_categories), we need to find them regardless
+        # of which input page they came from.
+        try:
+            cb_data = (session.get('checkbox_data', {}) or {})
+            li_overrides = (session.get('session_overrides', {}) or {}).get('overrides', {}) or {}
+            # Collect all checked line_code values from every page's line items field
+            checked_set = set()
+            for _key, _val in cb_data.items():
+                if _key.endswith('__line_items') and isinstance(_val, dict):
+                    _ps = _val.get('preselected')
+                    if isinstance(_ps, list):
+                        checked_set.update(_ps)
+            for gid in list(items_by_group.keys()):
+                for it in items_by_group[gid]:
+                    is_checked = it.get('line_code') in checked_set
+                    it['checked'] = is_checked
+                    item_id = str(it.get('id', ''))
+                    # Apply price override from session (only for checked items)
+                    if is_checked and item_id in li_overrides:
+                        it['unit_cost'] = float(li_overrides[item_id])
+                    # Unchecked items: zero the values so they display as £0.00 / 0 / £0.00
+                    if not is_checked:
+                        it['unit_cost'] = 0.0
+                        it['units'] = 0
+        except Exception:
+            pass
+        
         return jsonify({'items': items_by_group, 'error': None})
     except Exception as e:
         return jsonify({'items': {}, 'error': str(e)})
@@ -4740,7 +4774,11 @@ def index():
                 fd = json.loads(_row_r['form_data']) if isinstance(_row_r['form_data'], str) else _row_r['form_data']
                 if isinstance(fd, dict):
                     session['data'] = fd.get('data', {})
-                    session['checkbox_data'] = fd.get('checkbox_data', {})
+                    # Do NOT restore checkbox_data — the user should start
+                    # fresh; old preselected items would show as "selected"
+                    # in the cost group accordion even though the user never
+                    # checked anything in this session.
+                    session['checkbox_data'] = {}
                     session['active_quote_id'] = int(_row_r['id'])
                     session['template_key'] = fd.get('template_key', session.get('template_key', 'builder_beta'))
                     session.modified = True

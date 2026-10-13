@@ -13,6 +13,7 @@ build/
 
 # Application data
 flask_session/
+flask_session_backup/
 *.sqlite3
 *.log
 
