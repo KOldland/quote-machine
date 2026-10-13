@@ -11,7 +11,6 @@ Handles:
 
 import json
 import os
-import sqlite3
 from pathlib import Path
 from typing import Optional
 from flask import Blueprint, request, session, jsonify, abort, send_file, current_app
@@ -39,6 +38,7 @@ from template_store import (
     get_theme,
     apply_theme_to_blocks,
     delete_theme,
+    _connect,
 )
 
 quote_editor_bp = Blueprint('quote_editor', __name__)
@@ -53,9 +53,7 @@ def _get_category_image(page_key, category_name):
 def _get_category_images(page_key, category_name):
     """Return list of image URLs for a category, in sort_order."""
     try:
-        import sqlite3 as _sql
-        conn = _sql.connect(str(DB_PATH))
-        conn.row_factory = _sql.Row
+        conn = _connect()
         rows = conn.execute(
             '''
             SELECT ci.image_url
@@ -76,8 +74,7 @@ def _get_category_images(page_key, category_name):
 def _get_page_category_order(page_key):
     """Return dict of category_name -> display_order from category_templates."""
     try:
-        conn = sqlite3.connect(str(DB_PATH))
-        conn.row_factory = sqlite3.Row
+        conn = _connect()
         rows = conn.execute(
             '''
             SELECT ct.name, ct.display_order
@@ -360,8 +357,7 @@ def _resort_blocks_by_db_category_order(blocks):
     # Also build a rename map for known stale category names that were changed
     # in BUILD MODE but still appear in old saved quotes.
     try:
-        conn = sqlite3.connect(str(DB_PATH))
-        conn.row_factory = sqlite3.Row
+        conn = _connect()
         rows = conn.execute(
             """
             SELECT pt.page_key, ct.name
@@ -386,8 +382,7 @@ def _resort_blocks_by_db_category_order(blocks):
     # line_code (spreadsheet artifact) instead of the proper output_title.
     line_code_to_title = {}
     try:
-        conn = sqlite3.connect(str(DB_PATH))
-        conn.row_factory = sqlite3.Row
+        conn = _connect()
         rows = conn.execute(
             """
             SELECT line_code, output_title
@@ -1297,8 +1292,7 @@ def _build_page_blocks(page_key, page, form_data, checkbox_data):
 def _get_page_visibility(page_key: str) -> dict:
     """Return {form_visible, quote_visible} for a page, defaulting both to True."""
     try:
-        import sqlite3
-        conn = sqlite3.connect(str(DB_PATH))
+        conn = _connect()
         row = conn.execute(
             "SELECT metadata_json FROM page_templates WHERE page_key = ? "
             "AND form_template_version_id IN (SELECT id FROM form_template_versions "
@@ -1401,19 +1395,16 @@ def get_active_quote():
 @quote_editor_bp.route('/quote_editor/drafts', methods=['GET'])
 def list_drafts():
     user_id = session.get('user_id')
-    db_path = DB_PATH
     rows = []
-    if db_path.exists():
-        try:
-            conn = db_path.connect(str(db_path))
-            conn.row_factory = sqlite3.Row
-            sql = 'SELECT id, name, created_at FROM form_drafts WHERE user_id = ? ORDER BY created_at DESC'
-            if user_id is None:
-                sql = 'SELECT id, name, created_at FROM form_drafts WHERE user_id IS NULL ORDER BY created_at DESC'
-            rows = conn.execute(sql, (user_id,)).fetchall()
-            conn.close()
-        except Exception:
-            pass
+    try:
+        conn = _connect()
+        sql = 'SELECT id, name, created_at FROM form_drafts WHERE user_id = ? ORDER BY created_at DESC'
+        if user_id is None:
+            sql = 'SELECT id, name, created_at FROM form_drafts WHERE user_id IS NULL ORDER BY created_at DESC'
+        rows = conn.execute(sql, (user_id,)).fetchall()
+        conn.close()
+    except Exception:
+        pass
     drafts = [{'id': r['id'], 'name': r['name'], 'created_at': r['created_at']} for r in rows]
     return jsonify({'success': True, 'drafts': drafts})
 
@@ -1427,11 +1418,8 @@ def save_draft():
         'session_overrides': session.get('session_overrides', {}),
         'template_key': session.get('template_key'),
     }
-    db_path = DB_PATH
-    if not db_path.exists():
-        return jsonify({'success': False, 'error': 'Database not found'}), 500
     try:
-        conn = sqlite3.connect(str(db_path))
+        conn = _connect()
         conn.execute('''
             CREATE TABLE IF NOT EXISTS form_drafts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1454,12 +1442,8 @@ def save_draft():
 
 @quote_editor_bp.route('/quote_editor/drafts/<int:draft_id>/load', methods=['POST'])
 def load_draft(draft_id):
-    db_path = DB_PATH
-    if not db_path.exists():
-        return jsonify({'success': False, 'error': 'Database not found'}), 500
     try:
-        conn = sqlite3.connect(str(db_path))
-        conn.row_factory = sqlite3.Row
+        conn = _connect()
         row = conn.execute('SELECT id, draft_data FROM form_drafts WHERE id = ?', (draft_id,)).fetchone()
         conn.close()
         if row:
@@ -1478,11 +1462,8 @@ def load_draft(draft_id):
 
 @quote_editor_bp.route('/quote_editor/drafts/<int:draft_id>', methods=['DELETE'])
 def delete_draft(draft_id):
-    db_path = DB_PATH
-    if not db_path.exists():
-        return jsonify({'success': False, 'error': 'Database not found'}), 500
     try:
-        conn = sqlite3.connect(str(db_path))
+        conn = _connect()
         conn.execute('DELETE FROM form_drafts WHERE id = ?', (draft_id,))
         conn.commit()
         conn.close()

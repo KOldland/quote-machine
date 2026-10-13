@@ -53,6 +53,7 @@ window.builderStateCostGroups = {{ builder_state.cost_groups | default({}) | toj
         if (bt !== 'page_total' && bt !== 'payment_schedule' && bt !== 'image_upload' && bt !== 'cost_group_section') continue;
         var badge = badges[bt] || 'M';
         var label = (b.standard || {}).label || labels[bt] || bt;
+        var blockId = (b.id || bt || '');
         var isCG = (bt === 'cost_group_section');
         // Build the HTML
         var html = '<div class=li-section-item style="display:flex;align-items:center;border-bottom:1px solid #f3f3f3;">';
@@ -66,8 +67,8 @@ window.builderStateCostGroups = {{ builder_state.cost_groups | default({}) | toj
             + '</button>';
         // Reorder controls — for all block types
         html += '<div class=li-reorder-controls style=display:flex;flex-direction:column;margin-right:4px;>'
-            + '<button type=button class=li-move-btn data-scope=module_block data-id=' + bt + ' data-page=' + pageId + ' data-dir=up style=border:none;background:none;font-size:10px;cursor:pointer;padding:0 4px;color:#888;line-height:1;>▲</button>'
-            + '<button type=button class=li-move-btn data-scope=module_block data-id=' + bt + ' data-page=' + pageId + ' data-dir=down style=border:none;background:none;font-size:10px;cursor:pointer;padding:0 4px;color:#888;line-height:1;>▼</button>'
+            + '<button type=button class=li-move-btn data-scope=module_block data-id=' + blockId + ' data-page=' + pageId + ' data-dir=up style=border:none;background:none;font-size:10px;cursor:pointer;padding:0 4px;color:#888;line-height:1;>▲</button>'
+            + '<button type=button class=li-move-btn data-scope=module_block data-id=' + blockId + ' data-page=' + pageId + ' data-dir=down style=border:none;background:none;font-size:10px;cursor:pointer;padding:0 4px;color:#888;line-height:1;>▼</button>'
             + '</div>';
 
         html += '</div>';

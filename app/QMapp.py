@@ -886,10 +886,32 @@ def get_builder_beta_state():
             # image_upload, …) live only in page_schemas.json, not in the
             # SQLite question_templates, and would otherwise be lost.
             _json_blocks = (pages.get(_pid) or {}).get('blocks') or []
-            _db_block_ids = {b.get('id') for b in (_pg.get('blocks') or []) if b.get('id')}
+            _db_blocks = _pg.get('blocks') or []
+            # Preserve the JSON payload block ORDER — the same list that the
+            # builder swap/reorder admin actions mutate — while preferring DB
+            # block content where a matching id exists. Previously the merge
+            # emitted DB blocks first then appended JSON blocks, which reversed
+            # module blocks (payment_schedule / page_total / cost_group_section)
+            # relative to the payload so swaps appeared not to move in the UI.
+            _db_by_id = {}
+            for _dbb in _db_blocks:
+                if _dbb.get('id'):
+                    _db_by_id[_dbb['id']] = _dbb
+            _merged_blocks = []
+            _used_db = set()
             for _jb in _json_blocks:
-                if _jb.get('id') and _jb['id'] not in _db_block_ids:
-                    _pg.setdefault('blocks', []).append(deepcopy(_jb))
+                _jid = _jb.get('id')
+                if _jid and _jid in _db_by_id:
+                    _merged_blocks.append(deepcopy(_db_by_id[_jid]))
+                    _used_db.add(_jid)
+                else:
+                    _merged_blocks.append(deepcopy(_jb))
+            # Append any DB-only blocks (e.g. questions added straight to DB)
+            for _dbb in _db_blocks:
+                if _dbb.get('id') and _dbb['id'] not in _used_db:
+                    _merged_blocks.append(deepcopy(_dbb))
+            if _merged_blocks:
+                _pg['blocks'] = _merged_blocks
             if not isinstance(_pg.get('blocks'), list):
                 _pg['blocks'] = []
             pages[_pid] = _pg
@@ -4145,12 +4167,19 @@ def builder_swap_order():
             if not pg:
                 return jsonify({'error': 'Page not found'}), 404
             blocks = pg.get('blocks', [])
-            # Find current block index by block_type
+            # Find current block — prefer exact block id (injected module
+            # buttons now send it), fall back to block_type for legacy buttons
+            # (multiple cost_group_section blocks share the same block_type).
             cur_idx = None
             for i, b in enumerate(blocks):
-                if b.get('block_type') == identifier:
+                if b.get('id') == identifier:
                     cur_idx = i
                     break
+            if cur_idx is None:
+                for i, b in enumerate(blocks):
+                    if b.get('block_type') == identifier:
+                        cur_idx = i
+                        break
             if cur_idx is None:
                 return jsonify({'error': f'No block with type "{identifier}" found'}), 404
             swap_idx = cur_idx - 1 if direction == 'up' else cur_idx + 1

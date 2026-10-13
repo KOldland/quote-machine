@@ -11,17 +11,21 @@ Core calculation pipeline for quotes:
 
 from __future__ import annotations
 import json
-import sqlite3
-from pathlib import Path
 from typing import Any
 
-DB_PATH = Path(__file__).parent / "template_store.sqlite3"
 
-
-def _get_connection() -> sqlite3.Connection:
-    conn = sqlite3.connect(str(DB_PATH))
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
+def _get_connection():
+    """Return a DB connection via the template_store compatibility layer.
+    Uses PostgreSQL when DATABASE_URL is set, otherwise the local SQLite file."""
+    from template_store import _connect, _get_db_backend
+    conn = _connect()
+    # journal_mode PRAGMA is SQLite-only — don't run it on PostgreSQL
+    # (a failing statement leaves the PG transaction aborted until rollback).
+    if _get_db_backend() == 'sqlite':
+        try:
+            conn.execute("PRAGMA journal_mode=WAL")
+        except Exception:
+            pass
     return conn
 
 

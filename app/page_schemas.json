@@ -944,83 +944,10 @@
         ],
         "display_order": 7,
         "id": "schedule_of_works",
-        "navigation": {},
+        "navigation": {
+          "next_endpoint": "pricing_categories"
+        },
         "title": "Schedule of Works"
-      },
-      "additional_costs_page": {
-        "blocks": [
-          {
-            "block_type": "line_items_by_category",
-            "config": {},
-            "id": "additional_costs_page__line_items"
-          }
-        ],
-        "categories": [
-          {
-            "description": "",
-            "name": "Pre-Package Items",
-            "output_group": "General",
-            "sort_order": 0
-          },
-          {
-            "description": "",
-            "name": "Electrics",
-            "output_group": "electrics",
-            "sort_order": 1
-          },
-          {
-            "description": " As per the new kitchen, utility & WC designs. Price includes installing necessary hot, cold and waste outlet pipes only. It also includes connecting the gas to the hob if required. Connecting of the pipes to the new appliances is to be carried out by the kitchen fitters. This price DOES NOT include radiators, sanitary items or the supplying & fitting of the kitchen units/ appliances.",
-            "name": "Plumbing",
-            "output_group": "plumbing",
-            "sort_order": 3
-          },
-          {
-            "description": "",
-            "name": "Skylights",
-            "output_group": "skylights",
-            "sort_order": 5
-          },
-          {
-            "description": "",
-            "name": "Velux",
-            "output_group": "velux_windows",
-            "sort_order": 7
-          },
-          {
-            "description": "",
-            "name": "Aluminium Capping",
-            "output_group": "aluminium_capping",
-            "sort_order": 9
-          },
-          {
-            "description": "",
-            "name": "Glass Valley",
-            "output_group": "glass_valley",
-            "sort_order": 11
-          },
-          {
-            "description": "",
-            "name": "Sliding Doors",
-            "output_group": "sliding_doors",
-            "sort_order": 12
-          },
-          {
-            "description": "",
-            "name": "Sash Windows",
-            "output_group": "sash_windows",
-            "sort_order": 14
-          },
-          {
-            "description": "",
-            "name": "Scheduling Payment",
-            "output_group": "general",
-            "sort_order": 15
-          }
-        ],
-        "display_order": 8,
-        "id": "additional_costs_page",
-        "navigation": {},
-        "title": "Additional Costs"
       },
       "pricing_categories": {
         "blocks": [
@@ -1049,78 +976,6 @@
               "override_allowed": true
             },
             "display_order": 0
-          },
-          {
-            "id": "pricing_categories__cg_pre-project_package_1791806676122",
-            "block_type": "cost_group_section",
-            "standard": {
-              "label": "Pre-Project Package",
-              "name": "pricing_categories__cg_pre-project_package_1791806676122",
-              "required": false,
-              "help_text": "",
-              "source_prefix": "",
-              "placeholder": "",
-              "dropdown_choices": [],
-              "selection_limit": null,
-              "static_content": "",
-              "static_variant": "body"
-            },
-            "config": {
-              "cost_group_id": "pre_project_package",
-              "override_allowed": true
-            },
-            "display_order": 1
-          },
-          {
-            "id": "pricing_categories__page_total_1791804048415",
-            "block_type": "page_total",
-            "standard": {
-              "label": "Pricing Summary",
-              "name": "pricing_categories__page_total_1791804048415",
-              "required": false,
-              "help_text": "",
-              "source_prefix": "",
-              "placeholder": "",
-              "dropdown_choices": [],
-              "selection_limit": null,
-              "static_content": "",
-              "static_variant": "body"
-            },
-            "logic_options": {
-              "visibility": "always",
-              "depends_on_field": "",
-              "depends_on_value": ""
-            },
-            "pricing_options": {
-              "enabled": false,
-              "mode": "none",
-              "fixed_amount": 0.0,
-              "entered_key": "",
-              "rate": 0.0,
-              "quantity_key": "",
-              "percent_of_subtotal": 0.0
-            },
-            "output_options": {
-              "include_in_output": true,
-              "output_label": "Page Total",
-              "group": "General",
-              "sort_order": 1,
-              "value_mode": "show_value"
-            },
-            "config": {
-              "groups": [
-                "aluminium_capping",
-                "building_works",
-                "electrics",
-                "glass_valley",
-                "plumbing",
-                "pre_project_package",
-                "skylights",
-                "velux_windows"
-              ],
-              "form_visible": true,
-              "quote_visible": true
-            }
           },
           {
             "id": "pricing_categories__payment_schedule_1791871839517",
@@ -1158,6 +1013,27 @@
               "sort_order": 10,
               "value_mode": "show_value"
             }
+          },
+          {
+            "id": "pricing_categories__cg_pre-project_package_1791806676122",
+            "block_type": "cost_group_section",
+            "standard": {
+              "label": "Pre-Project Package",
+              "name": "pricing_categories__cg_pre-project_package_1791806676122",
+              "required": false,
+              "help_text": "",
+              "source_prefix": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "selection_limit": null,
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "config": {
+              "cost_group_id": "pre_project_package",
+              "override_allowed": true
+            },
+            "display_order": 1
           },
           {
             "id": "pricing_categories__cg_electrics_1791806676122",
@@ -1284,6 +1160,57 @@
               "override_allowed": false
             },
             "display_order": 8
+          },
+          {
+            "id": "pricing_categories__page_total_1791804048415",
+            "block_type": "page_total",
+            "standard": {
+              "label": "Pricing Summary",
+              "name": "pricing_categories__page_total_1791804048415",
+              "required": false,
+              "help_text": "",
+              "source_prefix": "",
+              "placeholder": "",
+              "dropdown_choices": [],
+              "selection_limit": null,
+              "static_content": "",
+              "static_variant": "body"
+            },
+            "logic_options": {
+              "visibility": "always",
+              "depends_on_field": "",
+              "depends_on_value": ""
+            },
+            "pricing_options": {
+              "enabled": false,
+              "mode": "none",
+              "fixed_amount": 0.0,
+              "entered_key": "",
+              "rate": 0.0,
+              "quantity_key": "",
+              "percent_of_subtotal": 0.0
+            },
+            "output_options": {
+              "include_in_output": true,
+              "output_label": "Page Total",
+              "group": "General",
+              "sort_order": 1,
+              "value_mode": "show_value"
+            },
+            "config": {
+              "groups": [
+                "aluminium_capping",
+                "building_works",
+                "electrics",
+                "glass_valley",
+                "plumbing",
+                "pre_project_package",
+                "skylights",
+                "velux_windows"
+              ],
+              "form_visible": true,
+              "quote_visible": true
+            }
           }
         ],
         "categories": [
@@ -1339,9 +1266,87 @@
         "display_order": 10,
         "id": "pricing_categories",
         "navigation": {
-          "next_endpoint": "payment_schedule"
+          "next_endpoint": "additional_costs_page",
+          "previous_endpoint": "schedule_of_works"
         },
         "title": "Pricing Summary"
+      },
+      "additional_costs_page": {
+        "blocks": [
+          {
+            "block_type": "line_items_by_category",
+            "config": {},
+            "id": "additional_costs_page__line_items"
+          }
+        ],
+        "categories": [
+          {
+            "description": "",
+            "name": "Pre-Package Items",
+            "output_group": "General",
+            "sort_order": 0
+          },
+          {
+            "description": "",
+            "name": "Electrics",
+            "output_group": "electrics",
+            "sort_order": 1
+          },
+          {
+            "description": " As per the new kitchen, utility & WC designs. Price includes installing necessary hot, cold and waste outlet pipes only. It also includes connecting the gas to the hob if required. Connecting of the pipes to the new appliances is to be carried out by the kitchen fitters. This price DOES NOT include radiators, sanitary items or the supplying & fitting of the kitchen units/ appliances.",
+            "name": "Plumbing",
+            "output_group": "plumbing",
+            "sort_order": 3
+          },
+          {
+            "description": "",
+            "name": "Skylights",
+            "output_group": "skylights",
+            "sort_order": 5
+          },
+          {
+            "description": "",
+            "name": "Velux",
+            "output_group": "velux_windows",
+            "sort_order": 7
+          },
+          {
+            "description": "",
+            "name": "Aluminium Capping",
+            "output_group": "aluminium_capping",
+            "sort_order": 9
+          },
+          {
+            "description": "",
+            "name": "Glass Valley",
+            "output_group": "glass_valley",
+            "sort_order": 11
+          },
+          {
+            "description": "",
+            "name": "Sliding Doors",
+            "output_group": "sliding_doors",
+            "sort_order": 12
+          },
+          {
+            "description": "",
+            "name": "Sash Windows",
+            "output_group": "sash_windows",
+            "sort_order": 14
+          },
+          {
+            "description": "",
+            "name": "Scheduling Payment",
+            "output_group": "general",
+            "sort_order": 15
+          }
+        ],
+        "display_order": 8,
+        "id": "additional_costs_page",
+        "navigation": {
+          "previous_endpoint": "pricing_categories"
+        },
+        "title": "Additional Costs"
       },
       "optional_extras_page": {
         "blocks": [
