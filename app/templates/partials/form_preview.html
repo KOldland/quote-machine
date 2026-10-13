@@ -245,6 +245,7 @@ window.builderStateQuestionTypes = {{ builder_state.question_types | default({})
                                       if (!el) return;
                                       var pageKey = {{ request.path.split('/')[1] | default('') | tojson }};
                                       var groups = {{ (field.config.groups if field.config and field.config.groups else []) | tojson }};
+                                      window._pageTotalGroups = groups;
                                       if (!groups || !groups.length) { el.innerHTML = '<span>£0.00</span>'; return; }
                                       fetch('/builder_beta/page_total_calc', {
                                           method: 'POST',
@@ -355,7 +356,7 @@ window.builderStateQuestionTypes = {{ builder_state.question_types | default({})
                                              </label>
                                              <label style="font-size:.85rem;display:inline-flex;align-items:center;gap:.4rem;margin-left:.75rem;">
                                                  Weekly Payments:
-                                                 <input type="number" id="ps-wc-{{ field.name }}" min="1" max="20" step="1" value="4" style="width:50px;padding:0.2rem .3rem;border:1px solid #ccc;border-radius:3px;">
+                                                 <input type="number" id="ps-wc-{{ field.name }}" min="1" max="20" step="1" value="8" style="width:50px;padding:0.2rem .3rem;border:1px solid #ccc;border-radius:3px;">
                                              </label>
                                          </div>
                                      </div>
@@ -373,19 +374,46 @@ window.builderStateQuestionTypes = {{ builder_state.question_types | default({})
     var glzEl = document.getElementById('ps-glz-'+id);
     var wcEl = document.getElementById('ps-wc-'+id);
     if (!loading||!content||!tableWrap||!tkEl||!glzEl||!wcEl) return;
+
+    // Store admin settings globally
+    var _psAdminSettings = null;
+    var _psAdminLoaded = false;
+    fetch('/admin/payment-schedule-data').then(function(r){return r.json()}).then(function(d){
+        _psAdminSettings = d.settings || {};
+        _psAdminLoaded = true;
+        if (_psAdminSettings.weekly_payment_count && !wcEl.value) wcEl.value = _psAdminSettings.weekly_payment_count;
+        // Kick off initial load now that settings are available
+        loadPS();
+    }).catch(function(){ _psAdminLoaded = true; loadPS(); });
+
     function ls() {
         loading.style.display='block'; content.style.display='none';
-        fetch('/builder_beta/payment_schedule_preview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({basic_build:50000,weekly_count:parseInt(wcEl.value,10)||4,has_temp_kitchen:tkEl.checked,has_glazing:glzEl.checked})})
-        .then(function(r){return r.json()})
-        .then(function(d){
-            if(!d.success) return;
-            loading.style.display='none'; content.style.display='block';
-            var h='<table style=\"width:100%;border-collapse:collapse;font-size:.85rem;\"><thead><tr><th style=\"text-align:left;padding:.4rem;border-bottom:1px solid #dee2e6;\">Stage</th><th style=\"text-align:right;padding:.4rem;border-bottom:1px solid #dee2e6;\">Amount</th></tr></thead><tbody>';
-            for(var i=0;i<d.schedule.length;i++){h+='<tr><td style=\"padding:.3rem .4rem;border-bottom:1px solid #eee;\">'+d.schedule[i].stage+'</td><td style=\"padding:.3rem .4rem;text-align:right;border-bottom:1px solid #eee;\">£'+d.schedule[i].amount.toFixed(2)+'</td></tr>';}
-            h+='<tr style=\"font-weight:700;background:#f0f4ff;\"><td style=\"padding:.3rem .4rem;border-top:2px solid #1b3a6b;\">Total</td><td style=\"padding:.3rem .4rem;text-align:right;border-top:2px solid #1b3a6b;\">£'+d.total.toFixed(2)+'</td></tr></tbody></table>';
-            tableWrap.innerHTML=h;
-        }).catch(function(){loading.innerHTML='<p style=\"color:red;\">Error loading payment schedule.</p>';});
+        var pageKey = window.location.pathname.split('/').filter(Boolean)[0] || '';
+        // Use groups from admin settings ONLY — no DOM fallback
+        var groups = (_psAdminSettings && _psAdminSettings.groups || []).filter(function(g){return g;});
+        return fetch('/builder_beta/payment_schedule_preview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({page_key:pageKey,groups:groups,weekly_count:parseInt(wcEl.value,10)||8,has_temp_kitchen:tkEl.checked,has_glazing:glzEl.checked})});
     }
+    // Render function called after PS fetch completes
+    function renderPS(d) {
+        if(!d.success) return;
+        loading.style.display='none'; content.style.display='block';
+        var h='<table style="width:100%;border-collapse:collapse;font-size:.85rem;"><thead><tr><th style="text-align:left;padding:.4rem;border-bottom:1px solid #dee2e6;">Stage</th><th style="text-align:right;padding:.4rem;border-bottom:1px solid #dee2e6;">Amount</th></tr></thead><tbody>';
+        for(var i=0;i<d.schedule.length;i++){h+='<tr><td style="padding:.3rem .4rem;border-bottom:1px solid #eee;">'+d.schedule[i].stage+'</td><td style="padding:.3rem .4rem;text-align:right;border-bottom:1px solid #eee;">£'+d.schedule[i].amount.toFixed(2)+'</td></tr>';}
+        h+='<tr style="font-weight:700;background:#f0f4ff;"><td style="padding:.3rem .4rem;border-top:2px solid #1b3a6b;">Total</td><td style="padding:.3rem .4rem;text-align:right;border-top:2px solid #1b3a6b;">£'+d.total.toFixed(2)+'</td></tr></tbody></table>';
+        tableWrap.innerHTML=h;
+    }
+    // Wire events
+    // Helper: call ls() and parse/display the result
+    function loadPS() {
+        if (!_psAdminLoaded) return; // wait for admin settings
+        if (!_psAdminSettings || !_psAdminSettings.groups || !_psAdminSettings.groups.length) {
+            loading.innerHTML = '<p style="color:red;">No cost groups configured for payment schedule. Configure in builder module settings.</p>';
+            return;
+        }
+        ls().then(function(r){return r.json()}).then(renderPS).catch(function(){loading.innerHTML='<p style="color:red;">Error loading payment schedule.</p>';});
+    }
+    tkEl.addEventListener('change',loadPS); glzEl.addEventListener('change',loadPS); wcEl.addEventListener('change',loadPS); wcEl.addEventListener('input',loadPS);
+    // loadPS() will be called after admin settings fetch completes
     tkEl.addEventListener('change',ls); glzEl.addEventListener('change',ls); wcEl.addEventListener('change',ls); wcEl.addEventListener('input',ls);
     ls();
 })();
@@ -948,7 +976,7 @@ details[open] > .preview-li-category-header::before {
                     var initialVal = cgSessionOverride !== undefined ? cgSessionOverride : total;
                     html += '<span><input type="number" step="0.01" min="0" style="width:120px;padding:.3rem;border:1px solid #ccc;border-radius:4px;" name="' + fieldName + '_override" value="' + initialVal.toFixed(2) + '" id="cg-override-' + fieldName + '">' +
                     '<button type="button" class="cg-override-confirm" data-cg-id="' + cgId + '" data-field-name="' + fieldName + '" style="padding:.2rem .5rem;font-size:.75rem;border:1px solid #1b3a6b;background:#1b3a6b;color:#fff;border-radius:3px;cursor:pointer;margin-left:.3rem;">Override</button>' +
-                    '<button type="button" class="cg-override-default hidden" data-cg-id="' + cgId + '" data-field-name="' + fieldName + '" style="padding:.2rem .5rem;font-size:.75rem;border:1px solid #ccc;background:#f8f9fa;color:#444;border-radius:3px;cursor:pointer;margin-left:.3rem;">Default</button></span>';
+                    '<button type="button" class="cg-override-default" data-cg-id="' + cgId + '" data-field-name="' + fieldName + '" style="padding:.2rem .5rem;font-size:.75rem;border:1px solid #6d0b0b;background:#6d0b0b;color:#fff;border-radius:3px;cursor:pointer;margin-left:.3rem;">Default</button></span>';
                 }
                 var chkCnt = items.filter(function(it){ return it.checked; }).length;
                 html += '</div>' +
@@ -977,11 +1005,7 @@ details[open] > .preview-li-category-header::before {
                 var cgConfirmBtn = contentEl.querySelector('.cg-override-confirm');
                 var cgDefaultBtn = contentEl.querySelector('.cg-override-default');
                 var cgOverrideInput = contentEl.querySelector('#cg-override-' + fieldName);
-                // Show default button if there's already a stored override
-                var cgSessionOverride = (window._sessionCgOverrides || {})[cgId];
-                if (cgSessionOverride !== undefined && cgDefaultBtn) {
-                    cgDefaultBtn.style.display = 'inline-block';
-                }
+
                 if (cgConfirmBtn && cgOverrideInput) {
                     cgConfirmBtn.addEventListener('click', function() {
                         var val = parseFloat(cgOverrideInput.value);
@@ -996,8 +1020,7 @@ details[open] > .preview-li-category-header::before {
                             body: JSON.stringify({cg_id: cgId, value: val})
                         }).then(function(r){return r.json()}).then(function(d){
                             if (d.ok) {
-                                cgDefaultBtn.style.display = 'inline-block';
-                                // Refresh total display
+                                totalEl.textContent = _fmt(val);
                                 refreshPageTotal();
                             }
                         }).catch(function(){});
@@ -1012,8 +1035,17 @@ details[open] > .preview-li-category-header::before {
                             body: JSON.stringify({cg_id: cgId})
                         }).then(function(r){return r.json()}).then(function(d){
                             if (d.ok) {
-                                cgDefaultBtn.style.display = 'none';
-                                // Refresh total display
+                                // Recompute total from checked items
+                                var newTotal = 0;
+                                items.forEach(function(it) {
+                                    if (it.checked) {
+                                        var u = parseFloat(it.units || 0) || 0;
+                                        newTotal += (parseFloat(it.unit_cost || 0) || 0) * u;
+                                    }
+                                });
+                                totalEl.textContent = _fmt(newTotal);
+                                cgOverrideInput.value = newTotal.toFixed(2);
+                                // Refresh the page total module
                                 refreshPageTotal();
                             }
                         }).catch(function(){});

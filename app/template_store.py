@@ -1662,6 +1662,7 @@ def upsert_payment_schedule_block(
     weekly_payment_auto: bool = True,
     show_temp_kitchen: bool = True,
     show_glazing: bool = True,
+    groups: Optional[list[str]] = None,
     db_path: Optional[Path] = None,
 ) -> None:
     """Persist payment-schedule defaults into form_templates.settings_json."""
@@ -1704,6 +1705,7 @@ def upsert_payment_schedule_block(
         "weekly_payment_auto": weekly_payment_auto,
         "show_temp_kitchen": show_temp_kitchen,
         "show_glazing": show_glazing,
+        "groups": groups or [],
     }
 
     conn.execute(
@@ -1756,9 +1758,11 @@ def get_payment_schedule_block(
             "weekly_payment_auto": True,
             "show_temp_kitchen": True,
             "show_glazing": True,
+            "groups": [],
         })
 
     return {
+        "groups": [],
         "deposit_pct": 0.10,
         "completion_pct": 0.10,
         "allow_user_override": False,

@@ -2055,6 +2055,7 @@ def admin_payment_schedule():
         weekly_payment_auto = bool(data.get('weekly_payment_auto', settings.get('weekly_payment_auto', True)))
         show_temp_kitchen = bool(data.get('show_temp_kitchen', settings.get('show_temp_kitchen', True)))
         show_glazing = bool(data.get('show_glazing', settings.get('show_glazing', True)))
+        groups = data.get('groups', settings.get('groups', []))
 
         ts.upsert_payment_schedule_block(
             template_key='builder_beta',
@@ -2078,6 +2079,7 @@ def admin_payment_schedule():
             weekly_payment_auto=weekly_payment_auto,
             show_temp_kitchen=show_temp_kitchen,
             show_glazing=show_glazing,
+            groups=groups,
         )
         return jsonify({'success': True})
 
@@ -2111,18 +2113,55 @@ def admin_payment_schedule_data():
     return jsonify({'success': True, 'settings': settings})
 
 @app.route('/builder_beta/payment_schedule_preview', methods=['POST'])
-@require_role('admin')
+@csrf.exempt
 def builder_payment_schedule_preview():
     """Compute payment schedule preview for FORM MODE."""
     import template_store as ts
     import calculator as calc
+    import re
+    import sqlite3
+    from pathlib import Path
     data = request.get_json(force=True) or {}
     basic_build = float(data.get('basic_build', 0))
+    # If no basic_build provided, compute it from the given page_key + groups
+    if basic_build <= 0:
+        page_key = data.get('page_key', '')
+        groups = data.get('groups', [])
+        if page_key and groups:
+            db = str(Path(__file__).parent / 'template_store.sqlite3')
+            conn = sqlite3.connect(db)
+            conn.row_factory = sqlite3.Row
+            try:
+                totals = _compute_cost_group_totals(groups, conn, session)
+                basic_build = round(sum(totals.get(g, 0) for g in groups), 2)
+            finally:
+                conn.close()
     weekly_count = int(data.get('weekly_count', 4))
     has_temp_kitchen = bool(data.get('has_temp_kitchen', True))
     has_glazing = bool(data.get('has_glazing', False))
     sow_levels = data.get('sow_levels')
     ps = ts.get_payment_schedule_block('builder_beta')
+    
+    # If sow_levels not provided by frontend, extract from session checkbox_data
+    if not sow_levels:
+        try:
+            cb_data = (session.get('checkbox_data', {}) or {})
+            _all_checked = set()
+            for _key, _val in cb_data.items():
+                if _key.endswith('__line_items') and isinstance(_val, dict):
+                    _ps = _val.get('preselected')
+                    if isinstance(_ps, list):
+                        _all_checked.update(_ps)
+            # Parse SOW week levels from checked line codes (pattern: sww<level><task>^)
+            _sow_nums = []
+            for _code in _all_checked:
+                _m = re.match(r'sww(\d+)', _code)
+                if _m:
+                    _sow_nums.append(int(_m.group(1)))
+            if _sow_nums:
+                sow_levels = _sow_nums
+        except Exception:
+            pass
     
     # If sow_levels provided and auto is on, override weekly_count
     weekly_auto = bool(ps.get('weekly_payment_auto', True))
@@ -2155,38 +2194,63 @@ def builder_payment_schedule_preview():
     elif rounding == '1000':
         initial_payment = round(initial_payment / 1000) * 1000
 
+    # Total weekly slots = weekly_count (the 3rd Payment occupies one slot)
+    # The 65% pool is split across (weekly_count - 1) of those slots
+    remaining_weeks = max(weekly_count, 1)
+
     completion_pool_pct = float(ps.get('completion_meeting_plus_3rd_pct', 0.35))
-    completion_pool = round(basic_build * completion_pool_pct, 2)
-    pool_after_stages = round(basic_build - initial_payment - completion_pool, 2)
+    completion_pool = round(basic_build * completion_pool_pct, 2)  # 35% of total = IP + CM + 3rd
+    pool_after_stages = round(basic_build - completion_pool, 2)  # remaining 65%
 
     temp_kitchen_cost = float(ps.get('temp_kitchen_cost', 250.0))
     glazing_cost = float(ps.get('glazing_cost', 500.0))
-    
-    has_temp_kitchen = has_temp_kitchen
-    has_glazing = has_glazing
-    
-    if not has_temp_kitchen:
-        pool_after_stages += temp_kitchen_cost
-    
-    weekly_count = max(weekly_count, 1)
-    weekly_amount = round(pool_after_stages / weekly_count, 2)
-    final_adjustment = 0.0
-    if not has_temp_kitchen:
-        final_adjustment += temp_kitchen_cost
-    if has_glazing:
-        final_adjustment += glazing_cost
-    
-    final_weekly = round(weekly_amount + final_adjustment, 2)
-    regular_weekly = round(pool_after_stages - final_weekly, 2) if weekly_count > 1 else 0
 
+    # ── Rounding setting (from builder/admin config) ────────────
+    ps_rounding = ps.get('initial_payment_rounding', 'none')
+
+    def _round_amount(amt, rnd):
+        if rnd == '100':
+            return round(amt / 100) * 100
+        elif rnd == '1000':
+            return round(amt / 1000) * 1000
+        return round(amt, 2)
+
+    # ── 35% split: IP + CM + 3rd ──────────────────────────────────
+    # CM and 3rd each get half of what remains after IP
+    # 3rd Payment is listed as "3rd Payment" at its chronological position
+    cm_each = round((completion_pool - initial_payment) / 2, 2) if completion_pool > initial_payment else 0
+    third_payment = round(completion_pool - initial_payment - cm_each, 2) if completion_pool > initial_payment else 0
+
+    # ── 65% pool: adjustments stay WITHIN the total ──────────────
+    # If TK removal is needed, the £250 comes out of the weekly pool
+    # and goes to the final settlement.  If glazing is needed, same.
+    adjustments = 0.0
+    if has_temp_kitchen:
+        adjustments += temp_kitchen_cost
+    if has_glazing:
+        adjustments += glazing_cost
+    weekly_pool = round(pool_after_stages - adjustments, 2)  # adjustments reduce the pool
+    # Regular weekly amount, rounded per the builder setting
+    raw_per_week = weekly_pool / remaining_weeks if remaining_weeks > 0 else 0
+    regular_slots = remaining_weeks - 1  # slots that get the 65% pool (all except 3rd Payment)
+    regular_weekly = _round_amount(weekly_pool / regular_slots, ps_rounding) if regular_slots > 0 else 0
+
+    # ── Build schedule: IP, CM, then interleaved weeks + 3rd Payment ──
+    # weeks BEFORE 3rd Payment: Week 1, Week 2
+    # Week occupied by 3rd Payment
+    # weeks AFTER 3rd Payment: Week 4 ... Week N  (last = final settlement)
     schedule = [
         {"stage": "Initial Payment", "amount": initial_payment, "note": ""},
-        {"stage": "Com. Meeting", "amount": round(completion_pool / 2, 2), "note": ""},
-        {"stage": "3rd Payment", "amount": round(completion_pool / 2, 2), "note": ""},
+        {"stage": "Commencement Meeting", "amount": cm_each, "note": ""},
     ]
-    for i in range(1, weekly_count + 1):
-        if i == weekly_count:
-            schedule.append({"stage": f"Week {i}", "amount": final_weekly, "note": ""})
+    for i in range(1, remaining_weeks + 1):
+        if i == remaining_weeks:
+            # Last week = final settlement — absorbs ALL remainder
+            last_amount = round(basic_build - sum(s['amount'] for s in schedule), 2)
+            schedule.append({"stage": f"Week {i}", "amount": last_amount, "note": ""})
+        elif i == 3:
+            # 3rd Payment at its chronological position (week 3)
+            schedule.append({"stage": "3rd Payment", "amount": third_payment, "note": ""})
         else:
             schedule.append({"stage": f"Week {i}", "amount": regular_weekly, "note": ""})
     
