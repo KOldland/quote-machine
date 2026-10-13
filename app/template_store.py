@@ -263,6 +263,7 @@ def _create_schema(conn: sqlite3.Connection) -> None:
             status TEXT NOT NULL DEFAULT 'draft',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            form_data TEXT,
             FOREIGN KEY (form_template_id) REFERENCES form_templates(id) ON DELETE CASCADE
         );
 
@@ -308,6 +309,7 @@ def _create_schema(conn: sqlite3.Connection) -> None:
             next_endpoint TEXT,
             display_order INTEGER NOT NULL,
             metadata_json TEXT NOT NULL,
+            description TEXT DEFAULT '',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             UNIQUE (form_template_version_id, page_key),
             FOREIGN KEY (form_template_version_id) REFERENCES form_template_versions(id) ON DELETE CASCADE
@@ -321,9 +323,24 @@ def _create_schema(conn: sqlite3.Connection) -> None:
             display_order INTEGER NOT NULL,
             output_group TEXT DEFAULT 'General',
             image_url TEXT DEFAULT '',
+            description TEXT DEFAULT '',
+            is_cost_group INTEGER DEFAULT 0,
+            cost_group_override_allowed INTEGER DEFAULT 0,
+            is_module INTEGER DEFAULT 0,
+            module_type TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             UNIQUE (page_template_id, name),
             FOREIGN KEY (form_template_version_id) REFERENCES form_template_versions(id) ON DELETE CASCADE,
+            FOREIGN KEY (page_template_id) REFERENCES page_templates(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS category_images (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            page_template_id INTEGER NOT NULL,
+            category_name TEXT NOT NULL,
+            image_url TEXT NOT NULL,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (page_template_id) REFERENCES page_templates(id) ON DELETE CASCADE
         );
 
