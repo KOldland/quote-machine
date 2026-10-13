@@ -2,7 +2,19 @@ import json
 import os
 import sqlite3
 from pathlib import Path
-from typing import Dict, Any, Iterable, Optional
+from typing import Dict, Any, Iterable, Optional, Union
+
+# Database backend detection
+_DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
+_IS_POSTGRES = bool(_DATABASE_URL)
+
+if _IS_POSTGRES:
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+
+
+def _get_db_backend() -> str:
+    return "postgres" if _IS_POSTGRES else "sqlite"
 
 
 LOGIC_RULE_SEEDS = [
@@ -45,19 +57,123 @@ def _question_kind(field: Dict[str, Any]) -> str:
     return "unknown"
 
 
-from typing import Union
-def _connect(db_path: Union[Path, str]) -> sqlite3.Connection:
-    """Open a SQLite connection, ensuring the directory exists.
+class _CompatCursor:
+    """Wraps a cursor to provide tuple-style row access on PostgreSQL."""
+    def __init__(self, cursor, is_pg):
+        self._cur = cursor
+        self._is_pg = is_pg
+    
+    def _wrap_row(self, row):
+        if row is None or not self._is_pg:
+            return row
+        # RealDictRow -> support both row[0] and row["col"]
+        if not hasattr(row, '__getitem_int__'):
+            class _RowWrapper:
+                def __init__(self, real_dict_row):
+                    self._row = real_dict_row
+                    self._keys = list(real_dict_row.keys())
+                
+                def __getitem__(self, key):
+                    if isinstance(key, int):
+                        return self._row[self._keys[key]]
+                    return self._row[key]
+                
+                def __getattr__(self, name):
+                    return self._row[name]
+                
+                def keys(self):
+                    return self._keys
+                
+                def __iter__(self):
+                    return iter(self._row)
+                
+                def __len__(self):
+                    return len(self._keys)
+            
+            return _RowWrapper(row)
+        return row
+    
+    def fetchone(self):
+        return self._wrap_row(self._cur.fetchone())
+    
+    def fetchall(self):
+        rows = self._cur.fetchall()
+        return [self._wrap_row(r) for r in rows]
+    
+    def fetchmany(self, size=None):
+        rows = self._cur.fetchmany(size) if size else self._cur.fetchmany()
+        return [self._wrap_row(r) for r in rows]
+    
+    def __iter__(self):
+        for row in self._cur:
+            yield self._wrap_row(row)
+    
+    def __getattr__(self, name):
+        return getattr(self._cur, name)
 
-    ``db_path`` may be a pathlib.Path instance or a plain string.
-    sqlite3.connect requires a string path, so we normalise the value to a
-    Path first (so we can safely use ``parent`` for directory creation) and
-    then convert back to ``str`` for the actual connection call.
-    """
-    # Normalise to ``Path`` so we can safely call ``parent``.
+
+class _CompatConnection:
+    """Wraps a DB connection so code can use `conn.execute(...)` with `?`
+    placeholders on both SQLite and PostgreSQL."""
+    def __init__(self, conn, is_pg):
+        self._conn = conn
+        self._is_pg = is_pg
+    
+    @property
+    def row_factory(self):
+        return None
+    
+    @row_factory.setter
+    def row_factory(self, val):
+        # SQLite Row factory — not needed for PostgreSQL (RealDictCursor handles it)
+        if not self._is_pg:
+            self._conn.row_factory = val
+    
+    def _adapt(self, sql):
+        return sql.replace('?', '%s') if self._is_pg else sql
+    
+    def execute(self, sql, *args, **kwargs):
+        adapted = self._adapt(sql)
+        if self._is_pg:
+            cur = self._conn.cursor()
+            if args:
+                cur.execute(adapted, args[0] if args else ())
+            else:
+                cur.execute(adapted)
+            return _CompatCursor(cur, is_pg=True)
+        return self._conn.execute(adapted, *args, **kwargs)
+    
+    def cursor(self):
+        cur = self._conn.cursor()
+        return _CompatCursor(cur, self._is_pg) if self._is_pg else cur
+    
+    def commit(self):
+        self._conn.commit()
+    
+    def rollback(self):
+        self._conn.rollback()
+    
+    def close(self):
+        self._conn.close()
+
+
+def _connect(db_path=None):
+    """Open a database connection.
+    When DATABASE_URL is set, connects to PostgreSQL.
+    Otherwise falls back to SQLite using the default template_store.sqlite3 path.
+    Returns a _CompatConnection wrapper so all code can use conn.execute(...)."""
+    if _IS_POSTGRES:
+        conn = psycopg2.connect(_DATABASE_URL, cursor_factory=RealDictCursor)
+        conn.autocommit = False
+        return _CompatConnection(conn, is_pg=True)
+    # SQLite fallback
+    if db_path is None:
+        db_path = _default_db_path()
     db_path_obj = Path(db_path) if not isinstance(db_path, Path) else db_path
     db_path_obj.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(db_path_obj))
+    raw = sqlite3.connect(str(db_path_obj))
+    raw.row_factory = sqlite3.Row
+    return _CompatConnection(raw, is_pg=False)
     conn.row_factory = sqlite3.Row
     return conn
 

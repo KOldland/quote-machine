@@ -138,8 +138,8 @@ def _rebuild_payload_from_db(conn, template_key):
     from pathlib import Path
     db = str(Path(__file__).parent / 'template_store.sqlite3')
     if conn is None:
-        conn = sqlite3.connect(db)
-    conn.row_factory = sqlite3.Row
+        conn = _get_conn()
+    
     latest_version_id = _get_latest_version_id(conn, template_key)
     if not latest_version_id:
         return None
@@ -184,6 +184,13 @@ from config import (
 
 app = Flask(__name__)
 csrf = CSRFProtect(app)
+
+# ── Database connection helper (SQLite local / PostgreSQL on Render) ──
+def _get_conn(db_path=None):
+    """Return a DB connection via template_store._connect().
+    On Render (DATABASE_URL set) this uses PostgreSQL; locally it uses SQLite."""
+    import template_store as _ts_conn
+    return _ts_conn._connect(db_path)
 
 @app.template_filter('from_json')
 def from_json_filter(s):
@@ -407,8 +414,8 @@ def get_builder_settings():
     db_path = Path(__file__).parent / 'template_store.sqlite3'
     if db_path.exists():
         try:
-            conn = sqlite3.connect(str(db_path))
-            conn.row_factory = sqlite3.Row
+            conn = _get_conn(db_path)
+            
             row = conn.execute(
                 'SELECT settings_json FROM form_templates WHERE key = ?',
                 (TEMPLATE_STORE_KEY,),
@@ -439,7 +446,7 @@ def save_builder_settings(settings: dict):
     db_path = Path(__file__).parent / 'template_store.sqlite3'
     if db_path.exists():
         try:
-            conn = sqlite3.connect(str(db_path))
+            conn = _get_conn(db_path)
             conn.execute(
                 'UPDATE form_templates SET settings_json = ? WHERE key = ?',
                 (json.dumps(settings, indent=2), TEMPLATE_STORE_KEY),
@@ -468,7 +475,7 @@ def save_page_schemas():
         import sqlite3
         from pathlib import Path
         _db = str(Path(__file__).parent / 'template_store.sqlite3')
-        _conn = sqlite3.connect(_db)
+        _conn = _get_conn()
         _row = _conn.execute(
             "SELECT ftv.id FROM form_template_versions ftv "
             "JOIN form_templates ft ON ft.id = ftv.form_template_id "
@@ -503,8 +510,8 @@ def save_field_override(
         return False
 
     try:
-        conn = sqlite3.connect(str(db_path))
-        conn.row_factory = sqlite3.Row
+        conn = _get_conn(db_path)
+        
         row = conn.execute(
             '''SELECT qt.id, qt.metadata_json FROM question_templates qt
                JOIN page_templates pt ON pt.id = qt.page_template_id
@@ -583,8 +590,8 @@ def save_field_inspector(
         return False
 
     try:
-        conn = sqlite3.connect(str(db_path))
-        conn.row_factory = sqlite3.Row
+        conn = _get_conn(db_path)
+        
         row = conn.execute(
             '''SELECT qt.id, qt.metadata_json FROM question_templates qt
       JOIN page_templates pt ON pt.id = qt.page_template_id
@@ -913,12 +920,11 @@ def get_builder_beta_state():
     # Ensure any categories that exist in the DB but not in the JSON schema
     # are visible in BUILD MODE (e.g. categories added via add_category).
     try:
-        import sqlite3 as _sqlite3
+        import sqlite3 as _sqlite3  # kept for Row type
         from pathlib import Path as _Path
         _db_path = _Path(__file__).parent / 'template_store.sqlite3'
         if _db_path.exists():
-            _conn = _sqlite3.connect(str(_db_path))
-            _conn.row_factory = _sqlite3.Row
+            _conn = _get_conn(_db_path)
             _rows = _conn.execute(
                 "SELECT pt.page_key, ct.name, ct.display_order, ct.description, ct.output_group "
                 "FROM category_templates ct "
@@ -1614,12 +1620,11 @@ def fetch_catalog_from_db() -> list:
     Returns [] if the DB has no rows for the current template key.
     """
     try:
-        import sqlite3 as _sqlite3
+        import sqlite3 as _sqlite3  # kept for Row type
         db_path = os.path.join(
             os.path.dirname(__file__),
             'template_store.sqlite3')
-        conn = _sqlite3.connect(db_path)
-        conn.row_factory = _sqlite3.Row
+        conn = _get_conn(db_path)
         rows = conn.execute(
             """
             SELECT oi.line_code, oi.label, oi.is_included
@@ -1801,8 +1806,8 @@ def builder_page_details_json(page_key):
     import sqlite3
     from pathlib import Path
     db = str(Path(__file__).parent / 'template_store.sqlite3')
-    conn = sqlite3.connect(db)
-    conn.row_factory = sqlite3.Row
+    conn = _get_conn()
+    
     # Get latest version id
     latest_version_row = conn.execute(
         """
@@ -2129,8 +2134,8 @@ def builder_payment_schedule_preview():
         groups = data.get('groups', [])
         if page_key and groups:
             db = str(Path(__file__).parent / 'template_store.sqlite3')
-            conn = sqlite3.connect(db)
-            conn.row_factory = sqlite3.Row
+            conn = _get_conn()
+            
             try:
                 totals = _compute_cost_group_totals(groups, conn, session)
                 basic_build = round(sum(totals.get(g, 0) for g in groups), 2)
@@ -2297,8 +2302,8 @@ def builder_line_item_move():
         return jsonify({'success': False,
                         'error': 'line_item_id, page_key and target_category are required'}), 400
 
-    conn = sqlite3.connect(db)
-    conn.row_factory = sqlite3.Row
+    conn = _get_conn()
+    
     try:
         item = conn.execute(
             "SELECT id, form_page, category, sort_order FROM line_items WHERE id = ?",
@@ -2368,7 +2373,7 @@ def builder_page_details_save(page_key):
     desc = data.get('description', '')
     form_visible = data.get('form_visible', True)
     quote_visible = data.get('quote_visible', True)
-    conn = sqlite3.connect(db)
+    conn = _get_conn()
     # Get latest version id
     latest_version_row = conn.execute(
         """
@@ -2407,7 +2412,7 @@ def builder_page_modules_save(page_key):
     modules = data.get('modules', [])
     if not isinstance(modules, list):
         return jsonify({'ok': False, 'error': 'modules must be a list'}), 400
-    conn = sqlite3.connect(db)
+    conn = _get_conn()
     lv = conn.execute("SELECT MAX(id) FROM form_template_versions WHERE form_template_id = (SELECT id FROM form_templates WHERE key = ?)", (TEMPLATE_STORE_KEY,)).fetchone()
     lid = int(lv[0]) if lv and lv[0] else None
     if not lid:
@@ -2447,7 +2452,7 @@ def builder_image_upload_save(page_key):
     data = request.get_json(force=True) or {}
     slot = data.get('slot', 'cover_image')
     label = data.get('label', 'Uploaded Image')
-    conn = sqlite3.connect(db)
+    conn = _get_conn()
     lv = conn.execute("SELECT MAX(id) FROM form_template_versions WHERE form_template_id = (SELECT id FROM form_templates WHERE key = ?)", (TEMPLATE_STORE_KEY,)).fetchone()
     lid = int(lv[0]) if lv and lv[0] else None
     if not lid:
@@ -2481,8 +2486,8 @@ def builder_page_total_calc():
     groups = data.get('groups', [])
     if not page_key or not groups:
         return jsonify({'success': False, 'error': 'page_key and groups required'}), 400
-    conn = sqlite3.connect(db)
-    conn.row_factory = sqlite3.Row
+    conn = _get_conn()
+    
     try:
         totals = _compute_cost_group_totals(groups, conn, session)
         selected_total = round(sum(totals.get(g, 0) for g in groups), 2)
@@ -2643,8 +2648,8 @@ def builder_category_details_json():
     import sqlite3
     from pathlib import Path
     db = str(Path(__file__).parent / 'template_store.sqlite3')
-    conn = sqlite3.connect(db)
-    conn.row_factory = sqlite3.Row
+    conn = _get_conn()
+    
     # Get latest version id
     latest_version_row = conn.execute(
         """
@@ -2674,8 +2679,7 @@ def builder_category_details_json():
         # Also load multiple images from category_images table
         try:
             import sqlite3 as _sql
-            conn2 = _sql.connect(db)
-            conn2.row_factory = _sql.Row
+            conn2 = _get_conn()
             img_rows = conn2.execute(
                 '''
                 SELECT ci.image_url
@@ -2728,7 +2732,7 @@ def builder_category_details_save():
     category_images = deduped
     print(f"[CAT_SAVE] page_key={page_key!r} old_name={old_name!r} new_name={new_name!r} category_image={category_image!r} category_images={category_images!r}", flush=True)
 
-    conn = sqlite3.connect(db)
+    conn = _get_conn()
     try:
         latest_version_row = conn.execute(
             """
@@ -2811,7 +2815,7 @@ def _get_page_visibility(page_key: str) -> dict:
         import sqlite3
         from pathlib import Path
         db = str(Path(__file__).parent / 'template_store.sqlite3')
-        conn = sqlite3.connect(db)
+        conn = _get_conn()
         row = conn.execute(
             "SELECT metadata_json FROM page_templates WHERE page_key = ? "
             "AND form_template_version_id IN (SELECT id FROM form_template_versions "
@@ -2860,7 +2864,7 @@ def builder_beta_category_add():
                 import sqlite3
                 from pathlib import Path
                 db = str(Path(__file__).parent / 'template_store.sqlite3')
-                conn2 = sqlite3.connect(db)
+                conn2 = _get_conn()
                 conn2.execute(
                     "UPDATE category_templates SET is_module = ?, module_type = ? WHERE name = ? AND page_template_id IN (SELECT id FROM page_templates WHERE page_key = ?)",
                     (1 if is_module else 0, module_type, data['category_name'], data['page_key'])
@@ -2874,7 +2878,7 @@ def builder_beta_category_add():
             import sqlite3
             from pathlib import Path
             db = str(Path(__file__).parent / 'template_store.sqlite3')
-            conn2 = sqlite3.connect(db)
+            conn2 = _get_conn()
             conn2.execute(
                 "UPDATE category_templates SET is_cost_group = 1 WHERE name = ? AND page_template_id IN (SELECT id FROM page_templates WHERE page_key = ?)",
                 (data['category_name'], data['page_key'])
@@ -2888,7 +2892,7 @@ def builder_beta_category_add():
                 import sqlite3
                 from pathlib import Path
                 db = str(Path(__file__).parent / 'template_store.sqlite3')
-                conn2 = sqlite3.connect(db)
+                conn2 = _get_conn()
                 conn2.execute(
                     "UPDATE category_templates SET is_cost_group = 1 WHERE name = ? AND page_template_id IN (SELECT id FROM page_templates WHERE page_key = ?)",
                     (data['category_name'], data['page_key'])
@@ -2956,8 +2960,8 @@ def builder_line_item_add():
 
     conn = None
     try:
-        conn = sqlite3.connect(db)
-        conn.row_factory = sqlite3.Row
+        conn = _get_conn()
+        
 
         # Verify the category exists before attempting insert
         # Get latest version id
@@ -3040,8 +3044,8 @@ def builder_category_delete():
     page_key = data.get('page_key')
     category_name = data.get('category_name')
 
-    conn = sqlite3.connect(db)
-    conn.row_factory = sqlite3.Row
+    conn = _get_conn()
+    
     try:
         # Get latest version id
         latest_version_row = conn.execute(
@@ -3135,7 +3139,7 @@ def builder_category_move():
     if page_key == target_page_key:
         return jsonify({'success': False, 'error': 'Source and target pages are the same'}), 400
 
-    conn = sqlite3.connect(db)
+    conn = _get_conn()
     try:
         # Get latest version id
         latest_version_row = conn.execute(
@@ -3197,7 +3201,7 @@ def builder_page_delete(page_key):
     import sqlite3
     from pathlib import Path
     db = str(Path(__file__).parent / 'template_store.sqlite3')
-    conn = sqlite3.connect(db)
+    conn = _get_conn()
     try:
         # Get latest version id
         latest_version_row = conn.execute(
@@ -3344,7 +3348,7 @@ def builder_line_item_delete():
     if not line_code:
         return jsonify({'error': 'No line code provided'}), 400
 
-    conn = sqlite3.connect(db)
+    conn = _get_conn()
     try:
         conn.execute("DELETE FROM line_items WHERE line_code = ?", [line_code])
         conn.commit()
@@ -3370,8 +3374,8 @@ def builder_line_item_duplicate():
     if not line_code:
         return jsonify({'error': 'No line code provided'}), 400
 
-    conn = sqlite3.connect(db)
-    conn.row_factory = sqlite3.Row
+    conn = _get_conn()
+    
     try:
         print(f"[DUPLICATE] line_code={line_code!r} page_key={page_key!r} category={category!r}", flush=True)
         row = conn.execute(
@@ -3775,7 +3779,7 @@ def builder_cost_group_delete():
     _db = str(Path(__file__).parent / 'template_store.sqlite3')
     
     # Remap all line_items that reference this group
-    conn = sqlite3.connect(_db)
+    conn = _get_conn()
     try:
         conn.execute(
             "UPDATE line_items SET output_group = ? WHERE output_group = ?",
@@ -3786,7 +3790,7 @@ def builder_cost_group_delete():
         conn.close()
     
     # Remap all category_templates that reference this group
-    conn = sqlite3.connect(_db)
+    conn = _get_conn()
     try:
         conn.execute(
             "UPDATE category_templates SET output_group = ? WHERE output_group = ?",
@@ -3817,7 +3821,7 @@ def builder_line_item_save(item_id):
     from pathlib import Path
     db = str(Path(__file__).parent / 'template_store.sqlite3')
     data = request.get_json(force=True) or {}
-    conn = sqlite3.connect(db)
+    conn = _get_conn()
     try:
         # Build SET clause from allowed fields
         allowed = [
@@ -3936,7 +3940,7 @@ def builder_question_images():
     if line_item_id is None:
         return jsonify({'success': False, 'error': 'line_item_id is required'}), 400
 
-    conn = sqlite3.connect(db)
+    conn = _get_conn()
     try:
         conn.execute("DELETE FROM question_images WHERE line_item_id = ?", (line_item_id,))
         for idx, url in enumerate(images):
@@ -3980,8 +3984,8 @@ def save_title():
 
     conn = None
     try:
-        conn = sqlite3.connect(db)
-        conn.row_factory = sqlite3.Row
+        conn = _get_conn()
+        
 
         # Find the line item by line_code
         row = conn.execute(
@@ -4042,8 +4046,8 @@ def builder_line_items_json():
     db = str(Path(__file__).parent / 'template_store.sqlite3')
     page = request.args.get('page', '')
     category = request.args.get('category', '')
-    conn = sqlite3.connect(db)
-    conn.row_factory = sqlite3.Row
+    conn = _get_conn()
+    
     try:
         if category:
             rows = conn.execute(
@@ -4083,8 +4087,8 @@ def builder_swap_order():
     identifier = data.get('identifier')
     direction = data.get('direction', 'up')
     page_key = data.get('page_key', '')
-    conn = sqlite3.connect(db)
-    conn.row_factory = sqlite3.Row
+    conn = _get_conn()
+    
     try:
         # Get latest version id
         latest_version_row = conn.execute(
@@ -4330,8 +4334,8 @@ def builder_page_reorder():
     if not page_key:
         return jsonify({'error': 'page_key is required'}), 400
 
-    conn = sqlite3.connect(db)
-    conn.row_factory = sqlite3.Row
+    conn = _get_conn()
+    
     try:
         latest_version_row = conn.execute(
             """
@@ -4645,6 +4649,28 @@ def dynamic_page(page_id):
         return redirect(url_for('dynamic_page', page_id=next_key))
 
     session['last_visited'] = page_id
+    # Auto-restore from saved form session on first load
+    if request.method == 'GET' and not session.get('_auto_restored'):
+        try:
+            import template_store as _ts_load
+            _conn_load = _ts_load._connect()
+            cur = _conn_load.cursor()
+            ph = '%s' if _ts_load._get_db_backend() == 'postgres' else '?'
+            cur.execute(f'SELECT session_data FROM saved_sessions WHERE name = {ph} ORDER BY created_at DESC LIMIT 1', ('_auto_form_save',))
+            _row_load = cur.fetchone()
+            cur.close()
+            if _row_load:
+                loaded = json.loads(_row_load[0])
+                session.setdefault('data', {}).update(loaded.get('data', {}))
+                session.setdefault('checkbox_data', {}).update(loaded.get('checkbox_data', {}))
+                session.setdefault('session_overrides', {}).update(loaded.get('session_overrides', {}))
+                if loaded.get('template_key'):
+                    session['template_key'] = loaded['template_key']
+                session['_auto_restored'] = True
+                session.modified = True
+            _conn_load.close()
+        except Exception:
+            pass
     page = all_pages[page_id]
     page_schema = compile_builder_beta_page_to_runtime_schema(page_id)
     if page_schema is None:
@@ -4702,29 +4728,53 @@ def dynamic_page(page_id):
         session['session_overrides'] = session_overrides
         session.modified = True
 
-        # ── Auto-create quote draft on first form save ─────────────────
-        active_quote_id = session.get('active_quote_id')
-        if not active_quote_id:
-            try:
-                import template_store as _ts_q
-                quote_name = "Form Draft"
-                client_name = form_data.get('client_address', '')[:100]
-                _ts_q.save_quote(
-                    form_key=session.get('template_key', 'builder_beta'),
-                    blocks_json=[],
-                    name=quote_name,
-                    client_name=client_name,
-                    form_data={'data': form_data, 'checkbox_data': checkbox_data, 'template_key': session.get('template_key', 'builder_beta')},
-                )
-                # Get the last inserted quote
-                _conn = _ts_q._connect(_ts_q._default_db_path())
-                _row = _conn.execute("SELECT MAX(id) FROM saved_quotes").fetchone()
-                if _row and _row[0]:
-                    session['active_quote_id'] = int(_row[0])
-                    active_quote_id = int(_row[0])
-                _conn.close()
-            except Exception:
-                pass
+        # ── Auto-save form progress to DB on every submit ──────────────
+        try:
+            import template_store as _ts_save
+            _conn_save = _ts_save._connect()
+            if _ts_save._get_db_backend() == 'postgres':
+                _conn_save.execute('''
+                    CREATE TABLE IF NOT EXISTS saved_sessions (
+                        id SERIAL PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        session_data TEXT NOT NULL,
+                        user_id INTEGER,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                ''')
+                _conn_save.commit()
+            else:
+                _conn_save.execute('''
+                    CREATE TABLE IF NOT EXISTS saved_sessions (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name TEXT NOT NULL,
+                        session_data TEXT NOT NULL,
+                        user_id INTEGER,
+                        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                    )
+                ''')
+            data_to_save = {
+                'data': form_data,
+                'checkbox_data': checkbox_data,
+                'session_overrides': session_overrides,
+                'template_key': session.get('template_key'),
+            }
+            cur = _conn_save.cursor()
+            is_pg = _ts_save._get_db_backend() == 'postgres'
+            ph = '%s' if is_pg else '?'
+            cur.execute(f'SELECT id FROM saved_sessions WHERE name = {ph} ORDER BY created_at DESC LIMIT 1', ('_auto_form_save',))
+            existing = cur.fetchone()
+            if existing:
+                cur.execute(f'UPDATE saved_sessions SET session_data = {ph}, created_at = CURRENT_TIMESTAMP WHERE id = {ph}',
+                            (json.dumps(data_to_save), existing[0]))
+            else:
+                cur.execute(f'INSERT INTO saved_sessions (name, session_data, user_id) VALUES ({ph}, {ph}, {ph})',
+                            ('_auto_form_save', json.dumps(data_to_save), session.get('user_id')))
+            _conn_save.commit()
+            cur.close()
+            _conn_save.close()
+        except Exception:
+            pass
 
         # ── Form → Quote live sync ──────────────────────────────────────
         active_quote_id = session.get('active_quote_id')
@@ -5784,8 +5834,8 @@ def review():
     line_code_categories = {}
     if selected_codes:
         try:
-            conn = sqlite3.connect(str(Path(__file__).parent / 'template_store.sqlite3'))
-            conn.row_factory = sqlite3.Row
+            conn = _get_conn()
+            
             placeholders = ','.join('?' for _ in selected_codes)
             rows = conn.execute(
                 f'SELECT line_code, output_title, internal_description FROM line_items WHERE line_code IN ({placeholders})',
@@ -5897,8 +5947,8 @@ def api_line_item_override():
         return jsonify({'success': False, 'error': 'unit_cost must be a number'}), 400
 
     db_path = str(Path(__file__).parent / 'template_store.sqlite3')
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
+    conn = _get_conn(db_path)
+    
 
     row = conn.execute(
         "SELECT id FROM line_items WHERE line_code = ? LIMIT 1",
@@ -5914,7 +5964,7 @@ def api_line_item_override():
     if scope == 'db':
         if session.get('role') != 'admin':
             return jsonify({'success': False, 'error': 'Admin role required to update DB defaults'}), 403
-        conn = sqlite3.connect(db_path)
+        conn = _get_conn(db_path)
         conn.execute(
             "UPDATE line_items SET unit_cost = ? WHERE id = ?",
             (unit_cost, item_id),
@@ -5984,7 +6034,7 @@ def save_load():
     loaded = False
     error = None
     saved_sessions = []
-    conn = sqlite3.connect(db_path)
+    conn = _get_conn(db_path)
     conn.execute('''
         CREATE TABLE IF NOT EXISTS saved_sessions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -6038,7 +6088,7 @@ def save_load():
                         error = str(exc)
     conn.close()
 
-    conn = sqlite3.connect(db_path)
+    conn = _get_conn(db_path)
     rows = conn.execute('SELECT id, name, created_at FROM saved_sessions ORDER BY created_at DESC').fetchall()
     conn.close()
     for row in rows:
