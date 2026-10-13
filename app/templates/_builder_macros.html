@@ -950,7 +950,7 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 .li-qlist-row {
     display:grid;
-    grid-template-columns:1fr 40px 30px;
+    grid-template-columns:1fr 26px 22px 30px;
     gap:.4rem; align-items:center;
     padding:.35rem .75rem; font-size:.8rem; cursor:pointer;
     border-bottom:1px solid #f3f3f3; transition:background .1s;
@@ -961,7 +961,10 @@ document.addEventListener('DOMContentLoaded', function() {
 .li-qlist-code { font-family:monospace; font-weight:600; color:#344; font-size:.76rem; }
 .li-qlist-desc { color:#333; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .li-qlist-role { font-size:.7rem; color:#888; text-align:right; }
-.li-qlist-vis { text-align:center; font-size:.8rem; }
+.li-qlist-vis { text-align:center; font-size:.8rem; color:#2b6a3d; }
+.li-qlist-eye { display:inline-block; vertical-align:middle; }
+.li-qlist-eye--off { color:#c0c0c0; }
+.li-qlist-pre { display:flex; align-items:center; justify-content:center; font-size:.85rem; color:#1b3a6b; font-weight:700; }
 
 /* Editor sections */
 .li-editor-section { border:1px solid #dee2e6; border-radius:5px; margin-bottom:.6rem; overflow:hidden; }
@@ -1199,10 +1202,17 @@ document.addEventListener('DOMContentLoaded', function() {
         var html = '';
         items.forEach(function (item) {
             var desc = item.internal_description || item.output_title || '—';
-            var vis  = item.form_visible ? '✓' : '–';
+            var visible = item.form_visible === 1 || item.form_visible === '1' || item.form_visible === true;
+            var visIcon = visible
+                ? '<svg class="li-qlist-eye" title="Visible in form" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>'
+                : '<svg class="li-qlist-eye li-qlist-eye--off" title="Hidden in form" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/><path d="M3.5 3.5l17 17"/></svg>';
+            var pre = (item.include_default === 'Y' || item.include_default === '1' || item.include_default === 1 || item.include_default === true)
+                ? '<span class="li-qlist-pre" title="Preselected in form"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>'
+                : '<span class="li-qlist-pre"></span>';
             html += '<div class="li-qlist-row" data-id="' + item.id + '">'
                 +   '<span class="li-qlist-desc" title="' + _esc(desc) + '">' + _esc(desc) + '</span>'
-                +   '<span class="li-qlist-vis">' + vis + '</span>'
+                +   '<span class="li-qlist-vis">' + visIcon + '</span>'
+                +   pre
                 +   '<div class="li-reorder-controls" style="display:flex;flex-direction:column;align-items:center;">'
                 +       '<button type="button" class="li-move-btn" data-scope="question" data-id="' + item.id + '" data-dir="up" style="border:none;background:none;font-size:10px;cursor:pointer;padding:0 4px;color:#888;">▲</button>'
                 +       '<button type="button" class="li-move-btn" data-scope="question" data-id="' + item.id + '" data-dir="down" style="border:none;background:none;font-size:10px;cursor:pointer;padding:0 4px;color:#888;">▼</button>'
@@ -2158,7 +2168,8 @@ function showViewImageUpload() {
         ]);
 
         html += '<div style="position: sticky; bottom: -1.5rem; background: #fff; z-index: 10; margin: 1rem -1.5rem -1.5rem -1.5rem; padding: 1rem 1.5rem 3rem 1.5rem; border-top: 1px solid #ccc; box-shadow: 0 -4px 6px -6px rgba(0,0,0,0.1);">';
-        html += '<div style="display:flex; justify-content:flex-end; align-items:center; margin-bottom:0.8rem;">';
+        html += '<div style="display:flex; justify-content:flex-end; align-items:center; gap:1.25rem; margin-bottom:0.8rem;">';
+        html += '  <label style="font-size:.85rem; font-weight:600; color:#1b3a6b; cursor:pointer;" title="Pre-check this question when the form loads"><input type="checkbox" name="include_default" ' + (item.include_default === 'Y' || item.include_default === '1' || item.include_default === 1 || item.include_default === true ? 'checked' : '') + ' style="margin-right:.4rem;">Preselected</label>';
         html += '  <label style="font-size:.85rem; font-weight:600; color:#1b3a6b; cursor:pointer;"><input type="checkbox" name="form_visible" ' + (item.form_visible === 1 || item.form_visible === '1' || item.form_visible === true ? 'checked' : '') + ' style="margin-right:.4rem;">Question Visible in Form</label>';
         html += '</div>';
         html += '<div style="display:flex; justify-content:flex-end; align-items:center; gap: 10px;">';

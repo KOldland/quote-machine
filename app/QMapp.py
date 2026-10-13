@@ -3843,13 +3843,16 @@ def builder_line_item_save(item_id):
     from pathlib import Path
     db = str(Path(__file__).parent / 'template_store.sqlite3')
     data = request.get_json(force=True) or {}
+    # Normalise the Preselected checkbox (posted as 1/0) to the DB's 'Y'/'N'
+    if 'include_default' in data:
+        data['include_default'] = 'Y' if str(data['include_default']).lower() in ('1', 'y', 'true', 'yes', 'on') else 'N'
     conn = _get_conn()
     try:
         # Build SET clause from allowed fields
         allowed = [
             'internal_description', 'output_title', 'output_notes', 'output_guidance',
             'unit_cost', 'units', 'pricing_visibility', 'quantity_source', 'pricing_mode',
-            'form_visible', 'category',
+            'form_visible', 'category', 'include_default',
             'is_follow_up', 'follow_up_type', 'follow_up_config',
             'output_group', 'override_output_group', 'price_matrix',
         ]
@@ -3923,12 +3926,27 @@ def builder_line_item_save(item_id):
                 deduped.append(u)
         question_images = deduped
 
-        conn.execute("DELETE FROM question_images WHERE line_item_id = ?", (item_id,))
+        # Sync question_images — detect the active schema. PostgreSQL uses
+        # the newer question_template_id/image_path/image_order; legacy SQLite
+        # databases use line_item_id/image_url/sort_order.
+        legacy_qi = False
+        try:
+            conn.execute("DELETE FROM question_images WHERE question_template_id = ?", (item_id,))
+        except Exception:
+            conn.rollback()
+            conn.execute("DELETE FROM question_images WHERE line_item_id = ?", (item_id,))
+            legacy_qi = True
         for idx, url in enumerate(question_images):
-            conn.execute(
-                "INSERT INTO question_images (line_item_id, image_url, sort_order) VALUES (?, ?, ?)",
-                (item_id, url, idx)
-            )
+            if legacy_qi:
+                conn.execute(
+                    "INSERT INTO question_images (line_item_id, image_url, sort_order) VALUES (?, ?, ?)",
+                    (item_id, url, idx)
+                )
+            else:
+                conn.execute(
+                    "INSERT INTO question_images (question_template_id, image_path, image_order) VALUES (?, ?, ?)",
+                    (item_id, url, idx)
+                )
         conn.commit()
 
         return jsonify({'ok': True})
@@ -3964,12 +3982,25 @@ def builder_question_images():
 
     conn = _get_conn()
     try:
-        conn.execute("DELETE FROM question_images WHERE line_item_id = ?", (line_item_id,))
+        # Detect the active question_images schema (new PG vs legacy SQLite)
+        legacy_qi = False
+        try:
+            conn.execute("DELETE FROM question_images WHERE question_template_id = ?", (line_item_id,))
+        except Exception:
+            conn.rollback()
+            conn.execute("DELETE FROM question_images WHERE line_item_id = ?", (line_item_id,))
+            legacy_qi = True
         for idx, url in enumerate(images):
-            conn.execute(
-                "INSERT INTO question_images (line_item_id, image_url, sort_order) VALUES (?, ?, ?)",
-                (line_item_id, url, idx)
-            )
+            if legacy_qi:
+                conn.execute(
+                    "INSERT INTO question_images (line_item_id, image_url, sort_order) VALUES (?, ?, ?)",
+                    (line_item_id, url, idx)
+                )
+            else:
+                conn.execute(
+                    "INSERT INTO question_images (question_template_id, image_path, image_order) VALUES (?, ?, ?)",
+                    (line_item_id, url, idx)
+                )
         conn.commit()
         return jsonify({'success': True})
     except Exception as e:
@@ -4835,7 +4866,13 @@ def dynamic_page(page_id):
                             else:
                                 value = session.get('data', {}).get(source_block_id, '')
                             block['snapshot'] = block.get('snapshot', {})
-                            block['snapshot']['value'] = value if isinstance(value, str) else ', '.join(value)
+                            # Line-item note blocks carry output_notes as their
+                            # display text — don't clobber it with raw checked
+                            # codes or an empty answer on form resubmit.
+                            if (block['snapshot'].get('output_notes') or '').strip():
+                                block['snapshot']['value'] = block['snapshot'].get('output_notes', '')
+                            else:
+                                block['snapshot']['value'] = value if isinstance(value, str) else ', '.join(value)
                             block['flags'] = block.get('flags', {})
                             block['flags']['source_dirty'] = True
                             needs_calc = True
@@ -5774,7 +5811,13 @@ def review():
                                 val = cb
                             else:
                                 val = session.get('data', {}).get(sid, '')
-                            block.setdefault('snapshot', {})['value'] = val if isinstance(val, str) else ', '.join(val)
+                            block.setdefault('snapshot', {})
+                            # Preserve output_notes text on line-item blocks
+                            # instead of replacing it with raw checked codes.
+                            if (block['snapshot'].get('output_notes') or '').strip():
+                                block['snapshot']['value'] = block['snapshot'].get('output_notes', '')
+                            else:
+                                block['snapshot']['value'] = val if isinstance(val, str) else ', '.join(val)
                             block.setdefault('flags', {})['source_dirty'] = True
                     try:
                         import calculator
