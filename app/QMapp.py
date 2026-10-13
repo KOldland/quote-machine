@@ -2545,6 +2545,26 @@ def builder_li_override_save():
     return jsonify({'ok': True})
 
 
+@app.route('/builder_beta/li_units_save', methods=['POST'])
+@csrf.exempt
+def builder_li_units_save():
+    """Save a line item units override to the session."""
+    data = request.get_json(force=True) or {}
+    item_id = data.get('item_id', '')
+    value = data.get('value')
+    if not item_id or value is None:
+        return jsonify({'ok': False, 'error': 'item_id and value required'}), 400
+    try:
+        val = int(value)
+    except (TypeError, ValueError):
+        return jsonify({'ok': False, 'error': 'Invalid value'}), 400
+    session_overrides = session.setdefault('session_overrides', {})
+    units_overrides = session_overrides.setdefault('units_overrides', {})
+    units_overrides[item_id] = val
+    session.modified = True
+    return jsonify({'ok': True})
+
+
 @app.route('/builder_beta/page_total_save/<page_key>', methods=['POST'])
 @require_role('admin')
 def builder_page_total_save(page_key):
@@ -3453,7 +3473,16 @@ def _compute_cost_group_totals(groups, conn, session_data):
                     checked_set.update(_ps)
     except Exception:
         checked_set = set()
-    # Sum only checked items per group
+    # Build a lookup: category_name -> output_group (from cat templates)
+    cat_to_group = {}
+    for _r in cat_rows:
+        cat_to_group[_r['name']] = _r['output_group']
+
+    # Sum only checked items per group, respecting per-line-item overrides
+    try:
+        units_ovr = (session_data.get('session_overrides', {}) or {}).get('units_overrides', {}) or {}
+    except Exception:
+        units_ovr = {}
     totals = {}
     for gid in groups:
         cat_names = cg_to_cats.get(gid, [])
@@ -3461,15 +3490,41 @@ def _compute_cost_group_totals(groups, conn, session_data):
             totals[gid] = 0.0
             continue
         cat_ph = ','.join('?' for _ in cat_names)
+        # Also fetch output_group and override flag so we can route correctly
         rows = conn.execute(
-            f"SELECT line_code, unit_cost, units FROM line_items WHERE category IN ({cat_ph})",
+            f"SELECT id, line_code, unit_cost, units, output_group, override_output_group, category FROM line_items WHERE category IN ({cat_ph})",
             cat_names
         ).fetchall()
         gt = 0.0
         for r in rows:
-            if r['line_code'] in checked_set:
-                gt += round(float(r['unit_cost'] or 0) * float(r['units'] or 0), 2)
+            if r['line_code'] not in checked_set:
+                continue
+            # Check if this line item overrides its category routing
+            if r['override_output_group'] and r['output_group'] and r['output_group'] != cat_to_group.get(r.get('category', ''), ''):
+                # This line item is routed to a DIFFERENT group — skip it here;
+                # it will be picked up when we process that group.
+                continue
+            u = units_ovr.get(str(r['id']), float(r['units'] or 0))
+            gt += round(float(r['unit_cost'] or 0) * float(u), 2)
         totals[gid] = gt
+    # Second pass: pick up override-routed line items and add to their target groups
+    all_cat_names = []
+    for _cn in cg_to_cats.values():
+        all_cat_names.extend(_cn)
+    if all_cat_names:
+        all_ph = ','.join('?' for _ in all_cat_names)
+        override_rows = conn.execute(
+            f"SELECT id, line_code, unit_cost, units, output_group, category FROM line_items WHERE category IN ({all_ph}) AND override_output_group = 1",
+            all_cat_names
+        ).fetchall()
+        for r in override_rows:
+            if r['line_code'] not in checked_set:
+                continue
+            target_group = r['output_group'] or ''
+            if target_group in groups:
+                u = units_ovr.get(str(r['id']), float(r['units'] or 0))
+                totals.setdefault(target_group, 0.0)
+                totals[target_group] += round(float(r['unit_cost'] or 0) * float(u), 2)
     # Apply cost-group-level overrides (macro overrides)
     try:
         cg_ovr = (session_data.get('session_overrides', {}) or {}).get('cg_overrides', {}) or {}
@@ -3770,7 +3825,7 @@ def builder_line_item_save(item_id):
             'unit_cost', 'units', 'pricing_visibility', 'quantity_source', 'pricing_mode',
             'form_visible', 'category',
             'is_follow_up', 'follow_up_type', 'follow_up_config',
-            'output_group', 'price_matrix',
+            'output_group', 'override_output_group', 'price_matrix',
         ]
         sets = []
         params = []
@@ -4526,6 +4581,7 @@ def _get_runtime_quote_context():
     session_overrides = session.get('session_overrides', {}) or {}
     cg_overrides = session_overrides.get('cg_overrides', {}) or {}
     li_overrides = session_overrides.get('overrides', {}) or {}
+    units_overrides = session_overrides.get('units_overrides', {}) or {}
     return {
         "client_address": data.get("client_address", ""),
         "proposal_date": data.get("Date", ""),
@@ -4533,6 +4589,7 @@ def _get_runtime_quote_context():
         "client_name": data.get("client_name", ""),
         "_session_cg_overrides_json": json.dumps(cg_overrides),
         "_session_li_overrides_json": json.dumps(li_overrides),
+        "_session_units_overrides_json": json.dumps(units_overrides),
     }
 
 @app.route('/login', methods=['GET', 'POST'])

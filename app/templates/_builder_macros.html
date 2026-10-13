@@ -178,8 +178,12 @@
                                 <label>Output Label</label>
                                 <input type="text" name="output_label" value="{{ selected_block.output_options.output_label }}">
                             </div>
-                             <div class="form-group">
-                                 <label>Cost Group</label>
+                             <div class="form-group checkbox-group">
+                                 <input type="checkbox" name="override_output_group" id="override_output_group" {% if selected_block.output_options.override_output_group %}checked{% endif %}>
+                                 <label for="override_output_group">Override category cost group</label>
+                             </div>
+                             <div class="form-group" id="output-group-select-wrap" style="{{ 'display:none;' if not selected_block.output_options.override_output_group }}">
+                                 <label>Override Cost Group</label>
                                  <select name="output_group">
                                      <option value="">-- Select Cost Group --</option>
                                      {% for group_id, group_data in cost_groups.items() %}
@@ -1326,6 +1330,15 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    function _renderCgOptions(selected) {
+        var cgList3 = window.builderStateCostGroups || {};
+        var opts = '<option value="">-- Inherit from category --</option>';
+        for (var gid3 in cgList3) {
+            var sel = gid3 === selected ? ' selected' : '';
+            opts += '<option value="' + gid3 + '"' + sel + '>' + (cgList3[gid3].label || gid3) + '</option>';
+        }
+        return opts;
+    }
     function _renderPageEditorHtml(data) {
         var html = '<form id="li-page-edit-form" autocomplete="off">';
         html += _section('Description', true, [
@@ -2119,7 +2132,6 @@ function showViewImageUpload() {
 
         html += _section('Price', false, [
             _field('unit_cost', 'Unit Cost (£)', 'number', item.unit_cost != null ? item.unit_cost : ''),
-            _field('units',     'Units',         'number', item.units     != null ? item.units     : '', false, 'li_units'),
             qtyField,
             _checkField('price_override_enabled', 'User Can Edit Price', item.pricing_visibility === 'user_edit', 'lich_price_override'),
         ]);
@@ -2133,7 +2145,8 @@ function showViewImageUpload() {
 
         html += _section('Meta', false, [
             _field('line_code',       'Line Code',       'text',   item.line_code   || '', true),
-            _field('output_group',    'Cost Group',    'text',   item.output_group || 'General'),
+            '<div class="li-form-group"><label style="cursor:pointer;"><input type="checkbox" name="override_output_group" id="li-override-og" ' + (item.override_output_group ? 'checked' : '') + '> Override category cost group</label></div>',
+            '<div class="li-form-group" id="li-override-og-wrap" style="' + (item.override_output_group ? '' : 'display:none;') + '"><label>Override Cost Group</label><select name="output_group" style="width:100%;"><option value="">-- Select Cost Group --</option>' + _renderCgOptions(item.output_group || '') + '</select></div>',
             _selectField('category',  'Category',        item.category || '', allCats),
             _field('sow_level',       'SOW Level',       'number', (item.metadata && item.metadata.sow_level) || '')
         ]);
@@ -2520,6 +2533,14 @@ function showViewImageUpload() {
          });
 
 
+        // Toggle override cost group dropdown
+        var ovChk2 = document.getElementById('li-override-og');
+        var ovWrap2 = document.getElementById('li-override-og-wrap');
+        if (ovChk2 && ovWrap2) {
+            ovChk2.addEventListener('change', function() {
+                ovWrap2.style.display = ovChk2.checked ? '' : 'none';
+            });
+        }
         // Auto-save Internal Description on blur / Enter
             var titleField = form.querySelector('[name="internal_description"]');
             if (titleField) {
@@ -2575,6 +2596,7 @@ function showViewImageUpload() {
                    _checkField('fu_user_edit', 'Set prices per choice', cfg.user_edit === true, 'fu_user_edit_' + fuId) +
                    '<div id="fu_prices_config_' + fuId + '" style="display:' + (cfg.user_edit ? 'block' : 'none') + '; margin-left:1rem; border-left:2px solid #eee; padding-left:0.5rem;">' +
                    _field('fu_prices', 'Prices (one per line, matching choices)', 'textarea', (cfg.prices || []).join('\n'), false, 'fu_prices_' + fuId) +
+                   _checkField('fu_allow_override', 'Allow users to override price', cfg.allow_override === true, 'fu_allow_override_' + fuId) +
                    '</div>' +
                    _checkField('fu_cost', 'Cost', cfg.cost === true, 'fu_cost_' + fuId) +
                    _checkField('fu_suffix', 'Suffix', cfg.suffix === true, 'fu_suffix_' + fuId) +
@@ -2585,6 +2607,9 @@ function showViewImageUpload() {
         'single_entry': function(cfg, fuId) {
             return _field('fu_helper_text', 'Helper Text', 'text', cfg.helper_text || '', false, 'fu_helper_text_' + fuId) +
                    _checkField('fu_cost', 'Cost', cfg.cost === true, 'fu_cost_' + fuId) +
+                   '<div style="margin-top:.3rem;">' +
+                   _checkField('fu_user_edit', 'Allow users to override price', cfg.user_edit === true, 'fu_user_edit_' + fuId) +
+                   '</div>' +
                    _checkField('fu_suffix', 'Suffix', cfg.suffix === true, 'fu_suffix_' + fuId) +
                    '<div id="fu_suffix_config_' + fuId + '" style="display:' + (cfg.suffix ? 'block' : 'none') + '; margin-left:1rem; border-left:2px solid #eee; padding-left:0.5rem;">' +
                    _field('fu_suffix_value', 'Suffix value (e.g. m, cm, m²)', 'text', cfg.suffix_value || '', false, 'fu_suffix_value_' + fuId) +
@@ -2712,6 +2737,7 @@ function showViewImageUpload() {
                 cfg.choices = (getVal('fu_choices') || '').split('\n').filter(Boolean);
                 cfg.include_other = getVal('fu_include_other');
                 cfg.user_edit = getVal('fu_user_edit');
+                cfg.allow_override = getVal('fu_allow_override');
                 cfg.prices = (getVal('fu_prices') || '').split('\n').filter(Boolean).map(function(p) { return parseFloat(p) || 0; });
                 cfg.cost = getVal('fu_cost');
                 cfg.suffix = getVal('fu_suffix');
@@ -2719,6 +2745,7 @@ function showViewImageUpload() {
             } else {
                 cfg.helper_text = getVal('fu_helper_text');
                 cfg.cost = getVal('fu_cost');
+                cfg.user_edit = getVal('fu_user_edit');
                 cfg.suffix = getVal('fu_suffix');
                 cfg.suffix_value = getVal('fu_suffix_value');
             }

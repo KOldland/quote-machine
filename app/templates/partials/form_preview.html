@@ -66,13 +66,20 @@ window.builderStateQuestionTypes = {{ builder_state.question_types | default({})
        data-line-code="{{ item.value }}"
        data-item-id="{{ item.id }}"
        data-default-price="{{ item.unit_cost }}">
-      <span style="font-size:.8rem; color:#666;">Price (£):</span>
+      <span style="font-size:.8rem; color:#666;">Unit Cost (£):</span>
       <input type="number" class="form-input preview-li-price-input"
              name="{{ field.name }}_price_{{ item.value }}"
              value="{{ item.unit_cost }}"
              step="0.01" min="0"
              data-price-confirmed="0"
-             style="width:120px; padding:.2rem .4rem; font-size:.85rem;">
+             style="width:100px; padding:.2rem .4rem; font-size:.85rem;">
+      <span style="font-size:.8rem; color:#666;">×</span>
+      <input type="number" class="form-input preview-li-units-input"
+             name="{{ field.name }}_units_{{ item.value }}"
+             value="{{ item.units or 1 }}" min="0" step="1"
+             placeholder="Qty" data-item-id="{{ item.id }}"
+             style="width:60px; padding:.2rem .4rem; font-size:.85rem;">
+      <span style="font-size:.8rem; color:#1b3a6b; font-weight:600; margin-left:.3rem;" id="li-total-{{ item.value }}"></span>
       <button type="button" class="preview-li-price-confirm"
               style="padding:.2rem .5rem; font-size:.75rem; border:1px solid #1b3a6b; background:#1b3a6b; color:#fff; border-radius:3px; cursor:pointer; display:none;">
           Override
@@ -105,7 +112,7 @@ window.builderStateQuestionTypes = {{ builder_state.question_types | default({})
             {% set fu_idx = loop.index0 %}
             {% set _fu_key = 'follow_up_' + item.value + '_' + (fu_idx | string) %}
             {% set _fu_val = _saved.get(_fu_key, '') %}
-            <div class="form-input" style="margin-bottom:0.4rem; width:100%; max-width:650px;">
+            <div class="form-input" style="margin-bottom:0.4rem; width:100%; max-width:650px;{% if fu_type and fu_type.startswith('Single') and not cfg.get('dim1_label') and not cfg.get('cost') and item.pricing_visibility == 'user_edit' %}display:none;{% endif %}">
             {% if fu_type and fu_type.startswith('Dropdown') %}
                 {% set _dd_prices = cfg.prices | default([]) %}
                 {% set _dd_user_edit = cfg.user_edit | default(false) %}
@@ -157,11 +164,13 @@ window.builderStateQuestionTypes = {{ builder_state.question_types | default({})
                         </div>
                     {% endfor %}
                 {% else %}
+                    {% if not (item.pricing_visibility == 'user_edit' and not cfg.cost) %}
                     <input type="text" class="form-input preview-follow-up-input"
                            name="{{ _fu_key }}"
                            value="{{ _fu_val }}"
                            placeholder="{{ cfg.helper_text or 'Enter value...' }}"
                            style="width:100%; max-width:400px;">
+                    {% endif %}
                     {% if cfg.user_edit and cfg.cost %}
                     <div style="margin-top:0.3rem; display:flex; align-items:center; gap:.4rem;">
                         <span style="font-size:.8rem; color:#666;">Price (£):</span>
@@ -1151,6 +1160,49 @@ window.initLineItemPriceOverrides = function() {
 };
 
 window.initLineItemPriceOverrides();
+
+// Save units override to session on change
+function saveUnitsOverride(itemId, unitsVal) {
+    var csrf = (document.querySelector('[name=csrf_token]')||{}).value||'';
+    fetch('/builder_beta/li_units_save', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','X-CSRFToken':csrf},
+        body: JSON.stringify({item_id: itemId, value: unitsVal})
+    }).catch(function(){});
+}
+// Live total for inline units x price
+function updateLiTotal(priceInput, unitsInput, totalId) {
+    var price = parseFloat(priceInput.value) || 0;
+    var units = parseFloat(unitsInput.value) || 1;
+    var totalEl = document.getElementById(totalId);
+    if (totalEl) {
+        totalEl.textContent = price > 0 ? '= £' + (price * units).toFixed(2) : '';
+    }
+}
+// Load existing session units overrides
+var sessionUnits = (window._sessionLiOverrides && window._sessionLiOverrides.units_overrides) ? window._sessionLiOverrides : {};
+// Actually load from a hidden var - window._sessionUnitsOverrides
+document.querySelectorAll('.preview-li-price-input').forEach(function(inp) {
+    var row = inp.closest('.preview-li-price-row');
+    if (!row) return;
+    var unitsInput = row.querySelector('.preview-li-units-input');
+    if (!unitsInput) return;
+    var totalId = 'li-total-' + (row.getAttribute('data-line-code') || '');
+    var itemId = row.getAttribute('data-item-id') || '';
+    // Apply any existing session units override
+    var sessionUnitsOv = window._sessionUnitsOverrides || {};
+    if (itemId && sessionUnitsOv[itemId] !== undefined) {
+        unitsInput.value = sessionUnitsOv[itemId];
+    }
+    inp.addEventListener('input', function() { updateLiTotal(inp, unitsInput, totalId); });
+    if (unitsInput) {
+        unitsInput.addEventListener('input', function() {
+            updateLiTotal(inp, unitsInput, totalId);
+            if (itemId) saveUnitsOverride(itemId, unitsInput.value);
+        });
+    }
+    updateLiTotal(inp, unitsInput, totalId);
+});
 
 })();
 </script>
