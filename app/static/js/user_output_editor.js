@@ -358,7 +358,7 @@ const IMAGE_FRAMES = [
       isEditable = 'false';
     } else if (block.type === 'form_question') {
       const label = escapeHtml(snapshot.label || '');
-      const value = escapeHtml(snapshot.value || '');
+      const value = escapeHtml(snapshot.output_notes || snapshot.value || '');
       const guidance = escapeHtml(snapshot.output_guidance || '');
       contentHtml = label ? `<strong>${label}:</strong> ${value}` : value;
       contentHtml += guidance ? `<div class="preview-guidance"${previewMergedStyle('guidance', '')}>${guidance}</div>` : '';
@@ -1406,6 +1406,16 @@ const IMAGE_FRAMES = [
   let previewPageIndex = 0;
 
   function openPreviewModal() {
+    // Auto-collapse the sidebar when previewing the quote so the document
+    // gets the full width of the workspace.
+    const sidebar = document.getElementById('sidebar');
+    const mainContent = document.querySelector('.main-content');
+    if (sidebar && !sidebar.classList.contains('collapsed')) {
+      sidebar.classList.add('collapsed');
+    }
+    if (mainContent && !mainContent.classList.contains('expanded')) {
+      mainContent.classList.add('expanded');
+    }
     previewPageIndex = Math.max(0, Math.min(window.__currentPageIndex || 0, pages.length - 1));
     renderPreviewPage();
     document.getElementById('previewModal').style.display = 'flex';
@@ -1594,7 +1604,7 @@ const IMAGE_FRAMES = [
       const overrideContent = (block.editor_overrides || {}).content;
       const hasContent = typeof overrideContent === 'string' && overrideContent.trim();
       const label = escapeHtml(snapshot.label || '');
-      const value = escapeHtml(snapshot.value || '');
+      const value = escapeHtml(snapshot.output_notes || snapshot.value || '');
       const guidance = escapeHtml(snapshot.output_guidance || '');
       let bodyHtml;
       if (hasContent) {
@@ -1658,7 +1668,7 @@ const IMAGE_FRAMES = [
       const overrideContent = (block.editor_overrides || {}).content;
       const hasContent = typeof overrideContent === 'string' && overrideContent.trim();
       const label = escapeHtml(snapshot.label || '');
-      const value = escapeHtml(snapshot.value || '');
+      const value = escapeHtml(snapshot.output_notes || snapshot.value || '');
       const guidance = escapeHtml(snapshot.output_guidance || '');
       let bodyHtml;
       if (hasContent) {
