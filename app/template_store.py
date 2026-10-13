@@ -155,6 +155,13 @@ class _CompatConnection:
     
     def close(self):
         self._conn.close()
+    
+    def __enter__(self):
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+        return False
 
 
 def _connect(db_path=None):
@@ -174,8 +181,6 @@ def _connect(db_path=None):
     raw = sqlite3.connect(str(db_path_obj))
     raw.row_factory = sqlite3.Row
     return _CompatConnection(raw, is_pg=False)
-    conn.row_factory = sqlite3.Row
-    return conn
 
 
 def _next_version(conn: sqlite3.Connection, template_id: int) -> int:
