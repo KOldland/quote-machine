@@ -2404,7 +2404,8 @@ def builder_image_upload_save(page_key):
 @csrf.exempt
 def builder_page_total_calc():
     """Calculate the total for selected cost groups on a page.
-    Uses category-level cost group assignment (category_templates.output_group).
+    Sums the per-group totals from the helper so it always matches the
+    cost group accordion display (checked items only, with macro overrides).
     This endpoint is called from the form preview (customer-facing),
     so it must not require admin role."""
     import sqlite3
@@ -2419,55 +2420,7 @@ def builder_page_total_calc():
     conn = sqlite3.connect(db)
     conn.row_factory = sqlite3.Row
     try:
-        # Step 1: find categories routed to the requested cost groups
-        placeholders = ','.join(['?' for _ in groups])
-        cat_rows = conn.execute(
-            f"""SELECT ct.name, ct.output_group
-                FROM category_templates ct
-                WHERE ct.output_group IN ({placeholders})
-                AND ct.form_template_version_id = (
-                    SELECT MAX(ftv.id) FROM form_template_versions ftv
-                    JOIN form_templates ft ON ft.id = ftv.form_template_id
-                    WHERE ft.key = ?
-                )""",
-            groups + ['builder_beta']
-        ).fetchall()
-        
-        cg_to_cats = {}
-        for r in cat_rows:
-            og = r['output_group']
-            if og not in cg_to_cats:
-                cg_to_cats[og] = []
-            cg_to_cats[og].append(r['name'])
-        
-        # Step 2: fetch line items from ALL pages whose category matches
-        totals = {}
-        for gid in groups:
-            cat_names = cg_to_cats.get(gid, [])
-            if not cat_names:
-                continue
-            cat_ph = ','.join(['?' for _ in cat_names])
-            rows = conn.execute(
-                f"""SELECT unit_cost, units FROM line_items
-                    WHERE category IN ({cat_ph})""",
-                cat_names
-            ).fetchall()
-            group_total = 0
-            for r in rows:
-                unit_cost = float(r['unit_cost'] or 0)
-                units = float(r['units'] or 0)
-                group_total += round(unit_cost * units, 2)
-            totals[gid] = group_total
-        
-        # Step 3: apply any session overrides for these groups
-        try:
-            cg_ovr = (session.get('session_overrides', {}) or {}).get('cg_overrides', {}) or {}
-            for gid in groups:
-                if gid in cg_ovr:
-                    totals[gid] = float(cg_ovr[gid])
-        except Exception:
-            pass
-        
+        totals = _compute_cost_group_totals(groups, conn, session)
         selected_total = round(sum(totals.get(g, 0) for g in groups), 2)
         return jsonify({'success': True, 'total': selected_total, 'groups': groups, 'subtotals': dict(totals)})
     finally:
@@ -3401,6 +3354,67 @@ def builder_line_item_duplicate():
         return jsonify({"error": str(e)}), 400
     finally:
         conn.close()
+
+
+# ── Helper: compute per-group totals from checked items ────────────────
+def _compute_cost_group_totals(groups, conn, session_data):
+    """Return {group_id: total} by summing only checked items in each cost
+    group.  Uses the same category-routing / checkbox_data logic as the
+    cost group accordion, so the totals always match."""
+    from template_store import _default_db_path, _connect
+    cat_rows = conn.execute(
+        f"""SELECT ct.name, ct.output_group
+            FROM category_templates ct
+            WHERE ct.output_group IN ({','.join('?' for _ in groups)})
+            AND ct.form_template_version_id = (
+                SELECT MAX(ftv.id) FROM form_template_versions ftv
+                JOIN form_templates ft ON ft.id = ftv.form_template_id
+                WHERE ft.key = ?
+            )""",
+        groups + ['builder_beta']
+    ).fetchall()
+    cg_to_cats = {}
+    for r in cat_rows:
+        og = r['output_group']
+        cg_to_cats.setdefault(og, []).append(r['name'])
+
+    # Collect checked line_codes from every page
+    try:
+        cb_data = (session_data.get('checkbox_data', {}) or {})
+        checked_set = set()
+        for _key, _val in cb_data.items():
+            if _key.endswith('__line_items') and isinstance(_val, dict):
+                _ps = _val.get('preselected')
+                if isinstance(_ps, list):
+                    checked_set.update(_ps)
+    except Exception:
+        checked_set = set()
+    # Sum only checked items per group
+    totals = {}
+    for gid in groups:
+        cat_names = cg_to_cats.get(gid, [])
+        if not cat_names:
+            totals[gid] = 0.0
+            continue
+        cat_ph = ','.join('?' for _ in cat_names)
+        rows = conn.execute(
+            f"SELECT line_code, unit_cost, units FROM line_items WHERE category IN ({cat_ph})",
+            cat_names
+        ).fetchall()
+        gt = 0.0
+        for r in rows:
+            if r['line_code'] in checked_set:
+                gt += round(float(r['unit_cost'] or 0) * float(r['units'] or 0), 2)
+        totals[gid] = gt
+    # Apply cost-group-level overrides (macro overrides)
+    try:
+        cg_ovr = (session_data.get('session_overrides', {}) or {}).get('cg_overrides', {}) or {}
+        for gid in groups:
+            if gid in cg_ovr:
+                totals[gid] = float(cg_ovr[gid])
+    except Exception:
+        pass
+    return totals
 # ── Calculator Preview Route ─────────────────────────────────────────
 @app.route('/builder_beta/calculator_preview', methods=['GET'])
 @csrf.exempt
