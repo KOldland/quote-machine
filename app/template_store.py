@@ -130,7 +130,13 @@ class _CompatConnection:
             self._conn.row_factory = val
     
     def _adapt(self, sql):
-        return sql.replace('?', '%s') if self._is_pg else sql
+        if not self._is_pg:
+            return sql
+        adapted = sql.replace('?', '%s')
+        adapted = adapted.replace('INTEGER PRIMARY KEY AUTOINCREMENT', 'SERIAL PRIMARY KEY')
+        adapted = adapted.replace('INSERT OR IGNORE INTO', 'INSERT INTO ON CONFLICT DO NOTHING')
+        adapted = adapted.replace('DATETIME DEFAULT CURRENT_TIMESTAMP', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP')
+        return adapted
     
     def execute(self, sql, *args, **kwargs):
         adapted = self._adapt(sql)
@@ -159,6 +165,28 @@ class _CompatConnection:
     def __enter__(self):
         return self
     
+    def executescript(self, script):
+        """Run a multi-statement SQL script. PRAGMA statements are filtered out for PG."""
+        statements = [s.strip() for s in script.split(';') if s.strip()]
+        for stmt in statements:
+            if not stmt:
+                continue
+            # Filter PRAGMA for PostgreSQL
+            if self._is_pg and stmt.upper().startswith('PRAGMA'):
+                continue
+            # Filter SQLite-only comment lines
+            if stmt.upper().startswith('--') or stmt.startswith('#'):
+                continue
+            adapted = self._adapt(stmt)
+            if self._is_pg:
+                cur = self._conn.cursor()
+                cur.execute(adapted)
+                cur.close()
+            else:
+                self._conn.execute(adapted + ';')
+        if not self._is_pg:
+            self._conn.commit()
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
         return False
@@ -376,21 +404,24 @@ def _create_schema(conn: sqlite3.Connection) -> None:
             is_follow_up         INTEGER NOT NULL DEFAULT 0,
             follow_up_type       TEXT,
             follow_up_config     TEXT,
+            allow_user_override  INTEGER DEFAULT 0,
+            output_group         TEXT DEFAULT 'General',
             quantity_source      TEXT,
             pricing_mode         TEXT NOT NULL DEFAULT 'per_unit',
             addon_amount         REAL NOT NULL DEFAULT 0.0,
             price_matrix         TEXT,
+            metadata_json        TEXT,
+            override_output_group INTEGER DEFAULT 0,
             created_at           DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at           DATETIME DEFAULT CURRENT_TIMESTAMP
         );
 
         CREATE TABLE IF NOT EXISTS question_images (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            line_item_id INTEGER NOT NULL,
-            image_url TEXT NOT NULL,
-            sort_order INTEGER NOT NULL DEFAULT 0,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (line_item_id) REFERENCES line_items(id) ON DELETE CASCADE
+            question_template_id INTEGER,
+            image_path TEXT,
+            image_order INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
         """
     )
@@ -1492,14 +1523,25 @@ def get_line_items_by_codes(codes: list, db_path=None) -> list:
     if items:
         item_ids = [i['id'] for i in items]
         ph = ','.join('?' * len(item_ids))
-        img_rows = conn.execute(
-            f"SELECT line_item_id, image_url FROM question_images "
-            f"WHERE line_item_id IN ({ph}) ORDER BY sort_order, id",
-            item_ids
-        ).fetchall()
-        img_map = {}
-        for r in img_rows:
-            img_map.setdefault(r['line_item_id'], []).append(r['image_url'])
+        # Try new schema first (question_template_id/image_path), fall back to old (line_item_id/image_url)
+        try:
+            img_rows = conn.execute(
+                f"SELECT question_template_id, image_path FROM question_images "
+                f"WHERE question_template_id IN ({ph}) ORDER BY image_order, id",
+                item_ids
+            ).fetchall()
+            img_map = {}
+            for r in img_rows:
+                img_map.setdefault(r['question_template_id'], []).append(r['image_path'])
+        except Exception:
+            img_rows = conn.execute(
+                f"SELECT line_item_id, image_url FROM question_images "
+                f"WHERE line_item_id IN ({ph}) ORDER BY sort_order, id",
+                item_ids
+            ).fetchall()
+            img_map = {}
+            for r in img_rows:
+                img_map.setdefault(r['line_item_id'], []).append(r['image_url'])
         for item in items:
             item['question_images'] = img_map.get(item['id'], [])
 
@@ -1508,15 +1550,24 @@ def get_line_items_by_codes(codes: list, db_path=None) -> list:
 
 
 def get_question_images_for_line_item(line_item_id, db_path=None):
-    """Return list of image_url strings for a single line_item, ordered by sort_order."""
+    """Return list of image paths for a single line_item, ordered by image_order."""
     path = db_path or _default_db_path()
     conn = _connect(path)
-    rows = conn.execute(
-        "SELECT image_url FROM question_images WHERE line_item_id = ? ORDER BY sort_order, id",
-        (line_item_id,),
-    ).fetchall()
+    # Try new schema (question_template_id/image_path), fall back to old (line_item_id/image_url)
+    try:
+        rows = conn.execute(
+            "SELECT image_path FROM question_images WHERE question_template_id = ? ORDER BY image_order, id",
+            (line_item_id,),
+        ).fetchall()
+        images = [r['image_path'] for r in rows if r.get('image_path')]
+    except Exception:
+        rows = conn.execute(
+            "SELECT image_url FROM question_images WHERE line_item_id = ? ORDER BY sort_order, id",
+            (line_item_id,),
+        ).fetchall()
+        images = [r['image_url'] for r in rows if r.get('image_url')]
     conn.close()
-    return [r['image_url'] for r in rows if r['image_url']]
+    return images
 
 def get_all_pages(template_key: str = "first_client_template_v1", db_path: Optional[Path] = None) -> list:
     """Return all page_templates for the latest version of a template, ordered by display_order."""
