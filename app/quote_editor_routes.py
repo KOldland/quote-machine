@@ -171,7 +171,10 @@ def duplicate_layout(layout_id):
 
 @quote_editor_bp.route('/quote_editor/save-quote', methods=['POST'])
 def save_quote_route():
-    form_key = session.get('template_key', 'builder_beta')
+    if session.get('active_quote_id'):
+        form_key = session.get('quote_editor_template_key', session.get('template_key', 'builder_beta'))
+    else:
+        form_key = session.get('template_key', 'builder_beta')
     data = request.get_json(force=True) or {}
     name = data.get('name', 'Untitled Quote')
     client_name = data.get('client_name', '')
@@ -180,11 +183,19 @@ def save_quote_route():
     settings = data.get('settings_json', {})
     layout_id = data.get('layout_id')
     user_id = session.get('user_id')
-    form_data = data.get('form_data') or {
-        'data': session.get('data', {}),
-        'checkbox_data': session.get('checkbox_data', {}),
-        'template_key': form_key,
-    }
+    if session.get('active_quote_id'):
+        default_form_data = {
+            'data': session.get('quote_editor_data', {}),
+            'checkbox_data': session.get('quote_editor_checkbox_data', {}),
+            'template_key': session.get('quote_editor_template_key', session.get('template_key', 'builder_beta')),
+        }
+    else:
+        default_form_data = {
+            'data': session.get('data', {}),
+            'checkbox_data': session.get('checkbox_data', {}),
+            'template_key': form_key,
+        }
+    form_data = data.get('form_data') or default_form_data
     quote = save_quote(
         form_key,
         blocks_json=blocks,
@@ -290,11 +301,11 @@ def load_quote_route(quote_id):
         return jsonify({'success': False, 'error': 'Quote not found'}), 404
     session['active_quote_id'] = quote_id
     form_data = quote.get('form_data') or {}
-    # Always restore form data from the loaded quote — overwrite session
-    session['data'] = form_data.get('data', {})
-    session['checkbox_data'] = form_data.get('checkbox_data', {})
+    # Store quote data in quote-editor-specific session keys to preserve form state
+    session['quote_editor_data'] = form_data.get('data', {})
+    session['quote_editor_checkbox_data'] = form_data.get('checkbox_data', {})
     if form_data.get('template_key'):
-        session['template_key'] = form_data['template_key']
+        session['quote_editor_template_key'] = form_data['template_key']
     # Restore manual blocks (calculator, image groups, payment schedule, etc.)
     all_blocks = quote.get('blocks_json', [])
     manual_blocks = [
@@ -566,17 +577,28 @@ def list_quotes():
 
 @quote_editor_bp.route('/quote_editor/quotes', methods=['POST'])
 def create_quote():
-    form_key = session.get('template_key', 'builder_beta')
+    if session.get('active_quote_id'):
+        form_key = session.get('quote_editor_template_key', session.get('template_key', 'builder_beta'))
+    else:
+        form_key = session.get('template_key', 'builder_beta')
     user_id = session.get('user_id')
     data = request.get_json(force=True) or {}
     name = data.get('name', 'Untitled')
     blocks = data.get('blocks_json', [])
     settings = data.get('settings_json') or {}
-    form_data = data.get('form_data') or {
-        'data': session.get('data', {}),
-        'checkbox_data': session.get('checkbox_data', {}),
-        'template_key': form_key,
-    }
+    if session.get('active_quote_id'):
+        default_form_data = {
+            'data': session.get('quote_editor_data', {}),
+            'checkbox_data': session.get('quote_editor_checkbox_data', {}),
+            'template_key': session.get('quote_editor_template_key', session.get('template_key', 'builder_beta')),
+        }
+    else:
+        default_form_data = {
+            'data': session.get('data', {}),
+            'checkbox_data': session.get('checkbox_data', {}),
+            'template_key': form_key,
+        }
+    form_data = data.get('form_data') or default_form_data
     quote = save_quote(
         form_key=form_key,
         blocks_json=blocks,
@@ -601,7 +623,10 @@ def delete_quote_route(quote_id):
 
 @quote_editor_bp.route('/quote_editor/quotes/<int:quote_id>', methods=['PUT'])
 def update_quote_route(quote_id):
-    form_key = session.get('template_key', 'builder_beta')
+    if session.get('active_quote_id'):
+        form_key = session.get('quote_editor_template_key', session.get('template_key', 'builder_beta'))
+    else:
+        form_key = session.get('template_key', 'builder_beta')
     data = request.get_json(force=True) or {}
     name = data.get('name')
     blocks = data.get('blocks_json')
@@ -610,11 +635,19 @@ def update_quote_route(quote_id):
     notes = data.get('notes', '')
     if not name:
         return jsonify({'success': False, 'error': 'Name is required'}), 400
-    form_data = data.get('form_data') or {
-        'data': session.get('data', {}),
-        'checkbox_data': session.get('checkbox_data', {}),
-        'template_key': form_key,
-    }
+    if session.get('active_quote_id'):
+        default_form_data = {
+            'data': session.get('quote_editor_data', {}),
+            'checkbox_data': session.get('quote_editor_checkbox_data', {}),
+            'template_key': session.get('quote_editor_template_key', session.get('template_key', 'builder_beta')),
+        }
+    else:
+        default_form_data = {
+            'data': session.get('data', {}),
+            'checkbox_data': session.get('checkbox_data', {}),
+            'template_key': form_key,
+        }
+    form_data = data.get('form_data') or default_form_data
     updated = update_saved_quote(
         quote_id=quote_id,
         form_key=form_key,
@@ -724,7 +757,10 @@ def list_images():
 
 @quote_editor_bp.route('/quote_editor/source/<page_key>/<block_id>', methods=['GET'])
 def get_source_block(page_key, block_id):
-    form_key = session.get('template_key', 'builder_beta')
+    if session.get('active_quote_id'):
+        form_key = session.get('quote_editor_template_key', session.get('template_key', 'builder_beta'))
+    else:
+        form_key = session.get('template_key', 'builder_beta')
     payload = load_template_payload(form_key)
     if not payload:
         return jsonify({'success': False, 'error': 'Template payload not found'}), 404
@@ -738,7 +774,10 @@ def get_source_block(page_key, block_id):
             break
     if not target:
         return jsonify({'success': False, 'error': 'Block not found'}), 404
-    form_data = session.get('data', {})
+    if session.get('active_quote_id'):
+        form_data = session.get('quote_editor_data', {})
+    else:
+        form_data = session.get('data', {})
     storage = target.get('storage', {})
     key = storage.get('key', block_id)
     value = form_data.get(key, '')
@@ -761,15 +800,22 @@ def add_form_block():
     page_key = request.args.get('page')
     if not page_key:
         return jsonify({'success': False, 'error': 'Missing page parameter'}), 400
-    form_key = session.get('template_key', 'builder_beta')
+    if session.get('active_quote_id'):
+        form_key = session.get('quote_editor_template_key', session.get('template_key', 'builder_beta'))
+    else:
+        form_key = session.get('template_key', 'builder_beta')
     payload = load_template_payload(form_key)
     if not payload:
         return jsonify({'success': False, 'error': 'Template payload not found'}), 404
     pages = payload.get('builder_beta', {}).get('pages', payload.get('pages', {}))
     page = pages.get(page_key, {})
     blocks = page.get('blocks', page.get('fields', []))
-    form_data = session.get('data', {})
-    checkbox_data = session.get('checkbox_data', {})
+    if session.get('active_quote_id'):
+        form_data = session.get('quote_editor_data', {})
+        checkbox_data = session.get('quote_editor_checkbox_data', {})
+    else:
+        form_data = session.get('data', {})
+        checkbox_data = session.get('checkbox_data', {})
     snapshot_blocks = []
     seen_pages = set()
     seen_categories = set()
@@ -954,9 +1000,14 @@ def add_form_block():
 
 @quote_editor_bp.route('/quote_editor/add-calc-block', methods=['GET'])
 def add_calc_block():
-    form_key = session.get('template_key', 'builder_beta')
-    form_data = session.get('data', {})
-    follow_up_data = session.get('checkbox_data', {})
+    if session.get('active_quote_id'):
+        form_key = session.get('quote_editor_template_key', session.get('template_key', 'builder_beta'))
+        form_data = session.get('quote_editor_data', {})
+        follow_up_data = session.get('quote_editor_checkbox_data', {})
+    else:
+        form_key = session.get('template_key', 'builder_beta')
+        form_data = session.get('data', {})
+        follow_up_data = session.get('checkbox_data', {})
     session_overrides = session.get('session_overrides', {})
     try:
         import calculator
@@ -986,9 +1037,14 @@ def add_calc_block():
 @quote_editor_bp.route('/quote_editor/add-payment-schedule-block', methods=['GET'])
 def add_payment_schedule_block():
     """Return a payment_schedule block with current calculator snapshot data."""
-    form_key = session.get('template_key', 'builder_beta')
-    form_data = session.get('data', {})
-    follow_up_data = session.get('checkbox_data', {})
+    if session.get('active_quote_id'):
+        form_key = session.get('quote_editor_template_key', session.get('template_key', 'builder_beta'))
+        form_data = session.get('quote_editor_data', {})
+        follow_up_data = session.get('quote_editor_checkbox_data', {})
+    else:
+        form_key = session.get('template_key', 'builder_beta')
+        form_data = session.get('data', {})
+        follow_up_data = session.get('checkbox_data', {})
     session_overrides = session.get('session_overrides', {})
     try:
         import calculator
@@ -1317,23 +1373,29 @@ def _get_page_visibility(page_key: str) -> dict:
 
 def build_quote_editor_blocks_for_all_pages():
     """Build blocks for every page in the current form template."""
-    form_key = session.get('template_key', 'builder_beta')
+    # Determine which data to use: quote editor data if a quote is loaded, otherwise form data
+    if session.get('active_quote_id'):
+        form_key = session.get('quote_editor_template_key', session.get('template_key', 'builder_beta'))
+        form_data = session.get('quote_editor_data', {})
+        checkbox_data = session.get('quote_editor_checkbox_data', {})
+    else:
+        form_key = session.get('template_key', 'builder_beta')
+        form_data = session.get('data', {})
+        checkbox_data = session.get('checkbox_data', {})
     payload = load_template_payload(form_key)
     if not payload:
         return []
     pages = payload.get('builder_beta', {}).get('pages', payload.get('pages', {}))
     if not pages:
         return []
-
+    
     try:
         ordered_pages = get_all_pages(template_key=form_key)
         page_display_orders = {pg['page_key']: pg['display_order'] for pg in ordered_pages}
         pages = dict(sorted(pages.items(), key=lambda x: page_display_orders.get(x[0], 999)))
     except Exception:
         pass
-
-    form_data = session.get('data', {})
-    checkbox_data = session.get('checkbox_data', {})
+    
     all_blocks = []
     for page_key, page in pages.items():
         vis = _get_page_visibility(page_key)

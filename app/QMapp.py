@@ -260,6 +260,27 @@ def require_role(*roles):
     return decorator
 
 
+@app.before_request
+def require_login():
+    # List of endpoints that do not require login
+    public_endpoints = ['login', 'logout', 'static']
+    # Also allow the image upload page? Actually it should require login because it writes to session.
+    # But we'll keep it protected for now.
+    if request.endpoint not in public_endpoints and not session.get('role'):
+        session['_login_next'] = request.url
+        flash('Please log in to access that page.', 'warning')
+        return redirect(url_for('login'))
+
+
+@app.before_request
+def set_quote_editor_active():
+    """Set session flag indicating if we are in quote editor mode."""
+    if request.endpoint and request.endpoint.startswith('quote_editor'):
+        session['quote_editor_active'] = True
+    else:
+        session['quote_editor_active'] = False
+
+
 # Define upload folder path
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
@@ -6091,8 +6112,10 @@ def builder_upload_image():
 
 @app.route('/quote_editor', methods=['GET', 'POST'])
 def quote_editor():
-    session['last_visited'] = 'quote_editor'
-    form_key = session.get('template_key', 'builder_beta')
+    if session.get('active_quote_id'):
+        form_key = session.get('quote_editor_template_key', session.get('template_key', 'builder_beta'))
+    else:
+        form_key = session.get('template_key', 'builder_beta')
     layouts = []
     try:
         from template_store import list_quote_editor_layouts
