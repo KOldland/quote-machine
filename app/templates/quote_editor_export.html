@@ -116,7 +116,7 @@
               {% if override_content and override_content.strip() %}
                 <p class="qe-para">{{ override_content | safe }}</p>
               {% else %}
-                <p class="qe-para"><strong>{{ snapshot.label }}:</strong> {{ snapshot.value }}</p>
+                <p class="qe-para"><strong>{{ snapshot.label }}:</strong> {{ snapshot.output_notes or snapshot.value }}</p>
               {% endif %}
             {% elif gblock.type == 'notes' %}
               <div class="qe-notes">{{ gblock.snapshot.content | safe }}</div>
@@ -194,7 +194,7 @@
           {% if override_content and override_content.strip() %}
             <p class="qe-para">{{ override_content | safe }}</p>
           {% else %}
-            <p class="qe-para"><strong>{{ block.snapshot.label }}:</strong> {{ block.snapshot.value }}</p>
+            <p class="qe-para"><strong>{{ block.snapshot.label }}:</strong> {{ block.snapshot.output_notes or block.snapshot.value }}</p>
           {% endif %}
         {% elif block.type == 'calculator' %}
           {% set snapshot = block.snapshot %}

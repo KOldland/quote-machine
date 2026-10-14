@@ -22,8 +22,10 @@
         <div id="sidebar" class="sidebar{% if edit_mode %} builder-edit-mode{% endif %}">
             <!-- Mode Switcher -->
             <div class="mode-switcher">
-                <a href="/form_editor?edit=1" class="mode-btn {% if edit_mode %}active{% endif %}" title="Build Mode">Build Mode</a>
-                <a href="/" class="mode-btn {% if not edit_mode and request.endpoint != 'quote_editor' %}active{% endif %}" title="Form Mode">Form Mode</a>
+                {% set form_target = ('/' + last_visited) if last_visited else '/' %}
+                {% set build_target = ('/' + last_visited + '?edit=1') if last_visited else '/form_editor?edit=1' %}
+                <a href="{{ build_target }}" class="mode-btn {% if edit_mode %}active{% endif %}" title="Build Mode">Build Mode</a>
+                <a href="{{ form_target }}" class="mode-btn {% if not edit_mode and request.endpoint != 'quote_editor' %}active{% endif %}" title="Form Mode">Form Mode</a>
                 <a href="/quote_editor" class="mode-btn {% if request.endpoint == 'quote_editor' %}active{% endif %}" title="Quote Mode">Quote Mode</a>
             </div>
 
@@ -44,7 +46,7 @@
                                                 <div class="page-selector-item-wrapper"
                                                      style="display:flex;align-items:center;">
                                                     <a href="/{{ page.page_key }}?edit=1"
-                                                       class="page-selector-item">{{ page.title }}</a>
+                                                       class="page-selector-item {% if request.path == '/' + page.page_key %}active{% endif %}">{{ page.title }}</a>
                                                     <span style="margin-left:auto;display:flex;gap:2px;">
                                                         <button class="page-reorder-btn" data-page="{{ page.page_key }}" data-dir="up" title="Move up">▲</button>
                                                         <button class="page-reorder-btn" data-page="{{ page.page_key }}" data-dir="down" title="Move down">▼</button>

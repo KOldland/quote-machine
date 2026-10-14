@@ -291,12 +291,19 @@ def inject_ui_context():
     # ✅ Always load db_pages so navigation works for all users
     db_pages = get_all_pages(template_key=TEMPLATE_STORE_KEY)
 
+    # "Where was I?" — carry the last visited form page across mode switches
+    # so Build ⇄ Form navigation returns the user to the same page.
+    _page_keys = {p['page_key'] for p in db_pages}
+    _lv = session.get('last_visited')
+    last_visited = _lv if _lv in _page_keys and _lv != 'index' else None
+
     return dict(
         current_user_role=role,
         current_username=session.get('username'),
         is_admin=is_admin,
         edit_mode=edit_mode,
         db_pages=db_pages,
+        last_visited=last_visited,
     )
 
 
@@ -4983,7 +4990,7 @@ def dynamic_page(page_id):
                              'is_follow_up': r.get('is_follow_up') or 0,
                              'follow_up_type': r.get('follow_up_type') or '',
                              'follow_up_config': r.get('follow_up_config') or '{}',
-                             'checked': (r.get('line_code', '') in _saved) if _saved
+                             'checked': (r.get('line_code', '') in _saved) if (_saved and r.get('include_default') == 'Y')
                                          else (r.get('include_default') == 'Y'),
                              'saved_override': session_overrides.get(str(r.get('id')), '')}
                             for r in v

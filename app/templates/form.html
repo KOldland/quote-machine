@@ -17,7 +17,7 @@
                                     <div class="page-selector-item-wrapper"
                                          style="display:flex;align-items:center;">
                                         <a href="/{{ page.page_key }}?edit=1"
-                                           class="page-selector-item">{{ page.title }}</a>
+                                           class="page-selector-item {% if request.path == '/' + page.page_key %}active{% endif %}">{{ page.title }}</a>
                                         <span style="margin-left:auto;display:flex;gap:2px;">
                                             <button class="page-reorder-btn" data-page="{{ page.page_key }}" data-dir="up" title="Move up">▲</button>
                                             <button class="page-reorder-btn" data-page="{{ page.page_key }}" data-dir="down" title="Move down">▼</button>

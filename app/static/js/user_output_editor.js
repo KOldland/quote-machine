@@ -470,7 +470,8 @@ const IMAGE_FRAMES = [
     }
   }
 
-  function addBlock(blockData) {
+  function addBlock(blockData, opts) {
+    opts = opts || {};
     pushHistory();
     const block = {
       id: blockData.id || generateId(),
@@ -488,7 +489,12 @@ const IMAGE_FRAMES = [
     };
     blocks.push(block);
     rebuildPages();
-    window.__currentPageIndex = pages.length - 1;
+    // Only jump to the last page when the user explicitly adds a block via
+    // the Insert buttons — NOT when bulk-loading an existing quote (which
+    // previously caused Quote Mode to always open on the last page).
+    if (opts.jumpToEnd) {
+      window.__currentPageIndex = pages.length - 1;
+    }
     renderCurrentPage();
     setActiveBlock(block.id);
     updateNavPanel();
@@ -935,12 +941,12 @@ const IMAGE_FRAMES = [
             addBlock({
               type: 'image_group',
               snapshot: { images: [{ url, filename }], columns: 2 },
-            });
+            }, { jumpToEnd: true });
           } else {
             addBlock({
               type: 'image',
               snapshot: { url, filename },
-            });
+            }, { jumpToEnd: true });
           }
           document.getElementById('imageGalleryModal').style.display = 'none';
         });
@@ -2357,7 +2363,8 @@ const IMAGE_FRAMES = [
     let html = '';
 
     pageGroups.forEach((page, pageIndex) => {
-      const isActive = page.items.some(item => item.block.id === activeBlockId);
+      const isActive = page.items.some(item => item.block.id === activeBlockId)
+        || pageIndex === (window.__currentPageIndex || 0);
       const separator = page.items.find(item => item.block.type === 'page_title' || item.block.type === 'page_break');
       const isHidden = separator && separator.block.flags && separator.block.flags.hidden;
 
@@ -2555,14 +2562,14 @@ const IMAGE_FRAMES = [
           return;
         }
         if (type === 'image_group') {
-          addBlock({ type: 'image_group', snapshot: { images: [], columns: 2 } });
+          addBlock({ type: 'image_group', snapshot: { images: [], columns: 2 } }, { jumpToEnd: true });
           return;
         }
         if (type === 'page_break') {
-          addBlock({ type: 'page_break' });
+          addBlock({ type: 'page_break' }, { jumpToEnd: true });
           return;
         }
-        addBlock({ type });
+        addBlock({ type }, { jumpToEnd: true });
       });
     });
   }
@@ -2631,6 +2638,7 @@ const IMAGE_FRAMES = [
     }
 
    async function init() {
+      window.__currentPageIndex = 0;
       await checkPendingBlocks();
       refreshLayoutSelector();
       initToolbar();
