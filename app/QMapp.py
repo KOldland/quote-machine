@@ -3846,6 +3846,11 @@ def builder_line_item_save(item_id):
     # Normalise the Preselected checkbox (posted as 1/0) to the DB's 'Y'/'N'
     if 'include_default' in data:
         data['include_default'] = 'Y' if str(data['include_default']).lower() in ('1', 'y', 'true', 'yes', 'on') else 'N'
+    # Prevent PostgreSQL "invalid input syntax for type real" when the JS
+    # submits empty '' for numeric fields (number inputs start blank).
+    for key in ('unit_cost', 'units', 'addon_amount'):
+        if key in data and (data[key] == '' or data[key] is None):
+            data[key] = None
     conn = _get_conn()
     try:
         # Build SET clause from allowed fields
@@ -3854,7 +3859,7 @@ def builder_line_item_save(item_id):
             'unit_cost', 'units', 'pricing_visibility', 'quantity_source', 'pricing_mode',
             'form_visible', 'category', 'include_default',
             'is_follow_up', 'follow_up_type', 'follow_up_config',
-            'output_group', 'override_output_group', 'price_matrix',
+            'output_group', 'override_output_group',
         ]
         sets = []
         params = []

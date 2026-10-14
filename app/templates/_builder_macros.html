@@ -2527,6 +2527,8 @@ function showViewImageUpload() {
                         $id('li-view-two-title').textContent = 'Question: ' + (item.output_title || item.internal_description || 'Unnamed Question');
                         $id('li-view-two-title').title = $id('li-view-two-title').textContent;
                     } else {
+                        console.error('Save failed:', data.error || 'unknown');
+                        alert('Save failed: ' + (data.error || 'Unknown error'));
                         
                         if (saveBtn) {
                             saveBtn.disabled = false;
