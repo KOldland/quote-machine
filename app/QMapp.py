@@ -6124,12 +6124,24 @@ def quote_editor():
         pass
     pending_blocks = get_quote_editor_blocks()
     pending_block = session.get('quote_editor_pending_block', None)
+    # Determine initial page index from ?page= query parameter
+    page_key = request.args.get('page')
+    initial_page_index = 0
+    if page_key:
+        try:
+            ordered_pages = get_all_pages(template_key=form_key)
+            page_dict = {p['page_key']: idx for idx, p in enumerate(ordered_pages)}
+            if page_key in page_dict:
+                initial_page_index = page_dict[page_key]
+        except Exception:
+            pass
     return render_template(
         'user_output_editor.html',
         form_key=form_key,
         layouts=layouts,
         pending_blocks=pending_blocks,
         pending_block=pending_block,
+        initial_page_index=initial_page_index,
     )
 
 

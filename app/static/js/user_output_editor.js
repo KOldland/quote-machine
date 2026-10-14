@@ -1294,6 +1294,9 @@ const IMAGE_FRAMES = [
               updateSettingsPanel();
                const blist = (d.fresh_blocks || []).length > 0 ? d.fresh_blocks : (quote.blocks_json || []);
                blist.forEach(b => addBlock(b));
+               const initialPageIndex = window.__initialPageIndex || 0;
+               window.__currentPageIndex = initialPageIndex;
+               if (blocks.length > 0) activeBlockId = blocks[0].id;
             }
             document.getElementById('loadModal').style.display = 'none';
           }
@@ -2627,7 +2630,8 @@ const IMAGE_FRAMES = [
            updateSettingsPanel();
            const blist = (d.fresh_blocks || []).length > 0 ? d.fresh_blocks : (quote.blocks_json || []);
            blist.forEach(b => addBlock(b));
-           window.__currentPageIndex = 0;
+           const initialPageIndex = window.__initialPageIndex || 0;
+           window.__currentPageIndex = initialPageIndex;
            if (blocks.length > 0) activeBlockId = blocks[0].id;
            updateNavPanel();
            renderCurrentPage();
@@ -2638,7 +2642,8 @@ const IMAGE_FRAMES = [
     }
 
    async function init() {
-      window.__currentPageIndex = 0;
+      const initialPageIndex = window.__initialPageIndex || 0;
+      window.__currentPageIndex = initialPageIndex;
       await checkPendingBlocks();
       refreshLayoutSelector();
       initToolbar();

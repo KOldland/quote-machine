@@ -23,6 +23,9 @@
 {% block styles %}
 {{ super() }}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/user_output_editor.css') }}">
+<script>
+  window.__initialPageIndex = {{ initial_page_index | default(0) }};
+</script>
 {% endblock %}
 
 {% block content %}
