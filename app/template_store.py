@@ -2229,14 +2229,14 @@ def save_theme(
                 bt = b.get('type')
                 if bt and bt not in block_defaults_json:
                     s = b.get('settings', {})
-                    if s:
-                        block_defaults_json[bt] = {
-                            'margin_top': s.get('margin_top', 8),
-                            'margin_bottom': s.get('margin_bottom', 8),
-                            'padding': s.get('padding', 12),
-                            'alignment': s.get('alignment', 'left'),
-                            'font_size': s.get('font_size', 14),
-                        }
+                    block_defaults_json[bt] = {
+                        'margin_top': s.get('margin_top', 8),
+                        'margin_bottom': s.get('margin_bottom', 8),
+                        'padding': s.get('padding', 12),
+                        'alignment': s.get('alignment', 'left'),
+                        'font_size': s.get('font_size', 14),
+                        'list_type': b.get('list_type', 'ul'),  # Extract list_type directly from block
+                    }
 
         theme_payload = {
             'block_defaults': block_defaults_json or {},
@@ -2297,6 +2297,9 @@ def apply_theme_to_blocks(theme_id: int, blocks: list, form_key: str, db_path: O
         bt = block.get('type')
         if bt in defaults:
             block['settings'] = dict(defaults[bt])
+            # Also apply list_type if present in theme defaults
+            if 'list_type' in defaults[bt]:
+                block['list_type'] = defaults[bt]['list_type']
     return blocks
 
 

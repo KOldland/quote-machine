@@ -25,6 +25,10 @@ let copiedSettings = null;
 let currentQuoteId = null;
 let autoSaveTimer = null;
 let saveStatusEl = null;
+/** Timestamp of the last known server quote update, used to detect changes */
+let lastServerQuoteUpdate = 0;
+/** Timer for periodically checking for quote updates from server */
+let quoteUpdateTimer = null;
 let documentStyles = {
   font_family: 'Arial, sans-serif',
   font_size_base: 16,
@@ -199,6 +203,52 @@ const IMAGE_FRAMES = [
       const d = await r.json();
       if (d.success) {
         setSaveStatus('Saved', 'success');
+        // Fetch latest quote from server to ensure we have updated form data
+        try {
+          const res = await fetch(`/quote_editor/quotes/${currentQuoteId}`);
+          const quoteData = await res.json();
+          if (quoteData.success && quoteData.quote) {
+            // Clear current blocks and rebuild from server data
+            blocks = [];
+            activeBlockId = null;
+            updateSettingsPanel();
+            
+            const serverBlocks = quoteData.quote.blocks_json || [];
+            // Parse server blocks (they come as a JSON string in blocks_json)
+            let parsedBlocks = [];
+            if (typeof serverBlocks === 'string') {
+              parsedBlocks = JSON.parse(serverBlocks);
+            } else if (Array.isArray(serverBlocks)) {
+              parsedBlocks = serverBlocks;
+            }
+            
+            // Add each block to the editor
+            parsedBlocks.forEach(b => {
+              addBlock({
+                id: b.id || `temp-${Date.now()}-${Math.random()}`,
+                type: b.type || '',
+                source_page: b.source_page || '',
+                source_block_id: b.source_block_id || '',
+                list_group_id: b.list_group_id || null,
+                list_type: b.list_type || 'ul',
+                list_index: b.list_index || 0,
+                snapshot: b.snapshot || {},
+                editor_overrides: b.editor_overrides || {},
+                flags: b.flags || {},
+                settings: b.settings || {},
+                category_sort_order: b.category_sort_order != null ? b.category_sort_order : 999,
+              });
+            });
+            
+            // Set active block to first block if none was set
+            if (blocks.length > 0 && !activeBlockId) {
+              activeBlockId = blocks[0].id;
+            }
+          }
+        } catch (fetchErr) {
+          // Non-blocking: if we can't fetch, we still saved successfully
+          console.debug('Could not fetch updated quote after save:', fetchErr);
+        }
       } else {
         setSaveStatus('Save failed', 'error');
       }
@@ -1113,6 +1163,25 @@ const IMAGE_FRAMES = [
     documentStyles = { ...documentStyles, ...collectDocumentStyles() };
   }
 
+  function collectBlockDefaults() {
+    const defaults = {};
+    for (const block of blocks) {
+      const bt = block.type;
+      if (bt && !(bt in defaults)) {
+        const s = block.settings || {};
+        defaults[bt] = {
+          margin_top: s.margin_top ?? 8,
+          margin_bottom: s.margin_bottom ?? 8,
+          padding: s.padding ?? 12,
+          alignment: s.alignment ?? 'left',
+          font_size: s.font_size ?? 16,
+          list_type: block.list_type ?? 'ul',
+        };
+      }
+    }
+    return defaults;
+  }
+
   async function setActiveQuoteId(quoteId) {
     try {
       await fetch('/quote_editor/active-quote', {
@@ -1389,6 +1458,18 @@ const IMAGE_FRAMES = [
               documentStyles = { ...documentStyles, ...settings.document_styles };
             }
             updateStylesFormFromDocumentStyles();
+             // Apply block defaults from theme to existing blocks
+             if (settings.block_defaults) {
+               for (const block of blocks) {
+                 const bt = block.type;
+                 if (bt in settings.block_defaults) {
+                   // Apply settings
+                   block.settings = { ...settings.block_defaults[bt] };
+                   // Apply list_type
+                   block.list_type = settings.block_defaults[bt].list_type;
+                 }
+               }
+             }
             document.getElementById('loadModal').style.display = 'none';
           }
         });
@@ -2001,7 +2082,10 @@ const IMAGE_FRAMES = [
     const isDefault = document.getElementById('setAsDefaultCheckbox').checked;
     const payload = {
       name,
-      settings_json: { document_styles: collectDocumentStyles() },
+      settings_json: { 
+        document_styles: collectDocumentStyles(),
+        block_defaults: collectBlockDefaults()
+      },
       is_default: isDefault,
     };
     try {
@@ -2071,7 +2155,10 @@ const IMAGE_FRAMES = [
   async function saveTheme(name, isDefault) {
     const payload = {
       name,
-      settings_json: { document_styles: collectDocumentStyles() },
+      settings_json: { 
+        document_styles: collectDocumentStyles(),
+        block_defaults: collectBlockDefaults()
+      },
       is_default: isDefault,
     };
     try {
@@ -2421,7 +2508,7 @@ const IMAGE_FRAMES = [
           if (categoryItemsOpen && snapshot.category === categoryItemsOpen) {
             html += `<div class="nav-item nav-item--question ${isActive ? 'nav-item--active' : ''}" data-block-id="${block.id}">
               <span class="nav-item__label">${escapeHtml(label)}</span>
-            </div>`;
+              </div>`;
           } else {
             html += `<div class="nav-item nav-item--question ${isActive ? 'nav-item--active' : ''}" data-block-id="${block.id}">
               <span class="nav-item__label">${escapeHtml(label)}</span>
@@ -2671,6 +2758,10 @@ const IMAGE_FRAMES = [
       // }
       await autoLoadLastSession();
       saveStatusEl = document.getElementById('saveStatus');
+      
+      // Check for quote updates when tab gains focus or becomes visible
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      document.addEventListener('focus', handleFocus);
     }
 
   if (document.readyState === 'loading') {
@@ -2679,3 +2770,230 @@ const IMAGE_FRAMES = [
     init();
   }
 })();
+
+// Handle visibility and focus events to check for quote updates
+function handleVisibilityChange() {
+  if (document.visibilityState === 'visible') {
+    // Tab became visible, check for quote updates
+    checkForQuoteUpdates();
+  }
+}
+
+function handleFocus() {
+  // Window gained focus, check for quote updates
+  checkForQuoteUpdates();
+}
+
+/**
+ * Load quote blocks from server data and rebuild the UI
+ * @param {Array} serverBlocks - Array of block objects from server
+ */
+async function loadQuoteFromServer(serverBlocks) {
+  // Parse server blocks (they come as a JSON string in blocks_json)
+  let parsedBlocks = [];
+  if (typeof serverBlocks === 'string') {
+    try {
+      parsedBlocks = JSON.parse(serverBlocks);
+    } catch (e) {
+      console.error('Failed to parse server blocks JSON:', e);
+      return;
+    }
+  } else if (Array.isArray(serverBlocks)) {
+    parsedBlocks = serverBlocks;
+  } else {
+    return;
+  }
+
+  // Clear current blocks and rebuild from server data
+  blocks = [];
+  activeBlockId = null;
+  updateSettingsPanel();
+
+  // Add each block to the editor
+  parsedBlocks.forEach(b => {
+    addBlock({
+      id: b.id || `temp-${Date.now()}-${Math.random()}`,
+      type: b.type || '',
+      source_page: b.source_page || '',
+      source_block_id: b.source_block_id || '',
+      list_group_id: b.list_group_id || null,
+      list_type: b.list_type || 'ul',
+      list_index: b.list_index || 0,
+      snapshot: b.snapshot || {},
+      editor_overrides: b.editor_overrides || {},
+      flags: b.flags || {},
+      settings: b.settings || {},
+      category_sort_order: b.category_sort_order != null ? b.category_sort_order : 999,
+    });
+  });
+
+  // Set active block to first block if none was set
+  if (blocks.length > 0 && !activeBlockId) {
+    activeBlockId = blocks[0].id;
+  }
+}
+
+/**
+ * Rebuild the entire UI from the current blocks array
+ * Used when we have manual edits that we want to preserve
+ */
+async function rebuildUI() {
+  // Clear current UI
+  const canvas = document.getElementById('canvas');
+  if (canvas) {
+    canvas.innerHTML = '';
+  }
+  
+  // Reset state
+  activeBlockId = null;
+  selectedBlockIds.clear();
+  updateSettingsPanel();
+  
+  // Re-add all blocks
+  blocks.forEach(block => {
+    addBlock(block, { skipHistory: true });
+  });
+  
+  // Set active block to first block if none was set
+  if (blocks.length > 0 && !activeBlockId) {
+    activeBlockId = blocks[0].id;
+  }
+  
+  // Update UI panels
+  updateNavPanel();
+  renderCurrentPage();
+}
+
+/**
+ * Merge a local block with a server block, preserving manual edits.
+ * If the local block has editor_dirty: true, keep the entire local block.
+ * Otherwise, update the local block's snapshot from the server block
+ * while preserving local editor_overrides and settings.
+ */
+function mergeBlockWithServer(localBlock, serverBlock) {
+  // If local block has manual edits, preserve it entirely
+  if (localBlock.flags && localBlock.flags.editor_dirty) {
+    return localBlock;
+  }
+
+  // Create a merged block starting with the local block's structure
+  const merged = { ...localBlock };
+
+  // Update snapshot from server to get latest form data/calculations
+  merged.snapshot = { ...serverBlock.snapshot };
+
+  // Ensure source_dirty is set to indicate sync with source
+  merged.flags = { ...merged.flags, source_dirty: true };
+
+  // Note: We intentionally preserve localBlock.editor_overrides (manual UI edits)
+  // and localBlock.settings (visual formatting) from the local block
+
+  return merged;
+}
+
+/**
+ * Periodically check if the quote on the server has been updated
+ * and refresh the editor if so, preserving manual edits where possible.
+ */
+async function checkForQuoteUpdates() {
+  if (!currentQuoteId) return;
+
+  try {
+    // Fetch current quote from server
+    const res = await fetch(`/quote_editor/quotes/${currentQuoteId}`);
+    const quoteData = await res.json();
+    
+    if (!quoteData.success || !quoteData.quote) {
+      return;
+    }
+    
+    const serverBlocks = quoteData.quote.blocks_json || [];
+    
+    // Parse server blocks
+    let parsedBlocks = [];
+    if (typeof serverBlocks === 'string') {
+      try {
+        parsedBlocks = JSON.parse(serverBlocks);
+      } catch (e) {
+        console.error('Failed to parse server blocks JSON:', e);
+        return;
+      }
+    } else if (Array.isArray(serverBlocks)) {
+      parsedBlocks = serverBlocks;
+    } else {
+      return;
+    }
+    
+    // Check if we have manual edits (editor_dirty flags) that we want to preserve
+    const hasManualEdits = blocks.some(block => 
+      block.flags && block.flags.editor_dirty
+    );
+    
+    if (hasManualEdits) {
+      // Preserve manual edits: keep locally edited blocks, replace others with server version
+      const newBlocks = [];
+      const serverBlockMap = new Map();
+      
+      // Create a map of server blocks by id for easy lookup
+      parsedBlocks.forEach(block => {
+        if (block.id) {
+          serverBlockMap.set(block.id, block);
+        }
+      });
+      
+      // Process each local block
+      blocks.forEach(localBlock => {
+        if (localBlock.flags && localBlock.flags.editor_dirty) {
+          // Preserve locally edited blocks entirely
+          newBlocks.push(localBlock);
+        } else {
+          // For non-edited blocks, use server version if available
+          const serverBlock = serverBlockMap.get(localBlock.id);
+          if (serverBlock) {
+            newBlocks.push(serverBlock);
+          } else {
+            // Block doesn't exist on server anymore, remove it
+            // (Don't push localBlock - this removes deleted blocks)
+          }
+        }
+      });
+      
+      // Add any new blocks from server that don't exist locally
+      const localBlockIds = new Set(blocks.map(b => b.id).filter(Boolean));
+      parsedBlocks.forEach(serverBlock => {
+        if (serverBlock.id && !localBlockIds.has(serverBlock.id)) {
+          newBlocks.push(serverBlock);
+        }
+      });
+      
+      // Update blocks array
+      blocks = newBlocks;
+      
+      // Rebuild the UI with the new block set
+      await rebuildUI();
+      
+    } else {
+      // No manual edits, safely replace all blocks with server version
+      await loadQuoteFromServer(parsedBlocks);
+    }
+    
+    // Update the last known server update timestamp
+    lastServerQuoteUpdate = Date.now();
+  } catch (err) {
+    // Non-blocking error - don't disrupt the user experience
+    console.debug('Error checking for quote updates:', err);
+  }
+}
+
+// Handle visibility and focus events to check for quote updates
+function handleVisibilityChange() {
+  if (document.visibilityState === 'visible') {
+    // Tab became visible, check for quote updates
+    checkForQuoteUpdates();
+  }
+}
+
+function handleFocus() {
+  // Window gained focus, check for quote updates
+  checkForQuoteUpdates();
+}
