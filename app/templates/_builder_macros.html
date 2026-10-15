@@ -2101,9 +2101,9 @@ function showViewImageUpload() {
 
         html += _section('Description', true, [
             _field('internal_description', 'Internal Description', 'text', item.internal_description || ''),
-            _field('output_title',         'Output Title',          'text', item.output_title || ''),
-            _field_with_merge_tags('output_notes',    'Output Notes',    item.output_notes || '',    item),
-            _field_with_merge_tags('output_guidance', 'Output Guidance', item.output_guidance || '', item)
+            _field('output_title',         'Title',          'text', item.output_title || ''),
+            _field_with_merge_tags('output_notes',    'Notes',    item.output_notes || '',    item),
+            _field_with_merge_tags('output_guidance', 'Blue Notes', item.output_guidance || '', item)
         ]);
 
         html += _section('Secondary Questions', true, [

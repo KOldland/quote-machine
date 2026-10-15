@@ -1119,8 +1119,8 @@ window.toggleSection = function(sectionId) {
             <form id="li-edit-form">
                 <input type="hidden" name="li_id" value="${item.id}">
                 ${_tf('output_title','Internal Description', item.output_title || item.internal_description,'text')}
-                ${_tf('output_notes','Output Notes', item.output_notes,'textarea')}
-                ${_tf('output_guidance','Output Guidance', item.output_guidance,'textarea')}
+                ${_tf('output_notes','Notes', item.output_notes,'textarea')}
+                ${_tf('output_guidance','Blue Notes', item.output_guidance,'textarea')}
                 ${_tf('unit_cost','Unit Cost (£)', item.unit_cost,'number')}
                 ${_tf('units','Units', item.units,'number')}
                 
