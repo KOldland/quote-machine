@@ -190,6 +190,10 @@ def _get_conn(db_path=None):
     """Return a DB connection via template_store._connect().
     On Render (DATABASE_URL set) this uses PostgreSQL; locally it uses SQLite."""
     import template_store as _ts_conn
+    # CRITICAL: Always use ? placeholders in SQL strings.
+    # The _CompatConnection adapter converts ? to %s for PostgreSQL.
+    # Never use $1, $2, etc. - breaks SQLite compatibility.
+
     return _ts_conn._connect(db_path)
 
 @app.template_filter('from_json')
