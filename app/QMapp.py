@@ -3487,6 +3487,11 @@ def builder_line_item_duplicate():
             row['price_matrix'] if 'price_matrix' in row.keys() else None,
         ])
         conn.commit()
+        new_id = cur.lastrowid
+        new_row = conn.execute(
+            "SELECT * FROM line_items WHERE id = ?",
+            [new_id]
+        ).fetchone()
         return jsonify({"success": True, "item": dict(new_row)})
     except Exception as e:
         import traceback

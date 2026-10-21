@@ -2146,6 +2146,7 @@ function showViewImageUpload() {
 
         html += _section('Price', false, [
             _field('unit_cost', 'Unit Cost (£)', 'number', item.unit_cost != null ? item.unit_cost : ''),
+            _field('units',     'Units',         'number', item.units     != null ? item.units     : '', false, 'li_units'),
             qtyField,
             _checkField('price_override_enabled', 'User Can Edit Price', item.pricing_visibility === 'user_edit', 'lich_price_override'),
         ]);
