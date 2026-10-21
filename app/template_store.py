@@ -62,6 +62,7 @@ class _CompatCursor:
     def __init__(self, cursor, is_pg):
         self._cur = cursor
         self._is_pg = is_pg
+        self._lastrowid = None
     
     def _wrap_row(self, row):
         if row is None or not self._is_pg:
@@ -105,14 +106,38 @@ class _CompatCursor:
         return [self._wrap_row(r) for r in rows]
     
     def execute(self, sql, *args, **kwargs):
-        """Execute SQL with ? placeholder translation for PostgreSQL."""
+        """Execute SQL with ? placeholder translation for PostgreSQL.
+        For INSERT statements on PostgreSQL, appends RETURNING id to capture lastrowid."""
+        self._lastrowid = None
+        was_insert = False
         if self._is_pg:
             sql = sql.replace('?', '%s')
+            # For INSERT statements, append RETURNING id to capture lastrowid
+            if sql.strip().upper().startswith('INSERT'):
+                sql = sql.rstrip().rstrip(';')
+                if not sql.upper().endswith('RETURNING'):
+                    sql = sql + ' RETURNING id'
+                was_insert = True
         if args:
             self._cur.execute(sql, args[0] if args else ())
         else:
             self._cur.execute(sql)
-        return self  # Return self so fetchone()/fetchall() can be chained
+        # Capture lastrowid from RETURNING id for PG INSERTs
+        if was_insert and self._cur.description:
+            try:
+                row = self._cur.fetchone()
+                if row:
+                    self._lastrowid = row[0] if isinstance(row, tuple) else (row.get('id') or row.get(0))
+            except Exception:
+                pass
+        return self
+
+    @property
+    def lastrowid(self):
+        """Get the last inserted row ID for both SQLite and PostgreSQL."""
+        if self._is_pg:
+            return self._lastrowid
+        return self._cur.lastrowid
     
     def __iter__(self):
         for row in self._cur:

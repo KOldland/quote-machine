@@ -267,8 +267,10 @@ def require_role(*roles):
 def require_login():
     # List of endpoints that do not require login
     public_endpoints = ['login', 'logout', 'static']
-    # Also allow the image upload page? Actually it should require login because it writes to session.
-    # But we'll keep it protected for now.
+    # Ignore favicon requests - they shouldn't trigger login redirect or
+    # overwrite the _login_next session variable
+    if request.path == '/favicon.ico':
+        return
     if request.endpoint not in public_endpoints and not session.get('role'):
         session['_login_next'] = request.url
         flash('Please log in to access that page.', 'warning')
@@ -3076,12 +3078,10 @@ def builder_line_item_add():
 
         return jsonify({'success': True, 'item': dict(row)})
 
-    except sqlite3.Error as e:
-        return jsonify({'success': False, 'error': f'Database error: {str(e)}'}), 500
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'success': False, 'error': f'Unexpected error: {str(e)}'}), 500
+        return jsonify({'success': False, 'error': f'Database error: {str(e)}'}), 500
     finally:
         if conn:
             conn.close()
@@ -4092,10 +4092,8 @@ def save_title():
         conn.commit()
         return jsonify({'success': True, 'code': code, 'title': new_title})
 
-    except sqlite3.Error as e:
-        return jsonify({'success': False, 'error': f'Database error: {str(e)}'}), 500
     except Exception as e:
-        return jsonify({'success': False, 'error': f'Unexpected error: {str(e)}'}), 500
+        return jsonify({'success': False, 'error': f'Database error: {str(e)}'}), 500
     finally:
         if conn:
             conn.close()
