@@ -4167,6 +4167,32 @@ def builder_line_items_json():
         conn.close()
 
 
+@app.route('/builder_beta/categories_for_page')
+@require_role('admin')
+def builder_categories_for_page():
+    """Return distinct category names for a given page_key."""
+    page_key = request.args.get('page_key', '').strip()
+    if not page_key:
+        return jsonify({'categories': []})
+    conn = _get_conn()
+    try:
+        cat_rows = conn.execute(
+            "SELECT DISTINCT ct.name FROM category_templates ct "
+            "JOIN page_templates pt ON pt.id = ct.page_template_id "
+            "JOIN form_template_versions ftv ON ftv.id = pt.form_template_version_id "
+            "JOIN form_templates ft ON ft.id = ftv.form_template_id "
+            "WHERE pt.page_key = ? AND ft.key = ? "
+            "ORDER BY ct.name",
+            [page_key, TEMPLATE_STORE_KEY],
+        ).fetchall()
+        categories = [{'name': r['name']} for r in cat_rows]
+        return jsonify({'categories': categories})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+    finally:
+        conn.close()
+
+
 @app.route('/builder_beta/swap_order', methods=['POST'])
 @require_role('admin')
 def builder_swap_order():

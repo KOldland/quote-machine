@@ -2185,6 +2185,17 @@ function showViewImageUpload() {
         html += '  <button type="button" id="btn-delete-question" class="li-delete-btn" style="padding:0.45rem; background:#6d0b0b; color:#fff; border:none; border-radius:5px; font-weight:700; cursor:pointer;" title="Delete Question"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>';
         html += '</div>';
         html += '<div id="q-move-panel" style="display:none; margin-top:0.75rem; padding:0.75rem; background:#f8f9fa; border:1px solid #dee2e6; border-radius:4px;">';
+        html += '  <div style="margin-bottom:0.5rem;">';
+        html += '    <label style="font-size:.8rem; font-weight:600; color:#333; cursor:pointer; display:flex; align-items:center; gap:0.4rem;">';
+        html += '      <input type="checkbox" id="q-move-cross-page" style="margin:0;"> Move question to another page';
+        html += '    </label>';
+        html += '  </div>';
+        html += '  <div id="q-move-page-wrap" style="display:none; margin-bottom:0.5rem;">';
+        html += '    <label style="font-size:.8rem; font-weight:600; color:#333; display:block; margin-bottom:0.3rem;">Select page:</label>';
+        html += '    <select id="q-move-page" style="width:100%; padding:0.4rem; border:1px solid #ccc; border-radius:4px; font-size:.85rem;">';
+        html += '      <option value="">-- Choose a page --</option>';
+        html += '    </select>';
+        html += '  </div>';
         html += '  <label style="font-size:.8rem; font-weight:600; color:#333; display:block; margin-bottom:0.4rem;">Move question to category:</label>';
         html += '  <select id="q-move-target" style="width:100%; padding:0.4rem; border:1px solid #ccc; border-radius:4px; font-size:.85rem;">';
         html += '    <option value="">-- Choose a category --</option>';
@@ -2214,24 +2225,82 @@ function showViewImageUpload() {
                 btnQMoveCancel.addEventListener('click', function () { qMovePanel.style.display = 'none'; });
             }
 
-            // Populate from the live category list so only real targets appear.
-            if (qMoveTarget) {
-                var currentCat = (item && item.category) ? item.category : '';
-                document.querySelectorAll('.li-section-btn[data-category]').forEach(function (b) {
-                    var name = b.getAttribute('data-category');
-                    if (!name || name === currentCat) return;
-                    var opt = document.createElement('option');
-                    opt.value = name;
-                    opt.textContent = name;
-                    qMoveTarget.appendChild(opt);
+            // ── Move question to another category ──
+            var qCrossPage = $id('q-move-cross-page');
+            var qMovePageWrap = $id('q-move-page-wrap');
+            var qMovePage = $id('q-move-page');
+            var qMoveTarget = $id('q-move-target');
+
+            // Populate page dropdown when cross-page checkbox is checked
+            if (qCrossPage && qMovePage && window._allPages && Array.isArray(window._allPages)) {
+                qMovePage.innerHTML = '<option value="">-- Choose a page --</option>';
+                window._allPages.forEach(function(pg) {
+                    if (pg.page_key && pg.page_key !== _pageKey) {
+                        var opt = document.createElement('option');
+                        opt.value = pg.page_key;
+                        opt.textContent = pg.title || pg.page_key;
+                        qMovePage.appendChild(opt);
+                    }
+                });
+            }
+
+            function populateCategoriesForPage(pageKey, currentCat) {
+                qMoveTarget.innerHTML = '<option value="">-- Choose a category --</option>';
+                if (!pageKey) return;
+                fetch('/builder_beta/categories_for_page?page_key=' + encodeURIComponent(pageKey))
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (data.categories && Array.isArray(data.categories)) {
+                            data.categories.forEach(function(c) {
+                                if (c.name && c.name !== currentCat) {
+                                    var opt = document.createElement('option');
+                                    opt.value = c.name;
+                                    opt.textContent = c.name;
+                                    qMoveTarget.appendChild(opt);
+                                }
+                            });
+                        }
+                    })
+                    .catch(function(e) { console.error('Failed to load categories:', e); });
+            }
+
+            // Populate categories for current page initially
+            var currentCat = (item && item.category) ? item.category : '';
+            populateCategoriesForPage(_pageKey, currentCat);
+
+            // Checkbox toggle: show/hide page dropdown and refresh categories
+            if (qCrossPage && qMovePageWrap) {
+                qCrossPage.addEventListener('change', function() {
+                    if (qCrossPage.checked) {
+                        qMovePageWrap.style.display = 'block';
+                        // Clear category dropdown until a page is selected
+                        qMoveTarget.innerHTML = '<option value="">-- Choose a page first --</option>';
+                    } else {
+                        qMovePageWrap.style.display = 'none';
+                        populateCategoriesForPage(_pageKey, currentCat);
+                    }
+                });
+            }
+
+            // Page selection: load categories for the selected page
+            if (qMovePage) {
+                qMovePage.addEventListener('change', function() {
+                    var selectedPage = qMovePage.value;
+                    if (selectedPage) {
+                        populateCategoriesForPage(selectedPage, currentCat);
+                    } else {
+                        qMoveTarget.innerHTML = '<option value="">-- Choose a category --</option>';
+                    }
                 });
             }
 
             if (btnQMoveConfirm) {
                 btnQMoveConfirm.addEventListener('click', function () {
-                    var target = qMoveTarget ? qMoveTarget.value : '';
-                    if (!target) { alert('Please select a target category.'); return; }
-                    if (!confirm('Move "' + ((item && item.internal_description) || 'this question') + '" to "' + target + '"?')) return;
+                    var targetPage = (qCrossPage && qCrossPage.checked) ? (qMovePage ? qMovePage.value : '') : _pageKey;
+                    var targetCat = qMoveTarget ? qMoveTarget.value : '';
+                    if (!targetPage) { alert('Please select a target page.'); return; }
+                    if (!targetCat) { alert('Please select a target category.'); return; }
+                    if (!confirm('Move "' + ((item && item.internal_description) || 'this question') + '" to "' + targetCat + '" on page "' + targetPage + '"?')) return;
                     btnQMoveConfirm.disabled = true;
                     btnQMoveConfirm.textContent = 'Moving…';
                     fetch('/builder_beta/line_item_move', {
@@ -2240,14 +2309,14 @@ function showViewImageUpload() {
                         body: JSON.stringify({
                             line_item_id: item.id,
                             page_key: _pageKey,
-                            target_page_key: _pageKey,
-                            target_category: target
+                            target_page_key: targetPage,
+                            target_category: targetCat
                         })
                     }).then(function (r) { return r.json(); }).then(function (d) {
                         if (d.success) {
                             try { showQmToast('Question moved', true); } catch (e) {}
                             _saveSelectionState();
-                            window.location.reload();
+                            window.location.href = '/' + targetPage + '?edit=1';
                         } else {
                             alert('Move failed: ' + (d.error || 'Unknown error'));
                             btnQMoveConfirm.disabled = false;
