@@ -86,7 +86,7 @@ class _CompatCursor:
                     return self._keys
                 
                 def __iter__(self):
-                    return iter(self._row)
+                    return iter(self._row[key] for key in self._keys)
                 
                 def __len__(self):
                     return len(self._keys)
