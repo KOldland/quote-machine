@@ -104,6 +104,16 @@ class _CompatCursor:
         rows = self._cur.fetchmany(size) if size else self._cur.fetchmany()
         return [self._wrap_row(r) for r in rows]
     
+    def execute(self, sql, *args, **kwargs):
+        """Execute SQL with ? placeholder translation for PostgreSQL."""
+        if self._is_pg:
+            sql = sql.replace('?', '%s')
+        if args:
+            self._cur.execute(sql, args[0] if args else ())
+        else:
+            self._cur.execute(sql)
+        return self  # Return self so fetchone()/fetchall() can be chained
+    
     def __iter__(self):
         for row in self._cur:
             yield self._wrap_row(row)
