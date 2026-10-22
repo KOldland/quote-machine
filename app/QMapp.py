@@ -5959,7 +5959,7 @@ def review():
             for row in rows:
                 label = row['internal_description'] or row['output_title'] or row['line_code']
                 line_code_labels[row['line_code']] = label
-                category = row['output_title'].rstrip(':').strip()
+                category = (row['output_title'] or '').rstrip(':').strip()
                 line_code_categories[row['line_code']] = category
             conn.close()
         except Exception:
