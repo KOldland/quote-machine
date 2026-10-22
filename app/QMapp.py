@@ -2086,83 +2086,61 @@ def session_override():
 
 
 # ── Quote Calculator: admin payment-schedule defaults ────────────────────
-@app.route('/admin/payment-schedule', methods=['GET', 'POST'])
+@app.route('/admin/payment-schedule', methods=['POST'])
 @require_role('admin')
 def admin_payment_schedule():
-    """Save default deposit/completion percentages and the allow-override flag."""
+    """Save payment schedule settings from builder module config."""
     import template_store as ts
     settings = ts.get_payment_schedule_block('builder_beta')
 
-    if request.method == 'POST':
-        data = request.get_json(force=True) or {}
-        deposit_pct = float(data.get('deposit_pct', settings.get('deposit_pct', 0.10)))
-        completion_pct = float(data.get('completion_pct', settings.get('completion_pct', 0.10)))
-        allow_override = bool(data.get('allow_user_override', settings.get('allow_user_override', False)))
-        initial_payment_pct = float(data.get('initial_payment_pct', settings.get('initial_payment_pct', 0.05)))
-        initial_payment_floor = float(data.get('initial_payment_floor', settings.get('initial_payment_floor', 3000.0)))
-        initial_payment_ceiling_threshold = float(data.get('initial_payment_ceiling_threshold', settings.get('initial_payment_ceiling_threshold', 70000.0)))
-        initial_payment_floor_above_ceiling = float(data.get('initial_payment_floor_above_ceiling', settings.get('initial_payment_floor_above_ceiling', 4000.0)))
-        completion_meeting_plus_3rd_pct = float(data.get('completion_meeting_plus_3rd_pct', settings.get('completion_meeting_plus_3rd_pct', 0.35)))
-        weekly_payment_count = int(data.get('weekly_payment_count', settings.get('weekly_payment_count', 4)))
-        temp_kitchen_line_code = str(data.get('temp_kitchen_line_code', settings.get('temp_kitchen_line_code', 'pl6')))
-        temp_kitchen_cost = float(data.get('temp_kitchen_cost', settings.get('temp_kitchen_cost', 250.0)))
-        glazing_cost = float(data.get('glazing_cost', settings.get('glazing_cost', 500.0)))
-        deposit_enabled = bool(data.get('deposit_enabled', settings.get('deposit_enabled', True)))
-        completion_enabled = bool(data.get('completion_enabled', settings.get('completion_enabled', True)))
-        initial_payment_enabled = bool(data.get('initial_payment_enabled', settings.get('initial_payment_enabled', True)))
-        initial_payment_rounding = str(data.get('initial_payment_rounding', settings.get('initial_payment_rounding', 'none')))
-        initial_payment_floors = data.get('initial_payment_floors', settings.get('initial_payment_floors'))
-        weekly_payment_auto = bool(data.get('weekly_payment_auto', settings.get('weekly_payment_auto', True)))
-        show_temp_kitchen = bool(data.get('show_temp_kitchen', settings.get('show_temp_kitchen', True)))
-        show_glazing = bool(data.get('show_glazing', settings.get('show_glazing', True)))
-        groups = data.get('groups', settings.get('groups', []))
+    data = request.get_json(force=True) or {}
+    deposit_pct = float(data.get('deposit_pct', settings.get('deposit_pct', 0.10)))
+    completion_pct = float(data.get('completion_pct', settings.get('completion_pct', 0.10)))
+    allow_override = bool(data.get('allow_user_override', settings.get('allow_user_override', False)))
+    initial_payment_pct = float(data.get('initial_payment_pct', settings.get('initial_payment_pct', 0.05)))
+    initial_payment_floor = float(data.get('initial_payment_floor', settings.get('initial_payment_floor', 3000.0)))
+    initial_payment_ceiling_threshold = float(data.get('initial_payment_ceiling_threshold', settings.get('initial_payment_ceiling_threshold', 70000.0)))
+    initial_payment_floor_above_ceiling = float(data.get('initial_payment_floor_above_ceiling', settings.get('initial_payment_floor_above_ceiling', 4000.0)))
+    completion_meeting_plus_3rd_pct = float(data.get('completion_meeting_plus_3rd_pct', settings.get('completion_meeting_plus_3rd_pct', 0.35)))
+    weekly_payment_count = int(data.get('weekly_payment_count', settings.get('weekly_payment_count', 4)))
+    temp_kitchen_line_code = str(data.get('temp_kitchen_line_code', settings.get('temp_kitchen_line_code', 'pl6')))
+    temp_kitchen_cost = float(data.get('temp_kitchen_cost', settings.get('temp_kitchen_cost', 250.0)))
+    glazing_cost = float(data.get('glazing_cost', settings.get('glazing_cost', 500.0)))
+    deposit_enabled = bool(data.get('deposit_enabled', settings.get('deposit_enabled', True)))
+    completion_enabled = bool(data.get('completion_enabled', settings.get('completion_enabled', True)))
+    initial_payment_enabled = bool(data.get('initial_payment_enabled', settings.get('initial_payment_enabled', True)))
+    initial_payment_rounding = str(data.get('initial_payment_rounding', settings.get('initial_payment_rounding', 'none')))
+    initial_payment_floors = data.get('initial_payment_floors', settings.get('initial_payment_floors'))
+    weekly_payment_auto = bool(data.get('weekly_payment_auto', settings.get('weekly_payment_auto', True)))
+    show_temp_kitchen = bool(data.get('show_temp_kitchen', settings.get('show_temp_kitchen', True)))
+    show_glazing = bool(data.get('show_glazing', settings.get('show_glazing', True)))
+    groups = data.get('groups', settings.get('groups', []))
 
-        ts.upsert_payment_schedule_block(
-            template_key='builder_beta',
-            deposit_pct=deposit_pct,
-            completion_pct=completion_pct,
-            allow_user_override=allow_override,
-            initial_payment_pct=initial_payment_pct,
-            initial_payment_floor=initial_payment_floor,
-            initial_payment_ceiling_threshold=initial_payment_ceiling_threshold,
-            initial_payment_floor_above_ceiling=initial_payment_floor_above_ceiling,
-            completion_meeting_plus_3rd_pct=completion_meeting_plus_3rd_pct,
-            weekly_payment_count=weekly_payment_count,
-            temp_kitchen_line_code=temp_kitchen_line_code,
-            temp_kitchen_cost=temp_kitchen_cost,
-            glazing_cost=glazing_cost,
-            deposit_enabled=deposit_enabled,
-            completion_enabled=completion_enabled,
-            initial_payment_enabled=initial_payment_enabled,
-            initial_payment_rounding=initial_payment_rounding,
-            initial_payment_floors=initial_payment_floors,
-            weekly_payment_auto=weekly_payment_auto,
-            show_temp_kitchen=show_temp_kitchen,
-            show_glazing=show_glazing,
-            groups=groups,
-        )
-        return jsonify({'success': True})
-
-    import template_store as _ts
-    return render_template(
-        'admin_payment_schedule.html',
-        # Build Mode context so index.html renders the standard sidebar/page
-        # selector, matching every other builder page.
-        edit_mode=True,
-        db_pages=_ts.get_all_pages(TEMPLATE_STORE_KEY),
-        deposit_pct=settings.get('deposit_pct', 0.10),
-        completion_pct=settings.get('completion_pct', 0.10),
-        allow_user_override=settings.get('allow_user_override', False),
-        initial_payment_pct=settings.get('initial_payment_pct', 0.05),
-        initial_payment_floor=settings.get('initial_payment_floor', 3000.0),
-        initial_payment_ceiling_threshold=settings.get('initial_payment_ceiling_threshold', 70000.0),
-        initial_payment_floor_above_ceiling=settings.get('initial_payment_floor_above_ceiling', 4000.0),
-        completion_meeting_plus_3rd_pct=settings.get('completion_meeting_plus_3rd_pct', 0.35),
-        weekly_payment_count=settings.get('weekly_payment_count', 4),
-        temp_kitchen_line_code=settings.get('temp_kitchen_line_code', 'pl6'),
-        temp_kitchen_cost=settings.get('temp_kitchen_cost', 250.0),
-        glazing_cost=settings.get('glazing_cost', 500.0),
+    ts.upsert_payment_schedule_block(
+        template_key='builder_beta',
+        deposit_pct=deposit_pct,
+        completion_pct=completion_pct,
+        allow_user_override=allow_override,
+        initial_payment_pct=initial_payment_pct,
+        initial_payment_floor=initial_payment_floor,
+        initial_payment_ceiling_threshold=initial_payment_ceiling_threshold,
+        initial_payment_floor_above_ceiling=initial_payment_floor_above_ceiling,
+        completion_meeting_plus_3rd_pct=completion_meeting_plus_3rd_pct,
+        weekly_payment_count=weekly_payment_count,
+        temp_kitchen_line_code=temp_kitchen_line_code,
+        temp_kitchen_cost=temp_kitchen_cost,
+        glazing_cost=glazing_cost,
+        deposit_enabled=deposit_enabled,
+        completion_enabled=completion_enabled,
+        initial_payment_enabled=initial_payment_enabled,
+        initial_payment_rounding=initial_payment_rounding,
+        initial_payment_floors=initial_payment_floors,
+        weekly_payment_auto=weekly_payment_auto,
+        show_temp_kitchen=show_temp_kitchen,
+        show_glazing=show_glazing,
+        groups=groups,
     )
+    return jsonify({'success': True})
 
 
 @app.route('/admin/payment-schedule-data')
