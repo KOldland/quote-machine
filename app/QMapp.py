@@ -5950,20 +5950,27 @@ def review():
     if selected_codes:
         try:
             conn = _get_conn()
-            placeholders = ','.join('?' for _ in selected_codes)
-            rows = conn.execute(
-                f'SELECT line_code, output_title, internal_description FROM line_items WHERE line_code IN ({placeholders}) ORDER BY line_code',
-                list(selected_codes),
+            # Fetch all line items once and filter in Python.
+            # Using IN with a list parameter does NOT work on PostgreSQL:
+            # psycopg2 adapts a Python list as a single PostgreSQL array
+            # parameter rather than expanding it into multiple placeholders,
+            # so WHERE line_code IN (?,?,?) with ['a','b','c'] becomes
+            # WHERE line_code IN ('{a,b,c}') which compares text to an array
+            # and returns zero rows.
+            all_rows = conn.execute(
+                "SELECT line_code, output_title, internal_description FROM line_items"
             ).fetchall()
-            for row in rows:
-                try:
-                    lc = row['line_code']
-                    label = row['internal_description'] or row['output_title'] or row['line_code']
-                    line_code_labels[lc] = label
-                    category = (row['output_title'] or '').rstrip(':').strip()
-                    line_code_categories[lc] = category
-                except Exception:
-                    continue
+            row_map = {r['line_code']: r for r in all_rows}
+            for code in selected_codes:
+                row = row_map.get(code)
+                if row:
+                    try:
+                        label = row['internal_description'] or row['output_title'] or row['line_code']
+                        line_code_labels[code] = label
+                        category = (row['output_title'] or '').rstrip(':').strip()
+                        line_code_categories[code] = category
+                    except Exception:
+                        continue
             conn.close()
         except Exception:
             pass
@@ -5981,18 +5988,19 @@ def review():
                     elif isinstance(_val, str) and _val.strip():
                         all_codes.add(_val.strip())
             if all_codes:
-                ph = ','.join('?' for _ in all_codes)
-                rows = conn.execute(
-                    f'SELECT line_code, output_title, internal_description FROM line_items WHERE line_code IN ({ph}) ORDER BY line_code',
-                    list(all_codes),
+                all_rows = conn.execute(
+                    "SELECT line_code, output_title, internal_description FROM line_items"
                 ).fetchall()
-                for row in rows:
-                    try:
-                        lc = row['line_code']
-                        line_code_labels[lc] = row['internal_description'] or row['output_title'] or row['line_code']
-                        line_code_categories[lc] = (row['output_title'] or '').rstrip(':').strip()
-                    except Exception:
-                        continue
+                row_map = {r['line_code']: r for r in all_rows}
+                for code in all_codes:
+                    row = row_map.get(code)
+                    if row:
+                        try:
+                            lc = row['line_code']
+                            line_code_labels[lc] = row['internal_description'] or row['output_title'] or row['line_code']
+                            line_code_categories[lc] = (row['output_title'] or '').rstrip(':').strip()
+                        except Exception:
+                            continue
             conn.close()
         except Exception:
             pass
