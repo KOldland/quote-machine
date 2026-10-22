@@ -5921,24 +5921,32 @@ def review():
                 continue
 
             value = session_data.get(field_name)
-            if not value:
-                cb_val = checkbox_data.get(field_name)
-                if isinstance(cb_val, dict):
-                    value = cb_val.get('preselected', [])
-                elif cb_val:
-                    value = cb_val
-                else:
-                    value = []
+            cb_val = checkbox_data.get(field_name)
+
+            # Collect codes from BOTH session_data and checkbox_data.
+            # session_data may store only the first value as a string
+            # (from request.form.get()), while checkbox_data stores all
+            # values as {'preselected': [...]} (from request.form.getlist()).
+            # Using only one source means some codes never get labels resolved.
+            codes = []
 
             if value:
                 if isinstance(value, (list, tuple)):
-                    for v in value:
-                        if isinstance(v, str) and v.strip():
-                            selected_codes.add(v.strip())
-                else:
-                    if isinstance(value, str) and value.strip():
-                        selected_codes.add(value.strip())
-                section_fields[field_name] = value
+                    codes.extend(v.strip() for v in value if isinstance(v, str) and v.strip())
+                elif isinstance(value, str) and value.strip():
+                    codes.append(value.strip())
+
+            if cb_val:
+                if isinstance(cb_val, dict):
+                    codes.extend(v.strip() for v in cb_val.get('preselected', []) if isinstance(v, str) and v.strip())
+                elif isinstance(cb_val, (list, tuple)):
+                    codes.extend(v.strip() for v in cb_val if isinstance(v, str) and v.strip())
+                elif isinstance(cb_val, str) and cb_val.strip():
+                    codes.append(cb_val.strip())
+
+            if codes:
+                selected_codes.update(codes)
+                section_fields[field_name] = codes
 
         if section_fields:
             title = page_info.get('title') or page_id.replace('_', ' ').title()
