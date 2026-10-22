@@ -5950,17 +5950,49 @@ def review():
     if selected_codes:
         try:
             conn = _get_conn()
-            
             placeholders = ','.join('?' for _ in selected_codes)
             rows = conn.execute(
-                f'SELECT line_code, output_title, internal_description FROM line_items WHERE line_code IN ({placeholders})',
+                f'SELECT line_code, output_title, internal_description FROM line_items WHERE line_code IN ({placeholders}) ORDER BY line_code',
                 list(selected_codes),
             ).fetchall()
             for row in rows:
-                label = row['internal_description'] or row['output_title'] or row['line_code']
-                line_code_labels[row['line_code']] = label
-                category = (row['output_title'] or '').rstrip(':').strip()
-                line_code_categories[row['line_code']] = category
+                try:
+                    lc = row['line_code']
+                    label = row['internal_description'] or row['output_title'] or row['line_code']
+                    line_code_labels[lc] = label
+                    category = (row['output_title'] or '').rstrip(':').strip()
+                    line_code_categories[lc] = category
+                except Exception:
+                    continue
+            conn.close()
+        except Exception:
+            pass
+    # Fallback: if we have raw_value codes but no labels resolved, do individual lookups
+    # This handles cases where selected_codes was empty but codes exist in review_data
+    if not line_code_labels:
+        try:
+            conn = _get_conn()
+            # Collect all codes from raw_sections
+            all_codes = set()
+            for _section_fields in raw_sections.values():
+                for _val in _section_fields.values():
+                    if isinstance(_val, (list, tuple)):
+                        all_codes.update(v.strip() for v in _val if isinstance(v, str) and v.strip())
+                    elif isinstance(_val, str) and _val.strip():
+                        all_codes.add(_val.strip())
+            if all_codes:
+                ph = ','.join('?' for _ in all_codes)
+                rows = conn.execute(
+                    f'SELECT line_code, output_title, internal_description FROM line_items WHERE line_code IN ({ph}) ORDER BY line_code',
+                    list(all_codes),
+                ).fetchall()
+                for row in rows:
+                    try:
+                        lc = row['line_code']
+                        line_code_labels[lc] = row['internal_description'] or row['output_title'] or row['line_code']
+                        line_code_categories[lc] = (row['output_title'] or '').rstrip(':').strip()
+                    except Exception:
+                        continue
             conn.close()
         except Exception:
             pass
