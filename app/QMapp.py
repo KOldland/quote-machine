@@ -5922,6 +5922,7 @@ def review():
 
             value = session_data.get(field_name)
             cb_val = checkbox_data.get(field_name)
+            block_type = field.get('builder_beta_meta', {}).get('block_type', field.get('type', 'unknown'))
 
             # Collect codes from BOTH session_data and checkbox_data.
             # session_data may store only the first value as a string
@@ -5947,6 +5948,39 @@ def review():
             if codes:
                 selected_codes.update(codes)
                 section_fields[field_name] = codes
+            elif block_type == 'line_items_by_category':
+                # Autochecked fallback: load items with include_default = 'Y'
+                # from DB when user hasn't visited/submitted this page yet.
+                try:
+                    conn = _get_conn()
+                    latest_version_row = conn.execute(
+                        """
+                        SELECT ftv.id
+                        FROM form_template_versions ftv
+                        JOIN form_templates ft ON ft.id = ftv.form_template_id
+                        WHERE ft.key = ?
+                        ORDER BY ftv.version DESC
+                        LIMIT 1
+                        """,
+                        (TEMPLATE_STORE_KEY,)
+                    ).fetchone()
+                    latest_version_id = int(latest_version_row[0]) if latest_version_row else None
+                    if latest_version_id is not None:
+                        default_rows = conn.execute(
+                            """
+                            SELECT li.line_code
+                            FROM line_items li
+                            WHERE li.form_page = ? AND li.include_default = 'Y'
+                            """,
+                            [page_id]
+                        ).fetchall()
+                        conn.close()
+                        default_codes = [r['line_code'].strip() for r in default_rows if r['line_code']]
+                        if default_codes:
+                            selected_codes.update(default_codes)
+                            section_fields[field_name] = default_codes
+                except Exception:
+                    pass
 
         if section_fields:
             title = page_info.get('title') or page_id.replace('_', ' ').title()
@@ -6037,7 +6071,8 @@ def review():
             if not field_name:
                 continue
 
-            raw_value = raw_sections.get(page_info.get('title', ''), {}).get(field_name)
+            section_title = page_info.get('title') or page_id.replace('_', ' ').title()
+            raw_value = raw_sections.get(section_title, {}).get(field_name)
             if not raw_value:
                 continue
 
