@@ -171,10 +171,7 @@ def duplicate_layout(layout_id):
 
 @quote_editor_bp.route('/quote_editor/save-quote', methods=['POST'])
 def save_quote_route():
-    if session.get('active_quote_id'):
-        form_key = session.get('quote_editor_template_key', session.get('template_key', 'builder_beta'))
-    else:
-        form_key = session.get('template_key', 'builder_beta')
+    form_key = session.get('template_key', 'builder_beta')
     data = request.get_json(force=True) or {}
     name = data.get('name', 'Untitled Quote')
     client_name = data.get('client_name', '')
@@ -183,18 +180,12 @@ def save_quote_route():
     settings = data.get('settings_json', {})
     layout_id = data.get('layout_id')
     user_id = session.get('user_id')
-    if session.get('active_quote_id'):
-        default_form_data = {
-            'data': session.get('quote_editor_data', {}),
-            'checkbox_data': session.get('quote_editor_checkbox_data', {}),
-            'template_key': session.get('quote_editor_template_key', session.get('template_key', 'builder_beta')),
-        }
-    else:
-        default_form_data = {
-            'data': session.get('data', {}),
-            'checkbox_data': session.get('checkbox_data', {}),
-            'template_key': form_key,
-        }
+    # Always use live form data — selections from FORM mode flow into QUOTE mode
+    default_form_data = {
+        'data': session.get('data', {}),
+        'checkbox_data': session.get('checkbox_data', {}),
+        'template_key': form_key,
+    }
     form_data = data.get('form_data') or default_form_data
     quote = save_quote(
         form_key,
@@ -301,11 +292,12 @@ def load_quote_route(quote_id):
         return jsonify({'success': False, 'error': 'Quote not found'}), 404
     session['active_quote_id'] = quote_id
     form_data = quote.get('form_data') or {}
-    # Store quote data in quote-editor-specific session keys to preserve form state
-    session['quote_editor_data'] = form_data.get('data', {})
-    session['quote_editor_checkbox_data'] = form_data.get('checkbox_data', {})
+    # Load saved form data into the live session so FORM mode and QUOTE mode
+    # share the same state — selections made in either mode are visible in both.
+    session['data'] = form_data.get('data', {})
+    session['checkbox_data'] = form_data.get('checkbox_data', {})
     if form_data.get('template_key'):
-        session['quote_editor_template_key'] = form_data['template_key']
+        session['template_key'] = form_data['template_key']
     # Restore manual blocks (calculator, image groups, payment schedule, etc.)
     all_blocks = quote.get('blocks_json', [])
     manual_blocks = [
@@ -315,6 +307,9 @@ def load_quote_route(quote_id):
     session['quote_editor_pending_blocks'] = manual_blocks
     session.pop('legacy_spreadsheet_data', None)
     session.pop('old_form_answers', None)
+    session.pop('quote_editor_data', None)
+    session.pop('quote_editor_checkbox_data', None)
+    session.pop('quote_editor_template_key', None)
     session.modified = True
     fresh_blocks = get_quote_editor_blocks()
     fresh_blocks = _resort_blocks_by_db_category_order(fresh_blocks)
@@ -577,27 +572,18 @@ def list_quotes():
 
 @quote_editor_bp.route('/quote_editor/quotes', methods=['POST'])
 def create_quote():
-    if session.get('active_quote_id'):
-        form_key = session.get('quote_editor_template_key', session.get('template_key', 'builder_beta'))
-    else:
-        form_key = session.get('template_key', 'builder_beta')
+    form_key = session.get('template_key', 'builder_beta')
     user_id = session.get('user_id')
     data = request.get_json(force=True) or {}
     name = data.get('name', 'Untitled')
     blocks = data.get('blocks_json', [])
     settings = data.get('settings_json') or {}
-    if session.get('active_quote_id'):
-        default_form_data = {
-            'data': session.get('quote_editor_data', {}),
-            'checkbox_data': session.get('quote_editor_checkbox_data', {}),
-            'template_key': session.get('quote_editor_template_key', session.get('template_key', 'builder_beta')),
-        }
-    else:
-        default_form_data = {
-            'data': session.get('data', {}),
-            'checkbox_data': session.get('checkbox_data', {}),
-            'template_key': form_key,
-        }
+    # Always use live form data — selections from FORM mode flow into QUOTE mode
+    default_form_data = {
+        'data': session.get('data', {}),
+        'checkbox_data': session.get('checkbox_data', {}),
+        'template_key': form_key,
+    }
     form_data = data.get('form_data') or default_form_data
     quote = save_quote(
         form_key=form_key,
@@ -623,10 +609,7 @@ def delete_quote_route(quote_id):
 
 @quote_editor_bp.route('/quote_editor/quotes/<int:quote_id>', methods=['PUT'])
 def update_quote_route(quote_id):
-    if session.get('active_quote_id'):
-        form_key = session.get('quote_editor_template_key', session.get('template_key', 'builder_beta'))
-    else:
-        form_key = session.get('template_key', 'builder_beta')
+    form_key = session.get('template_key', 'builder_beta')
     data = request.get_json(force=True) or {}
     name = data.get('name')
     blocks = data.get('blocks_json')
@@ -635,18 +618,12 @@ def update_quote_route(quote_id):
     notes = data.get('notes', '')
     if not name:
         return jsonify({'success': False, 'error': 'Name is required'}), 400
-    if session.get('active_quote_id'):
-        default_form_data = {
-            'data': session.get('quote_editor_data', {}),
-            'checkbox_data': session.get('quote_editor_checkbox_data', {}),
-            'template_key': session.get('quote_editor_template_key', session.get('template_key', 'builder_beta')),
-        }
-    else:
-        default_form_data = {
-            'data': session.get('data', {}),
-            'checkbox_data': session.get('checkbox_data', {}),
-            'template_key': form_key,
-        }
+    # Always use live form data — selections from FORM mode flow into QUOTE mode
+    default_form_data = {
+        'data': session.get('data', {}),
+        'checkbox_data': session.get('checkbox_data', {}),
+        'template_key': form_key,
+    }
     form_data = data.get('form_data') or default_form_data
     updated = update_saved_quote(
         quote_id=quote_id,
@@ -757,10 +734,7 @@ def list_images():
 
 @quote_editor_bp.route('/quote_editor/source/<page_key>/<block_id>', methods=['GET'])
 def get_source_block(page_key, block_id):
-    if session.get('active_quote_id'):
-        form_key = session.get('quote_editor_template_key', session.get('template_key', 'builder_beta'))
-    else:
-        form_key = session.get('template_key', 'builder_beta')
+    form_key = session.get('template_key', 'builder_beta')
     payload = load_template_payload(form_key)
     if not payload:
         return jsonify({'success': False, 'error': 'Template payload not found'}), 404
@@ -774,10 +748,8 @@ def get_source_block(page_key, block_id):
             break
     if not target:
         return jsonify({'success': False, 'error': 'Block not found'}), 404
-    if session.get('active_quote_id'):
-        form_data = session.get('quote_editor_data', {})
-    else:
-        form_data = session.get('data', {})
+    # Always read from live form data
+    form_data = session.get('data', {})
     storage = target.get('storage', {})
     key = storage.get('key', block_id)
     value = form_data.get(key, '')
@@ -800,22 +772,16 @@ def add_form_block():
     page_key = request.args.get('page')
     if not page_key:
         return jsonify({'success': False, 'error': 'Missing page parameter'}), 400
-    if session.get('active_quote_id'):
-        form_key = session.get('quote_editor_template_key', session.get('template_key', 'builder_beta'))
-    else:
-        form_key = session.get('template_key', 'builder_beta')
+    form_key = session.get('template_key', 'builder_beta')
     payload = load_template_payload(form_key)
     if not payload:
         return jsonify({'success': False, 'error': 'Template payload not found'}), 404
     pages = payload.get('builder_beta', {}).get('pages', payload.get('pages', {}))
     page = pages.get(page_key, {})
     blocks = page.get('blocks', page.get('fields', []))
-    if session.get('active_quote_id'):
-        form_data = session.get('quote_editor_data', {})
-        checkbox_data = session.get('quote_editor_checkbox_data', {})
-    else:
-        form_data = session.get('data', {})
-        checkbox_data = session.get('checkbox_data', {})
+    # Always read from live form data
+    form_data = session.get('data', {})
+    checkbox_data = session.get('checkbox_data', {})
     snapshot_blocks = []
     seen_pages = set()
     seen_categories = set()
@@ -1000,14 +966,10 @@ def add_form_block():
 
 @quote_editor_bp.route('/quote_editor/add-calc-block', methods=['GET'])
 def add_calc_block():
-    if session.get('active_quote_id'):
-        form_key = session.get('quote_editor_template_key', session.get('template_key', 'builder_beta'))
-        form_data = session.get('quote_editor_data', {})
-        follow_up_data = session.get('quote_editor_checkbox_data', {})
-    else:
-        form_key = session.get('template_key', 'builder_beta')
-        form_data = session.get('data', {})
-        follow_up_data = session.get('checkbox_data', {})
+    form_key = session.get('template_key', 'builder_beta')
+    # Always read from live form data — FORM mode selections flow into QUOTE mode
+    form_data = session.get('data', {})
+    follow_up_data = session.get('checkbox_data', {})
     session_overrides = session.get('session_overrides', {})
     try:
         import calculator
@@ -1037,14 +999,10 @@ def add_calc_block():
 @quote_editor_bp.route('/quote_editor/add-payment-schedule-block', methods=['GET'])
 def add_payment_schedule_block():
     """Return a payment_schedule block with current calculator snapshot data."""
-    if session.get('active_quote_id'):
-        form_key = session.get('quote_editor_template_key', session.get('template_key', 'builder_beta'))
-        form_data = session.get('quote_editor_data', {})
-        follow_up_data = session.get('quote_editor_checkbox_data', {})
-    else:
-        form_key = session.get('template_key', 'builder_beta')
-        form_data = session.get('data', {})
-        follow_up_data = session.get('checkbox_data', {})
+    form_key = session.get('template_key', 'builder_beta')
+    # Always read from live form data — FORM mode selections flow into QUOTE mode
+    form_data = session.get('data', {})
+    follow_up_data = session.get('checkbox_data', {})
     session_overrides = session.get('session_overrides', {})
     try:
         import calculator
@@ -1209,13 +1167,39 @@ def _build_page_blocks(page_key, page, form_data, checkbox_data):
         if not raw_value:
             raw_value = ''
 
-        if block_type == 'line_items_by_category' and isinstance(raw_value, list):
-            selected_codes = [v for v in raw_value if isinstance(v, str) and v.strip()]
-            if not selected_codes:
-                continue
-            items = get_line_items_by_codes(selected_codes)
-            if not items:
-                 continue
+        if block_type == 'line_items_by_category':
+            # Always show categories — quote editor must display page structure
+            # regardless of whether form data exists.
+            selected_codes = []
+            if isinstance(raw_value, list):
+                selected_codes = [v for v in raw_value if isinstance(v, str) and v.strip()]
+            # Load DB categories for this page so structure shows even when empty
+            _db_cats = []
+            try:
+                _form_key = session.get('template_key', 'builder_beta')
+                _c = _connect(_default_db_path())
+                try:
+                    _lv = _c.execute(
+                        "SELECT ftv.id FROM form_template_versions ftv "
+                        "JOIN form_templates ft ON ft.id = ftv.form_template_id "
+                        "WHERE ft.key = ? ORDER BY ftv.version DESC LIMIT 1",
+                        (_form_key,)
+                    ).fetchone()
+                    _lv_id = int(_lv[0]) if _lv else None
+                    if _lv_id is not None:
+                        _rows = _c.execute(
+                            "SELECT DISTINCT ct.name FROM category_templates ct "
+                            "JOIN page_templates pt ON pt.id = ct.page_template_id "
+                            "WHERE pt.page_key = ? AND pt.form_template_version_id = ? "
+                            "ORDER BY ct.name",
+                            (page_key, _lv_id)
+                        ).fetchall()
+                        _db_cats = [r['name'] for r in _rows if r['name']]
+                finally:
+                    _c.close()
+            except Exception:
+                _db_cats = []
+            items = get_line_items_by_codes(selected_codes) if selected_codes else []
 
             items.sort(key=lambda x: (
                 db_category_order.get(x.get('category', ''), 999),
@@ -1223,106 +1207,115 @@ def _build_page_blocks(page_key, page, form_data, checkbox_data):
                 x.get('line_code', '')
             ))
 
-            current_category = None
+            # Group items by category
+            items_by_category = {}
             for item in items:
-                category = item.get('category', '')
-                if category and category != current_category:
-                    current_category = category
-                    if category not in seen_categories:
-                        seen_categories.add(category)
-                        category_images = _get_category_images(page_key, category)
-                        snapshot_blocks.append({
-                            'id': f"form__{page_key}__category__{category}",
-                            'type': 'category_title',
-                            'source_page': page_key,
-                            'source_block_id': '__category_title__',
-                            'snapshot': {'title': category},
-                            'editor_overrides': {},
-                            'flags': { 'source_dirty': False, 'editor_dirty': False },
-                            'settings': { 'margin_top': 5, 'margin_bottom': 5, 'padding': 12, 'alignment': 'left', 'font_size': 20 },
-                            'category_sort_order': db_category_order.get(category, 999),
-                        })
-                        for idx, img_url in enumerate(category_images):
+                cat = item.get('category', '')
+                items_by_category.setdefault(cat, []).append(item)
+
+            # Show all DB categories even when empty, plus any with items
+            all_cats = list(dict.fromkeys(_db_cats + list(items_by_category.keys())))
+
+            for category in all_cats:
+                if category in seen_categories:
+                    continue
+                seen_categories.add(category)
+                category_items = items_by_category.get(category, [])
+                category_images = _get_category_images(page_key, category)
+                snapshot_blocks.append({
+                    'id': f"form__{page_key}__category__{category}",
+                    'type': 'category_title',
+                    'source_page': page_key,
+                    'source_block_id': '__category_title__',
+                    'snapshot': {'title': category},
+                    'editor_overrides': {},
+                    'flags': { 'source_dirty': False, 'editor_dirty': False },
+                    'settings': { 'margin_top': 5, 'margin_bottom': 5, 'padding': 12, 'alignment': 'left', 'font_size': 20 },
+                    'category_sort_order': db_category_order.get(category, 999),
+                })
+                for idx, img_url in enumerate(category_images):
+                    snapshot_blocks.append({
+                        'id': f"form__{page_key}__category__{category}__image__{idx}",
+                        'type': 'image',
+                        'source_page': page_key,
+                        'source_block_id': '__category_image__',
+                        'snapshot': {'url': img_url},
+                        'editor_overrides': {},
+                        'flags': { 'source_dirty': False, 'editor_dirty': False },
+                        'settings': { 'margin_top': 4, 'margin_bottom': 8, 'padding': 0, 'alignment': 'left', 'font_size': 16 },
+                    })
+                for item in category_items:
+                    output_title = item.get('output_title', '') or ''
+                    if not output_title.strip():
+                        continue  # skip items with no display text — spreadsheet artifacts
+                    raw_notes = item.get('output_notes', '')
+                    item_merge_tags = dict(page_merge_tags)
+                    follow_up_config = item.get('follow_up_config')
+                    if follow_up_config:
+                        configs = []
+                        if isinstance(follow_up_config, str):
+                            try:
+                                configs = json.loads(follow_up_config)
+                                if not isinstance(configs, list):
+                                    configs = [configs]
+                            except Exception:
+                                pass
+                        elif isinstance(follow_up_config, list):
+                            configs = follow_up_config
+                        for idx, cfg in enumerate(configs):
+                            cfg_type = cfg.get('type', '')
+                            field_name = f"follow_up_{item.get('line_code', '')}_{idx}"
+                            user_answer = checkbox_data.get(field_name) or form_data.get(field_name) or ''
+                            if isinstance(user_answer, dict):
+                                user_answer = user_answer.get('preselected', [])
+                            if isinstance(user_answer, list):
+                                user_answer = user_answer[0] if user_answer else ''
+                            user_answer = str(user_answer or '').strip()
+                            if cfg_type and cfg_type.startswith('Dropdown') and user_answer:
+                                item_merge_tags['select'] = user_answer
+                            elif cfg_type and cfg_type.startswith('Single Entry') and user_answer:
+                                tag = ['one', 'two', 'three'][idx] if idx < 3 else str(idx + 1)
+                                item_merge_tags[tag] = user_answer
+                    output_notes = replace_merge_tags(raw_notes, item_merge_tags)
+                    output_guidance = replace_merge_tags(item.get('output_guidance', ''), item_merge_tags)
+                    value_text = output_notes or ''
+
+                    snapshot_blocks.append({
+                        'id': f"form__{page_key}__{key}__{item.get('line_code', '')}",
+                        'type': 'form_question',
+                        'source_page': page_key,
+                        'source_block_id': str(key),
+                        'snapshot': {
+                            'label': output_title,
+                            'value': value_text,
+                            'output_notes': output_notes,
+                            'output_guidance': output_guidance,
+                            'line_code': item.get('line_code', ''),
+                            'category': category,
+                        },
+                        'editor_overrides': {},
+                        'flags': { 'source_dirty': False, 'editor_dirty': False },
+                        'settings': { 'margin_top': 2, 'margin_bottom': 2, 'padding': 12, 'alignment': 'left' },
+                        'category_sort_order': db_category_order.get(category, 999),
+                    })
+
+                    question_images = item.get('question_images') or []
+                    if isinstance(question_images, list):
+                        for idx, img_url in enumerate(question_images):
+                            if not img_url:
+                                continue
                             snapshot_blocks.append({
-                                'id': f"form__{page_key}__category__{category}__image__{idx}",
+                                'id': f"form__{page_key}__{key}__{item.get('line_code', '')}__image__{idx}",
                                 'type': 'image',
                                 'source_page': page_key,
-                                'source_block_id': '__category_image__',
+                                'source_block_id': f"__question_image__{item.get('line_code', '')}__{idx}",
                                 'snapshot': {'url': img_url},
                                 'editor_overrides': {},
                                 'flags': { 'source_dirty': False, 'editor_dirty': False },
                                 'settings': { 'margin_top': 4, 'margin_bottom': 8, 'padding': 0, 'alignment': 'left', 'font_size': 16 },
                             })
-
-                output_title = item.get('output_title', '') or ''
-                if not output_title.strip():
-                    continue  # skip items with no display text — spreadsheet artifacts
-                raw_notes = item.get('output_notes', '')
-                item_merge_tags = dict(page_merge_tags)
-                follow_up_config = item.get('follow_up_config')
-                if follow_up_config:
-                    configs = []
-                    if isinstance(follow_up_config, str):
-                        try:
-                            parsed = json.loads(follow_up_config)
-                            configs = parsed if isinstance(parsed, list) else [parsed]
-                        except Exception:
-                            pass
-                    elif isinstance(follow_up_config, list):
-                        configs = follow_up_config
-                    for idx, cfg in enumerate(configs):
-                        cfg_type = cfg.get('type', '')
-                        field_name = f"follow_up_{item.get('line_code', '')}_{idx}"
-                        user_answer = checkbox_data.get(field_name) or form_data.get(field_name) or ''
-                        if isinstance(user_answer, dict):
-                            user_answer = user_answer.get('preselected', [])
-                        if isinstance(user_answer, list):
-                            user_answer = user_answer[0] if user_answer else ''
-                        user_answer = str(user_answer or '').strip()
-                        if cfg_type and cfg_type.startswith('Dropdown') and user_answer:
-                            item_merge_tags['select'] = user_answer
-                        elif cfg_type and cfg_type.startswith('Single Entry') and user_answer:
-                            tag = ['one', 'two', 'three'][idx] if idx < 3 else str(idx + 1)
-                            item_merge_tags[tag] = user_answer
-                output_notes = replace_merge_tags(raw_notes, item_merge_tags)
-                output_guidance = replace_merge_tags(item.get('output_guidance', ''), item_merge_tags)
-                value_text = output_notes or ''
-
-                snapshot_blocks.append({
-                    'id': f"form__{page_key}__{key}__{item.get('line_code', '')}",
-                    'type': 'form_question',
-                    'source_page': page_key,
-                    'source_block_id': str(key),
-                    'snapshot': {
-                        'label': output_title,
-                        'value': value_text,
-                        'output_notes': output_notes,
-                        'output_guidance': output_guidance,
-                        'line_code': item.get('line_code', ''),
-                        'category': category,
-                    },
-                    'editor_overrides': {},
-                    'flags': { 'source_dirty': False, 'editor_dirty': False },
-                    'settings': { 'margin_top': 2, 'margin_bottom': 2, 'padding': 12, 'alignment': 'left' },
-                    'category_sort_order': db_category_order.get(category, 999),
-                })
-
-                question_images = item.get('question_images') or []
-                if isinstance(question_images, list):
-                    for idx, img_url in enumerate(question_images):
-                        if not img_url:
-                            continue
-                        snapshot_blocks.append({
-                            'id': f"form__{page_key}__{key}__{item.get('line_code', '')}__image__{idx}",
-                            'type': 'image',
-                            'source_page': page_key,
-                            'source_block_id': f"__question_image__{item.get('line_code', '')}__{idx}",
-                            'snapshot': {'url': img_url},
-                            'editor_overrides': {},
-                            'flags': { 'source_dirty': False, 'editor_dirty': False },
-                            'settings': { 'margin_top': 4, 'margin_bottom': 8, 'padding': 0, 'alignment': 'left', 'font_size': 16 },
-                        })
             continue
+
 
         if block_type in ('checkbox_group', 'text_input', 'number_currency_input', 'dropdown_select'):
             label = b.get('standard', {}).get('label', b.get('label', key))
@@ -1372,16 +1365,14 @@ def _get_page_visibility(page_key: str) -> dict:
 
 
 def build_quote_editor_blocks_for_all_pages():
-    """Build blocks for every page in the current form template."""
-    # Determine which data to use: quote editor data if a quote is loaded, otherwise form data
-    if session.get('active_quote_id'):
-        form_key = session.get('quote_editor_template_key', session.get('template_key', 'builder_beta'))
-        form_data = session.get('quote_editor_data', {})
-        checkbox_data = session.get('quote_editor_checkbox_data', {})
-    else:
-        form_key = session.get('template_key', 'builder_beta')
-        form_data = session.get('data', {})
-        checkbox_data = session.get('checkbox_data', {})
+    """Build blocks for every page in the current form template.
+    
+    Always reads from live form data (session['data'] / session['checkbox_data'])
+    so that selections made in FORM mode immediately appear in QUOTE mode.
+    """
+    form_key = session.get('template_key', 'builder_beta')
+    form_data = session.get('data', {})
+    checkbox_data = session.get('checkbox_data', {})
     payload = load_template_payload(form_key)
     if not payload:
         return []
