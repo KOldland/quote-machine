@@ -5021,8 +5021,7 @@ def dynamic_page(page_id):
                              'is_follow_up': r.get('is_follow_up') or 0,
                              'follow_up_type': r.get('follow_up_type') or '',
                              'follow_up_config': r.get('follow_up_config') or '{}',
-                             'checked': (r.get('line_code', '') in _saved) if (_saved and r.get('include_default') == 'Y')
-                                         else (r.get('include_default') == 'Y'),
+                             'checked': (r.get('line_code', '') in _saved) if _saved else (r.get('include_default') == 'Y'),
                              'saved_override': session_overrides.get(str(r.get('id')), '')}
                             for r in v
                         ]}
