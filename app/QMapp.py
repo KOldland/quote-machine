@@ -5968,7 +5968,11 @@ def review():
             all_rows = conn.execute(
                 "SELECT line_code, output_title, internal_description FROM line_items"
             ).fetchall()
-            row_map = {r['line_code']: r for r in all_rows}
+            row_map = {}
+            for r in all_rows:
+                lc = r['line_code']
+                if lc:
+                    row_map[lc.strip()] = r
             for code in selected_codes:
                 row = row_map.get(code)
                 if row:
@@ -5999,7 +6003,11 @@ def review():
                 all_rows = conn.execute(
                     "SELECT line_code, output_title, internal_description FROM line_items"
                 ).fetchall()
-                row_map = {r['line_code']: r for r in all_rows}
+                row_map = {}
+                for r in all_rows:
+                    lc = r['line_code']
+                    if lc:
+                        row_map[lc.strip()] = r
                 for code in all_codes:
                     row = row_map.get(code)
                     if row:

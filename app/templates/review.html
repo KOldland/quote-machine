@@ -18,7 +18,7 @@
                     <li><strong>{{ cat_name }}:</strong>
                         <ul>
                             {% for item in cat_items %}
-                            <li>{{ line_code_labels.get(item, item) }}</li>
+                            <li>{{ line_code_labels.get(item, '') }}</li>
                             {% endfor %}
                         </ul>
                     </li>
@@ -27,7 +27,7 @@
                 <li><strong>{{ TITLE_MAPPING.get(key, key) }}:</strong>
                     <ul>
                         {% for item in value %}
-                        <li>{{ line_code_labels.get(item, item) }}</li>
+                        <li>{{ line_code_labels.get(item, '') }}</li>
                         {% endfor %}
                     </ul>
                 </li>
