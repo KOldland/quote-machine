@@ -750,9 +750,15 @@ def get_source_block(page_key, block_id):
         return jsonify({'success': False, 'error': 'Block not found'}), 404
     # Always read from live form data
     form_data = session.get('data', {})
+    checkbox_data = session.get('checkbox_data', {})
     storage = target.get('storage', {})
     key = storage.get('key', block_id)
-    value = form_data.get(key, '')
+    standard_name = target.get('standard', {}).get('name', '')
+    value = checkbox_data.get(key) or form_data.get(key) or ''
+    # FORM mode saves under standard.name (or block.id if no standard.name).
+    # Try standard.name as fallback when key differs from standard_name.
+    if not value and standard_name and standard_name != key:
+        value = checkbox_data.get(standard_name) or form_data.get(standard_name) or ''
     return jsonify({
         'success': True,
         'block': {
@@ -790,7 +796,14 @@ def add_form_block():
         block_type = b.get('block_type', b.get('type', ''))
         storage = b.get('storage', {})
         key = storage.get('key', str(b.get('id', '')))
+        standard_name = b.get('standard', {}).get('name', '')
         raw_value = checkbox_data.get(key) or form_data.get(key) or ''
+        # FORM mode saves under standard.name (or block.id if no standard.name).
+        # Try standard.name as fallback when key differs from standard_name.
+        if not raw_value and standard_name and standard_name != key:
+            _fallback = checkbox_data.get(standard_name) or form_data.get(standard_name) or ''
+            if _fallback:
+                raw_value = _fallback
         if isinstance(raw_value, dict):
             raw_value = raw_value.get('preselected', [])
         if not raw_value:
@@ -1161,7 +1174,14 @@ def _build_page_blocks(page_key, page, form_data, checkbox_data):
         block_type = b.get('block_type', b.get('type', ''))
         storage = b.get('storage', {})
         key = storage.get('key', str(b.get('id', '')))
+        standard_name = b.get('standard', {}).get('name', '')
         raw_value = checkbox_data.get(key) or form_data.get(key) or ''
+        # FORM mode saves under standard.name (or block.id if no standard.name).
+        # Try standard.name as fallback when key differs from standard_name.
+        if not raw_value and standard_name and standard_name != key:
+            _fallback = checkbox_data.get(standard_name) or form_data.get(standard_name) or ''
+            if _fallback:
+                raw_value = _fallback
         if isinstance(raw_value, dict):
             raw_value = raw_value.get('preselected', [])
         if not raw_value:
