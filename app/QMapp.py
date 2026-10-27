@@ -4911,7 +4911,7 @@ def dynamic_page(page_id):
         if active_quote_id:
             try:
                 from quote_editor_routes import get_saved_quote, update_saved_quote
-                quote = get_saved_quote(int(active_quote_id), session.get('template_key', 'builder_beta'))
+                quote = get_saved_quote(int(active_quote_id), session.get('template_key') or TEMPLATE_STORE_KEY)
                 if quote:
                     blocks = quote.get('blocks_json', [])
                     needs_calc = False
@@ -4936,7 +4936,7 @@ def dynamic_page(page_id):
                         try:
                             import calculator
                             calc_result = calculator.calculate_quote(
-                                session.get('template_key', 'builder_beta'),
+                                session.get('template_key') or TEMPLATE_STORE_KEY,
                                 session.get('data', {}),
                                 session.get('session_overrides', {}),
                                 session.get('checkbox_data', {}),
@@ -4951,11 +4951,11 @@ def dynamic_page(page_id):
                             pass
                     update_saved_quote(
                         quote_id=int(active_quote_id),
-                        form_key=session.get('template_key', 'builder_beta'),
+                        form_key=session.get('template_key') or TEMPLATE_STORE_KEY,
                         name=quote.get('name', 'Quote'),
                         blocks_json=blocks,
                         settings=quote.get('settings_json', {}),
-                        form_data={'data': session.get('data', {}), 'checkbox_data': session.get('checkbox_data', {}), 'template_key': session.get('template_key', 'builder_beta')},
+                        form_data={'data': session.get('data', {}), 'checkbox_data': session.get('checkbox_data', {}), 'template_key': session.get('template_key') or TEMPLATE_STORE_KEY},
                     )
             except Exception:
                 pass
@@ -5085,7 +5085,7 @@ def index():
                     # checked anything in this session.
                     session['checkbox_data'] = {}
                     session['active_quote_id'] = int(_row_r['id'])
-                    session['template_key'] = fd.get('template_key', session.get('template_key', 'builder_beta'))
+                    session['template_key'] = fd.get('template_key', session.get('template_key') or TEMPLATE_STORE_KEY)
                     session.modified = True
             _conn_r.close()
         except Exception:
@@ -5850,7 +5850,7 @@ def review():
         if active_quote_id:
             try:
                 from quote_editor_routes import get_saved_quote, update_saved_quote
-                quote = get_saved_quote(int(active_quote_id), session.get('template_key', 'builder_beta'))
+                quote = get_saved_quote(int(active_quote_id), session.get('template_key') or TEMPLATE_STORE_KEY)
                 if quote:
                     blocks = quote.get('blocks_json', [])
                     for block in blocks:
@@ -5864,7 +5864,7 @@ def review():
                     try:
                         import calculator
                         calc_result = calculator.calculate_quote(
-                            session.get('template_key', 'builder_beta'),
+                            session.get('template_key') or TEMPLATE_STORE_KEY,
                             session.get('data', {}),
                             session.get('session_overrides', {}),
                             session.get('checkbox_data', {}),
@@ -5878,11 +5878,11 @@ def review():
                         pass
                     update_saved_quote(
                         quote_id=int(active_quote_id),
-                        form_key=session.get('template_key', 'builder_beta'),
+                        form_key=session.get('template_key') or TEMPLATE_STORE_KEY,
                         name=quote.get('name', 'Quote'),
                         blocks_json=blocks,
                         settings=quote.get('settings_json', {}),
-                        form_data={'data': session.get('data', {}), 'checkbox_data': session.get('checkbox_data', {}), 'template_key': session.get('template_key', 'builder_beta')},
+                        form_data={'data': session.get('data', {}), 'checkbox_data': session.get('checkbox_data', {}), 'template_key': session.get('template_key') or TEMPLATE_STORE_KEY},
                     )
             except Exception:
                 pass
@@ -6213,9 +6213,9 @@ def builder_upload_image():
 @app.route('/quote_editor', methods=['GET', 'POST'])
 def quote_editor():
     if session.get('active_quote_id'):
-        form_key = session.get('quote_editor_template_key', session.get('template_key', 'builder_beta'))
+        form_key = session.get('quote_editor_template_key', session.get('template_key') or TEMPLATE_STORE_KEY)
     else:
-        form_key = session.get('template_key', 'builder_beta')
+        form_key = session.get('template_key') or TEMPLATE_STORE_KEY
     layouts = []
     try:
         from template_store import list_quote_editor_layouts
