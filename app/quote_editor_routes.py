@@ -910,6 +910,7 @@ def add_form_block():
                     'type': 'form_question',
                     'source_page': page_key,
                     'source_block_id': str(key),
+                    'source_standard_name': standard_name,
                     'snapshot': {
                         'label': output_title,
                         'value': value_text,
@@ -961,6 +962,7 @@ def add_form_block():
                 'type': 'form_question',
                 'source_page': page_key,
                 'source_block_id': str(b.get('id', key)),
+                'source_standard_name': standard_name,
                 'snapshot': {
                     'label': b.get('standard', {}).get('label', b.get('label', key)),
                     'value': raw_value if isinstance(raw_value, str) else ', '.join(raw_value),
@@ -1305,6 +1307,7 @@ def _build_page_blocks(page_key, page, form_data, checkbox_data):
                         'type': 'form_question',
                         'source_page': page_key,
                         'source_block_id': str(key),
+                        'source_standard_name': standard_name,
                         'snapshot': {
                             'label': output_title,
                             'value': value_text,
@@ -1345,6 +1348,7 @@ def _build_page_blocks(page_key, page, form_data, checkbox_data):
                 'type': 'form_question',
                 'source_page': page_key,
                 'source_block_id': str(b.get('id', key)),
+                'source_standard_name': standard_name,
                 'snapshot': {
                     'label': label,
                     'value': raw_value if isinstance(raw_value, str) else ', '.join(raw_value),

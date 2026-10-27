@@ -4901,13 +4901,13 @@ def dynamic_page(page_id):
                             pass
                         elif block_type == 'form_question':
                             value = ''
-                            cb = checkbox_data.get(source_block_id)
+                            cb = checkbox_data.get(source_block_id) or checkbox_data.get(block.get('source_standard_name', ''))
                             if isinstance(cb, dict):
                                 value = cb.get('preselected', [])
                             elif cb:
                                 value = cb
                             else:
-                                value = session.get('data', {}).get(source_block_id, '')
+                                value = session.get('data', {}).get(source_block_id, '') or session.get('data', {}).get(block.get('source_standard_name', ''), '')
                             block['snapshot'] = block.get('snapshot', {})
                             # Line-item note blocks carry output_notes as their
                             # display text — don't clobber it with raw checked
@@ -5011,7 +5011,7 @@ def dynamic_page(page_id):
                     li_groups_data = [
                         {'category': c, 'items': [
                             {'value': r.get('line_code', ''),
-                             'label': r.get('internal_description') or r.get('line_code', ''),
+                             'label': r.get('internal_description') or '',
                              'unit_cost': r.get('unit_cost', 0),
                              'units': r.get('units', 1),
                              'allow_user_override': r.get('allow_user_override', 0),
@@ -5846,13 +5846,13 @@ def review():
                             continue
                         if block.get('type') == 'form_question':
                             sid = block.get('source_block_id', '')
-                            cb = checkbox_data.get(sid)
+                            cb = checkbox_data.get(sid) or checkbox_data.get(block.get('source_standard_name', ''))
                             if isinstance(cb, dict):
                                 val = cb.get('preselected', [])
                             elif cb:
                                 val = cb
                             else:
-                                val = session.get('data', {}).get(sid, '')
+                                val = session.get('data', {}).get(sid, '') or session.get('data', {}).get(block.get('source_standard_name', ''), '')
                             block.setdefault('snapshot', {})
                             # Preserve output_notes text on line-item blocks
                             # instead of replacing it with raw checked codes.
