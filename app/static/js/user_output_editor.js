@@ -1,6 +1,11 @@
 (function () {
   'use strict';
 
+  function getCsrfToken() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.getAttribute('content') : '';
+  }
+
   const BLOCK_TYPES = {
     page_title: { label: 'Page Title', icon: '' },
     page_heading: { label: 'Page Heading', icon: '' },
@@ -2185,6 +2190,14 @@ const IMAGE_FRAMES = [
     document.getElementById('saveBtn').addEventListener('click', quickSave);
     document.getElementById('saveAsBtn').addEventListener('click', openSaveAsQuoteModal);
     document.getElementById('loadBtn').addEventListener('click', openLoadModal);
+    document.getElementById('newQuoteBtn').addEventListener('click', function() {
+      if (confirm('Start NEW quote? Current quote data will be cleared. Only BUILD mode preselected items will be loaded.')) {
+        fetch('/session/clear', { method: 'POST', headers: { 'X-CSRFToken': getCsrfToken() } })
+          .then(r => r.json())
+          .then(d => { if (d.success) window.location.href = '/quote_editor'; })
+          .catch(() => alert('Network error.'));
+      }
+    });
     document.getElementById('exportBtn').addEventListener('click', openExportModal);
     document.getElementById('confirmSaveAsQuoteBtn').addEventListener('click', confirmSaveAsQuote);
     document.getElementById('saveAsThemeBtn').addEventListener('click', openSaveAsThemeModal);
