@@ -1403,24 +1403,14 @@ def build_quote_editor_blocks_for_all_pages():
 
 
 def get_quote_editor_blocks():
-    """Return the full set of blocks for the quote editor.
+    """Build blocks fresh from session form data.
 
-    When an active saved quote exists, return its saved blocks so that
-    any edits made in the quote editor (deleted headings, reordered blocks,
-    formatting) are preserved.  Otherwise rebuild fresh from form data.
+    Always builds fresh from session data (checkbox_data / form_data) so that
+    selections made in FORM mode immediately appear in QUOTE mode.
+
+    Never returns saved blocks from the database — "Load" is an explicit
+    user action handled by load_quote_route(), not an automatic fallback.
     """
-    active_id = session.get('active_quote_id')
-    if active_id:
-        try:
-            from template_store import get_saved_quote
-            saved = get_saved_quote(int(active_id), session.get('template_key', 'builder_beta'))
-            if saved:
-                blocks = saved.get('blocks_json', [])
-                if blocks:  # Only return saved blocks if non-empty; fall back to fresh otherwise
-                    return blocks
-        except Exception:
-            pass
-    # No saved quote available — build fresh from session form data
     form_blocks = build_quote_editor_blocks_for_all_pages()
     manual_blocks = [
         b for b in session.get('quote_editor_pending_blocks', [])
