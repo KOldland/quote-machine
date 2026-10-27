@@ -16,7 +16,6 @@ from typing import Optional
 from flask import Blueprint, request, session, jsonify, abort, send_file, current_app
 from werkzeug.utils import secure_filename
 from merge_tags import get_merge_tag_values, replace_merge_tags
-from config import TEMPLATE_STORE_KEY
 from template_store import (
     get_quote_editor_layout,
     list_quote_editor_layouts,
@@ -128,14 +127,14 @@ def _resolve_line_item_labels(codes):
 
 @quote_editor_bp.route('/quote_editor/layouts', methods=['GET'])
 def list_layouts():
-    form_key = session.get('template_key') or TEMPLATE_STORE_KEY
+    form_key = session.get('template_key')
     layouts = list_quote_editor_layouts(form_key)
     return jsonify({'success': True, 'layouts': layouts})
 
 
 @quote_editor_bp.route('/quote_editor/layouts', methods=['POST'])
 def create_layout():
-    form_key = session.get('template_key') or TEMPLATE_STORE_KEY
+    form_key = session.get('template_key')
     data = request.get_json(force=True) or {}
     name = data.get('name', 'Default')
     blocks = data.get('blocks_json', [])
@@ -149,7 +148,7 @@ def create_layout():
 
 @quote_editor_bp.route('/quote_editor/layouts/<int:layout_id>', methods=['PUT'])
 def update_layout(layout_id):
-    form_key = session.get('template_key') or TEMPLATE_STORE_KEY
+    form_key = session.get('template_key')
     data = request.get_json(force=True) or {}
     blocks = data.get('blocks_json')
     settings = data.get('settings_json')
@@ -168,7 +167,7 @@ def update_layout(layout_id):
 
 @quote_editor_bp.route('/quote_editor/layouts/<int:layout_id>/set-default', methods=['POST'])
 def set_layout_default(layout_id):
-    form_key = session.get('template_key') or TEMPLATE_STORE_KEY
+    form_key = session.get('template_key')
     ok = set_quote_editor_layout_default(layout_id, form_key)
     if not ok:
         return jsonify({'success': False, 'error': 'Layout not found'}), 404
@@ -177,7 +176,7 @@ def set_layout_default(layout_id):
 
 @quote_editor_bp.route('/quote_editor/layouts/<int:layout_id>', methods=['DELETE'])
 def delete_layout(layout_id):
-    form_key = session.get('template_key') or TEMPLATE_STORE_KEY
+    form_key = session.get('template_key')
     ok = delete_quote_editor_layout(layout_id, form_key)
     if not ok:
         return jsonify({'success': False, 'error': 'Layout not found'}), 404
@@ -186,7 +185,7 @@ def delete_layout(layout_id):
 
 @quote_editor_bp.route('/quote_editor/layouts/<int:layout_id>/duplicate', methods=['POST'])
 def duplicate_layout(layout_id):
-    form_key = session.get('template_key') or TEMPLATE_STORE_KEY
+    form_key = session.get('template_key')
     data = request.get_json(force=True) or {}
     new_name = data.get('name', 'Copy of Layout')
     layout = duplicate_quote_editor_layout(layout_id, form_key, new_name)
@@ -199,7 +198,7 @@ def duplicate_layout(layout_id):
 
 @quote_editor_bp.route('/quote_editor/save-quote', methods=['POST'])
 def save_quote_route():
-    form_key = session.get('template_key') or TEMPLATE_STORE_KEY
+    form_key = session.get('template_key')
     data = request.get_json(force=True) or {}
     name = data.get('name', 'Untitled Quote')
     client_name = data.get('client_name', '')
@@ -230,14 +229,14 @@ def save_quote_route():
 
 @quote_editor_bp.route('/quote_editor/themes', methods=['GET'])
 def themes_list():
-    form_key = session.get('template_key') or TEMPLATE_STORE_KEY
+    form_key = session.get('template_key')
     themes = list_output_templates(form_key)
     return jsonify({'success': True, 'themes': themes})
 
 
 @quote_editor_bp.route('/quote_editor/themes/<int:theme_id>', methods=['GET'])
 def get_theme_route(theme_id):
-    form_key = session.get('template_key') or TEMPLATE_STORE_KEY
+    form_key = session.get('template_key')
     theme = get_theme(theme_id, form_key)
     if not theme:
         return jsonify({'success': False, 'error': 'Theme not found'}), 404
@@ -250,7 +249,7 @@ def get_theme_route(theme_id):
 # Look up theme by name (used by existing JS that passes theme name)
 @quote_editor_bp.route('/quote_editor/themes/by-name/<name>', methods=['GET'])
 def get_theme_by_name_route(name):
-    form_key = session.get('template_key') or TEMPLATE_STORE_KEY
+    form_key = session.get('template_key')
     themes = list_output_templates(form_key)
     for t in themes:
         if t.get('name') == name:
@@ -265,7 +264,7 @@ def save_theme_route():
     Compatible with both the JS format (settings_json.document_styles)
     and the new format (blocks, css).
     """
-    form_key = session.get('template_key') or TEMPLATE_STORE_KEY
+    form_key = session.get('template_key')
     data = request.get_json(force=True) or {}
     name = (data.get('name') or '').strip()
     if not name:
@@ -293,7 +292,7 @@ def save_theme_route():
 @quote_editor_bp.route('/quote_editor/themes/<int:theme_id>/apply', methods=['POST'])
 def apply_theme_route(theme_id):
     """Apply a theme's block defaults to the given blocks and return them."""
-    form_key = session.get('template_key') or TEMPLATE_STORE_KEY
+    form_key = session.get('template_key')
     data = request.get_json(force=True) or {}
     blocks = data.get('blocks', [])
     updated = apply_theme_to_blocks(theme_id, blocks, form_key)
@@ -302,7 +301,7 @@ def apply_theme_route(theme_id):
 
 @quote_editor_bp.route('/quote_editor/themes/<int:theme_id>', methods=['DELETE'])
 def delete_theme_route(theme_id):
-    form_key = session.get('template_key') or TEMPLATE_STORE_KEY
+    form_key = session.get('template_key')
     ok = delete_theme(theme_id, form_key)
     if not ok:
         return jsonify({'success': False, 'error': 'Theme not found'}), 404
@@ -314,7 +313,7 @@ def delete_theme_route(theme_id):
 
 @quote_editor_bp.route('/quote_editor/load-quote/<int:quote_id>', methods=['GET'])
 def load_quote_route(quote_id):
-    form_key = session.get('template_key') or TEMPLATE_STORE_KEY
+    form_key = session.get('template_key')
     quote = get_saved_quote(quote_id, form_key)
     if not quote:
         return jsonify({'success': False, 'error': 'Quote not found'}), 404
@@ -518,7 +517,7 @@ def _resort_blocks_by_db_category_order(blocks):
 
     # Sort pages by DB display_order.
     try:
-        ordered_pages = get_all_pages(template_key=session.get('template_key') or TEMPLATE_STORE_KEY)
+        ordered_pages = get_all_pages(template_key=session.get('template_key'))
         page_db_order = {pg['page_key']: pg['display_order'] for pg in ordered_pages}
     except Exception:
         page_db_order = {}
@@ -592,7 +591,7 @@ def _resort_blocks_by_db_category_order(blocks):
 
 @quote_editor_bp.route('/quote_editor/quotes', methods=['GET'])
 def list_quotes():
-    form_key = session.get('template_key') or TEMPLATE_STORE_KEY
+    form_key = session.get('template_key')
     user_id = session.get('user_id')
     quotes = list_saved_quotes(form_key, user_id=user_id)
     return jsonify({'success': True, 'quotes': quotes})
@@ -600,7 +599,7 @@ def list_quotes():
 
 @quote_editor_bp.route('/quote_editor/quotes', methods=['POST'])
 def create_quote():
-    form_key = session.get('template_key') or TEMPLATE_STORE_KEY
+    form_key = session.get('template_key')
     user_id = session.get('user_id')
     data = request.get_json(force=True) or {}
     name = data.get('name', 'Untitled')
@@ -628,7 +627,7 @@ def create_quote():
 
 @quote_editor_bp.route('/quote_editor/quotes/<int:quote_id>', methods=['DELETE'])
 def delete_quote_route(quote_id):
-    form_key = session.get('template_key') or TEMPLATE_STORE_KEY
+    form_key = session.get('template_key')
     ok = delete_saved_quote(quote_id, form_key)
     if not ok:
         return jsonify({'success': False, 'error': 'Quote not found'}), 404
@@ -637,7 +636,7 @@ def delete_quote_route(quote_id):
 
 @quote_editor_bp.route('/quote_editor/quotes/<int:quote_id>', methods=['PUT'])
 def update_quote_route(quote_id):
-    form_key = session.get('template_key') or TEMPLATE_STORE_KEY
+    form_key = session.get('template_key')
     data = request.get_json(force=True) or {}
     name = data.get('name')
     blocks = data.get('blocks_json')
@@ -762,7 +761,7 @@ def list_images():
 
 @quote_editor_bp.route('/quote_editor/source/<page_key>/<block_id>', methods=['GET'])
 def get_source_block(page_key, block_id):
-    form_key = session.get('template_key') or TEMPLATE_STORE_KEY
+    form_key = session.get('template_key')
     payload = load_template_payload(form_key)
     if not payload:
         return jsonify({'success': False, 'error': 'Template payload not found'}), 404
@@ -806,7 +805,7 @@ def add_form_block():
     page_key = request.args.get('page')
     if not page_key:
         return jsonify({'success': False, 'error': 'Missing page parameter'}), 400
-    form_key = session.get('template_key') or TEMPLATE_STORE_KEY
+    form_key = session.get('template_key')
     payload = load_template_payload(form_key)
     if not payload:
         return jsonify({'success': False, 'error': 'Template payload not found'}), 404
@@ -982,7 +981,7 @@ def add_form_block():
 
 @quote_editor_bp.route('/quote_editor/add-calc-block', methods=['GET'])
 def add_calc_block():
-    form_key = session.get('template_key') or TEMPLATE_STORE_KEY
+    form_key = session.get('template_key')
     # Always read from live form data — FORM mode selections flow into QUOTE mode
     form_data = session.get('data', {})
     follow_up_data = session.get('checkbox_data', {})
@@ -1015,7 +1014,7 @@ def add_calc_block():
 @quote_editor_bp.route('/quote_editor/add-payment-schedule-block', methods=['GET'])
 def add_payment_schedule_block():
     """Return a payment_schedule block with current calculator snapshot data."""
-    form_key = session.get('template_key') or TEMPLATE_STORE_KEY
+    form_key = session.get('template_key')
     # Always read from live form data — FORM mode selections flow into QUOTE mode
     form_data = session.get('data', {})
     follow_up_data = session.get('checkbox_data', {})
@@ -1199,7 +1198,7 @@ def _build_page_blocks(page_key, page, form_data, checkbox_data):
             # Load DB categories for this page so structure shows even when empty
             _db_cats = []
             try:
-                _form_key = session.get('template_key') or TEMPLATE_STORE_KEY
+                _form_key = session.get('template_key')
                 _c = _connect(_default_db_path())
                 try:
                     _lv = _c.execute(
@@ -1353,7 +1352,7 @@ def _get_page_visibility(page_key: str) -> dict:
             "AND form_template_version_id IN (SELECT id FROM form_template_versions "
             "WHERE form_template_id = (SELECT id FROM form_templates WHERE key = ?) "
             "ORDER BY version DESC LIMIT 1)",
-            (page_key, session.get('template_key') or TEMPLATE_STORE_KEY)
+            (page_key, session.get('template_key'))
         ).fetchone()
         conn.close()
         if row and row[0]:
@@ -1376,7 +1375,7 @@ def build_quote_editor_blocks_for_all_pages():
     Always reads from live form data (session['data'] / session['checkbox_data'])
     so that selections made in FORM mode immediately appear in QUOTE mode.
     """
-    form_key = session.get('template_key') or TEMPLATE_STORE_KEY
+    form_key = session.get('template_key')
     form_data = session.get('data', {})
     checkbox_data = session.get('checkbox_data', {})
     payload = load_template_payload(form_key)
@@ -1534,7 +1533,7 @@ def sync_form_to_quote():
 
     form_data = data.get('form_data', {})
     checkbox_data = data.get('checkbox_data', {})
-    form_key = session.get('template_key') or TEMPLATE_STORE_KEY
+    form_key = session.get('template_key')
 
     quote = get_saved_quote(int(quote_id), form_key)
     if not quote:
