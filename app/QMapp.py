@@ -2334,13 +2334,42 @@ def builder_payment_schedule_preview():
 @app.route('/session/clear', methods=['POST'])
 @require_role('admin')
 def session_clear():
-    """Clear form/quote editing state from the session but stay logged in."""
+    """Clear form/quote editing state from the session but stay logged in.
+
+    Starts a completely fresh state — reads only from BUILD mode preselected
+    items, nothing from browser/session or saved form data.
+    """
     role = session.get('role')
     username = session.get('username')
     session.clear()
     session['role'] = role
     session['username'] = username
+    session['template_key'] = TEMPLATE_STORE_KEY
+    session['data'] = {}
+    session['checkbox_data'] = {}
+    session['session_overrides'] = {}
+    session['_fresh_start'] = True
     session.modified = True
+
+    # Load preselected items (include_default='Y') from BUILD mode into
+    # checkbox_data so they are checked on fresh start.
+    try:
+        ordered_pages = get_all_pages(template_key=TEMPLATE_STORE_KEY)
+        for pg in ordered_pages:
+            page_key = pg['page_key']
+            items_by_cat = get_line_items_for_page(page_key)
+            for cat_name, items_list in items_by_cat.items():
+                for item in items_list:
+                    if item.get('include_default') == 'Y':
+                        line_code = item.get('line_code', '')
+                        if line_code:
+                            field_name = page_key + '__line_items'
+                            if field_name not in session['checkbox_data']:
+                                session['checkbox_data'][field_name] = {'preselected': []}
+                            session['checkbox_data'][field_name]['preselected'].append(line_code)
+    except Exception:
+        pass
+
     return jsonify({'success': True})
 @app.route('/builder_beta/line_item_move', methods=['POST'])
 @require_role('admin')
@@ -4803,8 +4832,8 @@ def dynamic_page(page_id):
         return redirect(url_for('dynamic_page', page_id=next_key))
 
     session['last_visited'] = page_id
-    # Auto-restore from saved form session on first load
-    if request.method == 'GET' and not session.get('_auto_restored'):
+    # Auto-restore from saved form session on first load — skipped on fresh start
+    if request.method == 'GET' and not session.get('_auto_restored') and not session.get('_fresh_start'):
         try:
             import template_store as _ts_load
             _conn_load = _ts_load._connect()
@@ -4825,6 +4854,11 @@ def dynamic_page(page_id):
             _conn_load.close()
         except Exception:
             pass
+    # Consume the fresh-start flag so it only applies to this one page load
+    if session.get('_fresh_start'):
+        session.pop('_fresh_start', None)
+        session['_auto_restored'] = True
+        session.modified = True
     page = all_pages[page_id]
     page_schema = compile_builder_beta_page_to_runtime_schema(page_id)
     if page_schema is None:
