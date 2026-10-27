@@ -819,6 +819,22 @@ def add_form_block():
     seen_pages = set()
     seen_categories = set()
     db_category_order = _get_page_category_order(page_key)
+
+    page_title = page.get('title') or page_key.replace('_', ' ').title()
+    if page_title not in seen_pages:
+        seen_pages.add(page_title)
+        snapshot_blocks.append({
+            'id': f"form__{page_key}__page_title",
+            'type': 'page_title',
+            'source_page': page_key,
+            'source_block_id': '__page_title__',
+            'snapshot': {'title': page_title},
+            'editor_overrides': {},
+            'flags': { 'source_dirty': False, 'editor_dirty': False },
+            'settings': { 'margin_top': 10, 'margin_bottom': 10, 'padding': 12, 'alignment': 'left' },
+            'category_sort_order': -1,
+        })
+
     for b in blocks:
         block_type = b.get('block_type', b.get('type', ''))
         storage = b.get('storage', {})
@@ -845,21 +861,6 @@ def add_form_block():
                 continue
 
             merge_tags = get_merge_tag_values(page_key, session, get_line_items_for_page, page_blocks=page.get('blocks', []))
-
-            page_title = page.get('title') or page_key.replace('_', ' ').title()
-            if page_title not in seen_pages:
-                seen_pages.add(page_title)
-                snapshot_blocks.append({
-                    'id': f"form__{page_key}__page_title",
-                    'type': 'page_title',
-                    'source_page': page_key,
-                    'source_block_id': '__page_title__',
-                    'snapshot': {'title': page_title},
-                    'editor_overrides': {},
-                    'flags': { 'source_dirty': False, 'editor_dirty': False },
-                    'settings': { 'margin_top': 10, 'margin_bottom': 10, 'padding': 12, 'alignment': 'left' },
-                    'category_sort_order': -1,
-                })
 
             items.sort(key=lambda x: (
                 db_category_order.get(x.get('category', ''), 999),
@@ -1414,7 +1415,9 @@ def get_quote_editor_blocks():
             from template_store import get_saved_quote
             saved = get_saved_quote(int(active_id), session.get('template_key', 'builder_beta'))
             if saved:
-                return saved.get('blocks_json', [])
+                blocks = saved.get('blocks_json', [])
+                if blocks:  # Only return saved blocks if non-empty; fall back to fresh otherwise
+                    return blocks
         except Exception:
             pass
     # No saved quote available — build fresh from session form data
