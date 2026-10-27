@@ -96,6 +96,33 @@ UPLOAD_DIR = Path(__file__).parent / "static" / "uploads" / "quote_editor"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 
+def _resolve_line_item_labels(codes):
+    """Resolve a list of line codes to human-readable labels.
+
+    Never return raw line codes to the user — always resolve via
+    get_line_items_by_codes() so the quote output shows item descriptions
+    (output_title / internal_description) instead of legacy codes like
+    bw2^, cs1#, pp1@.
+    """
+    if not isinstance(codes, list):
+        return codes
+    if not codes:
+        return []
+    try:
+        items = get_line_items_by_codes(codes)
+        by_code = {it.get('line_code'): it for it in items if it.get('line_code')}
+        labels = []
+        for code in codes:
+            item = by_code.get(code)
+            if item:
+                labels.append(item.get('output_title') or item.get('internal_description') or code)
+            else:
+                labels.append(code)
+        return labels
+    except Exception:
+        return codes
+
+
 # ── Layout CRUD ─────────────────────────────────────────────────────
 
 @quote_editor_bp.route('/quote_editor/layouts', methods=['GET'])
@@ -904,6 +931,8 @@ def add_form_block():
                 output_notes = replace_merge_tags(raw_notes, item_merge_tags)
                 output_guidance = replace_merge_tags(item.get('output_guidance', ''), item_merge_tags)
                 value_text = output_notes or ''
+                if output_guidance:
+                    value_text = (value_text + ' ' + output_guidance).strip() if value_text else output_guidance
 
                 snapshot_blocks.append({
                     'id': f"form__{page_key}__{key}__{item.get('line_code', '')}",
@@ -914,9 +943,8 @@ def add_form_block():
                     'snapshot': {
                         'label': output_title,
                         'value': value_text,
-                        'output_notes': output_notes,
-                        'output_guidance': output_guidance,
-                        'line_code': item.get('line_code', ''),
+                        'output_notes': '',
+                        'output_guidance': '',
                         'category': category,
                     },
                     'editor_overrides': {},
@@ -942,35 +970,6 @@ def add_form_block():
                         })
             continue
 
-        if block_type in ('checkbox_group', 'text_input', 'number_currency_input', 'dropdown_select'):
-            page_title = page.get('title') or page_key.replace('_', ' ').title()
-            if page_title not in seen_pages:
-                seen_pages.add(page_title)
-                snapshot_blocks.append({
-                    'id': f"form__{page_key}__page_title",
-                    'type': 'page_title',
-                    'source_page': page_key,
-                    'source_block_id': '__page_title__',
-                    'snapshot': {'title': page_title},
-                    'editor_overrides': {},
-                    'flags': { 'source_dirty': False, 'editor_dirty': False },
-                    'settings': { 'margin_top': 10, 'margin_bottom': 10, 'padding': 12, 'alignment': 'left', 'font_size': 24 },
-                })
-
-            snapshot_blocks.append({
-                'id': f"form__{page_key}__{b.get('id', key)}",
-                'type': 'form_question',
-                'source_page': page_key,
-                'source_block_id': str(b.get('id', key)),
-                'source_standard_name': standard_name,
-                'snapshot': {
-                    'label': b.get('standard', {}).get('label', b.get('label', key)),
-                    'value': raw_value if isinstance(raw_value, str) else ', '.join(raw_value),
-                },
-                'editor_overrides': {},
-                'flags': { 'source_dirty': False, 'editor_dirty': False },
-                'settings': { 'margin_top': 2, 'margin_bottom': 2, 'padding': 12, 'alignment': 'left', 'font_size': 16 },
-            })
     
     if snapshot_blocks:
         session['quote_editor_pending_blocks'] = snapshot_blocks
@@ -1301,6 +1300,8 @@ def _build_page_blocks(page_key, page, form_data, checkbox_data):
                     output_notes = replace_merge_tags(raw_notes, item_merge_tags)
                     output_guidance = replace_merge_tags(item.get('output_guidance', ''), item_merge_tags)
                     value_text = output_notes or ''
+                    if output_guidance:
+                        value_text = (value_text + ' ' + output_guidance).strip() if value_text else output_guidance
 
                     snapshot_blocks.append({
                         'id': f"form__{page_key}__{key}__{item.get('line_code', '')}",
@@ -1311,9 +1312,8 @@ def _build_page_blocks(page_key, page, form_data, checkbox_data):
                         'snapshot': {
                             'label': output_title,
                             'value': value_text,
-                            'output_notes': output_notes,
-                            'output_guidance': output_guidance,
-                            'line_code': item.get('line_code', ''),
+                            'output_notes': '',
+                            'output_guidance': '',
                             'category': category,
                         },
                         'editor_overrides': {},
@@ -1338,26 +1338,6 @@ def _build_page_blocks(page_key, page, form_data, checkbox_data):
                                 'settings': { 'margin_top': 4, 'margin_bottom': 8, 'padding': 0, 'alignment': 'left', 'font_size': 16 },
                             })
             continue
-
-
-        if block_type in ('checkbox_group', 'text_input', 'number_currency_input', 'dropdown_select'):
-            label = b.get('standard', {}).get('label', b.get('label', key))
-            label = replace_merge_tags(label, page_merge_tags)
-            snapshot_blocks.append({
-                'id': f"form__{page_key}__{b.get('id', key)}",
-                'type': 'form_question',
-                'source_page': page_key,
-                'source_block_id': str(b.get('id', key)),
-                'source_standard_name': standard_name,
-                'snapshot': {
-                    'label': label,
-                    'value': raw_value if isinstance(raw_value, str) else ', '.join(raw_value),
-                },
-                'editor_overrides': {},
-                'flags': { 'source_dirty': False, 'editor_dirty': False },
-                'settings': { 'margin_top': 2, 'margin_bottom': 2, 'padding': 12, 'alignment': 'left', 'font_size': 16 },
-                'category_sort_order': 999,
-            })
 
     return snapshot_blocks
 
@@ -1589,20 +1569,10 @@ def sync_form_to_quote():
             continue
 
         elif block_type == 'form_question':
-            value = ''
-            cb = checkbox_data.get(source_block_id)
-            if isinstance(cb, dict):
-                value = cb.get('preselected', [])
-            elif cb:
-                value = cb
-            else:
-                value = form_data.get(source_block_id, '')
-
-            block['snapshot'] = block.get('snapshot', {})
-            block['snapshot']['value'] = value if isinstance(value, str) else ', '.join(value)
-            block['flags'] = block.get('flags', {})
-            block['flags']['source_dirty'] = True
-            updated += 1
+            # Line items are the only form_question blocks in quote mode.
+            # Their values come from the DB build (output_notes + output_guidance),
+            # not from form session data — skip sync to preserve them.
+            continue
 
     if updated > 0:
         update_saved_quote(

@@ -53,6 +53,33 @@ from template_store import (
 )
 
 
+def _resolve_line_item_labels(codes):
+    """Resolve a list of line codes to human-readable labels.
+
+    Never return raw line codes to the user — always resolve via
+    get_line_items_by_codes() so the quote output shows item descriptions
+    (output_title / internal_description) instead of legacy codes like
+    bw2^, cs1#, pp1@.
+    """
+    if not isinstance(codes, list):
+        return codes
+    if not codes:
+        return []
+    try:
+        items = get_line_items_by_codes(codes)
+        by_code = {it.get('line_code'): it for it in items if it.get('line_code')}
+        labels = []
+        for code in codes:
+            item = by_code.get(code)
+            if item:
+                labels.append(item.get('output_title') or item.get('internal_description') or code)
+            else:
+                labels.append(code)
+        return labels
+    except Exception:
+        return codes
+
+
 def _get_latest_version_id(conn, template_key):
     row = conn.execute(
         """
@@ -4900,25 +4927,10 @@ def dynamic_page(page_id):
                         elif block_type == 'page_heading':
                             pass
                         elif block_type == 'form_question':
-                            value = ''
-                            cb = checkbox_data.get(source_block_id) or checkbox_data.get(block.get('source_standard_name', ''))
-                            if isinstance(cb, dict):
-                                value = cb.get('preselected', [])
-                            elif cb:
-                                value = cb
-                            else:
-                                value = session.get('data', {}).get(source_block_id, '') or session.get('data', {}).get(block.get('source_standard_name', ''), '')
-                            block['snapshot'] = block.get('snapshot', {})
-                            # Line-item note blocks carry output_notes as their
-                            # display text — don't clobber it with raw checked
-                            # codes or an empty answer on form resubmit.
-                            if (block['snapshot'].get('output_notes') or '').strip():
-                                block['snapshot']['value'] = block['snapshot'].get('output_notes', '')
-                            else:
-                                block['snapshot']['value'] = value if isinstance(value, str) else ', '.join(value)
-                            block['flags'] = block.get('flags', {})
-                            block['flags']['source_dirty'] = True
-                            needs_calc = True
+                            # Line items are the only form_question blocks in quote mode.
+                            # Their values come from the DB build (output_notes + output_guidance),
+                            # not from form session data — skip sync to preserve them.
+                            continue
                     # Recalculate calculator/payment_schedule blocks if form data changed
                     if needs_calc:
                         try:
@@ -5845,22 +5857,10 @@ def review():
                         if block.get('flags', {}).get('editor_dirty'):
                             continue
                         if block.get('type') == 'form_question':
-                            sid = block.get('source_block_id', '')
-                            cb = checkbox_data.get(sid) or checkbox_data.get(block.get('source_standard_name', ''))
-                            if isinstance(cb, dict):
-                                val = cb.get('preselected', [])
-                            elif cb:
-                                val = cb
-                            else:
-                                val = session.get('data', {}).get(sid, '') or session.get('data', {}).get(block.get('source_standard_name', ''), '')
-                            block.setdefault('snapshot', {})
-                            # Preserve output_notes text on line-item blocks
-                            # instead of replacing it with raw checked codes.
-                            if (block['snapshot'].get('output_notes') or '').strip():
-                                block['snapshot']['value'] = block['snapshot'].get('output_notes', '')
-                            else:
-                                block['snapshot']['value'] = val if isinstance(val, str) else ', '.join(val)
-                            block.setdefault('flags', {})['source_dirty'] = True
+                            # Line items are the only form_question blocks in quote mode.
+                            # Their values come from the DB build (output_notes + output_guidance),
+                            # not from form session data — skip sync to preserve them.
+                            continue
                     try:
                         import calculator
                         calc_result = calculator.calculate_quote(
