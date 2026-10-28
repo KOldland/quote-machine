@@ -2348,6 +2348,7 @@ def session_clear():
     session['data'] = {}
     session['checkbox_data'] = {}
     session['session_overrides'] = {}
+    session['quote_editor_hidden_blocks'] = []
     session['_fresh_start'] = True
     session.modified = True
 
@@ -4768,6 +4769,7 @@ def login():
             session['data'] = {}
             session['checkbox_data'] = {}
             session['session_overrides'] = {}
+            session['quote_editor_hidden_blocks'] = []
             session.modified = True
 
             # Load preselected items (include_default='Y') into checkbox_data
@@ -4788,6 +4790,10 @@ def login():
                                     session['checkbox_data'][field_name]['preselected'].append(line_code)
             except Exception:
                 pass
+            # Fresh login always starts in a clean state: only the BUILD-mode
+            # preselected items should be checked. This flag makes the next
+            # page load skip the saved-quote / auto-form-save restores.
+            session['_fresh_start'] = True
             flash('Logged in as admin.', 'success')
             next_url = session.pop('_login_next', None) or url_for('index')
             return redirect(next_url)
@@ -4832,23 +4838,43 @@ def dynamic_page(page_id):
         return redirect(url_for('dynamic_page', page_id=next_key))
 
     session['last_visited'] = page_id
-    # Auto-restore from saved form session on first load — skipped on fresh start
+    # Auto-restore from the unified saved-quote store on first load —
+    # skipped on fresh start (login / NEW QUOTE).
     if request.method == 'GET' and not session.get('_auto_restored') and not session.get('_fresh_start'):
         try:
             import template_store as _ts_load
             _conn_load = _ts_load._connect()
-            cur = _conn_load.cursor()
-            ph = '%s' if _ts_load._get_db_backend() == 'postgres' else '?'
-            cur.execute(f'SELECT session_data FROM saved_sessions WHERE name = {ph} ORDER BY created_at DESC LIMIT 1', ('_auto_form_save',))
-            _row_load = cur.fetchone()
-            cur.close()
+            _ft_id = _ts_load._get_form_template_id(_conn_load, session.get('template_key') or TEMPLATE_STORE_KEY)
+            _row_load = None
+            if _ft_id is not None:
+                _row_load = _conn_load.execute(
+                    "SELECT blocks_json, form_data FROM saved_quotes "
+                    "WHERE form_template_id = ? AND name = '_auto_form_save' "
+                    "ORDER BY id DESC LIMIT 1",
+                    (_ft_id,),
+                ).fetchone()
             if _row_load:
-                loaded = json.loads(_row_load[0])
+                loaded = json.loads(_row_load['form_data']) if isinstance(_row_load['form_data'], str) else _row_load['form_data']
+                if not isinstance(loaded, dict):
+                    loaded = {}
                 session.setdefault('data', {}).update(loaded.get('data', {}))
                 session.setdefault('checkbox_data', {}).update(loaded.get('checkbox_data', {}))
                 session.setdefault('session_overrides', {}).update(loaded.get('session_overrides', {}))
+                if loaded.get('hidden_blocks') is not None:
+                    session['quote_editor_hidden_blocks'] = loaded['hidden_blocks']
                 if loaded.get('template_key'):
                     session['template_key'] = loaded['template_key']
+                # Also resume quote-side manual blocks stored in the same
+                # unified save record.
+                try:
+                    raw_blocks = _row_load['blocks_json'] or '[]'
+                    saved_blocks = json.loads(raw_blocks) if isinstance(raw_blocks, str) else raw_blocks
+                except Exception:
+                    saved_blocks = []
+                session['quote_editor_pending_blocks'] = [
+                    b for b in saved_blocks
+                    if b.get('type') not in ('page_title', 'category_title', 'form_question')
+                ]
                 session['_auto_restored'] = True
                 session.modified = True
             _conn_load.close()
@@ -4916,50 +4942,44 @@ def dynamic_page(page_id):
         session['session_overrides'] = session_overrides
         session.modified = True
 
-        # ── Auto-save form progress to DB on every submit ──────────────
+        # ── Auto-save form progress to the unified saved-quote store ──────
+        # FORM + QUOTE state lives in `saved_quotes` only — this internal
+        # "_auto_form_save" row is the single auto-save record used for
+        # crash-recovery / resume.
         try:
             import template_store as _ts_save
             _conn_save = _ts_save._connect()
-            if _ts_save._get_db_backend() == 'postgres':
-                _conn_save.execute('''
-                    CREATE TABLE IF NOT EXISTS saved_sessions (
-                        id SERIAL PRIMARY KEY,
-                        name TEXT NOT NULL,
-                        session_data TEXT NOT NULL,
-                        user_id INTEGER,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            _ft_id = _ts_save._get_form_template_id(_conn_save, session.get('template_key') or TEMPLATE_STORE_KEY)
+            if _ft_id is not None:
+                data_to_save = {
+                    'data': form_data,
+                    'checkbox_data': checkbox_data,
+                    'session_overrides': session_overrides,
+                    'hidden_blocks': session.get('quote_editor_hidden_blocks', []),
+                    'template_key': session.get('template_key'),
+                }
+                _form_data_json = json.dumps(data_to_save)
+                _blocks_json = json.dumps(session.get('quote_editor_pending_blocks', []))
+                _existing = _conn_save.execute(
+                    "SELECT id FROM saved_quotes "
+                    "WHERE form_template_id = ? AND name = '_auto_form_save' "
+                    "ORDER BY id DESC LIMIT 1",
+                    (_ft_id,),
+                ).fetchone()
+                if _existing:
+                    _conn_save.execute(
+                        "UPDATE saved_quotes SET blocks_json = ?, settings_json = '{}', "
+                        "form_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                        (_blocks_json, _form_data_json, _existing['id']),
                     )
-                ''')
+                else:
+                    _conn_save.execute(
+                        "INSERT INTO saved_quotes (form_template_id, name, client_name, notes, "
+                        "blocks_json, settings_json, form_data) "
+                        "VALUES (?, '_auto_form_save', '', 'auto-saved form progress', ?, '{}', ?)",
+                        (_ft_id, _blocks_json, _form_data_json),
+                    )
                 _conn_save.commit()
-            else:
-                _conn_save.execute('''
-                    CREATE TABLE IF NOT EXISTS saved_sessions (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        name TEXT NOT NULL,
-                        session_data TEXT NOT NULL,
-                        user_id INTEGER,
-                        created_at TEXT DEFAULT CURRENT_TIMESTAMP
-                    )
-                ''')
-            data_to_save = {
-                'data': form_data,
-                'checkbox_data': checkbox_data,
-                'session_overrides': session_overrides,
-                'template_key': session.get('template_key'),
-            }
-            cur = _conn_save.cursor()
-            is_pg = _ts_save._get_db_backend() == 'postgres'
-            ph = '%s' if is_pg else '?'
-            cur.execute(f'SELECT id FROM saved_sessions WHERE name = {ph} ORDER BY created_at DESC LIMIT 1', ('_auto_form_save',))
-            existing = cur.fetchone()
-            if existing:
-                cur.execute(f'UPDATE saved_sessions SET session_data = {ph}, created_at = CURRENT_TIMESTAMP WHERE id = {ph}',
-                            (json.dumps(data_to_save), existing[0]))
-            else:
-                cur.execute(f'INSERT INTO saved_sessions (name, session_data, user_id) VALUES ({ph}, {ph}, {ph})',
-                            ('_auto_form_save', json.dumps(data_to_save), session.get('user_id')))
-            _conn_save.commit()
-            cur.close()
             _conn_save.close()
         except Exception:
             pass
@@ -5071,6 +5091,11 @@ def dynamic_page(page_id):
         for field in page_schema.get('fields', []):
             if field.get('type') == 'line_items_by_category':
                 field_name = field.get('name') or field.get('id')
+                # Presence-based check state: if the field key EXISTS in
+                # checkbox_data, it reflects the user's exact choices (even an
+                # empty list = "everything unchecked"). Only when the key is
+                # entirely ABSENT do we fall back to BUILD-mode defaults.
+                _has_saved = field_name in saved_cb
                 _saved = saved_cb.get(field_name)
                 if isinstance(_saved, dict):
                     _saved = _saved.get('preselected', [])
@@ -5091,7 +5116,7 @@ def dynamic_page(page_id):
                              'is_follow_up': r.get('is_follow_up') or 0,
                              'follow_up_type': r.get('follow_up_type') or '',
                              'follow_up_config': r.get('follow_up_config') or '{}',
-                             'checked': (r.get('line_code', '') in _saved) if _saved else (r.get('include_default') == 'Y'),
+                             'checked': (r.get('line_code', '') in _saved) if _has_saved else (r.get('include_default') == 'Y'),
                              'saved_override': session_overrides.get(str(r.get('id')), '')}
                             for r in v
                         ]}
@@ -5125,29 +5150,55 @@ def index():
     session['last_visited'] = 'index'
 
     # ── Auto-restore the latest saved quote on first load ──────────────
-    if not session.get('data') and request.method == 'GET':
+    # Skipped right after login / NEW QUOTE (the _fresh_start flag) so a
+    # fresh session starts from BUILD-mode preselected items only.
+    if not session.get('data') and request.method == 'GET' and not session.get('_fresh_start'):
         try:
             import template_store as _ts_r
             _conn_r = _ts_r._connect(_ts_r._default_db_path())
-            _row_r = _conn_r.execute(
-                "SELECT id, form_data FROM saved_quotes ORDER BY id DESC LIMIT 1"
-            ).fetchone()
+            _form_template_id = _ts_r._get_form_template_id(_conn_r, session.get('template_key') or TEMPLATE_STORE_KEY)
+            _row_r = None
+            if _form_template_id:
+                _row_r = _conn_r.execute(
+                    "SELECT id, blocks_json, form_data FROM saved_quotes "
+                    "WHERE form_template_id = ? ORDER BY id DESC LIMIT 1",
+                    (_form_template_id,),
+                ).fetchone()
             if _row_r and _row_r['form_data']:
                 import json
                 fd = json.loads(_row_r['form_data']) if isinstance(_row_r['form_data'], str) else _row_r['form_data']
                 if isinstance(fd, dict):
+                    # Unified save state: restore BOTH the FORM selections
+                    # (checked + unchecked, inputs, overrides) and the QUOTE
+                    # manual blocks so the user resumes exactly where they
+                    # left off. (_fresh_start above guarantees a new login
+                    # never lands on a previous session's saved state.)
                     session['data'] = fd.get('data', {})
-                    # Do NOT restore checkbox_data — the user should start
-                    # fresh; old preselected items would show as "selected"
-                    # in the cost group accordion even though the user never
-                    # checked anything in this session.
-                    session['checkbox_data'] = {}
+                    session['checkbox_data'] = fd.get('checkbox_data', {})
+                    session['session_overrides'] = fd.get('session_overrides', {})
+                    session['quote_editor_hidden_blocks'] = fd.get('hidden_blocks', [])
+                    if fd.get('template_key'):
+                        session['template_key'] = fd['template_key']
+                    try:
+                        raw_blocks = _row_r['blocks_json'] or '[]'
+                        saved_blocks = json.loads(raw_blocks) if isinstance(raw_blocks, str) else raw_blocks
+                    except Exception:
+                        saved_blocks = []
+                    session['quote_editor_pending_blocks'] = [
+                        b for b in saved_blocks
+                        if b.get('type') not in ('page_title', 'category_title', 'form_question')
+                    ]
                     session['active_quote_id'] = int(_row_r['id'])
-                    session['template_key'] = fd.get('template_key', session.get('template_key'))
                     session.modified = True
             _conn_r.close()
         except Exception:
             pass
+    # Consume the fresh-start flag (mirrors dynamic_page) so it only applies
+    # to the page load immediately after login / NEW QUOTE.
+    if session.get('_fresh_start'):
+        session.pop('_fresh_start', None)
+        session['_auto_restored'] = True
+        session.modified = True
 
     # Get the first DYNAMIC page by display_order (skip redundant index page)
     ordered_pages = get_all_pages(template_key=TEMPLATE_STORE_KEY)
@@ -6274,6 +6325,15 @@ def quote_editor():
         form_key = session.get('quote_editor_template_key', session.get('template_key'))
     else:
         form_key = session.get('template_key')
+    # Stale filesystem sessions (e.g. created before template_key existed, or
+    # holding an older key) leave form_key unset. Without repair, Quote Mode
+    # builds zero blocks and renders only the "No blocks yet." placeholder.
+    # Repair the session with the active template so FORM selections flow through.
+    if not form_key:
+        form_key = TEMPLATE_STORE_KEY
+        session['template_key'] = form_key
+        session['quote_editor_template_key'] = form_key
+        session.modified = True
     layouts = []
     try:
         from template_store import list_quote_editor_layouts
@@ -6282,6 +6342,7 @@ def quote_editor():
         pass
     pending_blocks = get_quote_editor_blocks()
     pending_block = session.get('quote_editor_pending_block', None)
+    hidden_blocks = session.get('quote_editor_hidden_blocks', []) or []
     # Determine initial page index from ?page= query parameter
     page_key = request.args.get('page')
     initial_page_index = 0
@@ -6299,84 +6360,134 @@ def quote_editor():
         layouts=layouts,
         pending_blocks=pending_blocks,
         pending_block=pending_block,
+        hidden_blocks=hidden_blocks,
         initial_page_index=initial_page_index,
     )
 
 
 @app.route('/save-load', methods=['GET', 'POST'])
 def save_load():
+    """Unified Save/Load for FORM + QUOTE state.
+
+    Uses the same `saved_quotes` store as Quote Mode, so a single record
+    captures both the FORM state (checkbox selections incl. what is NOT
+    selected, text inputs, price/unit overrides) and the QUOTE state (blocks
+    with formatting, document styles).
+    """
+    from template_store import (
+        save_quote,
+        update_saved_quote,
+        get_saved_quote,
+        list_saved_quotes,
+    )
     session['last_visited'] = 'save_load'
-    db_path = str(Path(__file__).parent / 'template_store.sqlite3')
     saved = False
     loaded = False
     error = None
-    saved_sessions = []
-    conn = _get_conn(db_path)
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS saved_sessions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            session_data TEXT NOT NULL,
-            user_id INTEGER,
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    conn.commit()
+    saved_quotes = []
+    form_key = session.get('template_key') or TEMPLATE_STORE_KEY
 
     if request.method == 'POST':
         action = request.form.get('action')
         if action == 'save':
             save_name = request.form.get('save_name', '').strip()
             if not save_name:
-                error = 'Session name is required.'
+                error = 'Name is required.'
             else:
-                data_to_save = {
+                form_data = {
                     'data': session.get('data', {}),
                     'checkbox_data': session.get('checkbox_data', {}),
                     'session_overrides': session.get('session_overrides', {}),
-                    'template_key': session.get('template_key'),
+                    'hidden_blocks': session.get('quote_editor_hidden_blocks', []),
+                    'template_key': form_key,
                 }
+                blocks_json = session.get('quote_editor_pending_blocks', [])
                 try:
-                    conn.execute(
-                        'INSERT INTO saved_sessions (name, session_data, user_id) VALUES (?, ?, ?)',
-                        (save_name, json.dumps(data_to_save), session.get('user_id'))
-                    )
-                    conn.commit()
-                    saved = True
+                    active_quote_id = session.get('active_quote_id')
+                    if active_quote_id:
+                        # Unified save: update the quote currently in progress
+                        # (preserving any QUOTE styling) instead of creating a
+                        # new record.
+                        existing = get_saved_quote(int(active_quote_id), form_key)
+                        if existing:
+                            quote = update_saved_quote(
+                                quote_id=int(active_quote_id),
+                                form_key=form_key,
+                                name=save_name,
+                                blocks_json=blocks_json,
+                                settings=existing.get('settings_json') or {},
+                                form_data=form_data,
+                            )
+                        else:
+                            quote = save_quote(
+                                form_key=form_key,
+                                blocks_json=blocks_json,
+                                name=save_name,
+                                settings={},
+                                form_data=form_data,
+                                user_id=session.get('user_id'),
+                            )
+                    else:
+                        quote = save_quote(
+                            form_key=form_key,
+                            blocks_json=blocks_json,
+                            name=save_name,
+                            settings={},
+                            form_data=form_data,
+                            user_id=session.get('user_id'),
+                        )
+                    if quote:
+                        session['active_quote_id'] = quote.get('id')
+                        session.modified = True
+                        saved = True
+                    else:
+                        error = 'Could not save — form template not found.'
                 except Exception as exc:
                     error = str(exc)
         elif action == 'load':
-            session_id = request.form.get('session_id')
-            if session_id:
-                row = conn.execute(
-                    'SELECT id, session_data FROM saved_sessions WHERE id = ?', (session_id,)
-                ).fetchone()
-                if row:
-                    try:
-                        loaded_data = json.loads(row['session_data'])
-                        session['data'] = loaded_data.get('data', {})
-                        session['checkbox_data'] = loaded_data.get('checkbox_data', {})
-                        session['session_overrides'] = loaded_data.get('session_overrides', {})
-                        if loaded_data.get('template_key'):
-                            session['template_key'] = loaded_data['template_key']
+            quote_id = request.form.get('quote_id')
+            if quote_id:
+                try:
+                    quote = get_saved_quote(int(quote_id), form_key)
+                    if not quote:
+                        error = 'Saved state not found.'
+                    else:
+                        form_data = quote.get('form_data') or {}
+                        session['data'] = form_data.get('data', {})
+                        session['checkbox_data'] = form_data.get('checkbox_data', {})
+                        session['session_overrides'] = form_data.get('session_overrides', {})
+                        session['quote_editor_hidden_blocks'] = form_data.get('hidden_blocks', [])
+                        if form_data.get('template_key'):
+                            session['template_key'] = form_data['template_key']
+                        all_blocks = quote.get('blocks_json', [])
+                        session['quote_editor_pending_blocks'] = [
+                            b for b in all_blocks
+                            if b.get('type') not in ('page_title', 'category_title', 'form_question')
+                        ]
+                        session['active_quote_id'] = int(quote_id)
+                        session['_auto_restored'] = True
                         session.modified = True
                         loaded = True
-                    except Exception as exc:
-                        error = str(exc)
-    conn.close()
+                except Exception as exc:
+                    error = str(exc)
 
-    conn = _get_conn(db_path)
-    rows = conn.execute('SELECT id, name, created_at FROM saved_sessions ORDER BY created_at DESC').fetchall()
-    conn.close()
+    rows = list_saved_quotes(form_key, user_id=session.get('user_id'))
     for row in rows:
-        saved_sessions.append({'id': row[0], 'name': row[1], 'created_at': row[2]})
+        # Hide internal bookkeeping rows (auto-saves) from the user list.
+        if str(row.get('name') or '').startswith('_'):
+            continue
+        saved_quotes.append({
+            'id': row['id'],
+            'name': row['name'],
+            'created_at': row.get('updated_at') or row.get('created_at'),
+        })
 
     return render_template(
         'save_load.html',
         saved=saved,
         loaded=loaded,
         error=error,
-        saved_sessions=saved_sessions,
+        saved_quotes=saved_quotes,
     )
 
 

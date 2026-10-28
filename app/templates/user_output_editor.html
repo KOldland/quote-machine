@@ -478,6 +478,7 @@
 <script>
   window.__quoteEditorPendingBlocks = {{ pending_blocks | tojson }};
   window.__quoteEditorPendingBlock = {{ pending_block | tojson if pending_block is defined else 'null' }};
+  window.__quoteEditorHiddenBlocks = {{ hidden_blocks | tojson if hidden_blocks is defined else [] }};
 </script>
 <script src="{{ url_for('static', filename='js/user_output_editor.js') }}"></script>
 {% endblock %}

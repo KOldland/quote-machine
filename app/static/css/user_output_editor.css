@@ -428,6 +428,16 @@
   color: #444;
 }
 
+/* FORM line-item blocks are protected in QUOTE mode: no remove button and a
+   subtle lock hint so it is clear they mirror the FORM selections. */
+.editor-block--protected .editor-block__content {
+  border-left: 3px solid #b9d4f1;
+  padding-left: 8px;
+}
+.editor-block--protected .editor-block__header {
+  opacity: 0.55;
+}
+
 .editor-block__header {
   display: flex;
   align-items: center;

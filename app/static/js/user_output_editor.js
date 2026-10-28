@@ -27,6 +27,8 @@ let lastClickedBlockId = null;
 let sortableInstance = null;
 let listGroupCounter = 0;
 let copiedSettings = null;
+/** Identities of regenerable title blocks deleted in QUOTE mode (persisted server-side). */
+let hiddenBlockIds = new Set((window.__quoteEditorHiddenBlocks || []).filter(Boolean));
 let currentQuoteId = null;
 let autoSaveTimer = null;
 let saveStatusEl = null;
@@ -173,7 +175,7 @@ const IMAGE_FRAMES = [
   }
 
   function pushHistory() {
-    const state = JSON.stringify(blocks);
+    const state = JSON.stringify({ blocks, hidden: [...hiddenBlockIds].sort() });
     if (historyIndex >= 0 && historyStack[historyIndex] === state) return;
     historyStack = historyStack.slice(0, historyIndex + 1);
     historyStack.push(state);
@@ -271,7 +273,9 @@ const IMAGE_FRAMES = [
   function undo() {
     if (historyIndex <= 0) return;
     historyIndex--;
-    blocks = JSON.parse(historyStack[historyIndex]);
+    const st = JSON.parse(historyStack[historyIndex]);
+    blocks = st.blocks || [];
+    syncHiddenBlockIds(new Set(st.hidden || []));
     rebuildPages();
     renderCurrentPage();
     updateNavPanel();
@@ -280,7 +284,9 @@ const IMAGE_FRAMES = [
   function redo() {
     if (historyIndex >= historyStack.length - 1) return;
     historyIndex++;
-    blocks = JSON.parse(historyStack[historyIndex]);
+    const st = JSON.parse(historyStack[historyIndex]);
+    blocks = st.blocks || [];
+    syncHiddenBlockIds(new Set(st.hidden || []));
     rebuildPages();
     renderCurrentPage();
     updateNavPanel();
@@ -383,6 +389,59 @@ const IMAGE_FRAMES = [
     });
   }
 
+  function isBlockProtected(block) {
+    // Line-item blocks flow from FORM mode and ARE the saved FORM state, so
+    // they must not be deletable in QUOTE mode (that would silently corrupt
+    // the unified save). Title blocks (page/category) and manual blocks
+    // (notes, calculator, image groups, page breaks) remain deletable.
+    if (block.type === 'form_question') return true;
+    // Images that belong to a line-item question output are protected too.
+    if (block.type === 'image' && String(block.source_block_id || '').startsWith('__question_image__')) return true;
+    return false;
+  }
+
+  /** Canonical identity of a regenerable title block (mirrors the server). */
+  function blockIdentity(block) {
+    if (!block) return '';
+    if (block.type === 'page_title') return 'page:' + block.source_page;
+    if (block.type === 'page_heading') return 'heading:' + block.source_page;
+    if (block.type === 'category_title') {
+      const snap = block.snapshot || {};
+      return 'category:' + block.source_page + ':' + (snap.category || snap.title || '');
+    }
+    return '';
+  }
+
+  async function persistBlockVisibility(identity, hide) {
+    if (!identity) return;
+    try {
+      await fetch('/quote_editor/' + (hide ? 'hide-block' : 'unhide-block'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identity }),
+      });
+    } catch (e) {
+      // non-blocking — the deletion still applies for this session
+    }
+  }
+
+  /** Reconcile the local hidden set with the given one and sync the server. */
+  function syncHiddenBlockIds(next) {
+    const current = new Set(hiddenBlockIds);
+    for (const id of next) {
+      if (!current.has(id)) {
+        hiddenBlockIds.add(id);
+        persistBlockVisibility(id, true);
+      }
+    }
+    for (const id of current) {
+      if (!next.has(id)) {
+        hiddenBlockIds.delete(id);
+        persistBlockVisibility(id, false);
+      }
+    }
+  }
+
   function createBlockEl(block) {
     const wrapper = document.createElement('div');
     wrapper.className = 'editor-block';
@@ -433,10 +492,18 @@ const IMAGE_FRAMES = [
       </div>
     `;
 
-    wrapper.querySelector('.editor-block__remove').addEventListener('click', () => {
-      pushHistory();
-      removeBlock(block.id);
-    });
+    // Protected blocks (FORM line items) cannot be removed in QUOTE mode.
+    if (!isBlockProtected(block)) {
+      const removeBtn = wrapper.querySelector('.editor-block__remove');
+      removeBtn.addEventListener('click', () => {
+        pushHistory();
+        removeBlock(block.id);
+      });
+    } else {
+      wrapper.classList.add('editor-block--protected');
+      const removeBtn = wrapper.querySelector('.editor-block__remove');
+      removeBtn.remove();
+    }
 
     const contentEl = wrapper.querySelector('.editor-block__content');
     if (isEditable === 'true') {
@@ -557,6 +624,16 @@ const IMAGE_FRAMES = [
   }
 
   function removeBlock(blockId) {
+    // Never remove blocks that represent FORM line-item state.
+    const target = blocks.find(b => b.id === blockId);
+    if (target && isBlockProtected(target)) return;
+    // Title blocks are re-derived from FORM state on every load, so the
+    // deletion is persisted as a hidden identity (page/category titles).
+    const identity = blockIdentity(target);
+    if (identity) {
+      hiddenBlockIds.add(identity);
+      persistBlockVisibility(identity, true);
+    }
     blocks = blocks.filter(b => b.id !== blockId);
     rebuildPages();
     const wasActive = activeBlockId === blockId;
@@ -1368,6 +1445,8 @@ const IMAGE_FRAMES = [
               updateSettingsPanel();
                const blist = (d.fresh_blocks || []).length > 0 ? d.fresh_blocks : (quote.blocks_json || []);
                blist.forEach(b => addBlock(b));
+               // Restore the persisted title-block deletions that came with this quote.
+               hiddenBlockIds = new Set((quote.form_data && quote.form_data.hidden_blocks) || []);
                const initialPageIndex = window.__initialPageIndex || 0;
                window.__currentPageIndex = initialPageIndex;
                if (blocks.length > 0) activeBlockId = blocks[0].id;
@@ -2730,6 +2809,8 @@ const IMAGE_FRAMES = [
            updateSettingsPanel();
            const blist = (d.fresh_blocks || []).length > 0 ? d.fresh_blocks : (quote.blocks_json || []);
            blist.forEach(b => addBlock(b));
+           // Restore the persisted title-block deletions that came with this quote.
+           hiddenBlockIds = new Set((quote.form_data && quote.form_data.hidden_blocks) || []);
            const initialPageIndex = window.__initialPageIndex || 0;
            window.__currentPageIndex = initialPageIndex;
            if (blocks.length > 0) activeBlockId = blocks[0].id;

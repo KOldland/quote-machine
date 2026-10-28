@@ -5,10 +5,10 @@
     <h1>Save / Load</h1>
 
     {% if saved %}
-    <div class="alert alert-success">Session saved successfully.</div>
+    <div class="alert alert-success">State saved successfully (FORM selections + QUOTE layout/styling).</div>
     {% endif %}
     {% if loaded %}
-    <div class="alert alert-success">Session loaded successfully.</div>
+    <div class="alert alert-success">State loaded successfully. Your FORM selections and QUOTE content have been restored.</div>
     {% endif %}
     {% if error %}
     <div class="alert alert-danger">{{ error }}</div>
@@ -16,14 +16,14 @@
 
     <div class="accordion-section">
         <button type="button" class="accordion-header" onclick="toggleAccordion('saveSection');">
-            Save Current Session
+            Save Current State
         </button>
         <div id="saveSection" class="accordion-body">
             <form method="POST" action="{{ url_for('save_load') }}">
                 <input type="hidden" name="action" value="save">
                 <div class="mb-3">
-                    <label for="save_name" class="form-label">Session Name</label>
-                    <input type="text" class="form-control" id="save_name" name="save_name" placeholder="My Quote Session" required>
+                    <label for="save_name" class="form-label">Name</label>
+                    <input type="text" class="form-control" id="save_name" name="save_name" placeholder="My Quote" required>
                 </div>
                 <button type="submit" class="btn btn-primary">Save</button>
             </form>
@@ -32,10 +32,10 @@
 
     <div class="accordion-section">
         <button type="button" class="accordion-header" onclick="toggleAccordion('loadSection');">
-            Load Saved Session
+            Load Saved State
         </button>
         <div id="loadSection" class="accordion-body">
-            {% if saved_sessions %}
+            {% if saved_quotes %}
             <table class="table table-hover">
                 <thead>
                     <tr>
@@ -45,14 +45,14 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for sess in saved_sessions %}
+                    {% for quote in saved_quotes %}
                     <tr>
-                        <td>{{ sess.name }}</td>
-                        <td>{{ sess.created_at }}</td>
+                        <td>{{ quote.name }}</td>
+                        <td>{{ quote.created_at }}</td>
                         <td class="text-end">
                             <form method="POST" action="{{ url_for('save_load') }}" style="display:inline;">
                                 <input type="hidden" name="action" value="load">
-                                <input type="hidden" name="session_id" value="{{ sess.id }}">
+                                <input type="hidden" name="quote_id" value="{{ quote.id }}">
                                 <button type="submit" class="btn btn-sm btn-primary">Load</button>
                             </form>
                         </td>
@@ -61,7 +61,7 @@
                 </tbody>
             </table>
             {% else %}
-            <p>No saved sessions found.</p>
+            <p>No saved states found.</p>
             {% endif %}
         </div>
     </div>

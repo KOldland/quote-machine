@@ -30,6 +30,7 @@ from template_store import (
     update_saved_quote,
     load_template_payload,
     _get_form_template_id,
+    _default_db_path,
     get_line_items_by_codes,
     get_line_items_for_page,
     get_all_pages,
@@ -126,6 +127,73 @@ def _resolve_line_item_labels(codes):
 # ── Layout CRUD ─────────────────────────────────────────────────────
 
 @quote_editor_bp.route('/quote_editor/layouts', methods=['GET'])
+def build_quote_block_identity(block_type, source_page, category):
+    """Canonical identity for a regenerable title block.
+
+    Used by the persistent hide-on-delete mechanism: `page_title`,
+    `page_heading` and `category_title` blocks are re-derived from FORM state
+    on every QUOTE load, so a deletion is persisted as a "hidden identity"
+    rather than as an absent block.
+
+    Line-item (form_question) blocks are NOT supported — they are protected in
+    QUOTE mode and can only be removed by unchecking in FORM mode.
+    """
+    if block_type == 'page_title':
+        return 'page:' + source_page
+    if block_type == 'page_heading':
+        return 'heading:' + source_page
+    if block_type == 'category_title':
+        return 'category:' + source_page + ':' + (category or '')
+    return ''
+
+
+# Only title blocks participate in persistent deletion. Anything else (e.g.
+# line-item blocks, images that belong to FORM questions) is rejected.
+_HIDDEN_IDENTITY_PREFIXES = ('page:', 'heading:', 'category:')
+
+
+def _validate_hidden_identity(identity):
+    """Return True when the identity is one of the supported title blocks."""
+    return bool(identity) and identity.startswith(_HIDDEN_IDENTITY_PREFIXES)
+
+
+@quote_editor_bp.route('/quote_editor/hide-block', methods=['POST'])
+def hide_quote_block():
+    """Persist the deletion of a regenerable title block in the session."""
+    data = request.get_json(force=True) or {}
+    identity = data.get('identity') or build_quote_block_identity(
+        data.get('block_type', ''),
+        data.get('source_page', ''),
+        data.get('category', ''),
+    )
+    if not _validate_hidden_identity(identity):
+        # Line items / questions cannot be deleted this way.
+        return jsonify({'success': False, 'error': 'Block identity not deletable'}), 400
+    hidden = session.setdefault('quote_editor_hidden_blocks', [])
+    if identity not in hidden:
+        hidden.append(identity)
+        session.modified = True
+    return jsonify({'success': True})
+
+
+@quote_editor_bp.route('/quote_editor/unhide-block', methods=['POST'])
+def unhide_quote_block():
+    """Undo a persisted title-block deletion (used by editor undo)."""
+    data = request.get_json(force=True) or {}
+    identity = data.get('identity') or build_quote_block_identity(
+        data.get('block_type', ''),
+        data.get('source_page', ''),
+        data.get('category', ''),
+    )
+    if not _validate_hidden_identity(identity):
+        return jsonify({'success': False, 'error': 'Block identity not deletable'}), 400
+    hidden = session.get('quote_editor_hidden_blocks', [])
+    if identity in hidden:
+        hidden.remove(identity)
+        session.modified = True
+    return jsonify({'success': True})
+
+
 def list_layouts():
     form_key = session.get('template_key')
     layouts = list_quote_editor_layouts(form_key)
@@ -211,6 +279,8 @@ def save_quote_route():
     default_form_data = {
         'data': session.get('data', {}),
         'checkbox_data': session.get('checkbox_data', {}),
+        'session_overrides': session.get('session_overrides', {}),
+        'hidden_blocks': session.get('quote_editor_hidden_blocks', []),
         'template_key': form_key,
     }
     form_data = data.get('form_data') or default_form_data
@@ -323,8 +393,12 @@ def load_quote_route(quote_id):
     # share the same state — selections made in either mode are visible in both.
     session['data'] = form_data.get('data', {})
     session['checkbox_data'] = form_data.get('checkbox_data', {})
+    session['session_overrides'] = form_data.get('session_overrides', {})
+    # Persisted title-block deletions travel with the saved state.
+    session['quote_editor_hidden_blocks'] = form_data.get('hidden_blocks', [])
     if form_data.get('template_key'):
         session['template_key'] = form_data['template_key']
+    session['_auto_restored'] = True
     # Restore manual blocks (calculator, image groups, payment schedule, etc.)
     all_blocks = quote.get('blocks_json', [])
     manual_blocks = [
@@ -594,6 +668,8 @@ def list_quotes():
     form_key = session.get('template_key')
     user_id = session.get('user_id')
     quotes = list_saved_quotes(form_key, user_id=user_id)
+    # Hide internal bookkeeping rows (auto-saves) from the user-facing list.
+    quotes = [q for q in quotes if not str(q.get('name') or '').startswith('_')]
     return jsonify({'success': True, 'quotes': quotes})
 
 
@@ -609,6 +685,8 @@ def create_quote():
     default_form_data = {
         'data': session.get('data', {}),
         'checkbox_data': session.get('checkbox_data', {}),
+        'session_overrides': session.get('session_overrides', {}),
+        'hidden_blocks': session.get('quote_editor_hidden_blocks', []),
         'template_key': form_key,
     }
     form_data = data.get('form_data') or default_form_data
@@ -649,6 +727,8 @@ def update_quote_route(quote_id):
     default_form_data = {
         'data': session.get('data', {}),
         'checkbox_data': session.get('checkbox_data', {}),
+        'session_overrides': session.get('session_overrides', {}),
+        'hidden_blocks': session.get('quote_editor_hidden_blocks', []),
         'template_key': form_key,
     }
     form_data = data.get('form_data') or default_form_data
@@ -1143,32 +1223,37 @@ def _build_page_blocks(page_key, page, form_data, checkbox_data):
     seen_pages = set()
     seen_categories = set()
     db_category_order = _get_page_category_order(page_key)
+    # Title-block deletions are persisted in QUOTE mode as hidden identities,
+    # so title blocks stay deleted across reloads / saves / loads.
+    hidden_blocks = session.get('quote_editor_hidden_blocks', []) or []
 
     page_title = page.get('title') or page_key.replace('_', ' ').title()
     if page_title not in seen_pages:
         seen_pages.add(page_title)
-        snapshot_blocks.append({
-            'id': f"form__{page_key}__page_title",
-            'type': 'page_title',
-            'source_page': page_key,
-            'source_block_id': '__page_title__',
-            'snapshot': {'title': page_title},
-            'editor_overrides': {},
-            'flags': { 'source_dirty': False, 'editor_dirty': False, 'hidden': False },
-            'settings': { 'margin_top': 0, 'margin_bottom': 0, 'padding': 0, 'alignment': 'left' },
-            'category_sort_order': -1,
-        })
-        snapshot_blocks.append({
-            'id': f"form__{page_key}__page_heading",
-            'type': 'page_heading',
-            'source_page': page_key,
-            'source_block_id': '__page_heading__',
-            'snapshot': {'title': page_title},
-            'editor_overrides': {},
-            'flags': { 'source_dirty': False, 'editor_dirty': False },
-            'settings': { 'margin_top': 10, 'margin_bottom': 10, 'padding': 12, 'alignment': 'left', 'font_size': 24 },
-            'category_sort_order': -1,
-        })
+        if f'page:{page_key}' not in hidden_blocks:
+            snapshot_blocks.append({
+                'id': f"form__{page_key}__page_title",
+                'type': 'page_title',
+                'source_page': page_key,
+                'source_block_id': '__page_title__',
+                'snapshot': {'title': page_title},
+                'editor_overrides': {},
+                'flags': { 'source_dirty': False, 'editor_dirty': False, 'hidden': False },
+                'settings': { 'margin_top': 0, 'margin_bottom': 0, 'padding': 0, 'alignment': 'left' },
+                'category_sort_order': -1,
+            })
+        if f'heading:{page_key}' not in hidden_blocks:
+            snapshot_blocks.append({
+                'id': f"form__{page_key}__page_heading",
+                'type': 'page_heading',
+                'source_page': page_key,
+                'source_block_id': '__page_heading__',
+                'snapshot': {'title': page_title},
+                'editor_overrides': {},
+                'flags': { 'source_dirty': False, 'editor_dirty': False },
+                'settings': { 'margin_top': 10, 'margin_bottom': 10, 'padding': 12, 'alignment': 'left', 'font_size': 24 },
+                'category_sort_order': -1,
+            })
 
     page_merge_tags = get_merge_tag_values(page_key, session, get_line_items_for_page, page_blocks=page.get('blocks', []))
 
@@ -1244,28 +1329,33 @@ def _build_page_blocks(page_key, page, form_data, checkbox_data):
                 seen_categories.add(category)
                 category_items = items_by_category.get(category, [])
                 category_images = _get_category_images(page_key, category)
-                snapshot_blocks.append({
-                    'id': f"form__{page_key}__category__{category}",
-                    'type': 'category_title',
-                    'source_page': page_key,
-                    'source_block_id': '__category_title__',
-                    'snapshot': {'title': category},
-                    'editor_overrides': {},
-                    'flags': { 'source_dirty': False, 'editor_dirty': False },
-                    'settings': { 'margin_top': 5, 'margin_bottom': 5, 'padding': 12, 'alignment': 'left', 'font_size': 20 },
-                    'category_sort_order': db_category_order.get(category, 999),
-                })
-                for idx, img_url in enumerate(category_images):
+                # Persisted deletion: hide the category title (and its category
+                # images) but keep the line items — they still mirror FORM.
+                category_title_hidden = f'category:{page_key}:{category}' in hidden_blocks
+                if not category_title_hidden:
                     snapshot_blocks.append({
-                        'id': f"form__{page_key}__category__{category}__image__{idx}",
-                        'type': 'image',
+                        'id': f"form__{page_key}__category__{category}",
+                        'type': 'category_title',
                         'source_page': page_key,
-                        'source_block_id': '__category_image__',
-                        'snapshot': {'url': img_url},
+                        'source_block_id': '__category_title__',
+                        'snapshot': {'title': category},
                         'editor_overrides': {},
                         'flags': { 'source_dirty': False, 'editor_dirty': False },
-                        'settings': { 'margin_top': 4, 'margin_bottom': 8, 'padding': 0, 'alignment': 'left', 'font_size': 16 },
+                        'settings': { 'margin_top': 5, 'margin_bottom': 5, 'padding': 12, 'alignment': 'left', 'font_size': 20 },
+                        'category_sort_order': db_category_order.get(category, 999),
                     })
+                if not category_title_hidden:
+                    for idx, img_url in enumerate(category_images):
+                        snapshot_blocks.append({
+                            'id': f"form__{page_key}__category__{category}__image__{idx}",
+                            'type': 'image',
+                            'source_page': page_key,
+                            'source_block_id': '__category_image__',
+                            'snapshot': {'url': img_url},
+                            'editor_overrides': {},
+                            'flags': { 'source_dirty': False, 'editor_dirty': False },
+                            'settings': { 'margin_top': 4, 'margin_bottom': 8, 'padding': 0, 'alignment': 'left', 'font_size': 16 },
+                        })
                 for item in category_items:
                     output_title = item.get('output_title', '') or ''
                     if not output_title.strip():
