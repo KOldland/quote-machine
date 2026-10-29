@@ -1495,8 +1495,20 @@ def build_quote_editor_blocks_for_all_pages():
         session.modified = True
         payload = load_template_payload(form_key)
     if not payload:
-        return []
-    pages = payload.get('builder_beta', {}).get('pages', payload.get('pages', {}))
+        # The DB has no template_payload at all (e.g. a fresh environment where
+        # the database was populated from the JSON schema file, not the payload
+        # store). Fall back to the same in-memory page_schemas dict that FORM
+        # mode uses — so QUOTE still sees every BUILD-mode page.
+        try:
+            from QMapp import get_builder_beta_state
+            _state = get_builder_beta_state()
+            _fallback_pages = _state.get('pages', {})
+            if _fallback_pages:
+                pages = _fallback_pages
+        except Exception:
+            pass
+    else:
+        pages = payload.get('builder_beta', {}).get('pages', payload.get('pages', {}))
     if not pages:
         return []
     
