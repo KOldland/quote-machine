@@ -102,11 +102,12 @@
                         <button type="button" class="btn btn-sidebar"
                                 onclick="window.location.href='{{ url_for('image_upload_page') }}'">Image Upload</button>
                         <button type="button" class="btn btn-sidebar"
-                                onclick="window.location.href='{{ url_for('review') }}'">Review</button>
-                        <button type="button" class="btn btn-sidebar"
-                                onclick="window.location.href='{{ url_for('calculator') }}'">Calculator</button>
+                                onclick="window.location.href='{{ url_for('review') }}'">Quick Review</button>
                         <button type="button" class="btn btn-sidebar"
                                 onclick="window.location.href='{{ url_for('save_load') }}'">Save/Load</button>
+                        <button type="button" class="btn btn-sidebar"
+                                style="width:100%;text-align:left;background:#6d0b0b;color:#fff;border:1px solid #6d0b0b;"
+                                onclick="if(confirm('Start NEW quote? Current form data will be cleared. Only BUILD mode preselected items will be loaded.')){fetch('{{ url_for('session_clear') }}',{method:'POST',headers:{'X-CSRFToken':'{{ csrf_token() }}'}}).then(r=>r.json()).then(d=>{if(d.success)window.location.href='/'});}">NEW QUOTE</button>
                     </nav>
 
                     <div class="nav-user">

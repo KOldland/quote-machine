@@ -12,10 +12,19 @@
   <div class="sidebar-section">
     <h3>Insert Block</h3>
     <button class="btn btn-sidebar" data-block-type="notes">Notes Block</button>
-    <button class="btn btn-sidebar" data-block-type="calculator">Calculator Block</button>
     <button class="btn btn-sidebar" data-block-type="image_group">Image Group</button>
     <button class="btn btn-sidebar" data-block-type="image">Image</button>
     <button class="btn btn-sidebar" data-block-type="page_break">Page Break</button>
+  </div>
+
+  <div style="border-top:1px solid rgba(255,255,255,0.12);margin:0.75rem 0;"></div>
+  <div class="edit-mode-actions" style="margin-top:.5rem;display:flex;flex-direction:column;gap:.35rem;">
+    <button type="button" class="btn btn-sidebar"
+            style="width:100%;text-align:left;"
+            onclick="window.location.href='{{ url_for('save_load') }}'">Save/Load</button>
+    <button type="button" class="btn btn-sidebar"
+            style="width:100%;text-align:left;background:#6d0b0b;color:#fff;border:1px solid #6d0b0b;"
+            onclick="if(confirm('Start NEW quote? Current form data will be cleared. Only BUILD mode preselected items will be loaded.')){fetch('{{ url_for('session_clear') }}',{method:'POST',headers:{'X-CSRFToken':'{{ csrf_token() }}'}}).then(r=>r.json()).then(d=>{if(d.success)window.location.href='/'});}">NEW QUOTE</button>
   </div>
 </div>
 {% endblock %}

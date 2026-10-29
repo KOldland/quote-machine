@@ -298,7 +298,12 @@ const IMAGE_FRAMES = [
     blocks.forEach(block => {
       if (block.source_page === 'image_upload_page') return;
 
-      if ((block.type === 'page_title' || block.type === 'page_break') && currentPage.length > 0) {
+      const last = currentPage[currentPage.length - 1];
+      const isSep = block.type === 'page_title' || block.type === 'page_break';
+      // A new page starts at a title / page-break block AND whenever the FORM
+      // source page changes — so deleting a title block never merges pages.
+      const sourceChanged = block.source_page && last && last.source_page && block.source_page !== last.source_page;
+      if (currentPage.length > 0 && (isSep || sourceChanged)) {
         pages.push(currentPage);
         currentPage = [];
       }
@@ -2515,17 +2520,27 @@ const IMAGE_FRAMES = [
     blocks.forEach((block, index) => {
       if (block.source_page === 'image_upload_page') return;
 
-      const isPageSeparator = block.type === 'page_title' || block.type === 'page_break';
+      const isSep = block.type === 'page_title' || block.type === 'page_break';
+      const lastBlock = currentPage ? currentPage.items[currentPage.items.length - 1].block : null;
+      // Mirror rebuildPages(): pages follow the FORM source_page identity too,
+      // so deleting a title block never merges pages or loses page labels.
+      const sourceChanged = block.source_page && lastBlock && lastBlock.source_page && block.source_page !== lastBlock.source_page;
 
-      if (isPageSeparator && currentPage !== null) {
+      if (currentPage !== null && (isSep || sourceChanged)) {
         pageGroups.push(currentPage);
         currentPage = null;
       }
 
       if (!currentPage) {
         let title = 'Page ' + (pageGroups.length + 1);
-        if (block.type === 'page_title') {
-          title = block.snapshot.title || 'Untitled Page';
+        const snap = block.snapshot || {};
+        if ((block.type === 'page_title' || block.type === 'page_heading') && snap.title) {
+          title = snap.title;
+        } else if (block.source_page) {
+          title = block.source_page
+            .replace(/_page$/, '')
+            .replace(/_/g, ' ')
+            .replace(/\b\w/g, ch => ch.toUpperCase());
         }
         currentPage = { title, items: [] };
       }

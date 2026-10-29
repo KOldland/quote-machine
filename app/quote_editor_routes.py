@@ -92,6 +92,26 @@ def _get_page_category_order(page_key):
         return {}
 
 
+def _default_line_codes_for_page(page_key):
+    """Return line codes whose include_default='Y' for a page.
+
+    These are the BUILD-mode preselected items — the baseline for both FORM
+    and QUOTE mode before the user explicitly changes a page's selections.
+    """
+    codes = []
+    try:
+        items_by_cat = get_line_items_for_page(page_key)
+        for _cat, items_list in items_by_cat.items():
+            for item in items_list:
+                if item.get('include_default') == 'Y' and item.get('line_code'):
+                    code = str(item['line_code']).strip()
+                    if code and code not in codes:
+                        codes.append(code)
+    except Exception:
+        pass
+    return codes
+
+
 DB_PATH = Path(__file__).parent / "template_store.sqlite3"
 UPLOAD_DIR = Path(__file__).parent / "static" / "uploads" / "quote_editor"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -1227,33 +1247,12 @@ def _build_page_blocks(page_key, page, form_data, checkbox_data):
     # so title blocks stay deleted across reloads / saves / loads.
     hidden_blocks = session.get('quote_editor_hidden_blocks', []) or []
 
+    # Bottom-up filtering: a page's title/heading blocks are emitted AFTER the
+    # page's content is built, and only when the page has content (at least one
+    # selected question / category) — or for the quote's cover page (index /
+    # Project Details), which always appears.
     page_title = page.get('title') or page_key.replace('_', ' ').title()
-    if page_title not in seen_pages:
-        seen_pages.add(page_title)
-        if f'page:{page_key}' not in hidden_blocks:
-            snapshot_blocks.append({
-                'id': f"form__{page_key}__page_title",
-                'type': 'page_title',
-                'source_page': page_key,
-                'source_block_id': '__page_title__',
-                'snapshot': {'title': page_title},
-                'editor_overrides': {},
-                'flags': { 'source_dirty': False, 'editor_dirty': False, 'hidden': False },
-                'settings': { 'margin_top': 0, 'margin_bottom': 0, 'padding': 0, 'alignment': 'left' },
-                'category_sort_order': -1,
-            })
-        if f'heading:{page_key}' not in hidden_blocks:
-            snapshot_blocks.append({
-                'id': f"form__{page_key}__page_heading",
-                'type': 'page_heading',
-                'source_page': page_key,
-                'source_block_id': '__page_heading__',
-                'snapshot': {'title': page_title},
-                'editor_overrides': {},
-                'flags': { 'source_dirty': False, 'editor_dirty': False },
-                'settings': { 'margin_top': 10, 'margin_bottom': 10, 'padding': 12, 'alignment': 'left', 'font_size': 24 },
-                'category_sort_order': -1,
-            })
+    page_has_content = False
 
     page_merge_tags = get_merge_tag_values(page_key, session, get_line_items_for_page, page_blocks=page.get('blocks', []))
 
@@ -1280,32 +1279,15 @@ def _build_page_blocks(page_key, page, form_data, checkbox_data):
             selected_codes = []
             if isinstance(raw_value, list):
                 selected_codes = [v for v in raw_value if isinstance(v, str) and v.strip()]
-            # Load DB categories for this page so structure shows even when empty
-            _db_cats = []
-            try:
-                _form_key = session.get('template_key')
-                _c = _connect(_default_db_path())
-                try:
-                    _lv = _c.execute(
-                        "SELECT ftv.id FROM form_template_versions ftv "
-                        "JOIN form_templates ft ON ft.id = ftv.form_template_id "
-                        "WHERE ft.key = ? ORDER BY ftv.version DESC LIMIT 1",
-                        (_form_key,)
-                    ).fetchone()
-                    _lv_id = int(_lv[0]) if _lv else None
-                    if _lv_id is not None:
-                        _rows = _c.execute(
-                            "SELECT DISTINCT ct.name FROM category_templates ct "
-                            "JOIN page_templates pt ON pt.id = ct.page_template_id "
-                            "WHERE pt.page_key = ? AND pt.form_template_version_id = ? "
-                            "ORDER BY ct.name",
-                            (page_key, _lv_id)
-                        ).fetchall()
-                        _db_cats = [r['name'] for r in _rows if r['name']]
-                finally:
-                    _c.close()
-            except Exception:
-                _db_cats = []
+            # BUILD-mode preselected items (include_default='Y') are the QUOTE
+            # baseline whenever this field has never been explicitly saved
+            # (no entry in checkbox_data / form_data). Once a FORM page is
+            # saved, the exact checkbox state is respected — including an
+            # explicit empty selection.
+            if not selected_codes and key not in checkbox_data and key not in form_data:
+                for _def_code in _default_line_codes_for_page(page_key):
+                    if _def_code not in selected_codes:
+                        selected_codes.append(_def_code)
             items = get_line_items_by_codes(selected_codes) if selected_codes else []
 
             items.sort(key=lambda x: (
@@ -1320,14 +1302,17 @@ def _build_page_blocks(page_key, page, form_data, checkbox_data):
                 cat = item.get('category', '')
                 items_by_category.setdefault(cat, []).append(item)
 
-            # Show all DB categories even when empty, plus any with items
-            all_cats = list(dict.fromkeys(_db_cats + list(items_by_category.keys())))
+            # Bottom-up: only categories that actually have selected items appear.
+            all_cats = list(items_by_category.keys())
 
             for category in all_cats:
                 if category in seen_categories:
                     continue
                 seen_categories.add(category)
                 category_items = items_by_category.get(category, [])
+                if not category_items:
+                    continue  # category with no selected questions is omitted
+                page_has_content = True
                 category_images = _get_category_images(page_key, category)
                 # Persisted deletion: hide the category title (and its category
                 # images) but keep the line items — they still mirror FORM.
@@ -1430,6 +1415,35 @@ def _build_page_blocks(page_key, page, form_data, checkbox_data):
                             })
             continue
 
+    # Bottom-up: emit the page title/heading only when this page produced
+    # content — or always for the quote's cover page (index / Project Details),
+    # so the document header is always present.
+    if page_has_content or page_key == 'index':
+        if f'page:{page_key}' not in hidden_blocks:
+            snapshot_blocks.insert(0, {
+                'id': f"form__{page_key}__page_title",
+                'type': 'page_title',
+                'source_page': page_key,
+                'source_block_id': '__page_title__',
+                'snapshot': {'title': page_title},
+                'editor_overrides': {},
+                'flags': { 'source_dirty': False, 'editor_dirty': False, 'hidden': False },
+                'settings': { 'margin_top': 0, 'margin_bottom': 0, 'padding': 0, 'alignment': 'left' },
+                'category_sort_order': -1,
+            })
+        if f'heading:{page_key}' not in hidden_blocks:
+            snapshot_blocks.insert(1, {
+                'id': f"form__{page_key}__page_heading",
+                'type': 'page_heading',
+                'source_page': page_key,
+                'source_block_id': '__page_heading__',
+                'snapshot': {'title': page_title},
+                'editor_overrides': {},
+                'flags': { 'source_dirty': False, 'editor_dirty': False },
+                'settings': { 'margin_top': 10, 'margin_bottom': 10, 'padding': 12, 'alignment': 'left', 'font_size': 24 },
+                'category_sort_order': -1,
+            })
+
     return snapshot_blocks
 
 
@@ -1497,6 +1511,10 @@ def build_quote_editor_blocks_for_all_pages():
     for page_key, page in pages.items():
         vis = _get_page_visibility(page_key)
         if not vis.get('quote_visible', True):
+            continue
+        # Image Upload is a step page (uploaded images become image blocks),
+        # not a page of the quote document — keep it out of the page order.
+        if page_key == 'image_upload_page':
             continue
         page_blocks = _build_page_blocks(page_key, page, form_data, checkbox_data)
         all_blocks.extend(page_blocks)

@@ -5069,9 +5069,12 @@ def dynamic_page(page_id):
 
         nav = resolve_builder_beta_navigation_targets(page_id, page_schema)
         next_page = nav.get('next_page_id')
-        if next_page and next_page in all_pages:
+        # Standalone pages (image upload, review) are accessed manually via
+        # sidebar buttons, not through the Continue chain. After the last form
+        # page the user is taken to the unified Save/Load page.
+        if next_page and next_page in all_pages and next_page not in ('image_upload_page', 'review'):
             return redirect(url_for('dynamic_page', page_id=next_page))
-        return redirect(url_for('review'))
+        return redirect(url_for('save_load'))
 
     _li_cats = _get_li_categories_from_schema(page_id) or []
     edit_requested = request.args.get('edit', '').lower() in {'1', 'true', 'yes'}
@@ -5252,7 +5255,7 @@ def index():
         # Redirect to first dynamic page instead of redundant index page
         if first_dynamic_page:
             return redirect(url_for('dynamic_page', page_id=first_dynamic_page))
-        return redirect(url_for('review'))
+        return redirect(url_for('save_load'))
 
     # GET: preload form if data exists
     data = session.get('data', {})
@@ -5674,7 +5677,7 @@ def image_upload_page():
 
         session['checkbox_data'] = checkbox_data
         session.modified = True
-        return redirect(url_for('review'))
+        return redirect(url_for('save_load'))
 
     # GET: build runtime schema from builder beta state
     page_schema = compile_builder_beta_page_to_runtime_schema(
