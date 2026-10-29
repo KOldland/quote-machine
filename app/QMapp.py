@@ -328,6 +328,34 @@ app.config['WTF_CSRF_TIME_LIMIT'] = 86400
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
     os.makedirs(app.config['UPLOAD_FOLDER'])
 
+# ── Static asset cache-busting ────────────────────────────────────────
+# Session-based storage means saved sessions persist across deployments, and
+# browsers can keep an old copy of the editor JS in cache. Versioning the
+# static URLs by file mtime forces a fresh download whenever these files
+# change, so editors never run stale logic (e.g. Quote Mode showing a blank
+# "No blocks yet." canvas because an old JS never rendered pending blocks).
+_STATIC_VERSION = None
+
+
+def _static_asset_version():
+    global _STATIC_VERSION
+    if _STATIC_VERSION is None:
+        latest = 0.0
+        for rel in ('js/user_output_editor.js', 'css/user_output_editor.css',
+                    'css/main.css', 'js/script.js'):
+            try:
+                latest = max(latest, os.path.getmtime(
+                    os.path.join(app.root_path, 'static', rel)))
+            except OSError:
+                pass
+        _STATIC_VERSION = str(int(latest))
+    return _STATIC_VERSION
+
+
+@app.context_processor
+def inject_static_version():
+    return {'static_version': _static_asset_version()}
+
 # Initialize the session extension
 Session(app)
 
@@ -6325,11 +6353,13 @@ def quote_editor():
         form_key = session.get('quote_editor_template_key', session.get('template_key'))
     else:
         form_key = session.get('template_key')
-    # Stale filesystem sessions (e.g. created before template_key existed, or
-    # holding an older key) leave form_key unset. Without repair, Quote Mode
-    # builds zero blocks and renders only the "No blocks yet." placeholder.
-    # Repair the session with the active template so FORM selections flow through.
-    if not form_key:
+    # Stale filesystem sessions persist across deployments: they may hold an
+    # obsolete template_key (or none at all) that has no payload in the DB.
+    # Without repair Quote Mode builds zero blocks and shows only the
+    # "No blocks yet." placeholder. Validate against the database and repair
+    # to the active default template so FORM selections flow through.
+    from template_store import load_template_payload as _load_tpl
+    if not form_key or not _load_tpl(form_key):
         form_key = TEMPLATE_STORE_KEY
         session['template_key'] = form_key
         session['quote_editor_template_key'] = form_key

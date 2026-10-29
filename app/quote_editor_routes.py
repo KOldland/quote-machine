@@ -1470,6 +1470,17 @@ def build_quote_editor_blocks_for_all_pages():
     checkbox_data = session.get('checkbox_data', {})
     payload = load_template_payload(form_key)
     if not payload:
+        # Stale filesystem sessions persist across deployments and may hold an
+        # obsolete template_key that no longer has a payload in the database.
+        # Repair the session and rebuild against the active default template so
+        # Quote Mode never renders a blank "No blocks yet." editor.
+        from config import TEMPLATE_STORE_KEY as _active_key
+        form_key = _active_key
+        session['template_key'] = form_key
+        session['quote_editor_template_key'] = form_key
+        session.modified = True
+        payload = load_template_payload(form_key)
+    if not payload:
         return []
     pages = payload.get('builder_beta', {}).get('pages', payload.get('pages', {}))
     if not pages:
