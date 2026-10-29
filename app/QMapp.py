@@ -30,7 +30,6 @@ import traceback
 from typing import Optional
 
 # Third-party Modules
-from flask_session import Session
 from flask_wtf.csrf import CSRFProtect
 from werkzeug.utils import secure_filename
 from templates import generate_template_svg
@@ -317,8 +316,6 @@ def set_quote_editor_active():
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024  # 20MB total (if batch)
-app.config['SESSION_TYPE'] = 'filesystem'  # Store sessions in the filesystem
-app.config['SESSION_FILE_DIR'] = str(Path(__file__).parent / 'flask_session')
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Ensure cookies are sent with same-origin AJAX
 app.config['SECRET_KEY'] = os.getenv(
     'QM_SECRET_KEY', 'dev-insecure-key-change-me')
@@ -356,8 +353,10 @@ def _static_asset_version():
 def inject_static_version():
     return {'static_version': _static_asset_version()}
 
-# Initialize the session extension
-Session(app)
+# Static assets are versioned (above) — no session extension needed,
+# because Flask's default signed-cookie sessions work across all Render
+# dynos without a shared filesystem.
+# Session(app)  # removed — filesystem sessions don't work on Render
 
 # inject current user role and edit mode into every template context
 @app.context_processor
