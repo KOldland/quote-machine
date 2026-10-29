@@ -1415,32 +1415,34 @@ def _build_page_blocks(page_key, page, form_data, checkbox_data):
                             })
             continue
 
-    # Every FORM page appears in QUOTE mode (matching the BUILD-mode structure).
-    # Categories and line items within each page are still filtered bottom-up.
-    if f'page:{page_key}' not in hidden_blocks:
-        snapshot_blocks.insert(0, {
-            'id': f"form__{page_key}__page_title",
-            'type': 'page_title',
-            'source_page': page_key,
-            'source_block_id': '__page_title__',
-            'snapshot': {'title': page_title},
-            'editor_overrides': {},
-            'flags': { 'source_dirty': False, 'editor_dirty': False, 'hidden': False },
-            'settings': { 'margin_top': 0, 'margin_bottom': 0, 'padding': 0, 'alignment': 'left' },
-            'category_sort_order': -1,
-        })
-    if f'heading:{page_key}' not in hidden_blocks:
-        snapshot_blocks.insert(1, {
-            'id': f"form__{page_key}__page_heading",
-            'type': 'page_heading',
-            'source_page': page_key,
-            'source_block_id': '__page_heading__',
-            'snapshot': {'title': page_title},
-            'editor_overrides': {},
-            'flags': { 'source_dirty': False, 'editor_dirty': False },
-            'settings': { 'margin_top': 10, 'margin_bottom': 10, 'padding': 12, 'alignment': 'left', 'font_size': 24 },
-            'category_sort_order': -1,
-        })
+    # Bottom-up: emit the page title/heading only when this page produced
+    # content — or always for the quote's cover page (index / Project Details),
+    # so the document header is always present.
+    if page_has_content or page_key == 'index':
+        if f'page:{page_key}' not in hidden_blocks:
+            snapshot_blocks.insert(0, {
+                'id': f"form__{page_key}__page_title",
+                'type': 'page_title',
+                'source_page': page_key,
+                'source_block_id': '__page_title__',
+                'snapshot': {'title': page_title},
+                'editor_overrides': {},
+                'flags': { 'source_dirty': False, 'editor_dirty': False, 'hidden': False },
+                'settings': { 'margin_top': 0, 'margin_bottom': 0, 'padding': 0, 'alignment': 'left' },
+                'category_sort_order': -1,
+            })
+        if f'heading:{page_key}' not in hidden_blocks:
+            snapshot_blocks.insert(1, {
+                'id': f"form__{page_key}__page_heading",
+                'type': 'page_heading',
+                'source_page': page_key,
+                'source_block_id': '__page_heading__',
+                'snapshot': {'title': page_title},
+                'editor_overrides': {},
+                'flags': { 'source_dirty': False, 'editor_dirty': False },
+                'settings': { 'margin_top': 10, 'margin_bottom': 10, 'padding': 12, 'alignment': 'left', 'font_size': 24 },
+                'category_sort_order': -1,
+            })
 
     return snapshot_blocks
 
