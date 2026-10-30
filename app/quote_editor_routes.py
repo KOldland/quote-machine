@@ -51,6 +51,8 @@ from template_store import (
     load_template_session,
     list_template_sessions,
     delete_template_session,
+    # Quote CRUD
+    update_quote_status,
 )
 
 quote_editor_bp = Blueprint('quote_editor', __name__)
@@ -326,7 +328,12 @@ def save_quote_route():
         settings=settings,
         form_data=form_data,
     )
-# ── Quote Themes ───────────────────────────────────────────────────
+    if not quote:
+        return jsonify({'success': False, 'error': 'Could not save quote'}), 500
+    return jsonify({'success': True, 'quote': quote}), 201
+
+
+# ── Quote Themes ─────────────────────────────────────────────────────
 
 @quote_editor_bp.route('/quote_editor/themes', methods=['GET'])
 def themes_list():
@@ -1028,6 +1035,20 @@ def update_quote_route(quote_id):
     if not updated:
         return jsonify({'success': False, 'error': 'Quote not found'}), 404
     return jsonify({'success': True, 'quote': updated})
+
+
+@quote_editor_bp.route('/quote_editor/quotes/<int:quote_id>/status', methods=['PUT'])
+def update_quote_status_route(quote_id):
+    """Update a quote's status (draft → final → sent → accepted/rejected)."""
+    form_key = session.get('template_key')
+    data = request.get_json(force=True) or {}
+    status = data.get('status')
+    if not status:
+        return jsonify({'success': False, 'error': 'Status is required'}), 400
+    ok = update_quote_status(quote_id, form_key, status)
+    if not ok:
+        return jsonify({'success': False, 'error': 'Quote not found'}), 404
+    return jsonify({'success': True, 'status': status})
 
 
 # ── Image Upload ────────────────────────────────────────────────────

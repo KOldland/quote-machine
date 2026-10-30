@@ -200,6 +200,10 @@ class _CompatConnection:
     def __enter__(self):
         return self
     
+    def __getattr__(self, name):
+        # Delegate unknown attributes (e.g., total_changes) to the underlying connection
+        return getattr(self._conn, name)
+    
     def executescript(self, script):
         """Run a multi-statement SQL script. PRAGMA statements are filtered out for PG."""
         statements = [s.strip() for s in script.split(';') if s.strip()]
@@ -3083,3 +3087,25 @@ def delete_saved_quote(quote_id: int, form_key: str, db_path: Optional[Path] = N
         return conn.total_changes > 0
     finally:
         conn.close()
+
+
+def update_quote_status(quote_id: int, form_key: str, status: str, db_path: Optional[Path] = None) -> bool:
+    """Update the status of a saved quote (e.g. draft → final → sent → accepted/rejected)."""
+    conn = None
+    try:
+        conn = _connect(db_path)
+        ft_id = _get_form_template_id(conn, form_key)
+        if not ft_id:
+            return False
+        cur = conn.execute(
+            "UPDATE saved_quotes SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND form_template_id = ?",
+            (status, quote_id, ft_id),
+        )
+        conn.commit()
+        ok = cur.rowcount > 0
+        conn.close()
+        return ok
+    except Exception:
+        if conn:
+            conn.close()
+        return False
