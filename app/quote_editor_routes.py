@@ -13,7 +13,7 @@ import json
 import os
 from pathlib import Path
 from typing import Optional
-from flask import Blueprint, request, session, jsonify, abort, send_file, current_app
+from flask import Blueprint, request, session, jsonify, abort, send_file, current_app, url_for
 from werkzeug.utils import secure_filename
 from merge_tags import get_merge_tag_values, replace_merge_tags
 from template_store import (
@@ -39,6 +39,12 @@ from template_store import (
     get_theme,
     apply_theme_to_blocks,
     delete_theme,
+    # Global theme CRUD
+    list_global_themes,
+    get_global_theme,
+    save_global_theme,
+    delete_global_theme,
+    apply_global_theme_to_template,
     _connect,
 )
 
@@ -399,6 +405,117 @@ def delete_theme_route(theme_id):
     if not quote:
         return jsonify({'success': False, 'error': 'Form template not found'}), 404
     return jsonify({'success': True, 'quote': quote}), 201
+
+
+# ── Global Theme Routes ────────────────────────────────────────────
+
+
+@quote_editor_bp.route('/quote_editor/global-themes', methods=['GET'])
+def global_themes_list():
+    """Return all global themes."""
+    themes = list_global_themes()
+    return jsonify({'success': True, 'themes': themes})
+
+
+@quote_editor_bp.route('/quote_editor/global-themes', methods=['POST'])
+def save_global_theme_route():
+    """Save a global theme (create or update by name)."""
+    data = request.get_json(force=True) or {}
+    name = (data.get('name') or '').strip()
+    if not name:
+        return jsonify({'success': False, 'error': 'Theme name is required'}), 400
+
+    css = data.get('css', {})
+    settings_json = data.get('settings_json', {})
+    if isinstance(settings_json, dict) and settings_json.get('document_styles'):
+        css = settings_json['document_styles']
+
+    blocks = data.get('blocks', [])
+    result = save_global_theme(
+        name=name,
+        description=data.get('description', ''),
+        logo_url=data.get('logo_url', ''),
+        font_family=data.get('font_family', 'Arial, sans-serif'),
+        primary_color=data.get('primary_color', '#000000'),
+        secondary_color=data.get('secondary_color', '#8a0000'),
+        margin_top=data.get('margin_top', 20),
+        margin_bottom=data.get('margin_bottom', 20),
+        margin_left=data.get('margin_left', 25),
+        margin_right=data.get('margin_right', 25),
+        header_html=data.get('header_html', ''),
+        footer_html=data.get('footer_html', ''),
+        page_size=data.get('page_size', 'A4'),
+        header_font_size=data.get('header_font_size', 10),
+        footer_font_size=data.get('footer_font_size', 8),
+        font_size_base=data.get('font_size_base', 16),
+        css_json=css,
+        sections_json=data.get('sections_json'),
+        is_default=data.get('is_default', False),
+        source_blocks=blocks,
+    )
+    if not result:
+        return jsonify({'success': False, 'error': 'Could not save global theme'}), 500
+    return jsonify({'success': True, 'theme': result})
+
+
+@quote_editor_bp.route('/quote_editor/global-themes/<int:theme_id>', methods=['GET'])
+def get_global_theme_route(theme_id):
+    """Return a single global theme by id."""
+    theme = get_global_theme(theme_id)
+    if not theme:
+        return jsonify({'success': False, 'error': 'Global theme not found'}), 404
+    return jsonify({'success': True, 'theme': theme})
+
+
+@quote_editor_bp.route('/quote_editor/global-themes/<int:theme_id>', methods=['DELETE'])
+def delete_global_theme_route(theme_id):
+    """Delete a global theme by id."""
+    ok = delete_global_theme(theme_id)
+    if not ok:
+        return jsonify({'success': False, 'error': 'Global theme not found'}), 404
+    return jsonify({'success': True})
+
+
+@quote_editor_bp.route('/quote_editor/global-themes/<int:theme_id>/apply-to-template/<form_key>', methods=['POST'])
+def apply_global_theme_route(theme_id, form_key):
+    """Apply a global theme's settings to the given form template."""
+    try:
+        data = request.get_json(force=True) or {}
+    except Exception:
+        data = {}
+    block_defaults_only = data.get('block_defaults_only', False)
+    ok = apply_global_theme_to_template(theme_id, form_key, block_defaults_only=block_defaults_only)
+    if not ok:
+        return jsonify({'success': False, 'error': 'Could not apply global theme'}), 400
+    return jsonify({'success': True})
+
+
+# ── Logo Upload ────────────────────────────────────────────────────
+
+
+@quote_editor_bp.route('/quote_editor/upload-logo', methods=['POST'])
+def upload_logo():
+    """Upload a logo image for a global theme. Returns the URL."""
+    file = request.files.get('file')
+    if not file or file.filename == '':
+        return jsonify({'success': False, 'error': 'No file provided'}), 400
+
+    # Validate extension
+    ext = (file.filename.rsplit('.', 1)[-1] if '.' in file.filename else '').lower()
+    if ext not in ('png', 'jpg', 'jpeg', 'gif', 'svg'):
+        return jsonify({'success': False, 'error': 'Unsupported file type (png/jpg/gif/svg only)'}), 400
+
+    # Save to static/uploads/themes/
+    themes_dir = Path(__file__).parent / 'static' / 'uploads' / 'themes'
+    themes_dir.mkdir(parents=True, exist_ok=True)
+
+    import uuid
+    filename = f'logo_{uuid.uuid4().hex[:12]}.{ext}'
+    filepath = themes_dir / filename
+    file.save(str(filepath))
+
+    url = url_for('static', filename=f'uploads/themes/{filename}')
+    return jsonify({'success': True, 'url': url, 'filename': filename})
 
 
 @quote_editor_bp.route('/quote_editor/load-quote/<int:quote_id>', methods=['GET'])

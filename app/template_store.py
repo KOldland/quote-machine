@@ -475,9 +475,43 @@ def _create_schema(conn: sqlite3.Connection) -> None:
             image_order INTEGER DEFAULT 0,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
+
+        CREATE TABLE IF NOT EXISTS global_themes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            description TEXT DEFAULT '',
+            logo_url TEXT DEFAULT '',
+            font_family TEXT DEFAULT 'Arial, sans-serif',
+            primary_color TEXT DEFAULT '#000000',
+            secondary_color TEXT DEFAULT '#8a0000',
+            margin_top INTEGER DEFAULT 20,
+            margin_bottom INTEGER DEFAULT 20,
+            margin_left INTEGER DEFAULT 25,
+            margin_right INTEGER DEFAULT 25,
+            header_html TEXT DEFAULT '',
+            footer_html TEXT DEFAULT '',
+            page_size TEXT DEFAULT 'A4',
+            header_font_size INTEGER DEFAULT 10,
+            footer_font_size INTEGER DEFAULT 8,
+            font_size_base INTEGER DEFAULT 16,
+            css_json TEXT NOT NULL DEFAULT '{}',
+            sections_json TEXT NOT NULL DEFAULT '{}',
+            is_default INTEGER NOT NULL DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
         """
     )
 
+
+def _migrate_schema(conn) -> None:
+    """Idempotent schema migrations: columns added *after* initial table creation."""
+    # Add global_theme_id FK to form_templates (constraint enforced at app level)
+    try:
+        conn.execute("ALTER TABLE form_templates ADD COLUMN global_theme_id INTEGER")
+    except Exception:
+        pass
+    # future ALTER TABLE migrations go here
 
 
 def _upsert_tenant(conn: sqlite3.Connection, slug: str, name: str) -> int:
@@ -679,6 +713,7 @@ def save_template(
             conn.execute("ALTER TABLE line_items ADD COLUMN addon_amount REAL NOT NULL DEFAULT 0.0")
         except Exception:
             pass
+        _migrate_schema(conn)
 
         # Resolve or create the form_template row.
         tenant_id = _upsert_tenant(conn, slug="default", name="Default Tenant")
@@ -728,6 +763,7 @@ def save_template(
     # -----------------------------------------------------------------
     with _connect(db_path) as conn:
         _create_schema(conn)
+        _migrate_schema(conn)
 
         # -----------------------------------------------------------------
         # Create the default tenant and the top‑level form_template row.
@@ -826,6 +862,7 @@ def initialize_template_store(
     # -----------------------------------------------------------------
     with _connect(db_path) as conn:
         _create_schema(conn)
+        _migrate_schema(conn)
 
         # -----------------------------------------------------------------
         # Create the default tenant and the top‑level form_template row.
@@ -932,6 +969,7 @@ def clone_template(
     db_path = _default_db_path()
     with _connect(db_path) as conn:
         _create_schema(conn)
+        _migrate_schema(conn)
 
         tenant_id = _upsert_tenant(conn, slug="default", name="Default Tenant")
         template_id = _upsert_form_template(
@@ -2351,6 +2389,253 @@ def delete_theme(theme_id: int, form_key: str, db_path: Optional[Path] = None) -
         return cur.rowcount > 0
     finally:
         conn.close()
+
+
+# ── Global Themes ──────────────────────────────────────────────────
+
+
+def list_global_themes(db_path: Optional[Path] = None) -> list:
+    """Return all global themes, ordered by is_default DESC, updated_at DESC."""
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    try:
+        rows = conn.execute(
+            "SELECT id, name, description, logo_url, font_family, primary_color, "
+            "secondary_color, margin_top, margin_bottom, margin_left, margin_right, "
+            "page_size, header_font_size, footer_font_size, font_size_base, "
+            "is_default, created_at, updated_at "
+            "FROM global_themes ORDER BY is_default DESC, updated_at DESC"
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def save_global_theme(
+    name: str,
+    *,
+    description: str = '',
+    logo_url: str = '',
+    font_family: str = 'Arial, sans-serif',
+    primary_color: str = '#000000',
+    secondary_color: str = '#8a0000',
+    margin_top: int = 20,
+    margin_bottom: int = 20,
+    margin_left: int = 25,
+    margin_right: int = 25,
+    header_html: str = '',
+    footer_html: str = '',
+    page_size: str = 'A4',
+    header_font_size: int = 10,
+    footer_font_size: int = 8,
+    font_size_base: int = 16,
+    css_json: Optional[dict] = None,
+    sections_json: Optional[dict] = None,
+    is_default: bool = False,
+    source_blocks: Optional[list] = None,
+    db_path: Optional[Path] = None,
+) -> Optional[dict]:
+    """Save a global theme (upsert by name).
+
+    *css_json* mirrors output_templates.css_json (document_styles).
+    *sections_json* mirrors output_templates.sections_json (block_defaults).
+    *source_blocks* — if provided, extract block_defaults from live blocks.
+    """
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    try:
+        # Extract block_defaults from source blocks if not provided directly
+        if source_blocks and not sections_json:
+            sections_json = {}
+            defaults = {}
+            for b in source_blocks:
+                bt = b.get('type')
+                if bt and bt not in defaults:
+                    s = b.get('settings', {})
+                    defaults[bt] = {
+                        'margin_top': s.get('margin_top', 8),
+                        'margin_bottom': s.get('margin_bottom', 8),
+                        'padding': s.get('padding', 12),
+                        'alignment': s.get('alignment', 'left'),
+                        'font_size': s.get('font_size', 14),
+                        'list_type': b.get('list_type', 'ul'),
+                    }
+            sections_json = {'block_defaults': defaults}
+
+        # Check if theme with this name already exists — update it
+        existing = conn.execute(
+            "SELECT id FROM global_themes WHERE name = ?",
+            (name,)
+        ).fetchone()
+        if existing:
+            conn.execute(
+                """UPDATE global_themes SET
+                    description = ?, logo_url = ?, font_family = ?, primary_color = ?,
+                    secondary_color = ?, margin_top = ?, margin_bottom = ?,
+                    margin_left = ?, margin_right = ?, header_html = ?, footer_html = ?,
+                    page_size = ?, header_font_size = ?, footer_font_size = ?,
+                    font_size_base = ?, css_json = ?, sections_json = ?,
+                    is_default = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?""",
+                (
+                    description, logo_url, font_family, primary_color,
+                    secondary_color, margin_top, margin_bottom,
+                    margin_left, margin_right, header_html, footer_html,
+                    page_size, header_font_size, footer_font_size,
+                    font_size_base, json.dumps(css_json or {}),
+                    json.dumps(sections_json or {}),
+                    1 if is_default else 0,
+                    int(existing['id']),
+                )
+            )
+            conn.commit()
+            return {'id': int(existing['id']), 'action': 'updated', 'name': name}
+        else:
+            cur = conn.execute(
+                """INSERT INTO global_themes
+                    (name, description, logo_url, font_family, primary_color,
+                     secondary_color, margin_top, margin_bottom, margin_left, margin_right,
+                     header_html, footer_html, page_size, header_font_size, footer_font_size,
+                     font_size_base, css_json, sections_json, is_default)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    name, description, logo_url, font_family, primary_color,
+                    secondary_color, margin_top, margin_bottom,
+                    margin_left, margin_right, header_html, footer_html,
+                    page_size, header_font_size, footer_font_size,
+                    font_size_base, json.dumps(css_json or {}),
+                    json.dumps(sections_json or {}),
+                    1 if is_default else 0,
+                )
+            )
+            conn.commit()
+            return {'id': cur.lastrowid, 'action': 'created', 'name': name}
+    finally:
+        conn.close()
+
+def get_global_theme(theme_id: int, db_path: Optional[Path] = None) -> Optional[dict]:
+    """Return a single global theme by id, including css_json and sections_json."""
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    try:
+        row = conn.execute(
+            "SELECT * FROM global_themes WHERE id = ?",
+            (theme_id,)
+        ).fetchone()
+        if not row:
+            return None
+        result = dict(row)
+        result['css_json'] = json.loads(result.get('css_json') or '{}')
+        result['sections_json'] = json.loads(result.get('sections_json') or '{}')
+        return result
+    finally:
+        conn.close()
+
+
+def delete_global_theme(theme_id: int, db_path: Optional[Path] = None) -> bool:
+    """Delete a global theme by id."""
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    try:
+        # Clear references in form_templates before deleting
+        conn.execute(
+            "UPDATE form_templates SET global_theme_id = NULL WHERE global_theme_id = ?",
+            (theme_id,)
+        )
+        cur = conn.execute(
+            "DELETE FROM global_themes WHERE id = ?",
+            (theme_id,)
+        )
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
+def apply_global_theme_to_template(
+    theme_id: int,
+    form_key: str,
+    *,
+    block_defaults_only: bool = False,
+    db_path: Optional[Path] = None,
+) -> bool:
+    """Copy a global theme's settings into output_templates for a form_template.
+
+    This is the mechanism by which a global theme gets applied to a specific
+    template. It creates or updates the output_templates row for the template
+    with the global theme's css_json and sections_json.
+
+    If *block_defaults_only* is True, only sections_json (block_defaults) is
+    copied, leaving css_json (document_styles) untouched.
+    """
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    try:
+        ft_row = conn.execute(
+            "SELECT id FROM form_templates WHERE key = ?", (form_key,)
+        ).fetchone()
+        if not ft_row:
+            return False
+        ft_id = int(ft_row['id'])
+
+        theme = get_global_theme(theme_id, db_path=db_path)
+        if not theme:
+            return False
+
+        # Check if an output_template already exists for this form
+        existing_ot = conn.execute(
+            "SELECT id, sections_json, css_json FROM output_templates WHERE form_template_id = ?",
+            (ft_id,)
+        ).fetchone()
+
+        css = theme.get('css_json') or {}
+        sections = theme.get('sections_json') or {}
+
+        if existing_ot:
+            # Convert to dict for cross-backend compatibility (sqlite3.Row vs RealDictRow)
+            existing_ot_dict = dict(existing_ot)
+            existing_css = json.loads(existing_ot_dict.get('css_json') or '{}')
+            existing_sections = json.loads(existing_ot_dict.get('sections_json') or '{}')
+
+            if block_defaults_only:
+                existing_sections['block_defaults'] = sections.get('block_defaults', {})
+                updated_sections = existing_sections
+                updated_css = existing_css
+            else:
+                updated_sections = sections
+                updated_css = css
+
+            conn.execute(
+                "UPDATE output_templates SET css_json = ?, sections_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (json.dumps(updated_css), json.dumps(updated_sections), int(existing_ot['id']))
+            )
+        else:
+            if block_defaults_only:
+                updated_sections = sections
+                updated_css = {}
+            else:
+                updated_sections = sections
+                updated_css = css
+
+            conn.execute(
+                "INSERT INTO output_templates (form_template_id, name, sections_json, css_json, is_default) VALUES (?, ?, ?, ?, 1)",
+                (ft_id, "From Global: " + theme['name'], json.dumps(updated_sections), json.dumps(updated_css))
+            )
+
+        # Also link the form_template to the global theme
+        conn.execute(
+            "UPDATE form_templates SET global_theme_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (theme_id, ft_id)
+        )
+        conn.commit()
+        return True
+    except Exception as _apply_err:
+        import traceback as _tb
+        _tb.print_exc()
+        return False
+    finally:
+        conn.close()
+
 
 def get_quote_editor_layout(
     form_key: str,
