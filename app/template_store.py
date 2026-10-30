@@ -500,6 +500,24 @@ def _create_schema(conn: sqlite3.Connection) -> None:
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
+
+        CREATE TABLE IF NOT EXISTS saved_sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            form_template_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            description TEXT DEFAULT '',
+            global_theme_id INTEGER,
+            template_key TEXT NOT NULL,
+            page_schemas_json TEXT NOT NULL,
+            form_data TEXT DEFAULT '{}',
+            hidden_blocks TEXT DEFAULT '[]',
+            status TEXT NOT NULL DEFAULT 'active',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (form_template_id) REFERENCES form_templates(id) ON DELETE CASCADE,
+            FOREIGN KEY (global_theme_id) REFERENCES global_themes(id) ON DELETE SET NULL
+        );
         """
     )
 
@@ -512,6 +530,152 @@ def _migrate_schema(conn) -> None:
     except Exception:
         pass
     # future ALTER TABLE migrations go here
+
+    # Unique index to support UPSERT on saved_sessions by (form_template_id, template_key, name)
+    try:
+        conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_saved_sessions_uq "
+            "ON saved_sessions (form_template_id, template_key, name)"
+        )
+    except Exception:
+        pass
+
+
+def get_form_template_id(form_key: str, db_path: str = None) -> Optional[int]:
+    """Resolve a form_template.id from its key, compatible with sqlite3.Row or defaultdict."""
+    conn = _connect(db_path)
+    cur = conn.execute(
+        "SELECT id FROM form_templates WHERE key = ?", (form_key,)
+    )
+    row = cur.fetchone()
+    conn.close()
+    if not row:
+        return None
+    return row["id"] if isinstance(row, dict) else row[0]
+
+
+def save_template_session(
+    name: str,
+    template_key: str,
+    page_schemas_json: str,
+    global_theme_id: int = None,
+    form_data: str = None,
+    hidden_blocks: str = None,
+    description: str = "",
+    user_id: int = None,
+    db_path: str = None,
+) -> Optional[Dict[str, Any]]:
+    """
+    Save or update a BUILD-mode snapshot into saved_sessions.
+
+    Upserts by (template_key, name) so re-saving a named template updates it.
+    Returns the saved session row as a dict, or None on failure.
+    """
+    ft_id = get_form_template_id(template_key, db_path)
+    if not ft_id:
+        return None
+
+    try:
+        conn = _connect(db_path)
+        conn.execute(
+            """
+            INSERT INTO saved_sessions (
+                user_id, form_template_id, name, description,
+                global_theme_id, template_key, page_schemas_json,
+                form_data, hidden_blocks, status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
+            ON CONFLICT(form_template_id, template_key, name) DO UPDATE SET
+                description = excluded.description,
+                global_theme_id = excluded.global_theme_id,
+                page_schemas_json = excluded.page_schemas_json,
+                form_data = excluded.form_data,
+                hidden_blocks = excluded.hidden_blocks,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            (
+                user_id,
+                ft_id,
+                name,
+                description or "",
+                global_theme_id,
+                template_key,
+                page_schemas_json,
+                form_data or "{}",
+                hidden_blocks or "[]",
+            ),
+        )
+        conn.commit()
+        row = conn.execute(
+            "SELECT * FROM saved_sessions WHERE form_template_id = ? AND template_key = ? AND name = ?",
+            (ft_id, template_key, name),
+        ).fetchone()
+        conn.close()
+        return dict(row) if row else None
+    except Exception:
+        if conn:
+            conn.close()
+        return None
+
+
+def load_template_session(session_id: int, db_path: str = None) -> Optional[Dict[str, Any]]:
+    """
+    Load a saved BUILD-mode template session by id.
+
+    Returns a dict with keys: page_schemas (decoded), form_data (decoded),
+    hidden_blocks (decoded), global_theme_id, name, description, etc.
+    """
+    try:
+        conn = _connect(db_path)
+        row = conn.execute(
+            "SELECT * FROM saved_sessions WHERE id = ?", (session_id,)
+        ).fetchone()
+        conn.close()
+        if not row:
+            return None
+        result = dict(row)
+        # Decode JSON fields
+        result["page_schemas"] = json.loads(result.get("page_schemas_json") or "{}")
+        result["form_data"] = json.loads(result.get("form_data") or "{}")
+        result["hidden_blocks"] = json.loads(result.get("hidden_blocks") or "[]")
+        return result
+    except Exception:
+        if conn:
+            conn.close()
+        return None
+
+
+def list_template_sessions(form_key: str, db_path: str = None) -> list:
+    """List all saved template sessions for a given form_key."""
+    ft_id = get_form_template_id(form_key, db_path)
+    if not ft_id:
+        return []
+    conn = _connect(db_path)
+    rows = conn.execute(
+        """SELECT id, name, description, global_theme_id, template_key,
+              page_schemas_json, form_data, hidden_blocks, status,
+              created_at, updated_at
+           FROM saved_sessions
+           WHERE form_template_id = ? AND template_key = ?
+           ORDER BY updated_at DESC""",
+        (ft_id, form_key),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def delete_template_session(session_id: int, db_path: str = None) -> bool:
+    """Delete a saved template session. Returns True if a row was deleted."""
+    try:
+        conn = _connect(db_path)
+        cur = conn.execute("DELETE FROM saved_sessions WHERE id = ?", (session_id,))
+        conn.commit()
+        deleted = cur.rowcount > 0
+        conn.close()
+        return deleted
+    except Exception:
+        if conn:
+            conn.close()
+        return False
 
 
 def _upsert_tenant(conn: sqlite3.Connection, slug: str, name: str) -> int:

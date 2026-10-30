@@ -46,6 +46,11 @@ from template_store import (
     delete_global_theme,
     apply_global_theme_to_template,
     _connect,
+    # Template session (BUILD mode save/load)
+    save_template_session,
+    load_template_session,
+    list_template_sessions,
+    delete_template_session,
 )
 
 quote_editor_bp = Blueprint('quote_editor', __name__)
@@ -516,6 +521,147 @@ def upload_logo():
 
     url = url_for('static', filename=f'uploads/themes/{filename}')
     return jsonify({'success': True, 'url': url, 'filename': filename})
+
+
+# ── Template Session (BUILD mode save/load) ──────────────────────────
+
+
+@quote_editor_bp.route('/builder/save-template', methods=['POST'])
+def save_template_session_route():
+    """
+    Save the current BUILD-mode state as a named template session.
+
+    Expected JSON:
+    {
+        "name": "My Template",
+        "description": "optional",
+        "global_theme_id": 1,
+        "page_schemas": {...},        # current page_schemas from the session
+        "form_data": {...},           # current FORM selections
+        "hidden_blocks": [...]        # deleted title/category blocks
+    }
+    """
+    form_key = session.get('template_key')
+    if not form_key:
+        return jsonify({'success': False, 'error': 'No template_key in session'}), 400
+
+    data = request.get_json(force=True) or {}
+    name = (data.get('name') or '').strip()
+    if not name:
+        return jsonify({'success': False, 'error': 'Template name is required'}), 400
+
+    # Merge data from the request with the live session for resilience.
+    live_page_schemas = session.get('page_schemas', data.get('page_schemas', {}))
+    live_form_data = {
+        'data': session.get('data', {}),
+        'checkbox_data': session.get('checkbox_data', {}),
+        'session_overrides': session.get('session_overrides', {}),
+        'hidden_blocks': session.get('quote_editor_hidden_blocks', []),
+        'template_key': form_key,
+    }
+
+    # If the client sent explicit data, merge it in (client wins for what it sends).
+    if data.get('form_data'):
+        live_form_data.update(data['form_data'])
+    if data.get('hidden_blocks') is not None:
+        live_form_data['hidden_blocks'] = data['hidden_blocks']
+
+    result = save_template_session(
+        name=name,
+        template_key=form_key,
+        page_schemas_json=json.dumps(data.get('page_schemas') or live_page_schemas, sort_keys=True),
+        global_theme_id=data.get('global_theme_id') or session.get('global_theme_id'),
+        form_data=json.dumps(live_form_data, sort_keys=True),
+        hidden_blocks=json.dumps(live_form_data.get('hidden_blocks', []), sort_keys=True),
+        description=data.get('description', ''),
+        user_id=session.get('user_id'),
+    )
+    if not result:
+        return jsonify({'success': False, 'error': 'Could not save template session'}), 500
+
+    return jsonify({'success': True, 'session': result}), 201
+
+
+@quote_editor_bp.route('/builder/templates', methods=['GET'])
+def list_template_sessions_route():
+    """List all saved template sessions for the current form_key."""
+    form_key = session.get('template_key')
+    if not form_key:
+        return jsonify({'success': False, 'error': 'No template_key in session'}), 400
+
+    sessions = list_template_sessions(form_key)
+    return jsonify({'success': True, 'sessions': sessions})
+
+
+@quote_editor_bp.route('/builder/templates/<int:session_id>', methods=['GET'])
+def get_template_session_route(session_id):
+    """Get a single saved template session by id."""
+    form_key = session.get('template_key')
+    session_data = load_template_session(session_id)
+    if not session_data:
+        return jsonify({'success': False, 'error': 'Template session not found'}), 404
+
+    # Verify ownership
+    if session_data.get('template_key') != form_key:
+        return jsonify({'success': False, 'error': 'Access denied'}), 403
+
+    return jsonify({'success': True, 'session': session_data})
+
+
+@quote_editor_bp.route('/builder/load-template/<int:session_id>', methods=['POST'])
+def load_template_session_route(session_id):
+    """
+    Load a saved BUILD-mode template session into the current session.
+
+    Restores:
+      - page_schemas (BUILD mode structure)
+      - form_data (FORM mode selections)
+      - hidden_blocks (deleted title/category blocks)
+      - global_theme_id
+    """
+    form_key = session.get('template_key')
+    session_data = load_template_session(session_id)
+    if not session_data:
+        return jsonify({'success': False, 'error': 'Template session not found'}), 404
+
+    if session_data.get('template_key') != form_key:
+        return jsonify({'success': False, 'error': 'Access denied'}), 403
+
+    # Restore into the Flask session
+    page_schemas = session_data.get('page_schemas', {})
+    form_data = session_data.get('form_data', {})
+    hidden_blocks = session_data.get('hidden_blocks', [])
+
+    session['page_schemas'] = page_schemas
+    session['data'] = form_data.get('data', {})
+    session['checkbox_data'] = form_data.get('checkbox_data', {})
+    session['session_overrides'] = form_data.get('session_overrides', {})
+    session['quote_editor_hidden_blocks'] = hidden_blocks
+    if session_data.get('global_theme_id'):
+        session['global_theme_id'] = session_data['global_theme_id']
+
+    session['_auto_restored'] = True
+    session.modified = True
+
+    return jsonify({'success': True, 'message': 'Template loaded into session'})
+
+
+@quote_editor_bp.route('/builder/templates/<int:session_id>', methods=['DELETE'])
+def delete_template_session_route(session_id):
+    """Delete a saved template session."""
+    form_key = session.get('template_key')
+    session_data = load_template_session(session_id)
+    if not session_data:
+        return jsonify({'success': False, 'error': 'Template session not found'}), 404
+
+    if session_data.get('template_key') != form_key:
+        return jsonify({'success': False, 'error': 'Access denied'}), 403
+
+    ok = delete_template_session(session_id)
+    if not ok:
+        return jsonify({'success': False, 'error': 'Could not delete template session'}), 500
+
+    return jsonify({'success': True})
 
 
 @quote_editor_bp.route('/quote_editor/load-quote/<int:quote_id>', methods=['GET'])
