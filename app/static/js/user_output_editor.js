@@ -748,61 +748,6 @@ const IMAGE_FRAMES = [
      clearSelection();
    }
 
-   function getAvailableMergeTags() {
-     const tags = new Set();
-     const currentPage = pages[window.__currentPageIndex || 0] || [];
-     currentPage.forEach(block => {
-       const snapshot = block.snapshot || {};
-       const outputNotes = snapshot.output_notes || '';
-       const matches = outputNotes.match(/\{([^{}]+)\}/g);
-       if (matches) {
-         matches.forEach(m => tags.add(m.slice(1, -1)));
-       }
-       const outputGuidance = snapshot.output_guidance || '';
-       const guidanceMatches = outputGuidance.match(/\{([^{}]+)\}/g);
-       if (guidanceMatches) {
-         guidanceMatches.forEach(m => tags.add(m.slice(1, -1)));
-       }
-     });
-     return Array.from(tags).sort();
-   }
-
-   function populateMergeTags() {
-     const list = document.getElementById('mergeTagList');
-     if (!list) return;
-     const tags = getAvailableMergeTags();
-     if (!tags.length) {
-       list.innerHTML = '<p style="color:#666; font-size:0.85rem;">No merge tags available.</p>';
-       return;
-     }
-     list.innerHTML = tags.map(tag =>
-       `<button class="merge-tag-item" data-tag="{${tag}}"><code>{${tag}}</code></button>`
-     ).join('');
-     list.querySelectorAll('.merge-tag-item').forEach(btn => {
-       btn.addEventListener('click', () => {
-         insertMergeTag(btn.dataset.tag);
-       });
-     });
-   }
-
-   function insertMergeTag(tag) {
-     const popup = document.getElementById('mergeTagPopup');
-     if (popup) popup.style.display = 'none';
-     const active = document.querySelector('.editor-block.is-active .editor-block__content');
-     if (!active) return;
-     active.focus();
-     const sel = window.getSelection();
-     if (!sel.rangeCount) return;
-     const range = sel.getRangeAt(0);
-     range.deleteContents();
-     const textNode = document.createTextNode(tag);
-     range.insertNode(textNode);
-     range.setStartAfter(textNode);
-     range.setEndAfter(textNode);
-     sel.removeAllRanges();
-     sel.addRange(range);
-     triggerAutoSave();
-   }
 
   function clearAllLists() {
     blocks.forEach(block => {
@@ -951,30 +896,6 @@ const IMAGE_FRAMES = [
 
     document.getElementById('insertImageToolbarBtn').addEventListener('click', () => {
       openGalleryModal('image');
-    });
-
-    document.getElementById('insertMergeTagBtn')?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const popup = document.getElementById('mergeTagPopup');
-      if (!popup) return;
-      const rect = e.currentTarget.getBoundingClientRect();
-      popup.style.position = 'fixed';
-      popup.style.top = (rect.bottom + 4) + 'px';
-      popup.style.left = rect.left + 'px';
-      if (popup.style.display === 'none') {
-        populateMergeTags();
-        popup.style.display = 'block';
-      } else {
-        popup.style.display = 'none';
-      }
-    });
-
-    document.addEventListener('click', (e) => {
-      const popup = document.getElementById('mergeTagPopup');
-      const btn = document.getElementById('insertMergeTagBtn');
-      if (popup && btn && !popup.contains(e.target) && e.target !== btn) {
-        popup.style.display = 'none';
-      }
     });
 
     document.getElementById('undoBtn')?.addEventListener('click', undo);
@@ -2057,7 +1978,6 @@ const IMAGE_FRAMES = [
 
   function initStylesModal() {
     buildTypographyRows();
-    document.getElementById('stylesBtn').addEventListener('click', openStylesModal);
     document.getElementById('closeStylesModal').addEventListener('click', closeStylesModal);
     document.getElementById('confirmStylesBtn').addEventListener('click', confirmStyles);
     document.getElementById('saveThemeBtn').addEventListener('click', openSaveThemeModal);
@@ -2270,19 +2190,9 @@ const IMAGE_FRAMES = [
   }
 
   function initModals() {
-    document.getElementById('previewBtn').addEventListener('click', openPreviewModal);
-    document.getElementById('saveBtn').addEventListener('click', quickSave);
-    document.getElementById('saveAsBtn').addEventListener('click', openSaveAsQuoteModal);
-    document.getElementById('loadBtn').addEventListener('click', openLoadModal);
-    document.getElementById('newQuoteBtn').addEventListener('click', function() {
-      if (confirm('Start NEW quote? Current quote data will be cleared. Only BUILD mode preselected items will be loaded.')) {
-        fetch('/session/clear', { method: 'POST', headers: { 'X-CSRFToken': getCsrfToken() } })
-          .then(r => r.json())
-          .then(d => { if (d.success) window.location.href = '/quote_editor'; })
-          .catch(() => alert('Network error.'));
-      }
-    });
-    document.getElementById('exportBtn').addEventListener('click', openExportModal);
+    document.getElementById('previewToolbarBtn').addEventListener('click', openPreviewModal);
+    document.getElementById('sidebarThemeBtn').addEventListener('click', openStylesModal);
+    document.getElementById('sidebarExportBtn').addEventListener('click', openExportModal);
     document.getElementById('confirmSaveAsQuoteBtn').addEventListener('click', confirmSaveAsQuote);
     document.getElementById('saveAsThemeBtn').addEventListener('click', openSaveAsThemeModal);
     document.getElementById('closeSaveAsQuoteModal').addEventListener('click', () => {

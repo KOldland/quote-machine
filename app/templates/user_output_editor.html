@@ -20,11 +20,17 @@
   <div style="border-top:1px solid rgba(255,255,255,0.12);margin:0.75rem 0;"></div>
   <div class="edit-mode-actions" style="margin-top:.5rem;display:flex;flex-direction:column;gap:.35rem;">
     <button type="button" class="btn btn-sidebar"
-            style="width:100%;text-align:left;"
-            onclick="window.location.href='{{ url_for('save_load') }}'">Save/Load</button>
-    <button type="button" class="btn btn-sidebar"
             style="width:100%;text-align:left;background:#6d0b0b;color:#fff;border:1px solid #6d0b0b;"
             onclick="if(confirm('Start NEW quote? Current form data will be cleared. Only BUILD mode preselected items will be loaded.')){fetch('{{ url_for('session_clear') }}',{method:'POST',headers:{'X-CSRFToken':'{{ csrf_token() }}'}}).then(r=>r.json()).then(d=>{if(d.success)window.location.href='/'});}">NEW QUOTE</button>
+    <button type="button" class="btn btn-sidebar"
+            style="width:100%;text-align:left;"
+            id="sidebarExportBtn">Export</button>
+    <button type="button" class="btn btn-sidebar"
+            style="width:100%;text-align:left;"
+            id="sidebarThemeBtn">Theme</button>
+    <button type="button" class="btn btn-sidebar"
+            style="width:100%;text-align:left;"
+            onclick="window.location.href='{{ url_for('save_load') }}'">Save/Load</button>
   </div>
 </div>
 {% endblock %}
@@ -41,13 +47,6 @@
 <div class="quote-editor">
   <header class="editor-header">
     <div class="editor-header__controls">
-      <button id="newQuoteBtn" class="btn btn-accent">NEW QUOTE</button>
-      <button id="previewBtn" class="btn btn-primary">Preview</button>
-      <button id="saveBtn" class="btn btn-primary">Save</button>
-      <button id="saveAsBtn" class="btn btn-primary">Save As</button>
-      <button id="loadBtn" class="btn btn-primary">Load</button>
-      <button id="stylesBtn" class="btn btn-primary" title="Document Styles">Theme</button>
-      <button id="exportBtn" class="btn btn-accent">Export</button>
       <span id="saveStatus" class="save-status"></span>
     </div>
   </header>
@@ -96,13 +95,16 @@
          <button type="button" id="insertImageToolbarBtn" title="Insert Image" class="toolbar-btn toolbar-btn--icon">
            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="1" y="2" width="14" height="12" rx="1.5"/><circle cx="5.5" cy="6" r="1.8"/><path d="M1 12l4-4 3 3 2-2 5 5"/></svg>
          </button>
-         <button type="button" id="insertMergeTagBtn" title="Insert Merge Tag" class="toolbar-btn toolbar-btn--text" style="white-space:nowrap;">&#123;&nbsp;&#125;</button>
-         <div class="merge-tag-popup" id="mergeTagPopup" style="display:none;">
-           <div class="merge-tag-popup-header">Available Merge Tags</div>
-           <div class="merge-tag-popup-body" id="mergeTagList">
-             <p style="color:#666; font-size:0.85rem;">Loading...</p>
-           </div>
-         </div>
+         <button type="button" id="previewToolbarBtn" title="Preview" class="toolbar-btn toolbar-btn--icon">
+           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+             <rect x="1" y="1" width="8" height="13" rx="0.5"/>
+             <line x1="3" y1="4" x2="7" y2="4"/>
+             <line x1="3" y1="6" x2="8" y2="6"/>
+             <line x1="3" y1="8" x2="6" y2="8"/>
+             <circle cx="12" cy="12" r="2"/>
+             <path d="M14 14l2 2"/>
+           </svg>
+         </button>
          <button type="button" class="ribbon-toggle toolbar-btn" id="ribbonToggle" title="Toggle Advanced Controls">
            Advanced
          </button>
