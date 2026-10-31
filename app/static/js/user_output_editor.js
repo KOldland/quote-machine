@@ -1490,17 +1490,41 @@ const IMAGE_FRAMES = [
   }
 
   function openExportModal() {
+    // Auto-collapse sidebar for full workspace width
+    const sidebar = document.getElementById('sidebar');
+    const mainContent = document.querySelector('.main-content');
+    let sidebarWasOpen = false;
+    if (sidebar && !sidebar.classList.contains('collapsed')) {
+      sidebar.classList.add('collapsed');
+      sidebarWasOpen = true;
+    }
+    if (mainContent && !mainContent.classList.contains('expanded')) {
+      mainContent.classList.add('expanded');
+    }
+    document.body.dataset.exportModalClosedSidebar = sidebarWasOpen;
     document.getElementById('exportModal').style.display = 'flex';
+  }
+
+  function closeExportModal() {
+    document.getElementById('exportModal').style.display = 'none';
+    // Reopen sidebar if we closed it
+    if (document.body.dataset.exportModalClosedSidebar === 'true') {
+      const sidebar = document.getElementById('sidebar');
+      const mainContent = document.querySelector('.main-content');
+      if (sidebar) sidebar.classList.remove('collapsed');
+      if (mainContent) mainContent.classList.remove('expanded');
+      delete document.body.dataset.exportModalClosedSidebar;
+    }
   }
 
   function exportPDF() {
     window.location.href = '/api/quote-editor/export-pdf';
-    document.getElementById('exportModal').style.display = 'none';
+    closeExportModal();
   }
 
   function exportDOCX() {
     window.location.href = '/api/quote-editor/export-docx';
-    document.getElementById('exportModal').style.display = 'none';
+    closeExportModal();
   }
 
   let previewPageIndex = 0;
@@ -1510,12 +1534,15 @@ const IMAGE_FRAMES = [
     // gets the full width of the workspace.
     const sidebar = document.getElementById('sidebar');
     const mainContent = document.querySelector('.main-content');
+    let sidebarWasOpen = false;
     if (sidebar && !sidebar.classList.contains('collapsed')) {
       sidebar.classList.add('collapsed');
+      sidebarWasOpen = true;
     }
     if (mainContent && !mainContent.classList.contains('expanded')) {
       mainContent.classList.add('expanded');
     }
+    document.body.dataset.previewModalClosedSidebar = sidebarWasOpen;
     previewPageIndex = Math.max(0, Math.min(window.__currentPageIndex || 0, pages.length - 1));
     renderPreviewPage();
     document.getElementById('previewModal').style.display = 'flex';
@@ -1524,6 +1551,14 @@ const IMAGE_FRAMES = [
 
   function closePreviewModal() {
     document.getElementById('previewModal').style.display = 'none';
+    // Reopen sidebar if we closed it
+    if (document.body.dataset.previewModalClosedSidebar === 'true') {
+      const sidebar = document.getElementById('sidebar');
+      const mainContent = document.querySelector('.main-content');
+      if (sidebar) sidebar.classList.remove('collapsed');
+      if (mainContent) mainContent.classList.remove('expanded');
+      delete document.body.dataset.previewModalClosedSidebar;
+    }
   }
 
   function updatePreviewResizeBanner() {
@@ -1935,12 +1970,32 @@ const IMAGE_FRAMES = [
   }
 
   function openStylesModal() {
+    // Auto-collapse sidebar for full workspace width
+    const sidebar = document.getElementById('sidebar');
+    const mainContent = document.querySelector('.main-content');
+    let sidebarWasOpen = false;
+    if (sidebar && !sidebar.classList.contains('collapsed')) {
+      sidebar.classList.add('collapsed');
+      sidebarWasOpen = true;
+    }
+    if (mainContent && !mainContent.classList.contains('expanded')) {
+      mainContent.classList.add('expanded');
+    }
+    document.body.dataset.stylesModalClosedSidebar = sidebarWasOpen;
     document.getElementById('stylesModal').style.display = 'flex';
     updateStylesFormFromDocumentStyles();
   }
 
   function closeStylesModal() {
     document.getElementById('stylesModal').style.display = 'none';
+    // Reopen sidebar if we closed it
+    if (document.body.dataset.stylesModalClosedSidebar === 'true') {
+      const sidebar = document.getElementById('sidebar');
+      const mainContent = document.querySelector('.main-content');
+      if (sidebar) sidebar.classList.remove('collapsed');
+      if (mainContent) mainContent.classList.remove('expanded');
+      delete document.body.dataset.stylesModalClosedSidebar;
+    }
   }
 
   async function confirmStyles() {
@@ -2201,9 +2256,7 @@ const IMAGE_FRAMES = [
     document.getElementById('closeLoadModal').addEventListener('click', () => {
       document.getElementById('loadModal').style.display = 'none';
     });
-    document.getElementById('closeExportModal').addEventListener('click', () => {
-      document.getElementById('exportModal').style.display = 'none';
-    });
+    document.getElementById('closeExportModal').addEventListener('click', closeExportModal);
     document.getElementById('exportPdfBtn').addEventListener('click', exportPDF);
     document.getElementById('exportDocxBtn').addEventListener('click', exportDOCX);
     document.getElementById('closePreviewModal').addEventListener('click', closePreviewModal);
@@ -2227,7 +2280,17 @@ const IMAGE_FRAMES = [
     document.querySelectorAll('.modal').forEach(modal => {
       modal.addEventListener('click', (e) => {
         if (e.target === modal) {
-          modal.style.display = 'none';
+          const modalId = modal.id;
+          // Use modal-specific close functions that handle sidebar restoration
+          if (modalId === 'exportModal') {
+            closeExportModal();
+          } else if (modalId === 'previewModal') {
+            closePreviewModal();
+          } else if (modalId === 'stylesModal') {
+            closeStylesModal();
+          } else {
+            modal.style.display = 'none';
+          }
         }
       });
     });
