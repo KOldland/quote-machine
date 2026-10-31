@@ -2248,6 +2248,7 @@ const IMAGE_FRAMES = [
     document.getElementById('previewToolbarBtn').addEventListener('click', openPreviewModal);
     document.getElementById('sidebarThemeBtn').addEventListener('click', openStylesModal);
     document.getElementById('sidebarExportBtn').addEventListener('click', openExportModal);
+    document.getElementById('sidebarSaveLoadBtn').addEventListener('click', openSaveLoadModal);
     document.getElementById('confirmSaveAsQuoteBtn').addEventListener('click', confirmSaveAsQuote);
     document.getElementById('saveAsThemeBtn').addEventListener('click', openSaveAsThemeModal);
     document.getElementById('closeSaveAsQuoteModal').addEventListener('click', () => {
@@ -2296,7 +2297,84 @@ const IMAGE_FRAMES = [
     });
   }
 
-  function initContextMenu() {
+  
+
+function openSaveLoadModal() {
+  document.getElementById('saveLoadModal').style.display = 'flex';
+  // Load the saved quotes list after a short delay to allow modal to render
+  setTimeout(loadSavedQuotesList, 100);
+}
+
+function closeSaveLoadModal() {
+  document.getElementById('saveLoadModal').style.display = 'none';
+}
+
+function saveLoadFormSubmit(event) {
+  event.preventDefault();
+  const form = event.target;
+  const formData = new FormData(form);
+  fetch('/save-load', {
+    method: 'POST',
+    body: formData,
+    headers: { 'X-CSRFToken': getCsrfToken() }
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      alert('Saved successfully');
+      closeSaveLoadModal();
+    } else {
+      alert('Save failed: ' + (data.error || 'unknown'));
+    }
+  })
+  .catch(error => {
+    alert('Save failed');
+  });
+}
+
+function loadQuote(quoteId) {
+  fetch(`/quote_editor/load-quote/${quoteId}`)
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      // Restore the quote data into the session/editor
+      window.__quoteEditorPendingBlocks = data.blocks_json || [];
+      window.__quoteEditorHiddenBlocks = data.hidden_blocks || [];
+      // Refresh the UI
+      renderBlocks();
+      closeSaveLoadModal();
+    } else {
+      alert('Load failed: ' + (data.error || 'unknown'));
+    }
+  })
+  .catch(error => {
+    alert('Load failed');
+  });
+}
+
+function loadSavedQuotesList() {
+  fetch('/quote_editor/quotes')
+  .then(response => response.json())
+  .then(data => {
+    const listContainer = document.getElementById('loadSection');
+    if (data.quotes && data.quotes.length > 0) {
+      let html = '';
+      data.quotes.forEach(quote => {
+        html += `<tr><td>${quote.name}</td><td>${quote.created_at}</td><td class="text-end"><button class="btn btn-sm btn-outline" onclick="loadQuote(${quote.id})">Load</button></td></tr>`;
+      });
+      listContainer.innerHTML = `<table class="table table-hover">${html}</table>`;
+    } else {
+      listContainer.innerHTML = '<p class="editor-settings-placeholder">No saved quotes yet.</p>';
+    }
+  })
+  .catch(error => {
+    document.getElementById('loadSection').innerHTML = '<p class="editor-settings-placeholder">Error loading quotes.</p>';
+  });
+}
+
+// Initialize the load list when modal opens
+document.getElementById('saveLoadModal').addEventListener('shown.bs.modal', loadSavedQuotesList);
+function initContextMenu() {
     const existingMenu = document.getElementById('blockContextMenu');
     if (existingMenu) existingMenu.remove();
 
