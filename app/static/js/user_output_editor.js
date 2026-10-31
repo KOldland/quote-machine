@@ -748,61 +748,6 @@ const IMAGE_FRAMES = [
      clearSelection();
    }
 
-   function getAvailableMergeTags() {
-     const tags = new Set();
-     const currentPage = pages[window.__currentPageIndex || 0] || [];
-     currentPage.forEach(block => {
-       const snapshot = block.snapshot || {};
-       const outputNotes = snapshot.output_notes || '';
-       const matches = outputNotes.match(/\{([^{}]+)\}/g);
-       if (matches) {
-         matches.forEach(m => tags.add(m.slice(1, -1)));
-       }
-       const outputGuidance = snapshot.output_guidance || '';
-       const guidanceMatches = outputGuidance.match(/\{([^{}]+)\}/g);
-       if (guidanceMatches) {
-         guidanceMatches.forEach(m => tags.add(m.slice(1, -1)));
-       }
-     });
-     return Array.from(tags).sort();
-   }
-
-   function populateMergeTags() {
-     const list = document.getElementById('mergeTagList');
-     if (!list) return;
-     const tags = getAvailableMergeTags();
-     if (!tags.length) {
-       list.innerHTML = '<p style="color:#666; font-size:0.85rem;">No merge tags available.</p>';
-       return;
-     }
-     list.innerHTML = tags.map(tag =>
-       `<button class="merge-tag-item" data-tag="{${tag}}"><code>{${tag}}</code></button>`
-     ).join('');
-     list.querySelectorAll('.merge-tag-item').forEach(btn => {
-       btn.addEventListener('click', () => {
-         insertMergeTag(btn.dataset.tag);
-       });
-     });
-   }
-
-   function insertMergeTag(tag) {
-     const popup = document.getElementById('mergeTagPopup');
-     if (popup) popup.style.display = 'none';
-     const active = document.querySelector('.editor-block.is-active .editor-block__content');
-     if (!active) return;
-     active.focus();
-     const sel = window.getSelection();
-     if (!sel.rangeCount) return;
-     const range = sel.getRangeAt(0);
-     range.deleteContents();
-     const textNode = document.createTextNode(tag);
-     range.insertNode(textNode);
-     range.setStartAfter(textNode);
-     range.setEndAfter(textNode);
-     sel.removeAllRanges();
-     sel.addRange(range);
-     triggerAutoSave();
-   }
 
   function clearAllLists() {
     blocks.forEach(block => {
@@ -951,30 +896,6 @@ const IMAGE_FRAMES = [
 
     document.getElementById('insertImageToolbarBtn').addEventListener('click', () => {
       openGalleryModal('image');
-    });
-
-    document.getElementById('insertMergeTagBtn')?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const popup = document.getElementById('mergeTagPopup');
-      if (!popup) return;
-      const rect = e.currentTarget.getBoundingClientRect();
-      popup.style.position = 'fixed';
-      popup.style.top = (rect.bottom + 4) + 'px';
-      popup.style.left = rect.left + 'px';
-      if (popup.style.display === 'none') {
-        populateMergeTags();
-        popup.style.display = 'block';
-      } else {
-        popup.style.display = 'none';
-      }
-    });
-
-    document.addEventListener('click', (e) => {
-      const popup = document.getElementById('mergeTagPopup');
-      const btn = document.getElementById('insertMergeTagBtn');
-      if (popup && btn && !popup.contains(e.target) && e.target !== btn) {
-        popup.style.display = 'none';
-      }
     });
 
     document.getElementById('undoBtn')?.addEventListener('click', undo);
@@ -1569,17 +1490,41 @@ const IMAGE_FRAMES = [
   }
 
   function openExportModal() {
+    // Auto-collapse sidebar for full workspace width
+    const sidebar = document.getElementById('sidebar');
+    const mainContent = document.querySelector('.main-content');
+    let sidebarWasOpen = false;
+    if (sidebar && !sidebar.classList.contains('collapsed')) {
+      sidebar.classList.add('collapsed');
+      sidebarWasOpen = true;
+    }
+    if (mainContent && !mainContent.classList.contains('expanded')) {
+      mainContent.classList.add('expanded');
+    }
+    document.body.dataset.exportModalClosedSidebar = sidebarWasOpen;
     document.getElementById('exportModal').style.display = 'flex';
+  }
+
+  function closeExportModal() {
+    document.getElementById('exportModal').style.display = 'none';
+    // Reopen sidebar if we closed it
+    if (document.body.dataset.exportModalClosedSidebar === 'true') {
+      const sidebar = document.getElementById('sidebar');
+      const mainContent = document.querySelector('.main-content');
+      if (sidebar) sidebar.classList.remove('collapsed');
+      if (mainContent) mainContent.classList.remove('expanded');
+      delete document.body.dataset.exportModalClosedSidebar;
+    }
   }
 
   function exportPDF() {
     window.location.href = '/api/quote-editor/export-pdf';
-    document.getElementById('exportModal').style.display = 'none';
+    closeExportModal();
   }
 
   function exportDOCX() {
     window.location.href = '/api/quote-editor/export-docx';
-    document.getElementById('exportModal').style.display = 'none';
+    closeExportModal();
   }
 
   let previewPageIndex = 0;
@@ -1589,12 +1534,15 @@ const IMAGE_FRAMES = [
     // gets the full width of the workspace.
     const sidebar = document.getElementById('sidebar');
     const mainContent = document.querySelector('.main-content');
+    let sidebarWasOpen = false;
     if (sidebar && !sidebar.classList.contains('collapsed')) {
       sidebar.classList.add('collapsed');
+      sidebarWasOpen = true;
     }
     if (mainContent && !mainContent.classList.contains('expanded')) {
       mainContent.classList.add('expanded');
     }
+    document.body.dataset.previewModalClosedSidebar = sidebarWasOpen;
     previewPageIndex = Math.max(0, Math.min(window.__currentPageIndex || 0, pages.length - 1));
     renderPreviewPage();
     document.getElementById('previewModal').style.display = 'flex';
@@ -1603,6 +1551,14 @@ const IMAGE_FRAMES = [
 
   function closePreviewModal() {
     document.getElementById('previewModal').style.display = 'none';
+    // Reopen sidebar if we closed it
+    if (document.body.dataset.previewModalClosedSidebar === 'true') {
+      const sidebar = document.getElementById('sidebar');
+      const mainContent = document.querySelector('.main-content');
+      if (sidebar) sidebar.classList.remove('collapsed');
+      if (mainContent) mainContent.classList.remove('expanded');
+      delete document.body.dataset.previewModalClosedSidebar;
+    }
   }
 
   function updatePreviewResizeBanner() {
@@ -2014,12 +1970,32 @@ const IMAGE_FRAMES = [
   }
 
   function openStylesModal() {
+    // Auto-collapse sidebar for full workspace width
+    const sidebar = document.getElementById('sidebar');
+    const mainContent = document.querySelector('.main-content');
+    let sidebarWasOpen = false;
+    if (sidebar && !sidebar.classList.contains('collapsed')) {
+      sidebar.classList.add('collapsed');
+      sidebarWasOpen = true;
+    }
+    if (mainContent && !mainContent.classList.contains('expanded')) {
+      mainContent.classList.add('expanded');
+    }
+    document.body.dataset.stylesModalClosedSidebar = sidebarWasOpen;
     document.getElementById('stylesModal').style.display = 'flex';
     updateStylesFormFromDocumentStyles();
   }
 
   function closeStylesModal() {
     document.getElementById('stylesModal').style.display = 'none';
+    // Reopen sidebar if we closed it
+    if (document.body.dataset.stylesModalClosedSidebar === 'true') {
+      const sidebar = document.getElementById('sidebar');
+      const mainContent = document.querySelector('.main-content');
+      if (sidebar) sidebar.classList.remove('collapsed');
+      if (mainContent) mainContent.classList.remove('expanded');
+      delete document.body.dataset.stylesModalClosedSidebar;
+    }
   }
 
   async function confirmStyles() {
@@ -2057,7 +2033,6 @@ const IMAGE_FRAMES = [
 
   function initStylesModal() {
     buildTypographyRows();
-    document.getElementById('stylesBtn').addEventListener('click', openStylesModal);
     document.getElementById('closeStylesModal').addEventListener('click', closeStylesModal);
     document.getElementById('confirmStylesBtn').addEventListener('click', confirmStyles);
     document.getElementById('saveThemeBtn').addEventListener('click', openSaveThemeModal);
@@ -2270,19 +2245,10 @@ const IMAGE_FRAMES = [
   }
 
   function initModals() {
-    document.getElementById('previewBtn').addEventListener('click', openPreviewModal);
-    document.getElementById('saveBtn').addEventListener('click', quickSave);
-    document.getElementById('saveAsBtn').addEventListener('click', openSaveAsQuoteModal);
-    document.getElementById('loadBtn').addEventListener('click', openLoadModal);
-    document.getElementById('newQuoteBtn').addEventListener('click', function() {
-      if (confirm('Start NEW quote? Current quote data will be cleared. Only BUILD mode preselected items will be loaded.')) {
-        fetch('/session/clear', { method: 'POST', headers: { 'X-CSRFToken': getCsrfToken() } })
-          .then(r => r.json())
-          .then(d => { if (d.success) window.location.href = '/quote_editor'; })
-          .catch(() => alert('Network error.'));
-      }
-    });
-    document.getElementById('exportBtn').addEventListener('click', openExportModal);
+    document.getElementById('previewToolbarBtn').addEventListener('click', openPreviewModal);
+    document.getElementById('sidebarThemeBtn').addEventListener('click', openStylesModal);
+    document.getElementById('sidebarExportBtn').addEventListener('click', openExportModal);
+    document.getElementById('sidebarSaveLoadBtn').addEventListener('click', openSaveLoadModal);
     document.getElementById('confirmSaveAsQuoteBtn').addEventListener('click', confirmSaveAsQuote);
     document.getElementById('saveAsThemeBtn').addEventListener('click', openSaveAsThemeModal);
     document.getElementById('closeSaveAsQuoteModal').addEventListener('click', () => {
@@ -2291,9 +2257,7 @@ const IMAGE_FRAMES = [
     document.getElementById('closeLoadModal').addEventListener('click', () => {
       document.getElementById('loadModal').style.display = 'none';
     });
-    document.getElementById('closeExportModal').addEventListener('click', () => {
-      document.getElementById('exportModal').style.display = 'none';
-    });
+    document.getElementById('closeExportModal').addEventListener('click', closeExportModal);
     document.getElementById('exportPdfBtn').addEventListener('click', exportPDF);
     document.getElementById('exportDocxBtn').addEventListener('click', exportDOCX);
     document.getElementById('closePreviewModal').addEventListener('click', closePreviewModal);
@@ -2317,13 +2281,100 @@ const IMAGE_FRAMES = [
     document.querySelectorAll('.modal').forEach(modal => {
       modal.addEventListener('click', (e) => {
         if (e.target === modal) {
-          modal.style.display = 'none';
+          const modalId = modal.id;
+          // Use modal-specific close functions that handle sidebar restoration
+          if (modalId === 'exportModal') {
+            closeExportModal();
+          } else if (modalId === 'previewModal') {
+            closePreviewModal();
+          } else if (modalId === 'stylesModal') {
+            closeStylesModal();
+          } else {
+            modal.style.display = 'none';
+          }
         }
       });
     });
   }
 
-  function initContextMenu() {
+  
+
+function openSaveLoadModal() {
+  document.getElementById('saveLoadModal').style.display = 'flex';
+  // Load the saved quotes list after a short delay to allow modal to render
+  setTimeout(loadSavedQuotesList, 100);
+}
+
+function closeSaveLoadModal() {
+  document.getElementById('saveLoadModal').style.display = 'none';
+}
+
+function saveLoadFormSubmit(event) {
+  event.preventDefault();
+  const form = event.target;
+  const formData = new FormData(form);
+  fetch('/save-load', {
+    method: 'POST',
+    body: formData,
+    headers: { 'X-CSRFToken': getCsrfToken() }
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      alert('Saved successfully');
+      closeSaveLoadModal();
+    } else {
+      alert('Save failed: ' + (data.error || 'unknown'));
+    }
+  })
+  .catch(error => {
+    alert('Save failed');
+  });
+}
+
+function loadQuote(quoteId) {
+  fetch(`/quote_editor/load-quote/${quoteId}`)
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      // Restore the quote data into the session/editor
+      window.__quoteEditorPendingBlocks = data.blocks_json || [];
+      window.__quoteEditorHiddenBlocks = data.hidden_blocks || [];
+      // Refresh the UI
+      renderBlocks();
+      closeSaveLoadModal();
+    } else {
+      alert('Load failed: ' + (data.error || 'unknown'));
+    }
+  })
+  .catch(error => {
+    alert('Load failed');
+  });
+}
+
+function loadSavedQuotesList() {
+  fetch('/quote_editor/quotes')
+  .then(response => response.json())
+  .then(data => {
+    const listContainer = document.getElementById('loadSection');
+    if (data.quotes && data.quotes.length > 0) {
+      let html = '';
+      data.quotes.forEach(quote => {
+        html += `<tr><td>${quote.name}</td><td>${quote.created_at}</td><td class="text-end"><button class="btn btn-sm btn-outline" onclick="loadQuote(${quote.id})">Load</button></td></tr>`;
+      });
+      listContainer.innerHTML = `<table class="table table-hover">${html}</table>`;
+    } else {
+      listContainer.innerHTML = '<p class="editor-settings-placeholder">No saved quotes yet.</p>';
+    }
+  })
+  .catch(error => {
+    document.getElementById('loadSection').innerHTML = '<p class="editor-settings-placeholder">Error loading quotes.</p>';
+  });
+}
+
+// Initialize the load list when modal opens
+document.getElementById('saveLoadModal').addEventListener('shown.bs.modal', loadSavedQuotesList);
+function initContextMenu() {
     const existingMenu = document.getElementById('blockContextMenu');
     if (existingMenu) existingMenu.remove();
 
