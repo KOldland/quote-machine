@@ -32,3 +32,17 @@ archive/
 
 # Kilo config with secrets
 .kilo/kilo.jsonc
+
+# Theme uploads (auto-generated)
+app/static/uploads/themes/
+
+# SQLite temp files
+*.sqlite3-shm
+*.sqlite3-wal
+
+# Test cookies
+cookies*.txt
+
+# Temp SQLite backups
+*.bak-*-shm
+*.bak-*-wal
