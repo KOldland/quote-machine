@@ -1980,12 +1980,29 @@ def form_editor():
     # Fetch pages ordered by display_order
     ordered_pages = ts.get_all_pages(TEMPLATE_STORE_KEY)
 
+    # Fetch saved quotes for modal
+    from template_store import list_saved_quotes
+    saved_quotes = []
+    try:
+        rows = list_saved_quotes(TEMPLATE_STORE_KEY, user_id=session.get('user_id'))
+        for row in rows:
+            if str(row.get('name') or '').startswith('_'):
+                continue
+            saved_quotes.append({
+                'id': row['id'],
+                'name': row['name'],
+                'created_at': row.get('updated_at') or row.get('created_at'),
+            })
+    except Exception:
+        pass
+
     return render_template('form.html',
                            form_editor_mode=True,
                            edit_mode=True,
                            builder_state=state,
                            form_details=form_details,
-                           db_pages=ordered_pages)
+                           db_pages=ordered_pages,
+                           saved_quotes=saved_quotes)
 
 
 @app.route('/builder_beta/update_form_details', methods=['POST'])
