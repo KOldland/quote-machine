@@ -2347,7 +2347,7 @@ function saveAsNewModal() {
   saveQuoteWithName(name, null);
 }
 
-function saveQuoteModalWithName(name, quoteId) {
+function saveQuoteWithName(name, quoteId) {
   const formData = new FormData();
   formData.append('action', 'save');
   formData.append('save_name', name);
@@ -3012,7 +3012,7 @@ window.saveQuoteModal = saveQuoteModal;
 window.selectQuoteToOverwrite = selectQuoteToOverwrite;
 window.saveAsSelected = saveAsSelected;
 window.saveAsNewModal = saveAsNewModal;
-window.saveQuoteModalWithName = saveQuoteModalWithName;
+window.saveQuoteWithName = saveQuoteWithName;
 window.deleteQuote = deleteQuote;
 window.renameQuote = renameQuote;
 window.toggleAccordion = toggleAccordion;
