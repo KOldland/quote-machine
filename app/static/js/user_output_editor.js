@@ -2352,6 +2352,26 @@ function loadQuote(quoteId) {
   });
 }
 
+function deleteQuote(quoteId) {
+  if (!confirm('Are you sure you want to delete this saved quote?')) return;
+  fetch(`/quote_editor/quotes/${quoteId}`, {
+    method: 'DELETE',
+    headers: { 'X-CSRFToken': getCsrfToken() }
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      alert('Quote deleted');
+      loadSavedQuotesList();
+    } else {
+      alert('Delete failed: ' + (data.error || 'unknown'));
+    }
+  })
+  .catch(error => {
+    alert('Delete failed');
+  });
+}
+
 function loadSavedQuotesList() {
   fetch('/quote_editor/quotes')
   .then(response => response.json())
@@ -2360,7 +2380,7 @@ function loadSavedQuotesList() {
     if (data.quotes && data.quotes.length > 0) {
       let html = '';
       data.quotes.forEach(quote => {
-        html += `<tr><td>${quote.name}</td><td>${quote.created_at}</td><td class="text-end"><button class="btn btn-sm btn-outline" onclick="loadQuote(${quote.id})">Load</button></td></tr>`;
+        html += `<tr class="quote-row" data-id="${quote.id}" ondblclick="renameQuote(${quote.id})"><td>${quote.name}</td><td>${quote.created_at}</td><td class="text-end"><button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); loadQuote(${quote.id})">Load</button><button class="btn btn-sm btn-outline text-danger mx-1" onclick="event.stopPropagation(); deleteQuote(${quote.id})">Delete</button></td></tr>`;
       });
       listContainer.innerHTML = `<table class="table table-hover">${html}</table>`;
     } else {
