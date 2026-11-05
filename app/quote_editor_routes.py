@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 from typing import Optional
 from flask import Blueprint, request, session, jsonify, abort, send_file, current_app
+from QMapp import csrf
 from werkzeug.utils import secure_filename
 from merge_tags import get_merge_tag_values, replace_merge_tags
 from template_store import (
@@ -723,6 +724,7 @@ def create_quote():
     return jsonify({'success': True, 'quote': quote}), 201
 
 
+@csrf.exempt
 @quote_editor_bp.route('/quote_editor/quotes/<int:quote_id>', methods=['DELETE'])
 def delete_quote_route(quote_id):
     form_key = session.get('template_key')

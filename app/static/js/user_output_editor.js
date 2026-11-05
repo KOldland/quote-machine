@@ -2358,7 +2358,13 @@ function deleteQuote(quoteId) {
     method: 'DELETE',
     headers: { 'X-CSRFToken': getCsrfToken() }
   })
-  .then(response => response.json())
+  .then(response => {
+    const contentType = response.headers.get('content-type');
+    if (!response.ok || !(contentType && contentType.includes('application/json'))) {
+      throw new Error(`Server error: ${response.status}`);
+    }
+    return response.json();
+  })
   .then(data => {
     if (data.success) {
       alert('Quote deleted');
@@ -2368,7 +2374,8 @@ function deleteQuote(quoteId) {
     }
   })
   .catch(error => {
-    alert('Delete failed');
+    console.error('Delete error:', error);
+    alert('Delete failed. Please check server logs.');
   });
 }
 
@@ -2380,7 +2387,7 @@ function loadSavedQuotesList() {
     if (data.quotes && data.quotes.length > 0) {
       let html = '';
       data.quotes.forEach(quote => {
-        html += `<tr class="quote-row" data-id="${quote.id}" ondblclick="renameQuote(${quote.id})"><td>${quote.name}</td><td>${quote.created_at}</td><td class="text-end"><button class="btn btn-sm li-save-btn" style="padding:0.45rem; width:auto; margin-top:0; font-size:1.2rem; margin-left:2px;" title="Load" onclick="event.stopPropagation(); loadQuote(${quote.id})"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button><button class="btn btn-sm li-delete-btn" style="padding:0.45rem; background:#6d0b0b; color:#fff; border:none; border-radius:5px; font-weight:700; cursor:pointer; font-size:1.2rem; margin-left:4px;" title="Delete" onclick="event.stopPropagation(); deleteQuote(${quote.id})"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button></td></tr>`;
+        html += `<tr class="quote-row" data-id="${quote.id}" ondblclick="renameQuote(${quote.id})"><td>${quote.name}</td><td>${quote.created_at}</td><td class="text-end"><button class="btn quote-editor-icon-btn quote-editor-save-btn" title="Load" onclick="event.stopPropagation(); loadQuote(${quote.id})"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button><button class="btn quote-editor-icon-btn quote-editor-delete-btn" title="Delete" onclick="event.stopPropagation(); deleteQuote(${quote.id})"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button></td></tr>`;
       });
       listContainer.innerHTML = `<table class="table table-hover">${html}</table>`;
     } else {
