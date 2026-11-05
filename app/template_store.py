@@ -2626,11 +2626,19 @@ def delete_saved_quote(quote_id: int, form_key: str, db_path: Optional[Path] = N
         ft_id = _get_form_template_id(conn, form_key)
         if not ft_id:
             return False
+        # Verify the quote exists before deleting (avoids relying on total_changes
+        # which is unreliable on PostgreSQL via _CompatConnection)
+        row = conn.execute(
+            "SELECT id FROM saved_quotes WHERE id = ? AND form_template_id = ?",
+            (quote_id, ft_id),
+        ).fetchone()
+        if not row:
+            return False
         conn.execute(
             "DELETE FROM saved_quotes WHERE id = ? AND form_template_id = ?",
             (quote_id, ft_id),
         )
         conn.commit()
-        return conn.total_changes > 0
+        return True
     finally:
         conn.close()
