@@ -39,33 +39,33 @@
     <div class="accordion-section">
       <button type="button" class="accordion-header" onclick="toggleAccordion('saveSection')">Save Current State</button>
       <div id="saveSection" class="accordion-body">
-        <!-- Save: Save current state with a name -->
-        <div class="mb-3">
-          <label for="save_name" class="form-label">Quote Name</label>
-          <input type="text" class="form-control" id="save_name" name="save_name" placeholder="My Quote" required>
-        </div>
+        <!-- Save: Save current state -->
         <button type="button" class="btn btn-primary" onclick="saveQuoteModal()">Save</button>
 
         <hr class="my-3">
 
-        <!-- Save As: Overwrite existing or create new -->
+        <!-- Save As: Overwrite existing -->
         <h6 class="mb-2">Save As</h6>
         <div id="saveAsExistingList" class="mb-3">
           <small class="text-muted d-block mb-1">Overwrite an existing saved quote:</small>
           {% if saved_quotes %}
           <div class="list-group list-group-flush">
             {% for quote in saved_quotes %}
-            <button type="button" class="list-group-item list-group-item-action" onclick="saveAsExistingModal({{ quote.id }}, '{{ quote.name | e }}')">
+            <button type="button" class="list-group-item list-group-item-action" onclick="selectQuoteToOverwrite({{ quote.id }}, '{{ quote.name | e }}')">
               {{ quote.name }}
             </button>
             {% endfor %}
           </div>
+          <button type="button" class="btn btn-outline-secondary mt-2" id="btnConfirmOverwrite" disabled onclick="saveAsSelected()">Save As Selected</button>
           {% else %}
           <p class="text-muted">No existing saved quotes.</p>
           {% endif %}
         </div>
+
+        <!-- Save As New -->
+        <h6 class="mb-2 mt-3">Save As New</h6>
         <div class="mb-3">
-          <label for="save_as_new_name" class="form-label">Or save as a new quote:</label>
+          <label for="save_as_new_name" class="form-label">Quote Name</label>
           <input type="text" class="form-control" id="save_as_new_name" name="save_as_new_name" placeholder="New Quote Name">
         </div>
         <button type="button" class="btn btn-outline-secondary" onclick="saveAsNewModal()">Save as New</button>

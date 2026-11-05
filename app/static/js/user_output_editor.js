@@ -2309,18 +2309,33 @@ function closeSaveLoadModal() {
   document.getElementById('saveLoadModal').style.display = 'none';
 }
 
+// Track which quote user selected to overwrite
+let quoteToOverwriteId = null;
+let quoteToOverwriteName = null;
+
 function saveQuoteModal() {
-  const name = document.getElementById('save_name').value.trim();
-  if (!name) {
-    alert('Please enter a quote name.');
-    return;
-  }
-  saveQuoteWithName(name, null);
+  // Save current state — if active_quote_id exists (user loaded a quote), update it;
+  // otherwise create new with auto-generated name
+  saveQuoteWithName('Untitled Quote', null);
 }
 
-function saveAsExistingModal(quoteId, quoteName) {
-  if (!confirm('Overwrite "' + quoteName + '" with current state?')) return;
-  saveQuoteWithName(quoteName, quoteId);
+function selectQuoteToOverwrite(quoteId, quoteName) {
+  quoteToOverwriteId = quoteId;
+  quoteToOverwriteName = quoteName;
+  const btn = document.getElementById('btnConfirmOverwrite');
+  if (btn) {
+    btn.disabled = false;
+    btn.textContent = 'Save As: ' + quoteName;
+  }
+}
+
+function saveAsSelected() {
+  if (!quoteToOverwriteId) {
+    alert('Please select a quote to overwrite.');
+    return;
+  }
+  if (!confirm('Overwrite "' + quoteToOverwriteName + '" with current state?')) return;
+  saveQuoteWithName(quoteToOverwriteName, quoteToOverwriteId);
 }
 
 function saveAsNewModal() {
@@ -2994,7 +3009,8 @@ window.openSaveLoadModal = openSaveLoadModal;
 window.closeSaveLoadModal = closeSaveLoadModal;
 window.loadQuote = loadQuote;
 window.saveQuoteModal = saveQuoteModal;
-window.saveAsExistingModal = saveAsExistingModal;
+window.selectQuoteToOverwrite = selectQuoteToOverwrite;
+window.saveAsSelected = saveAsSelected;
 window.saveAsNewModal = saveAsNewModal;
 window.saveQuoteModalWithName = saveQuoteModalWithName;
 window.deleteQuote = deleteQuote;
