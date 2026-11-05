@@ -6452,15 +6452,14 @@ def save_load():
                 }
                 blocks_json = session.get('quote_editor_pending_blocks', [])
                 try:
-                    active_quote_id = session.get('active_quote_id')
-                    if active_quote_id:
-                        # Unified save: update the quote currently in progress
-                        # (preserving any QUOTE styling) instead of creating a
-                        # new record.
-                        existing = get_saved_quote(int(active_quote_id), form_key)
+                    # Support overwriting an existing quote via quote_id param
+                    override_quote_id = request.form.get('quote_id')
+                    if override_quote_id:
+                        override_quote_id = int(override_quote_id)
+                        existing = get_saved_quote(override_quote_id, form_key)
                         if existing:
                             quote = update_saved_quote(
-                                quote_id=int(active_quote_id),
+                                quote_id=override_quote_id,
                                 form_key=form_key,
                                 name=save_name,
                                 blocks_json=blocks_json,
@@ -6477,7 +6476,32 @@ def save_load():
                                 user_id=session.get('user_id'),
                             )
                     else:
-                        quote = save_quote(
+                        active_quote_id = session.get('active_quote_id')
+                        if active_quote_id:
+                            # Unified save: update the quote currently in progress
+                            # (preserving any QUOTE styling) instead of creating a
+                            # new record.
+                            existing = get_saved_quote(int(active_quote_id), form_key)
+                            if existing:
+                                quote = update_saved_quote(
+                                    quote_id=int(active_quote_id),
+                                    form_key=form_key,
+                                    name=save_name,
+                                    blocks_json=blocks_json,
+                                    settings=existing.get('settings_json') or {},
+                                    form_data=form_data,
+                                )
+                            else:
+                                quote = save_quote(
+                                    form_key=form_key,
+                                    blocks_json=blocks_json,
+                                    name=save_name,
+                                    settings={},
+                                    form_data=form_data,
+                                    user_id=session.get('user_id'),
+                                )
+                        else:
+                            quote = save_quote(
                             form_key=form_key,
                             blocks_json=blocks_json,
                             name=save_name,

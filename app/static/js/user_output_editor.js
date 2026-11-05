@@ -2309,16 +2309,48 @@ function closeSaveLoadModal() {
   document.getElementById('saveLoadModal').style.display = 'none';
 }
 
-function saveLoadFormSubmit(event) {
-  event.preventDefault();
-  const form = event.target;
-  const formData = new FormData(form);
+function saveQuoteModal() {
+  const name = document.getElementById('save_name').value.trim();
+  if (!name) {
+    alert('Please enter a quote name.');
+    return;
+  }
+  saveQuoteWithName(name, null);
+}
+
+function saveAsExistingModal(quoteId, quoteName) {
+  if (!confirm('Overwrite "' + quoteName + '" with current state?')) return;
+  saveQuoteWithName(quoteName, quoteId);
+}
+
+function saveAsNewModal() {
+  const name = document.getElementById('save_as_new_name').value.trim();
+  if (!name) {
+    alert('Please enter a name for the new quote.');
+    return;
+  }
+  saveQuoteWithName(name, null);
+}
+
+function saveQuoteModalWithName(name, quoteId) {
+  const formData = new FormData();
+  formData.append('action', 'save');
+  formData.append('save_name', name);
+  if (quoteId) {
+    formData.append('quote_id', quoteId);
+  }
   fetch('/save-load', {
     method: 'POST',
     body: formData,
     headers: { 'X-CSRFToken': getCsrfToken() }
   })
-  .then(response => response.json())
+  .then(response => {
+    const contentType = response.headers.get('content-type');
+    if (!response.ok || !(contentType && contentType.includes('application/json'))) {
+      throw new Error('Server error: ' + response.status);
+    }
+    return response.json();
+  })
   .then(data => {
     if (data.success) {
       alert('Saved successfully');
@@ -2328,7 +2360,8 @@ function saveLoadFormSubmit(event) {
     }
   })
   .catch(error => {
-    alert('Save failed');
+    console.error('Save error:', error);
+    alert('Save failed. Please check server logs.');
   });
 }
 
@@ -2959,8 +2992,11 @@ function initContextMenu() {
 // Expose modal functions to global scope for inline HTML handlers
 window.openSaveLoadModal = openSaveLoadModal;
 window.closeSaveLoadModal = closeSaveLoadModal;
-window.saveLoadFormSubmit = saveLoadFormSubmit;
 window.loadQuote = loadQuote;
+window.saveQuoteModal = saveQuoteModal;
+window.saveAsExistingModal = saveAsExistingModal;
+window.saveAsNewModal = saveAsNewModal;
+window.saveQuoteModalWithName = saveQuoteModalWithName;
 window.deleteQuote = deleteQuote;
 window.renameQuote = renameQuote;
 window.toggleAccordion = toggleAccordion;

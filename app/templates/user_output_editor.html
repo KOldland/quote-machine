@@ -39,22 +39,36 @@
     <div class="accordion-section">
       <button type="button" class="accordion-header" onclick="toggleAccordion('saveSection')">Save Current State</button>
       <div id="saveSection" class="accordion-body">
-        <form method="POST" action="/save-load" onsubmit="return saveLoadFormSubmit(event)">
-          <input type="hidden" name="action" value="save">
-          <div class="mb-3">
-            <label>Action</label>
-            <div class="form-check form-check-inline">
-              <input class="form-check-input" type="radio" name="save_action" id="save_action_save" checked>
-              <label class="form-check-label" for="save_action_save">Save</label>
-            </div>
-            <div class="form-check form-check-inline">
-              <input class="form-check-input" type="radio" name="save_action" id="save_action_saveas">
-              <label class="form-check-label" for="save_action_saveas">Save As</label>
-            </div>
+        <!-- Save: Save current state with a name -->
+        <div class="mb-3">
+          <label for="save_name" class="form-label">Quote Name</label>
+          <input type="text" class="form-control" id="save_name" name="save_name" placeholder="My Quote" required>
+        </div>
+        <button type="button" class="btn btn-primary" onclick="saveQuoteModal()">Save</button>
+
+        <hr class="my-3">
+
+        <!-- Save As: Overwrite existing or create new -->
+        <h6 class="mb-2">Save As</h6>
+        <div id="saveAsExistingList" class="mb-3">
+          <small class="text-muted d-block mb-1">Overwrite an existing saved quote:</small>
+          {% if saved_quotes %}
+          <div class="list-group list-group-flush">
+            {% for quote in saved_quotes %}
+            <button type="button" class="list-group-item list-group-item-action" onclick="saveAsExistingModal({{ quote.id }}, '{{ quote.name | e }}')">
+              {{ quote.name }}
+            </button>
+            {% endfor %}
           </div>
-          <div class="mb-3"><label for="save_name" class="form-label">Name</label><input type="text" class="form-control" id="save_name" name="save_name" placeholder="My Quote" required></div>
-          <button type="submit" class="btn btn-primary">Submit</button>
-        </form>
+          {% else %}
+          <p class="text-muted">No existing saved quotes.</p>
+          {% endif %}
+        </div>
+        <div class="mb-3">
+          <label for="save_as_new_name" class="form-label">Or save as a new quote:</label>
+          <input type="text" class="form-control" id="save_as_new_name" name="save_as_new_name" placeholder="New Quote Name">
+        </div>
+        <button type="button" class="btn btn-outline-secondary" onclick="saveAsNewModal()">Save as New</button>
       </div>
     </div>
     <div class="accordion-section">
