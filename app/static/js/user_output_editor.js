@@ -2363,14 +2363,10 @@ function saveQuoteWithName(name, quoteId) {
     }
   })
   .then(response => {
-    if (!response.ok) {
-      throw new Error('Server error: ' + response.status);
-    }
     const contentType = response.headers.get('content-type') || '';
     if (contentType.includes('application/json')) {
       return response.json();
     }
-    // HTML fallback: try to parse JSON from text anyway
     return response.text().then(text => {
       try {
         return JSON.parse(text);
