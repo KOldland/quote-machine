@@ -2929,6 +2929,15 @@ function initContextMenu() {
   } else {
     init();
   }
+// Expose modal functions to global scope for inline HTML handlers
+window.openSaveLoadModal = openSaveLoadModal;
+window.closeSaveLoadModal = closeSaveLoadModal;
+window.saveLoadFormSubmit = saveLoadFormSubmit;
+window.loadQuote = loadQuote;
+window.deleteQuote = deleteQuote;
+window.renameQuote = renameQuote;
+window.toggleAccordion = toggleAccordion;
+
 })();
 
 // Handle visibility and focus events to check for quote updates

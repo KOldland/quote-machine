@@ -30,7 +30,7 @@
             id="sidebarThemeBtn">Theme</button>
     <button type="button" class="btn btn-sidebar"
             style="width:100%;text-align:left;"
-            onclick="openSaveLoadModal" id="sidebarSaveLoadBtn">Save/Load</button>
+            id="sidebarSaveLoadBtn">Save/Load</button>
   </div>
 </div>
 <div id="saveLoadModal" class="modal" style="display:none;">
@@ -41,15 +41,26 @@
       <div id="saveSection" class="accordion-body">
         <form method="POST" action="/save-load" onsubmit="return saveLoadFormSubmit(event)">
           <input type="hidden" name="action" value="save">
+          <div class="mb-3">
+            <label>Action</label>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="radio" name="save_action" id="save_action_save" checked>
+              <label class="form-check-label" for="save_action_save">Save</label>
+            </div>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="radio" name="save_action" id="save_action_saveas">
+              <label class="form-check-label" for="save_action_saveas">Save As</label>
+            </div>
+          </div>
           <div class="mb-3"><label for="save_name" class="form-label">Name</label><input type="text" class="form-control" id="save_name" name="save_name" placeholder="My Quote" required></div>
-          <button type="submit" class="btn btn-primary">Save</button>
+          <button type="submit" class="btn btn-primary">Submit</button>
         </form>
       </div>
     </div>
     <div class="accordion-section">
       <button type="button" class="accordion-header" onclick="toggleAccordion('loadSection')">Load Saved State</button>
       <div id="loadSection" class="accordion-body">
-        {% if saved_quotes %}<table class="table table-hover"><thead><tr><th>Name</th><th>Saved At</th><th class="text-end">Action</th></tr></thead><tbody>{% for quote in saved_quotes %}<tr><td>{{ quote.name }}</td><td>{{ quote.created_at }}</td><td class="text-end"><button class="btn btn-sm btn-outline" onclick="loadQuote({{ quote.id }})">Load</button></td></tr>{% endfor %}</tbody></table>{% else %}<p class="editor-settings-placeholder">No saved quotes yet.</p>{% endif %}</div>
+        {% if saved_quotes %}<table class="table table-hover"><thead><tr><th>Name</th><th>Saved At</th><th class="text-end">Action</th></tr></thead><tbody>{% for quote in saved_quotes %}<tr class="quote-row" data-id="{{ quote.id }}" ondblclick="renameQuote({{ quote.id }})"><td>{{ quote.name }}</td><td>{{ quote.created_at }}</td><td class="text-end"><button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); loadQuote({{ quote.id }})">Load</button><button class="btn btn-sm btn-outline text-danger mx-1" onclick="event.stopPropagation(); deleteQuote({{ quote.id }})">Delete</button></td></tr>{% endfor %}</tbody></table>{% else %}<p class="editor-settings-placeholder">No saved quotes yet.</p>{% endif %}</div>
     </div>
   </div>
 </div>
