@@ -2357,14 +2357,27 @@ function saveQuoteWithName(name, quoteId) {
   fetch('/save-load', {
     method: 'POST',
     body: formData,
-    headers: { 'X-CSRFToken': getCsrfToken() }
+    headers: {
+      'X-CSRFToken': getCsrfToken(),
+      'X-Requested-With': 'XMLHttpRequest'
+    }
   })
   .then(response => {
-    const contentType = response.headers.get('content-type');
-    if (!response.ok || !(contentType && contentType.includes('application/json'))) {
+    if (!response.ok) {
       throw new Error('Server error: ' + response.status);
     }
-    return response.json();
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      return response.json();
+    }
+    // HTML fallback: try to parse JSON from text anyway
+    return response.text().then(text => {
+      try {
+        return JSON.parse(text);
+      } catch (e) {
+        throw new Error('Unexpected server response (not JSON)');
+      }
+    });
   })
   .then(data => {
     if (data.success) {

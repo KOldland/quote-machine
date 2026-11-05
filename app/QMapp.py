@@ -6555,6 +6555,16 @@ def save_load():
             'created_at': row.get('updated_at') or row.get('created_at'),
         })
 
+    # Return JSON for AJAX/fetch requests, HTML for full-page loads
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or               'application/json' in (request.headers.get('Accept') or '')
+
+    if request.method == 'POST' and is_ajax:
+        if error:
+            return jsonify({'success': False, 'error': error}), 400
+        if saved:
+            return jsonify({'success': True})
+        return jsonify({'success': False, 'error': 'Save failed'})
+
     return render_template(
         'save_load.html',
         saved=saved,
