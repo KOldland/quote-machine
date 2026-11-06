@@ -2389,6 +2389,13 @@ function saveQuoteWithName(name, quoteId) {
   });
 }
 
+function renameQuote(quoteId) {
+  const newName = prompt('Enter new name for this quote:', '');
+  if (newName && newName.trim()) {
+    saveQuoteWithName(newName.trim(), quoteId);
+  }
+}
+
 function loadQuote(quoteId) {
   fetch(`/quote_editor/load-quote/${quoteId}`)
   .then(response => response.json())

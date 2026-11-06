@@ -2083,7 +2083,13 @@ def update_saved_quote(quote_id: int, form_key: str, name: str, blocks_json: lis
     try:
         ft_id = _get_form_template_id(conn, form_key)
         if not ft_id:
-            return None
+            # Auto-create form_template if it doesn't exist
+            conn.execute(
+                "INSERT INTO form_templates (key, name) VALUES (?, ?)",
+                (form_key, form_key),
+            )
+            conn.commit()
+            ft_id = _get_form_template_id(conn, form_key)
         conn.execute(
             """
             UPDATE saved_quotes
@@ -2534,7 +2540,13 @@ def save_quote(
     try:
         ft_id = _get_form_template_id(conn, form_key)
         if not ft_id:
-            return None
+            # Auto-create form_template if it doesn't exist
+            conn.execute(
+                "INSERT INTO form_templates (key, name) VALUES (?, ?)",
+                (form_key, form_key),
+            )
+            conn.commit()
+            ft_id = _get_form_template_id(conn, form_key)
         cur = conn.execute(
             """
             INSERT INTO saved_quotes
