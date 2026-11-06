@@ -41,38 +41,43 @@
       <div id="saveSection" class="accordion-body">
         <!-- Save: Save current state -->
         <button type="button" class="btn btn-primary" onclick="saveQuoteModal()">Save</button>
-
-        <hr class="my-3">
-
-        <!-- Save As: Overwrite existing -->
-        <h6 class="mb-2">Save As</h6>
+      </div>
+    </div>
+    <div class="accordion-section">
+      <button type="button" class="accordion-header" onclick="toggleAccordion('saveAsSection')">Save As</button>
+      <div id="saveAsSection" class="accordion-body">
         <div id="saveAsExistingList" class="mb-3">
           <small class="text-muted d-block mb-1">Overwrite an existing saved quote:</small>
           {% if saved_quotes %}
-          <div class="list-group list-group-flush">
+          <table class="table table-hover">
+            <thead><tr><th>Name</th><th class="text-end">Action</th></tr></thead>
+            <tbody>
             {% for quote in saved_quotes %}
-            <button type="button" class="list-group-item list-group-item-action" onclick="selectQuoteToOverwrite({{ quote.id }}, '{{ quote.name | e }}')">
-              {{ quote.name }}
-            </button>
+            <tr class="quote-row" data-id="{{ quote.id }}">
+              <td>{{ quote.name }}</td>
+              <td class="text-end"><button type="button" class="btn btn-outline-secondary btn-sm" onclick="event.stopPropagation(); selectQuoteToOverwrite({{ quote.id }}, '{{ quote.name | e }}')">Select</button></td>
+            </tr>
             {% endfor %}
-          </div>
+            </tbody>
+          </table>
           <button type="button" class="btn btn-outline-secondary mt-2" id="btnConfirmOverwrite" disabled onclick="saveAsSelected()">Save As Selected</button>
           {% else %}
           <p class="text-muted">No existing saved quotes.</p>
           {% endif %}
         </div>
-
-        <!-- Save As New -->
-        <h6 class="mb-2 mt-3">Save As New</h6>
+      </div>
+    </div>
+    <div class="accordion-section">
+      <button type="button" class="accordion-header" onclick="toggleAccordion('saveAsNewSection')">Save As New</button>
+      <div id="saveAsNewSection" class="accordion-body">
         <div class="mb-3">
-          <label for="save_as_new_name" class="form-label">Quote Name</label>
           <input type="text" class="form-control" id="save_as_new_name" name="save_as_new_name" placeholder="New Quote Name">
         </div>
         <button type="button" class="btn btn-outline-secondary" onclick="saveAsNewModal()">Save as New</button>
       </div>
     </div>
     <div class="accordion-section">
-      <button type="button" class="accordion-header" onclick="toggleAccordion('loadSection')">Load Saved State</button>
+      <button type="button" class="accordion-header" onclick="toggleAccordion('loadSection')">Load</button>
       <div id="loadSection" class="accordion-body">
         {% if saved_quotes %}<table class="table table-hover"><thead><tr><th>Name</th><th>Saved At</th><th class="text-end">Action</th></tr></thead><tbody>{% for quote in saved_quotes %}<tr class="quote-row" data-id="{{ quote.id }}" ondblclick="renameQuote({{ quote.id }})"><td>{{ quote.name }}</td><td>{{ quote.created_at }}</td><td class="text-end"><button class="btn quote-editor-icon-btn quote-editor-save-btn" title="Load" onclick="event.stopPropagation(); loadQuote({{ quote.id }})"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button><button class="btn quote-editor-icon-btn quote-editor-delete-btn" title="Delete" onclick="event.stopPropagation(); deleteQuote({{ quote.id }})"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button></td></tr>{% endfor %}</tbody></table>{% else %}<p class="editor-settings-placeholder">No saved quotes yet.</p>{% endif %}</div>
     </div>
