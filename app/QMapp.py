@@ -6403,6 +6403,21 @@ def quote_editor():
                 initial_page_index = page_dict[page_key]
         except Exception:
             pass
+    saved_quotes = []
+    try:
+        from template_store import list_saved_quotes
+        rows = list_saved_quotes(form_key, user_id=session.get('user_id'))
+        for row in rows:
+            if str(row.get('name') or '').startswith('_'):
+                continue
+            saved_quotes.append({
+                'id': row['id'],
+                'name': row['name'],
+                'created_at': row.get('updated_at') or row.get('created_at'),
+            })
+    except Exception:
+        pass
+
     return render_template(
         'user_output_editor.html',
         form_key=form_key,
@@ -6411,6 +6426,7 @@ def quote_editor():
         pending_block=pending_block,
         hidden_blocks=hidden_blocks,
         initial_page_index=initial_page_index,
+        saved_quotes=saved_quotes,
     )
 
 
