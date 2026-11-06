@@ -2325,7 +2325,15 @@ function selectQuoteToOverwrite(quoteId, quoteName) {
   const btn = document.getElementById('btnConfirmOverwrite');
   if (btn) {
     btn.disabled = false;
-    btn.textContent = 'Save As: ' + quoteName;
+    btn.textContent = 'Save As';
+  }
+  // Highlight selected row with light blue background
+  document.querySelectorAll('#saveAsSection .quote-row').forEach(row => {
+    row.classList.remove('selected');
+  });
+  const selectedRow = document.querySelector(`#saveAsSection .quote-row[data-id="${quoteId}"]`);
+  if (selectedRow) {
+    selectedRow.classList.add('selected');
   }
 }
 
