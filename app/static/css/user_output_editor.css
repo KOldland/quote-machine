@@ -1282,6 +1282,16 @@
   pointer-events: none;
 }
 
+/* Wider save/load modal (+20%) */
+.save-load-wide {
+  max-width: calc(90vw * 1.2);
+}
+
+/* 1rem margin right of save state name in load section */
+#loadSection .quote-row td:first-child {
+  padding-right: 1rem;
+}
+
 .quote-editor-save-btn {
   background-color: #3b5d9c;
   color: #fff;

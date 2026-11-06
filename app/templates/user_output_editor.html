@@ -34,7 +34,7 @@
   </div>
 </div>
 <div id="saveLoadModal" class="modal" style="display:none;">
-  <div class="modal-content">
+  <div class="modal-content save-load-wide">
     <h3>Save / Load</h3>
     <div class="accordion-section">
       <button type="button" class="accordion-header" onclick="toggleAccordion('saveSection')">Save Current State</button>
@@ -47,20 +47,17 @@
       <button type="button" class="accordion-header" onclick="toggleAccordion('saveAsSection')">Save As</button>
       <div id="saveAsSection" class="accordion-body">
         <div id="saveAsExistingList" class="mb-3">
-          <small class="text-muted d-block mb-1">Overwrite an existing saved quote:</small>
           {% if saved_quotes %}
           <table class="table table-hover">
-            <thead><tr><th>Name</th><th class="text-end">Action</th></tr></thead>
             <tbody>
             {% for quote in saved_quotes %}
-            <tr class="quote-row" data-id="{{ quote.id }}">
+            <tr class="quote-row" data-id="{{ quote.id }}" onclick="selectQuoteToOverwrite({{ quote.id }}, '{{ quote.name | e }}')">
               <td>{{ quote.name }}</td>
-              <td class="text-end"><button type="button" class="btn btn-outline-secondary btn-sm" onclick="event.stopPropagation(); selectQuoteToOverwrite({{ quote.id }}, '{{ quote.name | e }}')">Select</button></td>
             </tr>
             {% endfor %}
             </tbody>
           </table>
-          <button type="button" class="btn btn-outline-secondary mt-2" id="btnConfirmOverwrite" disabled onclick="saveAsSelected()">Save As Selected</button>
+          <button type="button" class="btn btn-primary mt-3" id="btnConfirmOverwrite" disabled onclick="saveAsSelected()">Save As</button>
           {% else %}
           <p class="text-muted">No existing saved quotes.</p>
           {% endif %}
@@ -68,12 +65,12 @@
       </div>
     </div>
     <div class="accordion-section">
-      <button type="button" class="accordion-header" onclick="toggleAccordion('saveAsNewSection')">Save As New</button>
+      <button type="button" class="accordion-header" onclick="toggleAccordion('saveAsNewSection')">Save New</button>
       <div id="saveAsNewSection" class="accordion-body">
         <div class="mb-3">
           <input type="text" class="form-control" id="save_as_new_name" name="save_as_new_name" placeholder="New Quote Name">
         </div>
-        <button type="button" class="btn btn-outline-secondary" onclick="saveAsNewModal()">Save as New</button>
+        <button type="button" class="btn btn-primary" onclick="saveAsNewModal()">Save New</button>
       </div>
     </div>
     <div class="accordion-section">
