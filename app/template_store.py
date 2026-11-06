@@ -679,6 +679,14 @@ def save_template(
             conn.execute("ALTER TABLE line_items ADD COLUMN addon_amount REAL NOT NULL DEFAULT 0.0")
         except Exception:
             pass
+        try:
+            conn.execute("ALTER TABLE line_items ADD COLUMN output_red_notes TEXT DEFAULT ''")
+        except Exception:
+            pass
+        try:
+            conn.execute("ALTER TABLE category_templates ADD COLUMN blue_notes TEXT DEFAULT ''")
+        except Exception:
+            pass
 
         # Resolve or create the form_template row.
         tenant_id = _upsert_tenant(conn, slug="default", name="Default Tenant")
