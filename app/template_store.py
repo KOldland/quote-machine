@@ -477,6 +477,16 @@ def _create_schema(conn: sqlite3.Connection) -> None:
         );
         """
     )
+    # Idempotent column migrations (run on every connection, including
+    # builder_line_item_save which doesn't go through save_template).
+    for _stmt in (
+        "ALTER TABLE line_items ADD COLUMN output_red_notes TEXT DEFAULT ''",
+        "ALTER TABLE category_templates ADD COLUMN blue_notes TEXT DEFAULT ''",
+    ):
+        try:
+            conn.execute(_stmt)
+        except Exception:
+            pass
 
 
 

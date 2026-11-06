@@ -219,7 +219,20 @@ def _get_conn(db_path=None):
     """Return a DB connection via template_store._connect().
     On Render (DATABASE_URL set) this uses PostgreSQL; locally it uses SQLite."""
     import template_store as _ts_conn
-    return _ts_conn._connect(db_path)
+    conn = _ts_conn._connect(db_path)
+    # Idempotent column migrations — run on every connection so routes that
+    # don't go through save_template (e.g. builder_line_item_save) still get
+    # the latest schema on Render Postgres.
+    for _stmt in (
+        "ALTER TABLE line_items ADD COLUMN output_red_notes TEXT DEFAULT ''",
+        "ALTER TABLE category_templates ADD COLUMN blue_notes TEXT DEFAULT ''",
+    ):
+        try:
+            conn.execute(_stmt)
+            conn.commit()
+        except Exception:
+            pass
+    return conn
 
 @app.template_filter('from_json')
 def from_json_filter(s):
@@ -2732,6 +2745,17 @@ def builder_page_total_save(page_key):
     bb_pages = page_schemas.setdefault('builder_beta', {}).setdefault('pages', {})
     page = bb_pages.get(page_key)
     if not page:
+        # Page may exist only in the DB — promote from builder state
+        try:
+            state = get_builder_beta_state()
+            db_page = state.get('pages', {}).get(page_key)
+            if db_page:
+                import copy
+                bb_pages[page_key] = copy.deepcopy(db_page)
+                page = bb_pages[page_key]
+        except Exception:
+            pass
+    if not page:
         return jsonify({'ok': False, 'error': 'Page not found'}), 404
     for block in page.setdefault('blocks', []):
         if block.get('block_type') == 'page_total':
@@ -2758,6 +2782,19 @@ def builder_module_block_add(page_id):
     bb_pages = page_schemas.setdefault('builder_beta', {}).setdefault('pages', {})
     page = bb_pages.get(page_id)
     if not page:
+        # Page may exist only in the DB (added via Add Page modal). Check the
+        # merged builder state and promote it into page_schemas so it can be
+        # edited and saved.
+        try:
+            state = get_builder_beta_state()
+            db_page = state.get('pages', {}).get(page_id)
+            if db_page:
+                import copy
+                bb_pages[page_id] = copy.deepcopy(db_page)
+                page = bb_pages[page_id]
+        except Exception:
+            pass
+    if not page:
         return jsonify({'ok': False, 'error': 'Page not found'}), 404
     blocks = page.setdefault('blocks', [])
     new_block = _new_block_template(mod_type, page_id, len(blocks))
@@ -2777,6 +2814,17 @@ def builder_module_block_delete(page_id):
         return jsonify({'ok': False, 'error': 'module_type and page_id required'}), 400
     bb_pages = page_schemas.setdefault('builder_beta', {}).setdefault('pages', {})
     page = bb_pages.get(page_id)
+    if not page:
+        # Page may exist only in the DB — promote from builder state
+        try:
+            state = get_builder_beta_state()
+            db_page = state.get('pages', {}).get(page_id)
+            if db_page:
+                import copy
+                bb_pages[page_id] = copy.deepcopy(db_page)
+                page = bb_pages[page_id]
+        except Exception:
+            pass
     if not page:
         return jsonify({'ok': False, 'error': 'Page not found'}), 404
     blocks = page.get('blocks', [])
