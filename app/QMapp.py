@@ -2534,6 +2534,20 @@ def builder_page_details_save(page_key):
             meta = json.loads(existing_row[0]) if isinstance(existing_row[0], str) else existing_row[0]
         except Exception:
             pass
+    if not isinstance(meta, dict):
+        meta = {}
+    meta['form_visible'] = form_visible
+    meta['quote_visible'] = quote_visible
+    meta['title'] = title
+    meta['description'] = desc
+    meta['blue_notes'] = data.get('blue_notes', '')
+    conn.execute(
+        "UPDATE page_templates SET title = ?, description = ?, metadata_json = ? WHERE page_key = ? AND form_template_version_id = ?", [
+            title, desc, json.dumps(meta), page_key, latest_version_id])
+    conn.commit()
+    conn.close()
+    return jsonify({'ok': True})
+
 @app.route('/builder_beta/page_modules_save/<page_key>', methods=['POST'])
 @require_role('admin')
 def builder_page_modules_save(page_key):
@@ -2849,6 +2863,7 @@ def builder_category_details_save():
     if new_name:
         new_name = unquote(new_name)
     desc = data.get('description', '')
+    blue_notes = data.get('blue_notes', '')
     output_group = data.get('output_group', 'General')
     is_cost_group = data.get('is_cost_group', False)
     category_image = (data.get('category_image') or '').strip()
@@ -2890,8 +2905,8 @@ def builder_category_details_save():
 
         for pid in page_ids:
             conn.execute(
-                "UPDATE category_templates SET name = ?, description = ?, output_group = ?, image_url = ?, is_cost_group = ?, cost_group_override_allowed = ? WHERE page_template_id = ? AND name = ?",
-                [new_name, desc, output_group, category_image or (category_images[0] if category_images else ''), 1 if is_cost_group else 0, 1 if data.get('cost_group_override_allowed') else 0, pid, old_name]
+                "UPDATE category_templates SET name = ?, description = ?, blue_notes = ?, output_group = ?, image_url = ?, is_cost_group = ?, cost_group_override_allowed = ? WHERE page_template_id = ? AND name = ?",
+                [new_name, desc, blue_notes, output_group, category_image or (category_images[0] if category_images else ''), 1 if is_cost_group else 0, 1 if data.get('cost_group_override_allowed') else 0, pid, old_name]
             )
             print(f"[CAT_SAVE] Updated pid={pid} old_name={old_name!r} -> image_url={category_image!r}", flush=True)
 
@@ -3530,7 +3545,7 @@ def builder_line_item_duplicate():
             INSERT INTO line_items (
                 line_code, form_page, category, internal_description,
                 include_default, unit_cost, units, pricing_visibility,
-                output_title, output_notes, output_guidance,
+                output_title, output_notes, output_guidance, output_red_notes,
                 parent_code, item_role, input_type, trigger_parent_code,
                 form_visible, sort_order,
                 is_follow_up, follow_up_type, follow_up_config,
@@ -3549,6 +3564,7 @@ def builder_line_item_duplicate():
             row['output_title'],
             row['output_notes'],
             row['output_guidance'],
+            row['output_red_notes'],
             row['parent_code'] or '',
             row['item_role'],
             row['input_type'] or '',
@@ -3970,7 +3986,7 @@ def builder_line_item_save(item_id):
     try:
         # Build SET clause from allowed fields
         allowed = [
-            'internal_description', 'output_title', 'output_notes', 'output_guidance',
+            'internal_description', 'output_title', 'output_notes', 'output_guidance', 'output_red_notes',
             'unit_cost', 'units', 'pricing_visibility', 'quantity_source', 'pricing_mode',
             'form_visible', 'category', 'include_default',
             'is_follow_up', 'follow_up_type', 'follow_up_config',

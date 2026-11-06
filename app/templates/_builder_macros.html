@@ -1357,7 +1357,8 @@ document.addEventListener('DOMContentLoaded', function() {
         var html = '<form id="li-page-edit-form" autocomplete="off">';
         html += _section('Description', true, [
             _field('page_title', 'Configuration Identifier', 'text', __getCleanPageTitle()),
-            _field('page_description', 'Page Description', 'textarea', '')
+            _field('page_description', 'Page Description', 'textarea', ''),
+            _field_with_merge_tags('page_blue_notes', 'Blue Notes', data.blue_notes || '', null)
         ]);
         // Add Modules section
         var availModules = ['payment_schedule', 'page_total', 'image_upload'];
@@ -1388,6 +1389,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         $id('li-page-edit-form').querySelector('input[name="page_title"]').value = data.title || __getCleanPageTitle();
         $id('li-page-edit-form').querySelector('textarea[name="page_description"]').value = data.description || '';
+        $id('li-page-edit-form').querySelector('textarea[name="page_blue_notes"]').value = data.blue_notes || '';
         
         _attachAccordion($id('li-page-editor-content'));
 
@@ -1396,10 +1398,11 @@ document.addEventListener('DOMContentLoaded', function() {
             var frm = $id('li-page-edit-form');
             var title = frm.querySelector('input[name="page_title"]').value;
             var desc = frm.querySelector('textarea[name="page_description"]').value;
+            var blueNotes = frm.querySelector('textarea[name="page_blue_notes"]').value;
             fetch('/builder_beta/page_details_save/' + _pageKey, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json', 'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''},
-                body: JSON.stringify({title: title, description: desc, form_visible: $id('page-visibility-checkbox').checked, quote_visible: $id('page-quote-visibility-checkbox').checked})
+                body: JSON.stringify({title: title, description: desc, blue_notes: blueNotes, form_visible: $id('page-visibility-checkbox').checked, quote_visible: $id('page-quote-visibility-checkbox').checked})
             }).then(r => r.json()).then(d => {
                 if (d.ok) {
                     try { if (typeof showQmToast === 'function') showQmToast('Page saved', true); } catch(e){}
@@ -1442,7 +1445,8 @@ document.addEventListener('DOMContentLoaded', function() {
         var html = '<form id="li-category-edit-form" autocomplete="off" style="display:flex;flex-direction:column;flex:1;max-width:100%;">';
         html += _section('Description', true, [
             _field('cat_name', 'Category Name', 'text', catName),
-            _field('cat_description', 'Category Description', 'textarea', '')
+            _field('cat_description', 'Category Description', 'textarea', ''),
+            _field_with_merge_tags('cat_blue_notes', 'Blue Notes', data.blue_notes || '', null)
         ]);
                 var _cgHtml = '<div class="li-form-group"><label>Cost Group <span style="font-weight:400;color:#888;font-size:.78rem;">(currently: ' + ((window.builderStateCostGroups || {})[data.output_group || 'General']?.label || data.output_group || 'General') + ')</span></label>' +
             '<select name="cat_output_group" id="cat-output-group-select" style="width:100%;">' +
@@ -1512,6 +1516,8 @@ document.addEventListener('DOMContentLoaded', function() {
             var catForm = $id('li-category-edit-form');
             var catDesc = catForm && catForm.querySelector('textarea[name="cat_description"]');
             if (catDesc) catDesc.value = data.description || '';
+            var catBlueNotes = catForm && catForm.querySelector('textarea[name="cat_blue_notes"]');
+            if (catBlueNotes) catBlueNotes.value = data.blue_notes || '';
             if ($id('cat-visibility-checkbox')) {
                 $id('cat-visibility-checkbox').checked = (data.form_visible !== false);
             }
@@ -1534,6 +1540,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (newSaveC) newSaveC.addEventListener('click', function() {
             var frm = $id('li-category-edit-form');
             var desc = frm.querySelector('textarea[name="cat_description"]').value;
+            var blueNotes = frm.querySelector('textarea[name="cat_blue_notes"]').value;
             var newName = frm.querySelector('input[name="cat_name"]').value;
             var outputGroup = (frm.querySelector('select[name="cat_output_group"]') || frm.querySelector('input[name="cat_output_group"]')).value || 'General';
             var isCostGroup = document.getElementById('cat-is-cost-group') ? (document.getElementById('cat-is-cost-group').checked ? 1 : 0) : 0;
@@ -1548,7 +1555,7 @@ document.addEventListener('DOMContentLoaded', function() {
             fetch('/builder_beta/category_details_save', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json', 'X-CSRFToken': (document.querySelector('[name=csrf_token]') || {}).value || ''},
-                body: JSON.stringify({ page_key: _pageKey, old_name: catName, new_name: newName, description: desc, output_group: outputGroup, is_cost_group: isCostGroup, form_visible: visible, category_image: categoryImage, category_images: categoryImages })
+                body: JSON.stringify({ page_key: _pageKey, old_name: catName, new_name: newName, description: desc, blue_notes: blueNotes, output_group: outputGroup, is_cost_group: isCostGroup, form_visible: visible, category_image: categoryImage, category_images: categoryImages })
             }).then(r => r.json()).then(d => {
                 if (d.ok) {
                     if (newName !== catName) {
@@ -2107,7 +2114,8 @@ function showViewImageUpload() {
             _field('internal_description', 'Internal Description', 'text', item.internal_description || ''),
             _field('output_title',         'Title',          'text', item.output_title || ''),
             _field_with_merge_tags('output_notes',    'Notes',    item.output_notes || '',    item),
-            _field_with_merge_tags('output_guidance', 'Blue Notes', item.output_guidance || '', item)
+            _field_with_merge_tags('output_guidance', 'Blue Notes', item.output_guidance || '', item),
+            _field_with_merge_tags('output_red_notes', 'Red Notes', item.output_red_notes || '', item)
         ]);
 
         html += _section('Secondary Questions', true, [
@@ -2169,7 +2177,8 @@ function showViewImageUpload() {
         html += _section('Output (Preview)', false, [
             '<div class="li-form-group"><label>Internal Description</label><p style="font-size:.8rem;color:#555;padding:.2rem 0;margin:0;font-family:Arial,sans-serif;">' + _esc(item.output_title || item.internal_description || '—') + '</p></div>',
             '<div class="li-form-group"><label>Output Notes</label><p style="font-size:.8rem;color:#555;padding:.2rem 0;margin:0;white-space:pre-wrap;font-family:Arial,sans-serif;">' + _esc(item.output_notes || '—') + '</p></div>',
-            '<div class="li-form-group"><label>Output Guidance</label><p style="font-size:.8rem;color:#555;padding:.2rem 0;margin:0;white-space:pre-wrap;font-family:Arial,sans-serif;">' + _esc(item.output_guidance || '—') + '</p></div>',
+            '<div class="li-form-group"><label>Output Blue Notes</label><p style="font-size:.8rem;color:#555;padding:.2rem 0;margin:0;white-space:pre-wrap;font-family:Arial,sans-serif;">' + _esc(item.output_guidance || '—') + '</p></div>',
+            '<div class="li-form-group"><label>Output Red Notes</label><p style="font-size:.8rem;color:#555;padding:.2rem 0;margin:0;white-space:pre-wrap;font-family:Arial,sans-serif;">' + _esc(item.output_red_notes || '—') + '</p></div>',
         ]);
 
         html += '<div style="position: sticky; bottom: -1.5rem; background: #fff; z-index: 10; margin: 1rem -1.5rem -1.5rem -1.5rem; padding: 1rem 1.5rem 3rem 1.5rem; border-top: 1px solid #ccc; box-shadow: 0 -4px 6px -6px rgba(0,0,0,0.1);">';

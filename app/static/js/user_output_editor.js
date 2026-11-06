@@ -103,10 +103,10 @@ let documentStyles = {
   },
 };
 
-const TYPO_ELEMENTS = ['h1', 'h2', 'h3', 'para', 'notes', 'guide', 'guidance'];
+const TYPO_ELEMENTS = ['h1', 'h2', 'h3', 'para', 'notes', 'guide'];
 const TYPO_LABELS = {
   h1: 'Page Title', h2: 'Category Title', h3: 'Heading 3',
-  para: 'Paragraph', notes: 'Notes', guide: 'Guide', guidance: 'Guidance',
+  para: 'Notes', notes: 'Blue Notes', guide: 'Red Notes',
 };
 const FONT_FAMILIES = [
   { value: 'Arial, sans-serif', label: 'Arial' },
