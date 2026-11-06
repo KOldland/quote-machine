@@ -4879,9 +4879,10 @@ def dynamic_page(page_id):
     if page_id not in all_pages:
         abort(404)
 
-    # Check form_visible — redirect to next visible page if hidden
+    # Check form_visible — redirect to next visible page if hidden.
+    # Admins (build mode) can still access hidden pages to edit/test them.
     vis = _get_page_visibility(page_id)
-    if not vis.get('form_visible', True):
+    if not vis.get('form_visible', True) and session.get('role') != 'admin':
         # Find the next visible page to redirect to
         import template_store as _ts_nav
         ordered = _ts_nav.get_all_pages(template_key=TEMPLATE_STORE_KEY)
