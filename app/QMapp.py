@@ -4118,11 +4118,31 @@ def builder_line_item_save(item_id):
         if not sets:
             return jsonify({'ok': False, 'error': 'No fields to update'}), 400
         params.append(item_id)
-        conn.execute(
-            f"UPDATE line_items SET {', '.join(sets)}, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-            params
-        )
-        conn.commit()
+        # Retry logic for aborted transactions
+        for attempt in range(3):
+            try:
+                conn.execute(
+                    f"UPDATE line_items SET {', '.join(sets)}, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                    params
+                )
+                conn.commit()
+                break
+            except Exception as exc:
+                if 'current transaction is aborted' in str(exc).lower():
+                    # Connection has aborted transaction, get fresh connection
+                    try:
+                        conn.rollback()
+                    except Exception:
+                        pass
+                    try:
+                        conn = _get_conn()
+                    except Exception:
+                        pass
+                    if attempt == 2:
+                        return jsonify({'ok': False, 'error': 'Transaction aborted, please retry'}), 500
+                    continue
+                else:
+                    return jsonify({'ok': False, 'error': str(exc)}), 500
 
         question_images = data.get('question_images') or []
         if not isinstance(question_images, list):
