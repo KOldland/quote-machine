@@ -221,6 +221,26 @@ def _get_conn(db_path=None):
     import template_store as _ts_conn
     return _ts_conn._connect(db_path)
 
+def _run_startup_migrations():
+    """Run idempotent schema migrations on app startup (for Render Postgres)."""
+    try:
+        conn = _get_conn()
+        for stmt in (
+            "ALTER TABLE line_items ADD COLUMN IF NOT EXISTS output_red_notes TEXT DEFAULT ''",
+            "ALTER TABLE category_templates ADD COLUMN IF NOT EXISTS blue_notes TEXT DEFAULT ''",
+        ):
+            try:
+                conn.execute(stmt)
+                conn.commit()
+            except Exception:
+                pass
+        conn.close()
+    except Exception:
+        pass
+
+# Run migrations on startup (safe to run multiple times)
+_run_startup_migrations()
+
 @app.template_filter('from_json')
 def from_json_filter(s):
     import json
