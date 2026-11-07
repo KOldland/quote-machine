@@ -4037,153 +4037,136 @@ def builder_line_item_save(item_id):
     for key in ('unit_cost', 'units', 'addon_amount'):
         if key in data and (data[key] == '' or data[key] is None):
             data[key] = None
-    conn = _get_conn()
-    # Force rollback any aborted transaction from connection pool
-    try:
-        conn.rollback()
-    except Exception:
-        pass
-    # Also try to get a fresh connection if rollback fails
-    try:
+
+    # Retry logic for aborted transactions (up to 3 attempts)
+    for attempt in range(3):
         conn = _get_conn()
-    except Exception:
-        pass
-    # Idempotent column migration for line items (Render Postgres)
-    for _stmt in (
-        "ALTER TABLE line_items ADD COLUMN output_red_notes TEXT DEFAULT ''",
-    ):
         try:
-            conn.execute(_stmt)
-            conn.commit()
-        except Exception:
-            pass
-    try:
-        # Build SET clause from allowed fields
-        allowed = [
-            'internal_description', 'output_title', 'output_notes', 'output_guidance', 'output_red_notes',
-            'unit_cost', 'units', 'pricing_visibility', 'quantity_source', 'pricing_mode',
-            'form_visible', 'category', 'include_default',
-            'is_follow_up', 'follow_up_type', 'follow_up_config',
-            'output_group', 'override_output_group',
-        ]
-        sets = []
-        params = []
-        for key in allowed:
-            if key in data:
-                sets.append(f'{key} = ?')
-                params.append(data[key])
-        # Cost group total fields & sow_level: store in metadata_json
-        if 'cost_group_id' in data or 'cost_group_override' in data or 'sow_level' in data:
-            existing_row = conn.execute("SELECT metadata_json FROM line_items WHERE id = ?", (item_id,)).fetchone()
-            existing_meta = {}
-            if existing_row and existing_row[0]:
+            # Idempotent column migration for line items (Render Postgres)
+            for _stmt in (
+                "ALTER TABLE line_items ADD COLUMN output_red_notes TEXT DEFAULT ''",
+            ):
                 try:
-                    existing_meta = json.loads(existing_row[0]) if isinstance(existing_row[0], str) else existing_row[0]
+                    conn.execute(_stmt)
+                    conn.commit()
                 except Exception:
-                    existing_meta = {}
-            if not isinstance(existing_meta, dict):
+                    pass
+
+            # Build SET clause from allowed fields
+            allowed = [
+                'internal_description', 'output_title', 'output_notes', 'output_guidance', 'output_red_notes',
+                'unit_cost', 'units', 'pricing_visibility', 'quantity_source', 'pricing_mode',
+                'form_visible', 'category', 'include_default',
+                'is_follow_up', 'follow_up_type', 'follow_up_config',
+                'output_group', 'override_output_group',
+            ]
+            sets = []
+            params = []
+            for key in allowed:
+                if key in data:
+                    sets.append(f'{key} = ?')
+                    params.append(data[key])
+            # Cost group total fields & sow_level: store in metadata_json
+            if 'cost_group_id' in data or 'cost_group_override' in data or 'sow_level' in data:
+                existing_row = conn.execute("SELECT metadata_json FROM line_items WHERE id = ?", (item_id,)).fetchone()
                 existing_meta = {}
-            if 'cost_group_id' in data:
-                existing_meta['cost_group_id'] = data['cost_group_id']
-            if 'cost_group_override' in data:
-                try:
-                    existing_meta['cost_group_override'] = float(data['cost_group_override']) if data['cost_group_override'] else ''
-                except (TypeError, ValueError):
-                    existing_meta['cost_group_override'] = ''
-            if 'sow_level' in data:
-                try:
-                    existing_meta['sow_level'] = int(data['sow_level']) if data['sow_level'] != '' else ''
-                except (TypeError, ValueError):
-                    existing_meta['sow_level'] = ''
-            sets.append('metadata_json = ?')
-            params.append(json.dumps(existing_meta))
-        if 'pricing_matrix_types' in data or 'pricing_matrix_sizes' in data or 'pricing_matrix_prices' in data:
-            types_list = [t.strip() for t in (data.get('pricing_matrix_types') or '').splitlines() if t.strip()]
-            sizes_list = [s.strip() for s in (data.get('pricing_matrix_sizes') or '').splitlines() if s.strip()]
-            prices_list = []
-            prices_raw = data.get('pricing_matrix_prices')
-            if prices_raw:
-                try:
-                    parsed = json.loads(prices_raw)
-                    if isinstance(parsed, list):
-                        prices_list = parsed
-                except Exception:
-                    prices_list = []
-            price_matrix = {'types': types_list, 'sizes': sizes_list, 'prices': prices_list}
-            sets.append('price_matrix = ?')
-            params.append(json.dumps(price_matrix))
-        elif data.get('pricing_mode') and data.get('pricing_mode') != 'matrix':
-            sets.append('price_matrix = ?')
-            params.append(None)
-        if not sets:
-            return jsonify({'ok': False, 'error': 'No fields to update'}), 400
-        params.append(item_id)
-        # Retry logic for aborted transactions
-        for attempt in range(3):
+                if existing_row and existing_row[0]:
+                    try:
+                        existing_meta = json.loads(existing_row[0]) if isinstance(existing_row[0], str) else existing_row[0]
+                    except Exception:
+                        existing_meta = {}
+                if not isinstance(existing_meta, dict):
+                    existing_meta = {}
+                if 'cost_group_id' in data:
+                    existing_meta['cost_group_id'] = data['cost_group_id']
+                if 'cost_group_override' in data:
+                    try:
+                        existing_meta['cost_group_override'] = float(data['cost_group_override']) if data['cost_group_override'] else ''
+                    except (TypeError, ValueError):
+                        existing_meta['cost_group_override'] = ''
+                if 'sow_level' in data:
+                    try:
+                        existing_meta['sow_level'] = int(data['sow_level']) if data['sow_level'] != '' else ''
+                    except (TypeError, ValueError):
+                        existing_meta['sow_level'] = ''
+                sets.append('metadata_json = ?')
+                params.append(json.dumps(existing_meta))
+            if 'pricing_matrix_types' in data or 'pricing_matrix_sizes' in data or 'pricing_matrix_prices' in data:
+                types_list = [t.strip() for t in (data.get('pricing_matrix_types') or '').splitlines() if t.strip()]
+                sizes_list = [s.strip() for s in (data.get('pricing_matrix_sizes') or '').splitlines() if s.strip()]
+                prices_list = []
+                prices_raw = data.get('pricing_matrix_prices')
+                if prices_raw:
+                    try:
+                        parsed = json.loads(prices_raw)
+                        if isinstance(parsed, list):
+                            prices_list = parsed
+                    except Exception:
+                        prices_list = []
+                price_matrix = {'types': types_list, 'sizes': sizes_list, 'prices': prices_list}
+                sets.append('price_matrix = ?')
+                params.append(json.dumps(price_matrix))
+            elif data.get('pricing_mode') and data.get('pricing_mode') != 'matrix':
+                sets.append('price_matrix = ?')
+                params.append(None)
+            if not sets:
+                return jsonify({'ok': False, 'error': 'No fields to update'}), 400
+            params.append(item_id)
+            conn.execute(
+                f"UPDATE line_items SET {', '.join(sets)}, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                params
+            )
+            conn.commit()
+
+            question_images = data.get('question_images') or []
+            if not isinstance(question_images, list):
+                question_images = [question_images] if question_images else []
+            question_images = [str(u).strip() for u in question_images if str(u).strip()]
+            seen = set()
+            deduped = []
+            for u in question_images:
+                if u not in seen:
+                    seen.add(u)
+                    deduped.append(u)
+            question_images = deduped
+
+            # Sync question_images — detect the active schema. PostgreSQL uses
+            # the newer question_template_id/image_path/image_order; legacy SQLite
+            # databases use line_item_id/image_url/sort_order.
+            legacy_qi = False
             try:
-                conn.execute(
-                    f"UPDATE line_items SET {', '.join(sets)}, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-                    params
-                )
-                conn.commit()
-                break
-            except Exception as exc:
-                if 'current transaction is aborted' in str(exc).lower():
-                    # Connection has aborted transaction, get fresh connection
-                    try:
-                        conn.rollback()
-                    except Exception:
-                        pass
-                    try:
-                        conn = _get_conn()
-                    except Exception:
-                        pass
-                    if attempt == 2:
-                        return jsonify({'ok': False, 'error': 'Transaction aborted, please retry'}), 500
-                    continue
+                conn.execute("DELETE FROM question_images WHERE question_template_id = ?", (item_id,))
+            except Exception:
+                conn.rollback()
+                conn.execute("DELETE FROM question_images WHERE line_item_id = ?", (item_id,))
+                legacy_qi = True
+            for idx, url in enumerate(question_images):
+                if legacy_qi:
+                    conn.execute(
+                        "INSERT INTO question_images (line_item_id, image_url, sort_order) VALUES (?, ?, ?)",
+                        (item_id, url, idx)
+                    )
                 else:
-                    return jsonify({'ok': False, 'error': str(exc)}), 500
+                    conn.execute(
+                        "INSERT INTO question_images (question_template_id, image_path, image_order) VALUES (?, ?, ?)",
+                        (item_id, url, idx)
+                    )
+            conn.commit()
 
-        question_images = data.get('question_images') or []
-        if not isinstance(question_images, list):
-            question_images = [question_images] if question_images else []
-        question_images = [str(u).strip() for u in question_images if str(u).strip()]
-        seen = set()
-        deduped = []
-        for u in question_images:
-            if u not in seen:
-                seen.add(u)
-                deduped.append(u)
-        question_images = deduped
-
-        # Sync question_images — detect the active schema. PostgreSQL uses
-        # the newer question_template_id/image_path/image_order; legacy SQLite
-        # databases use line_item_id/image_url/sort_order.
-        legacy_qi = False
-        try:
-            conn.execute("DELETE FROM question_images WHERE question_template_id = ?", (item_id,))
-        except Exception:
-            conn.rollback()
-            conn.execute("DELETE FROM question_images WHERE line_item_id = ?", (item_id,))
-            legacy_qi = True
-        for idx, url in enumerate(question_images):
-            if legacy_qi:
-                conn.execute(
-                    "INSERT INTO question_images (line_item_id, image_url, sort_order) VALUES (?, ?, ?)",
-                    (item_id, url, idx)
-                )
+            return jsonify({'ok': True, 'item_id': item_id})
+        except Exception as exc:
+            # Handle aborted transactions with retry logic
+            if 'current transaction is aborted' in str(exc).lower():
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                if attempt == 2:
+                    return jsonify({'ok': False, 'error': 'Transaction aborted, please retry'}), 500
+                continue
             else:
-                conn.execute(
-                    "INSERT INTO question_images (question_template_id, image_path, image_order) VALUES (?, ?, ?)",
-                    (item_id, url, idx)
-                )
-        conn.commit()
-
-        return jsonify({'ok': True})
-    except Exception as e:
-        return jsonify({'ok': False, 'error': str(e)}), 400
-    finally:
-        conn.close()
+                return jsonify({'ok': False, 'error': str(exc)}), 500
+    return jsonify({'ok': False, 'error': 'Transaction aborted after retries'}), 500
 
 
 @app.route('/builder_beta/question_images', methods=['POST'])
