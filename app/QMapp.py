@@ -5561,6 +5561,30 @@ def admin_rollback():
         return jsonify({'error': str(exc)}), 500
     return jsonify({'ok': True, **result})
 
+
+@app.route('/admin/run-migrations', methods=['POST'])
+@require_role('admin')
+def admin_run_migrations():
+    """Run idempotent schema migrations for Render Postgres."""
+    try:
+        conn = _get_conn()
+        results = {}
+        for name, stmt in (
+            ('output_red_notes', "ALTER TABLE line_items ADD COLUMN IF NOT EXISTS output_red_notes TEXT DEFAULT ''"),
+            ('blue_notes', "ALTER TABLE category_templates ADD COLUMN IF NOT EXISTS blue_notes TEXT DEFAULT ''"),
+        ):
+            try:
+                conn.execute(stmt)
+                conn.commit()
+                results[name] = 'ok'
+            except Exception as exc:
+                results[name] = f'error: {exc}'
+        conn.close()
+        return jsonify({'ok': True, 'results': results})
+    except Exception as exc:
+        return jsonify({'ok': False, 'error': str(exc)}), 500
+
+
 # depends on get_builder_beta_state() and save_page_schemas() – will
 # refactor when builder state migrated to template store
 
