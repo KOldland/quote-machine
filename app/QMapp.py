@@ -4038,6 +4038,11 @@ def builder_line_item_save(item_id):
         if key in data and (data[key] == '' or data[key] is None):
             data[key] = None
     conn = _get_conn()
+    # Force rollback any aborted transaction from connection pool
+    try:
+        conn.rollback()
+    except Exception:
+        pass
     # Idempotent column migration for line items (Render Postgres)
     for _stmt in (
         "ALTER TABLE line_items ADD COLUMN output_red_notes TEXT DEFAULT ''",
