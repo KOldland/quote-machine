@@ -4043,6 +4043,11 @@ def builder_line_item_save(item_id):
         conn.rollback()
     except Exception:
         pass
+    # Also try to get a fresh connection if rollback fails
+    try:
+        conn = _get_conn()
+    except Exception:
+        pass
     # Idempotent column migration for line items (Render Postgres)
     for _stmt in (
         "ALTER TABLE line_items ADD COLUMN output_red_notes TEXT DEFAULT ''",
