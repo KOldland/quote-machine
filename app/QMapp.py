@@ -5562,6 +5562,7 @@ def admin_rollback():
     return jsonify({'ok': True, **result})
 
 
+@csrf.exempt
 @app.route('/admin/run-migrations', methods=['POST'])
 @require_role('admin')
 def admin_run_migrations():
