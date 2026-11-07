@@ -5586,6 +5586,24 @@ def admin_run_migrations():
         return jsonify({'ok': False, 'error': str(exc)}), 500
 
 
+@app.route('/admin/rollback-transactions', methods=['POST'])
+@csrf.exempt
+@require_role('admin')
+def admin_rollback_transactions():
+    """Force rollback of any aborted transactions in the connection pool."""
+    try:
+        conn = _get_conn()
+        # Force rollback any aborted transactions
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        conn.close()
+        return jsonify({'ok': True, 'message': 'Transaction rollback attempted'})
+    except Exception as exc:
+        return jsonify({'ok': False, 'error': str(exc)}), 500
+
+
 # depends on get_builder_beta_state() and save_page_schemas() – will
 # refactor when builder state migrated to template store
 
