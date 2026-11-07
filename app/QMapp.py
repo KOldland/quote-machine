@@ -219,20 +219,7 @@ def _get_conn(db_path=None):
     """Return a DB connection via template_store._connect().
     On Render (DATABASE_URL set) this uses PostgreSQL; locally it uses SQLite."""
     import template_store as _ts_conn
-    conn = _ts_conn._connect(db_path)
-    # Idempotent column migrations — run on every connection so routes that
-    # don't go through save_template (e.g. builder_line_item_save) still get
-    # the latest schema on Render Postgres.
-    for _stmt in (
-        "ALTER TABLE line_items ADD COLUMN output_red_notes TEXT DEFAULT ''",
-        "ALTER TABLE category_templates ADD COLUMN blue_notes TEXT DEFAULT ''",
-    ):
-        try:
-            conn.execute(_stmt)
-            conn.commit()
-        except Exception:
-            pass
-    return conn
+    return _ts_conn._connect(db_path)
 
 @app.template_filter('from_json')
 def from_json_filter(s):
@@ -4031,6 +4018,15 @@ def builder_line_item_save(item_id):
         if key in data and (data[key] == '' or data[key] is None):
             data[key] = None
     conn = _get_conn()
+    # Idempotent column migration for line items (Render Postgres)
+    for _stmt in (
+        "ALTER TABLE line_items ADD COLUMN output_red_notes TEXT DEFAULT ''",
+    ):
+        try:
+            conn.execute(_stmt)
+            conn.commit()
+        except Exception:
+            pass
     try:
         # Build SET clause from allowed fields
         allowed = [
