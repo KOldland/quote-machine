@@ -4070,6 +4070,11 @@ def builder_line_item_save(item_id):
     for attempt in range(3):
         # Get a fresh, validated connection for each attempt
         conn = _get_fresh_conn()
+        # Force rollback any aborted transaction on this fresh connection
+        try:
+            conn.rollback()
+        except Exception:
+            pass
         try:
             # Idempotent column migration for line items (Render Postgres)
             for _stmt in (
