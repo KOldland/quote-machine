@@ -221,6 +221,34 @@ def _get_conn(db_path=None):
     import template_store as _ts_conn
     return _ts_conn._connect(db_path)
 
+
+def _validate_connection(conn):
+    """Test if a connection is valid (not aborted). Returns True if OK."""
+    try:
+        conn.execute("SELECT 1")
+        return True
+    except Exception:
+        return False
+
+
+def _get_fresh_conn(db_path=None):
+    """Get a fresh, validated connection, closing the old one if provided."""
+    import template_store as _ts_conn
+    conn = _ts_conn._connect(db_path)
+    # Test the connection
+    try:
+        conn.execute("SELECT 1")
+    except Exception:
+        try:
+            conn.close()
+        except Exception:
+            pass
+        # Try one more time
+        conn = _ts_conn._connect(db_path)
+        conn.execute("SELECT 1")
+    return conn
+
+
 def _run_startup_migrations():
     """Run idempotent schema migrations on app startup (for Render Postgres)."""
     try:
@@ -4038,9 +4066,10 @@ def builder_line_item_save(item_id):
         if key in data and (data[key] == '' or data[key] is None):
             data[key] = None
 
-    # Retry logic for aborted transactions (up to 3 attempts)
+# Retry logic for aborted transactions (up to 3 attempts)
     for attempt in range(3):
-        conn = _get_conn()
+        # Get a fresh, validated connection for each attempt
+        conn = _get_fresh_conn()
         try:
             # Idempotent column migration for line items (Render Postgres)
             for _stmt in (
