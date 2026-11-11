@@ -250,21 +250,24 @@ def _get_fresh_conn(db_path=None):
 
 
 def _run_startup_migrations():
-    """Run idempotent schema migrations on app startup (for Render Postgres)."""
-    try:
-        conn = _get_conn()
-        for stmt in (
-            "ALTER TABLE line_items ADD COLUMN IF NOT EXISTS output_red_notes TEXT DEFAULT ''",
-            "ALTER TABLE category_templates ADD COLUMN IF NOT EXISTS blue_notes TEXT DEFAULT ''",
-        ):
-            try:
-                conn.execute(stmt)
-                conn.commit()
-            except Exception:
-                pass
-        conn.close()
-    except Exception:
-        pass
+        """Run idempotent schema migrations on app startup (for Render Postgres)."""
+        try:
+            conn = _get_conn()
+            for stmt in (
+                "ALTER TABLE line_items ADD COLUMN IF NOT EXISTS output_red_notes TEXT DEFAULT ''",
+                "ALTER TABLE category_templates ADD COLUMN IF NOT EXISTS blue_notes TEXT DEFAULT ''",
+            ):
+                try:
+                    conn.execute(stmt)
+                    conn.commit()
+                except Exception:
+                    try:
+                        conn.rollback()
+                    except Exception:
+                        pass
+            conn.close()
+        except Exception:
+            pass
 
 # Run migrations on startup (safe to run multiple times)
 _run_startup_migrations()
@@ -4076,15 +4079,19 @@ def builder_line_item_save(item_id):
         except Exception:
             pass
         try:
-            # Idempotent column migration for line items (Render Postgres)
+            # Idempotent column migration for line items (Render Postgres).
+            # Use IF NOT EXISTS so a failed ALTER does not abort the transaction.
             for _stmt in (
-                "ALTER TABLE line_items ADD COLUMN output_red_notes TEXT DEFAULT ''",
+                "ALTER TABLE line_items ADD COLUMN IF NOT EXISTS output_red_notes TEXT DEFAULT ''",
             ):
                 try:
                     conn.execute(_stmt)
                     conn.commit()
                 except Exception:
-                    pass
+                    try:
+                        conn.rollback()
+                    except Exception:
+                        pass
 
             # Build SET clause from allowed fields
             allowed = [
@@ -5627,6 +5634,10 @@ def admin_run_migrations():
                 results[name] = 'ok'
             except Exception as exc:
                 results[name] = f'error: {exc}'
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
         conn.close()
         return jsonify({'ok': True, 'results': results})
     except Exception as exc:
