@@ -3595,10 +3595,7 @@ def builder_line_item_delete():
 @app.route('/builder_beta/line_item_duplicate', methods=['POST'])
 @require_role('admin')
 def builder_line_item_duplicate():
-    import sqlite3
     import time
-    from pathlib import Path
-    db = str(Path(__file__).parent / 'template_store.sqlite3')
     data = request.get_json(force=True) or {}
     line_code = data.get('line_code')
     page_key = data.get('page_key')
@@ -3607,80 +3604,83 @@ def builder_line_item_duplicate():
     if not line_code:
         return jsonify({'error': 'No line code provided'}), 400
 
-    conn = _get_conn()
-    
-    try:
-        print(f"[DUPLICATE] line_code={line_code!r} page_key={page_key!r} category={category!r}", flush=True)
-        row = conn.execute(
-            "SELECT * FROM line_items WHERE line_code = ?",
-            [line_code]
-        ).fetchone()
-        print(f"[DUPLICATE] row found: {row is not None}", flush=True)
-        if not row:
-            return jsonify({'error': 'Line item not found'}), 404
+    # Retry loop with fresh connections so an aborted transaction can't
+    # poison a subsequent attempt.
+    for attempt in range(3):
+        conn = _get_fresh_conn()
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        try:
+            print(f"[DUPLICATE] line_code={line_code!r} page_key={page_key!r} category={category!r}", flush=True)
+            row = conn.execute(
+                "SELECT * FROM line_items WHERE line_code = ?",
+                [line_code]
+            ).fetchone()
+            print(f"[DUPLICATE] row found: {row is not None}", flush=True)
+            if not row:
+                return jsonify({'error': 'Line item not found'}), 404
 
-        max_sort = conn.execute(
-            "SELECT MAX(sort_order) FROM line_items WHERE form_page = ? AND category = ?",
-            [row['form_page'], row['category']]
-        ).fetchone()[0]
-        next_sort = 0 if max_sort is None else max_sort + 1
-        new_code = f"{row['line_code']}_copy_{int(time.time())}"
+            max_sort = conn.execute(
+                "SELECT MAX(sort_order) FROM line_items WHERE form_page = ? AND category = ?",
+                [row['form_page'], row['category']]
+            ).fetchone()[0]
+            next_sort = 0 if max_sort is None else max_sort + 1
+            new_code = f"{row['line_code']}_copy_{int(time.time())}"
 
-        cur = conn.cursor()
-        cur.execute('''
-            INSERT INTO line_items (
-                line_code, form_page, category, internal_description,
-                include_default, unit_cost, units, pricing_visibility,
-                output_title, output_notes, output_guidance, output_red_notes,
-                parent_code, item_role, input_type, trigger_parent_code,
-                form_visible, sort_order,
-                is_follow_up, follow_up_type, follow_up_config,
-                allow_user_override, output_group, quantity_source, pricing_mode,
-                addon_amount, price_matrix
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', [
-            new_code,
-            row['form_page'],
-            row['category'],
-            row['internal_description'] + ' (copy)',
-            row['include_default'],
-            row['unit_cost'],
-            row['units'],
-            row['pricing_visibility'],
-            row['output_title'],
-            row['output_notes'],
-            row['output_guidance'],
-            row['output_red_notes'],
-            row['parent_code'] or '',
-            row['item_role'],
-            row['input_type'] or '',
-            row['trigger_parent_code'] or '',
-            row['form_visible'],
-            next_sort,
-            row['is_follow_up'],
-            row['follow_up_type'] or '',
-            row['follow_up_config'] or '',
-            row['allow_user_override'] if 'allow_user_override' in row.keys() else 0,
-            row['output_group'] or 'General',
-            row['quantity_source'] or '',
-            row['pricing_mode'] if 'pricing_mode' in row.keys() else 'per_unit',
-            row['addon_amount'] if 'addon_amount' in row.keys() else 0.0,
-            row['price_matrix'] if 'price_matrix' in row.keys() else None,
-        ])
-        conn.commit()
-        new_id = cur.lastrowid
-        new_row = conn.execute(
-            "SELECT * FROM line_items WHERE id = ?",
-            [new_id]
-        ).fetchone()
-        return jsonify({"success": True, "item": dict(new_row)})
-    except Exception as e:
-        import traceback
-        print(f"[DUPLICATE ERROR] {type(e).__name__}: {e}", flush=True)
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 400
-    finally:
-        conn.close()
+            # Build the INSERT dynamically from the row's own keys so the
+            # column list always matches the value list, regardless of
+            # schema drift between SQLite and PostgreSQL. A hardcoded list
+            # raises psycopg2 "not all arguments converted during string
+            # formatting" the moment the two sides fall out of sync.
+            row_keys = list(row.keys())
+            skip = {'id', 'created_at', 'updated_at'}
+            cols = [k for k in row_keys if k not in skip]
+            placeholders = ', '.join(['?'] * len(cols))
+            values = []
+            for k in cols:
+                v = row[k]
+                if k == 'line_code':
+                    v = new_code
+                elif k == 'internal_description':
+                    v = (v or '') + ' (copy)'
+                elif k == 'sort_order':
+                    v = next_sort
+                elif v is None and k in (
+                    'parent_code', 'input_type', 'trigger_parent_code',
+                    'follow_up_type', 'follow_up_config', 'quantity_source',
+                ):
+                    v = ''
+                values.append(v)
+
+            sql = f"INSERT INTO line_items ({', '.join(cols)}) VALUES ({placeholders})"
+            cur = conn.cursor()
+            cur.execute(sql, values)
+            conn.commit()
+            new_id = cur.lastrowid
+            new_row = conn.execute(
+                "SELECT * FROM line_items WHERE id = ?",
+                [new_id]
+            ).fetchone()
+            return jsonify({"success": True, "item": dict(new_row)})
+        except Exception as e:
+            import traceback
+            print(f"[DUPLICATE ERROR] {type(e).__name__}: {e}", flush=True)
+            traceback.print_exc()
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            if 'current transaction is aborted' in str(e).lower() and attempt < 2:
+                continue
+            return jsonify({"error": str(e)}), 400
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+    return jsonify({"error": "Duplicate failed after retries"}), 500
 
 
 # ── Helper: compute per-group totals from checked items ────────────────
