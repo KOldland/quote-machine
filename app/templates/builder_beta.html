@@ -38,6 +38,66 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 
+{# ── Inject module + cost-group-section blocks into the sidebar ────────
+   builder_beta.html does not include form_editor.html, so the inline
+   injection script there never runs and cost-group-section blocks added
+   via the Add Cost Group button are invisible in BUILD mode.  Duplicate
+   the same logic so the sidebar renders them here too. #}
+<script>
+// Unified sidebar injection — reads all relevant block types from window.blocks
+(function() {
+    var blocks = window.blocks || [];
+    var list = document.getElementById('li-sections-list');
+    if (!list) return;
+    // Skip only if a module / cost-group button is already present — regular
+    // category buttons (data-category) are rendered by the macro and must NOT
+    // block injection, otherwise cost-group sections never appear.
+    var existing = document.querySelectorAll('.li-section-btn[data-module], .li-section-btn[data-is-cost-group="1"]');
+    if (existing.length > 0) return;
+    var pageId = window.pageId || '';
+    var badges = {
+        payment_schedule: 'PS',
+        page_total: 'Σ',
+        image_upload: 'IMG',
+        cost_group_section: 'CG'
+    };
+    var labels = {
+        payment_schedule: 'Payment Schedule',
+        page_total: 'Page Total',
+        image_upload: 'Image Upload'
+    };
+    for (var i = 0; i < blocks.length; i++) {
+        var b = blocks[i];
+        var bt = b.block_type;
+        if (bt !== 'page_total' && bt !== 'payment_schedule' && bt !== 'image_upload' && bt !== 'cost_group_section') continue;
+        var badge = badges[bt] || 'M';
+        var label = (b.standard || {}).label || labels[bt] || bt;
+        var blockId = (b.id || bt || '');
+        var isCG = (bt === 'cost_group_section');
+        // Build the HTML
+        var html = '<div class=li-section-item style="display:flex;align-items:center;border-bottom:1px solid #f3f3f3;">';
+        if (isCG) {
+            html += '<button type=button class=li-section-btn data-category="' + label + '" data-is-cost-group=1 data-id="' + label + '" data-page=' + pageId + ' style=flex:1;>';
+        } else {
+            html += '<button type=button class=li-section-btn data-module=' + bt + ' style=flex:1;>';
+        }
+        html += '<span style="display:inline-block;min-width:1.8rem;text-align:center;background:#495057;color:#fff;font-size:.6rem;font-weight:700;padding:.12rem .2rem;border-radius:3px;margin-right:.5rem;">' + badge + '</span>'
+            + label
+            + '</button>';
+        // Reorder controls — for all block types
+        html += '<div class=li-reorder-controls style=display:flex;flex-direction:column;margin-right:4px;>'
+            + '<button type=button class=li-move-btn data-scope=module_block data-id=' + blockId + ' data-page=' + pageId + ' data-dir=up style=border:none;background:none;font-size:10px;cursor:pointer;padding:0 4px;color:#888;line-height:1;>▲</button>'
+            + '<button type=button class=li-move-btn data-scope=module_block data-id=' + blockId + ' data-page=' + pageId + ' data-dir=down style=border:none;background:none;font-size:10px;cursor:pointer;padding:0 4px;color:#888;line-height:1;>▼</button>'
+            + '</div>';
+
+        html += '</div>';
+        var temp = document.createElement('div');
+        temp.innerHTML = html;
+        list.appendChild(temp.firstChild);
+    }
+})();
+</script>
+
 {% if edit_mode %}
 {# ---------------------------------------------------------------
    Inject the runtime data that the JS editor expects.
