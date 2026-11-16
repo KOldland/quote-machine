@@ -2729,6 +2729,41 @@ def builder_cg_override_revert():
     return jsonify({'ok': True})
 
 
+@app.route('/builder_beta/cat_override_save', methods=['POST'])
+@csrf.exempt
+def builder_cat_override_save():
+    """Save a category-level price override to the session."""
+    data = request.get_json(force=True) or {}
+    category = data.get('category', '')
+    value = data.get('value')
+    if not category or value is None:
+        return jsonify({'ok': False, 'error': 'category and value required'}), 400
+    try:
+        val = float(value)
+    except (TypeError, ValueError):
+        return jsonify({'ok': False, 'error': 'Invalid value'}), 400
+    session_overrides = session.setdefault('session_overrides', {})
+    cat_overrides = session_overrides.setdefault('cat_overrides', {})
+    cat_overrides[category] = val
+    session.modified = True
+    return jsonify({'ok': True})
+
+
+@app.route('/builder_beta/cat_override_revert', methods=['POST'])
+@csrf.exempt
+def builder_cat_override_revert():
+    """Remove a category-level price override from the session."""
+    data = request.get_json(force=True) or {}
+    category = data.get('category', '')
+    if not category:
+        return jsonify({'ok': False, 'error': 'category required'}), 400
+    session_overrides = session.setdefault('session_overrides', {})
+    cat_overrides = session_overrides.setdefault('cat_overrides', {})
+    cat_overrides.pop(category, None)
+    session.modified = True
+    return jsonify({'ok': True})
+
+
 @app.route('/builder_beta/li_override_save', methods=['POST'])
 @csrf.exempt
 def builder_li_override_save():
@@ -4924,6 +4959,7 @@ def _get_runtime_quote_context():
     cg_overrides = session_overrides.get('cg_overrides', {}) or {}
     li_overrides = session_overrides.get('overrides', {}) or {}
     units_overrides = session_overrides.get('units_overrides', {}) or {}
+    cat_overrides = session_overrides.get('cat_overrides', {}) or {}
     return {
         "client_address": data.get("client_address", ""),
         "proposal_date": data.get("Date", ""),
@@ -4932,6 +4968,7 @@ def _get_runtime_quote_context():
         "_session_cg_overrides_json": json.dumps(cg_overrides),
         "_session_li_overrides_json": json.dumps(li_overrides),
         "_session_units_overrides_json": json.dumps(units_overrides),
+        "_session_cat_overrides_json": json.dumps(cat_overrides),
     }
 
 @app.route('/login', methods=['GET', 'POST'])

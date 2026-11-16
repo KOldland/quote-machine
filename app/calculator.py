@@ -457,21 +457,43 @@ def calculate_quote(
                 groups.setdefault(group_name, []).append(item)
                 items.append(item)
 
-        # ── 3. Compute subtotals per output_group ──────────────────────────
+        # ── 3. Compute subtotals per output_group with category level ──────────
         subtotals: dict[str, float] = {}
         group_data: list[dict[str, Any]] = []
+        cat_overrides = (session_overrides or {}).get('cat_overrides', {}) or {}
+
         for gname, gitems in groups.items():
-            gsub = round(sum(it["line_total"] for it in gitems), 2)
+            # Group items by category within this cost group
+            cat_items: dict[str, list[dict[str, Any]]] = {}
+            for it in gitems:
+                cat_name = it.get('category') or 'Uncategorized'
+                cat_items.setdefault(cat_name, []).append(it)
+
+            # Compute category totals (sum of line item totals, or override)
+            cat_totals: dict[str, float] = {}
+            for cat_name, citems in cat_items.items():
+                cat_total = round(sum(it['line_total'] for it in citems), 2)
+                # Apply category override if present
+                if cat_name in cat_overrides:
+                    try:
+                        cat_total = round(float(cat_overrides[cat_name]), 2)
+                    except (TypeError, ValueError):
+                        pass
+                cat_totals[cat_name] = cat_total
+
+            # Cost group subtotal = sum of category totals
+            gsub = round(sum(cat_totals.values()), 2)
             subtotals[gname] = gsub
             group_data.append(
                 {
                     "name": gname,
                     "subtotal": gsub,
                     "line_items": gitems,
+                    "category_totals": cat_totals,
                 }
             )
 
-        # ── 3b. Apply cost group overrides from form_data ───────────────────
+        # ── 3b. Apply cost group overrides ───────────────────
         cost_group_overrides = {}
         if isinstance(form_data, dict):
             for key, val in form_data.items():
@@ -487,9 +509,12 @@ def calculate_quote(
                     # The override value replaces the group subtotal
                     cost_group_overrides[key] = override_val
 
+        # Also apply session-based cost group overrides
+        session_cg_overrides = (session_overrides or {}).get('cg_overrides', {}) or {}
+        for cg_id, cg_val in session_cg_overrides.items():
+            cost_group_overrides[cg_id] = cg_val
+
         # Apply overrides to group subtotals (match by output_group name)
-        # The form stores output_group in the cost group section's meta
-        # We also need to check by the override target's group name
         if cost_group_overrides:
             for gname in list(subtotals.keys()):
                 # Try to find an override for this group

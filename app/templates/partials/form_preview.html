@@ -48,6 +48,26 @@ window.builderStateQuestionTypes = {{ builder_state.question_types | default({})
                                         <summary class="preview-li-category-header">
                                             <span class="preview-li-category-title">{{ group['category'] }}</span>
                                             <span class="preview-li-category-count">{{ group['items'] | length }} items</span>
+                                            {% set _cat_overrides = _saved | default({}) %}
+                                            {% set _cat_override_val = _session_cat_overrides | default({}) %}
+                                            {% set _cat_override = _cat_override_val.get(group['category'], '') %}
+                                            <span class="preview-li-category-total" id="cat-total-{{ group['category'] | replace(' ', '_') }}" style="float:right;font-weight:700;color:#1b3a6b;">–</span>
+                                            {% if group['items'] | length > 0 %}
+                                            <div class="preview-li-category-override" style="margin-left:1rem;display:flex;align-items:center;gap:.3rem;font-size:.8rem;">
+                                                <span style="color:#666;">Override:</span>
+                                                <input type="number" class="form-input preview-cat-override-input"
+                                                       name="cat_override_{{ group['category'] | replace(' ', '_') }}"
+                                                       value="{{ _cat_override if _cat_override != '' else '' }}"
+                                                       step="0.01" min="0"
+                                                       placeholder="0.00"
+                                                       style="width:80px; padding:.15rem .3rem; font-size:.75rem;"
+                                                       data-category="{{ group['category'] }}">
+                                                <button type="button" class="preview-cat-override-save"
+                                                        style="padding:.15rem .4rem; font-size:.7rem; border:1px solid #1b3a6b; background:#1b3a6b; color:#fff; border-radius:3px; cursor:pointer; {% if _cat_override == '' %}display:none;{% endif %}">Override</button>
+                                                <button type="button" class="preview-cat-override-default"
+                                                        style="padding:.15rem .4rem; font-size:.7rem; border:1px solid #6d0b0b; background:#6d0b0b; color:#fff; border-radius:3px; cursor:pointer; {% if _cat_override == '' %}display:none;{% endif %}">Default</button>
+                                            </div>
+                                            {% endif %}
                                         </summary>
                                         <div class="preview-li-items">
 {% for item in group['items'] %}
@@ -58,6 +78,7 @@ window.builderStateQuestionTypes = {{ builder_state.question_types | default({})
              data-follow-up="{{ item.is_follow_up }}"
              data-follow-up-type="{{ item.follow_up_type }}"
              data-follow-up-config="{{ item.follow_up_config | e }}"
+             data-unit-cost="{{ item.unit_cost }}"
              {% if item.pricing_visibility == 'user_edit' %}data-price-for="{{ item.value }}"{% endif %}>
       <span class="preview-li-item-label">{{ item.label }}</span>
   </label>
@@ -117,19 +138,25 @@ window.builderStateQuestionTypes = {{ builder_state.question_types | default({})
                 {% set _dd_prices = cfg.prices | default([]) %}
                 {% set _dd_user_edit = cfg.user_edit | default(false) %}
                 {% set _dd_saved_price = _saved.get(_fu_key + '_price', '') %}
-                <select class="form-input preview-select" name="{{ _fu_key }}" style="width:100%; max-width:400px;"
-                        {% if _dd_user_edit %}data-follow-up-prices='{{ _dd_prices | tojson }}' data-follow-up-target="{{ _fu_key }}_price"{% endif %}>
+                <select class="form-input preview-select" id="{{ _fu_key }}_select" name="{{ _fu_key }}" style="width:100%; max-width:400px;"
+                        {% if _dd_user_edit %}data-follow-up-prices='{{ _dd_prices | tojson }}' data-follow-up-target="{{ _fu_key }}_price"{% endif %}
+                        onchange="toggleOtherInput('{{ _fu_key }}_select', '{{ _fu_key }}_other_container', '{{ _fu_key }}_other_input', 'Other')">
                     <option value="">-- Select --</option>
                     {% for choice in cfg.choices | default([]) %}
                     <option value="{{ choice }}"{% if choice == _fu_val %} selected{% endif %}>{{ choice }}</option>
                     {% endfor %}
+                    {% if cfg.include_other %}
+                    <option value="Other"{% if _fu_val == 'Other' %} selected{% endif %}>Other</option>
+                    {% endif %}
                 </select>
                 {% if cfg.include_other %}
-                <input type="text" class="form-input preview-follow-up-input"
-                       name="{{ _fu_key }}_other"
-                       placeholder="Other..."
-                       value="{{ _saved.get(_fu_key + '_other', '') }}"
-                       style="width:100%; max-width:400px; margin-top:0.3rem;">
+                <div id="{{ _fu_key }}_other_container" style="display: {% if _fu_val == 'Other' %}block{% else %}none{% endif %};">
+                    <input type="text" class="form-input preview-follow-up-input" id="{{ _fu_key }}_other_input"
+                           name="{{ _fu_key }}_other"
+                           placeholder="Other..."
+                           value="{{ _saved.get(_fu_key + '_other', '') }}"
+                           style="width:100%; max-width:400px; margin-top:0.3rem;">
+                </div>
                 {% endif %}
                 {% if _dd_user_edit %}
                 {% set _dd_confirmed = _dd_saved_price not in [None, ''] %}
@@ -1202,6 +1229,126 @@ document.querySelectorAll('.preview-li-price-input').forEach(function(inp) {
         });
     }
     updateLiTotal(inp, unitsInput, totalId);
+});
+
+// ── Category-level price overrides ──
+var catOverrides = window._sessionCatOverrides || {};
+function computeCatTotal(categoryName) {
+    var safeId = categoryName.replace(/[^a-z0-9]/gi, '_');
+    var totalEl = document.getElementById('cat-total-' + safeId);
+    if (!totalEl) return;
+    var catHeader = Array.from(document.querySelectorAll('.preview-li-category-header')).find(function(h) {
+        return h.querySelector('.preview-li-category-title').textContent.trim() === categoryName;
+    });
+    if (!catHeader) {
+        totalEl.textContent = '–';
+        return;
+    }
+    var catDetails = catHeader.closest('.preview-li-category');
+    if (!catDetails) {
+        totalEl.textContent = '–';
+        return;
+    }
+    var total = 0;
+    catDetails.querySelectorAll('.preview-li-item input[type="checkbox"]:checked').forEach(function(cb) {
+        var row = cb.closest('.preview-li-item');
+        if (!row) return;
+        var priceInput = row.querySelector('.preview-li-price-input');
+        var unitsInput = row.querySelector('.preview-li-units-input');
+        var price = priceInput ? parseFloat(priceInput.value) || 0 : 0;
+        var units = unitsInput ? parseFloat(unitsInput.value) || 1 : 1;
+        if (priceInput) {
+            total += price * units;
+        } else {
+            total += (parseFloat(cb.getAttribute('data-unit-cost')) || 0) * units;
+        }
+    });
+    var overrideVal = catOverrides[categoryName];
+    if (overrideVal !== undefined && overrideVal !== '') {
+        total = parseFloat(overrideVal);
+        totalEl.textContent = '= £' + total.toFixed(2) + ' (override)';
+    } else {
+        totalEl.textContent = '= £' + total.toFixed(2);
+    }
+}
+
+// Compute all category totals on load
+document.querySelectorAll('.preview-li-category-title').forEach(function(titleEl) {
+    computeCatTotal(titleEl.textContent.trim());
+});
+
+// Recompute totals when checkboxes or units change
+document.addEventListener('change', function(e) {
+    if (e.target.matches('.preview-li-item input[type="checkbox"]') ||
+        e.target.matches('.preview-li-units-input') ||
+        e.target.matches('.preview-li-price-input')) {
+        document.querySelectorAll('.preview-li-category-title').forEach(function(titleEl) {
+            computeCatTotal(titleEl.textContent.trim());
+        });
+    }
+});
+
+// Category override save handlers
+document.querySelectorAll('.preview-cat-override-save').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        var container = btn.closest('.preview-li-category-override');
+        var input = container.querySelector('.preview-cat-override-input');
+        var category = input.getAttribute('data-category');
+        var val = parseFloat(input.value);
+        if (isNaN(val) || val < 0) {
+            alert('Please enter a valid price');
+            return;
+        }
+        var csrf = (document.querySelector('[name=csrf_token]')||{}).value||'';
+        fetch('/builder_beta/cat_override_save', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json','X-CSRFToken':csrf},
+            body: JSON.stringify({category: category, value: val})
+        }).then(function(r){return r.json()}).then(function(d){
+            if (d.ok) {
+                catOverrides[category] = val;
+                computeCatTotal(category);
+                btn.style.display = 'none';
+                var defBtn = container.querySelector('.preview-cat-override-default');
+                defBtn.style.display = 'inline-block';
+            }
+        }).catch(function(){});
+    });
+});
+
+// Category override default handlers
+document.querySelectorAll('.preview-cat-override-default').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        var container = btn.closest('.preview-li-category-override');
+        var input = container.querySelector('.preview-cat-override-input');
+        var category = input.getAttribute('data-category');
+        var csrf = (document.querySelector('[name=csrf_token]')||{}).value||'';
+        fetch('/builder_beta/cat_override_revert', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json','X-CSRFToken':csrf},
+            body: JSON.stringify({category: category})
+        }).then(function(r){return r.json()}).then(function(d){
+            if (d.ok) {
+                delete catOverrides[category];
+                input.value = '';
+                computeCatTotal(category);
+                btn.style.display = 'none';
+                var saveBtn = container.querySelector('.preview-cat-override-save');
+                saveBtn.style.display = 'none';
+            }
+        }).catch(function(){});
+    });
+});
+
+// Show save button when user types in category override input
+document.querySelectorAll('.preview-cat-override-input').forEach(function(input) {
+    input.addEventListener('input', function() {
+        var container = input.closest('.preview-li-category-override');
+        var saveBtn = container.querySelector('.preview-cat-override-save');
+        var defBtn = container.querySelector('.preview-cat-override-default');
+        saveBtn.style.display = 'inline-block';
+        defBtn.style.display = 'inline-block';
+    });
 });
 
 })();

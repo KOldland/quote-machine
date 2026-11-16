@@ -558,7 +558,21 @@ document.addEventListener('DOMContentLoaded', function () {
 			const key = this.querySelector('p')?.innerText.trim();
 			hiddenInput.value = key;
 		});
+	// ── Initialize "Other" field visibility for dropdown follow-ups ──
+	document.querySelectorAll('div[id$="_other_container"]').forEach(function(container) {
+		var baseId = container.id.replace('_other_container', '_select');
+		var dropdown = document.getElementById(baseId);
+		var inputField = document.getElementById(baseId.replace('_select', '_other_input'));
+		if (dropdown && container) {
+			if (dropdown.value === 'Other') {
+				container.style.display = 'block';
+			} else {
+				container.style.display = 'none';
+				if (inputField) inputField.value = '';
+			}
+		}
 	});
+});
 });
 
 function loadNextRow() {
@@ -579,4 +593,3 @@ window.onload = () => {
 		console.log(" Window onload fallback triggered.");
 	}
 };
-				
