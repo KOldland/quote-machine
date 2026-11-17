@@ -1161,6 +1161,10 @@ window.initLineItemPriceOverrides = function() {
                     }
                     toast.style.opacity = '1';
                     setTimeout(function(){ toast.style.opacity = '0'; }, 1500);
+                    // Recompute category totals since line item price changed
+                    document.querySelectorAll('.preview-li-category-title').forEach(function(titleEl) {
+                        computeCatTotal(titleEl.textContent.trim());
+                    });
                 }
             }).catch(function(){});
         });
@@ -1171,6 +1175,10 @@ window.initLineItemPriceOverrides = function() {
             confirmBtn.style.display = 'none';
             defaultBtn.style.display = 'none';
             statusEl.style.display = 'none';
+            // Recompute category totals since line item price reverted
+            document.querySelectorAll('.preview-li-category-title').forEach(function(titleEl) {
+                computeCatTotal(titleEl.textContent.trim());
+            });
         });
 
         priceInput.addEventListener('input', function() {
@@ -1262,6 +1270,17 @@ function computeCatTotal(categoryName) {
         } else {
             total += (parseFloat(cb.getAttribute('data-unit-cost')) || 0) * units;
         }
+        // ── Add dropdown follow-up prices for this checked item ──
+        var followUpDiv = row.querySelector('.preview-follow-up');
+        if (followUpDiv) {
+            followUpDiv.querySelectorAll('.preview-follow-up-input[name$="_price"]').forEach(function(fuPriceInput) {
+                var confirmed = fuPriceInput.getAttribute('data-price-confirmed');
+                var val = parseFloat(fuPriceInput.value) || 0;
+                if (confirmed === '1' || val > 0) {
+                    total += val;
+                }
+            });
+        }
     });
     var overrideVal = catOverrides[categoryName];
     if (overrideVal !== undefined && overrideVal !== '') {
@@ -1277,11 +1296,21 @@ document.querySelectorAll('.preview-li-category-title').forEach(function(titleEl
     computeCatTotal(titleEl.textContent.trim());
 });
 
-// Recompute totals when checkboxes or units change
+// Recompute totals when checkboxes, units, prices, or follow-up prices change
 document.addEventListener('change', function(e) {
     if (e.target.matches('.preview-li-item input[type="checkbox"]') ||
         e.target.matches('.preview-li-units-input') ||
-        e.target.matches('.preview-li-price-input')) {
+        e.target.matches('.preview-li-price-input') ||
+        e.target.matches('.preview-follow-up-input[name$="_price"]')) {
+        document.querySelectorAll('.preview-li-category-title').forEach(function(titleEl) {
+            computeCatTotal(titleEl.textContent.trim());
+        });
+    }
+});
+
+// Recompute on follow-up price confirm button click
+document.addEventListener('click', function(e) {
+    if (e.target.matches('.preview-fu-price-confirm')) {
         document.querySelectorAll('.preview-li-category-title').forEach(function(titleEl) {
             computeCatTotal(titleEl.textContent.trim());
         });

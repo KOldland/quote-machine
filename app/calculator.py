@@ -252,9 +252,30 @@ def calculate_quote(
                     line_total = option_total + addon_amount
                     units = 1
 
+            static_units = None
             # Per-unit-rate pricing: dropdown selects a rate per unit, quantity from follow-up, checkboxes add fixed amounts
-            if pricing_mode == "per_unit_rate" and qty_source and isinstance(follow_up_data, dict):
-                fu_config_raw = item.get("follow_up_config")
+            fu_config_raw = item.get("follow_up_config")
+            per_unit_cfg = None
+            if fu_config_raw:
+                try:
+                    _pc_cfgs = json.loads(fu_config_raw) if isinstance(fu_config_raw, str) else fu_config_raw
+                    if isinstance(_pc_cfgs, list):
+                        per_unit_cfg = next((c for c in _pc_cfgs if isinstance(c, dict) and c.get("cost_per_unit")), None)
+                except Exception:
+                    per_unit_cfg = None
+            if isinstance(follow_up_data, dict) and ((pricing_mode == "per_unit_rate" and qty_source) or per_unit_cfg):
+                if per_unit_cfg:
+                    _us = str(per_unit_cfg.get("unit_source") or "").strip()
+                    if _us:
+                        qty_source = _us
+                    else:
+                        qty_source = ""
+                        try:
+                            _su = per_unit_cfg.get("unit_static")
+                            if _su not in (None, ""):
+                                static_units = float(_su)
+                        except (TypeError, ValueError):
+                            static_units = None
                 rate = None
                 quantity = None
                 addon_total = 0.0
@@ -272,7 +293,10 @@ def calculate_quote(
                                 choices = cfg.get("choices", [])
                                 prices = cfg.get("prices", [])
                                 if rate is None and cfg_type.startswith("Dropdown"):
-                                    candidate_key = qty_source.rsplit('_', 1)[0] + '_' + str(cfg_idx)
+                                    if qty_source:
+                                        candidate_key = qty_source.rsplit('_', 1)[0] + '_' + str(cfg_idx)
+                                    else:
+                                        candidate_key = 'follow_up_' + (item.get("line_code") or '') + '_' + str(cfg_idx)
                                     selected = follow_up_data.get(candidate_key, "")
                                     selected = str(selected or "").strip()
                                     if selected and isinstance(choices, list) and isinstance(prices, list):
@@ -336,13 +360,17 @@ def calculate_quote(
                                     break
                     except Exception:
                         pass
-                qty_val = follow_up_data.get(qty_source)
-                if qty_val is not None and str(qty_val).strip() not in ("", "0", "off", "false", "N", "No"):
-                    try:
-                        quantity = float(qty_val)
-                        has_qty = True
-                    except (TypeError, ValueError):
-                        pass
+                if qty_source:
+                    qty_val = follow_up_data.get(qty_source)
+                    if qty_val is not None and str(qty_val).strip() not in ("", "0", "off", "false", "N", "No"):
+                        try:
+                            quantity = float(qty_val)
+                            has_qty = True
+                        except (TypeError, ValueError):
+                            pass
+                elif static_units is not None:
+                    quantity = static_units
+                    has_qty = True
                 if has_rate and has_qty:
                     line_total = (rate * quantity) + addon_total + addon_amount
                     units = quantity

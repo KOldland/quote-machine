@@ -2685,6 +2685,28 @@ function showViewImageUpload() {
     }
 
     // ── Follow-up Config Rendering ─────────────────────────────────────────
+    // Build <option> list for a per-unit "Units Source" selector:
+    // Static, plus any Single Entry follow-ups on this line item.
+    function _unitSourceOptions(cfg) {
+        var opts = '<option value="">Static</option>';
+        try {
+            var fuList = typeof item.follow_up_config === 'string' ? JSON.parse(item.follow_up_config || '[]') : (item.follow_up_config || []);
+            if (Array.isArray(fuList)) {
+                fuList.forEach(function(c, idx) {
+                    if (c && c.type && String(c.type).indexOf('Single Entry') !== -1) {
+                        var lbl = c.helper_text || ('Follow-up ' + (idx + 1));
+                        var val = 'follow_up_' + item.line_code + '_' + idx;
+                        opts += '<option value="' + _esc(val) + '"' + ((cfg.unit_source || '') === val ? ' selected' : '') + '>' + _esc('Follow-up: ' + lbl) + '</option>';
+                    }
+                });
+            }
+        } catch (e) {}
+        if (cfg.unit_source && opts.indexOf('value="' + _esc(cfg.unit_source) + '"') === -1) {
+            opts += '<option value="' + _esc(cfg.unit_source) + '" selected>' + _esc(cfg.unit_source) + '</option>';
+        }
+        return opts;
+    }
+
     var _followUpTemplates = {
         'dropdown': function(cfg, fuId) {
             return _field('fu_choices', 'Choices (one per line)', 'textarea', (cfg.choices || []).join('\n'), false, 'fu_choices_' + fuId) +
@@ -2693,6 +2715,12 @@ function showViewImageUpload() {
                    '<div id="fu_prices_config_' + fuId + '" style="display:' + (cfg.user_edit ? 'block' : 'none') + '; margin-left:1rem; border-left:2px solid #eee; padding-left:0.5rem;">' +
                    _field('fu_prices', 'Prices (one per line, matching choices)', 'textarea', (cfg.prices || []).join('\n'), false, 'fu_prices_' + fuId) +
                    _checkField('fu_allow_override', 'Allow users to override price', cfg.allow_override === true, 'fu_allow_override_' + fuId) +
+                   '</div>' +
+                   _checkField('fu_cost_per_unit', 'Enable cost per unit', cfg.cost_per_unit === true, 'fu_cost_per_unit_' + fuId) +
+                   '<div id="fu_cost_per_unit_config_' + fuId + '" style="display:' + (cfg.cost_per_unit ? 'block' : 'none') + '; margin-left:1rem; border-left:2px solid #eee; padding-left:0.5rem;">' +
+                   '<div class="li-form-group" id="fu_unit_static_wrap_' + fuId + '"><label>Units (static)</label>' +
+                   '<input type="number" name="fu_unit_static" id="fu_unit_static_' + fuId + '" value="' + _esc(cfg.unit_static != null ? cfg.unit_static : '') + '" step="1" min="0"></div>' +
+                   '<div class="li-form-group"><label>Units Source</label><select name="fu_unit_source" id="fu_unit_source_' + fuId + '">' + _unitSourceOptions(cfg) + '</select></div>' +
                    '</div>' +
                    _checkField('fu_cost', 'Cost', cfg.cost === true, 'fu_cost_' + fuId) +
                    _checkField('fu_suffix', 'Suffix', cfg.suffix === true, 'fu_suffix_' + fuId) +
@@ -2806,6 +2834,20 @@ function showViewImageUpload() {
                  pricesDiv.style.display = pricesCheck.checked ? 'block' : 'none';
              });
          }
+         var cpuCheck = entry.querySelector('[name="fu_cost_per_unit"]');
+         var cpuDiv = entry.querySelector('[id^="fu_cost_per_unit_config_"]');
+         if (cpuCheck && cpuDiv) {
+             cpuCheck.addEventListener('change', function() {
+                 cpuDiv.style.display = cpuCheck.checked ? 'block' : 'none';
+             });
+         }
+         var usSel = entry.querySelector('[name="fu_unit_source"]');
+         var usWrap = entry.querySelector('[id^="fu_unit_static_wrap_"]');
+         if (usSel && usWrap) {
+             var toggleStatic = function() { usWrap.style.display = usSel.value ? 'none' : 'block'; };
+             usSel.addEventListener('change', toggleStatic);
+             toggleStatic();
+         }
      }
 
     function _collectFollowUpConfig() {
@@ -2835,6 +2877,9 @@ function showViewImageUpload() {
                 cfg.user_edit = getVal('fu_user_edit');
                 cfg.allow_override = getVal('fu_allow_override');
                 cfg.prices = (getVal('fu_prices') || '').split('\n').filter(Boolean).map(function(p) { return parseFloat(p) || 0; });
+                cfg.cost_per_unit = getVal('fu_cost_per_unit');
+                cfg.unit_static = getVal('fu_unit_static');
+                cfg.unit_source = getVal('fu_unit_source');
                 cfg.cost = getVal('fu_cost');
                 cfg.suffix = getVal('fu_suffix');
                 cfg.suffix_value = getVal('fu_suffix_value');
