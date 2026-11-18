@@ -371,6 +371,7 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Ensure cookies are sent with sa
 app.config['SECRET_KEY'] = os.getenv(
     'QM_SECRET_KEY', 'dev-insecure-key-change-me')
 app.config['WTF_CSRF_TIME_LIMIT'] = 86400
+app.config['TEMPLATES_AUTO_RELOAD'] = True  # pick up builder template edits without restart
 
 # Ensure the upload folder exists
 if not os.path.exists(app.config['UPLOAD_FOLDER']):

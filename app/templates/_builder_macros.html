@@ -1001,6 +1001,10 @@ document.addEventListener('DOMContentLoaded', function() {
     var _activeCategory = null;
     var _activeItem     = null;
     var _categoryItems  = []; // rows for active category (from last fetch)
+    // The line-item currently being edited in the editor form (set by
+    // renderEditorForm). Follow-up helpers outside renderEditorForm need
+    // access to it (e.g. to build Units Source option values).
+    var _currentEditorItem = null;
     var _pageKey        = document.getElementById('li-question-panel')
                               ? document.getElementById('li-question-panel').dataset.page || ''
                               : '';
@@ -2095,6 +2099,10 @@ function showViewImageUpload() {
     // ── Render question editor (View Two) ─────────────────────────────────
     function renderEditorForm(item) {
 
+        // Track which line-item is being edited so follow-up helpers defined
+        // outside this function can access its line_code / follow_up_config.
+        _currentEditorItem = item;
+
         // Question trigger: the button is created by this render pass, so the
         // listener must be attached here rather than at load time.
         var btnQuestionImages = $id('btn-question-images');
@@ -2687,24 +2695,62 @@ function showViewImageUpload() {
     // ── Follow-up Config Rendering ─────────────────────────────────────────
     // Build <option> list for a per-unit "Units Source" selector:
     // Static, plus any Single Entry follow-ups on this line item.
+    // Reads the LIVE follow-ups DOM (so ordering doesn't matter and newly
+    // added / unsaved Single Entry questions show up), merged with the
+    // saved config as a fallback for the very first render.
     function _unitSourceOptions(cfg) {
+        var item = _currentEditorItem;
         var opts = '<option value="">Static</option>';
+        var found = {};
+
+        // 1. From saved config (covers first render before DOM entries exist)
         try {
             var fuList = typeof item.follow_up_config === 'string' ? JSON.parse(item.follow_up_config || '[]') : (item.follow_up_config || []);
             if (Array.isArray(fuList)) {
                 fuList.forEach(function(c, idx) {
                     if (c && c.type && String(c.type).indexOf('Single Entry') !== -1) {
-                        var lbl = c.helper_text || ('Follow-up ' + (idx + 1));
-                        var val = 'follow_up_' + item.line_code + '_' + idx;
-                        opts += '<option value="' + _esc(val) + '"' + ((cfg.unit_source || '') === val ? ' selected' : '') + '>' + _esc('Follow-up: ' + lbl) + '</option>';
+                        found[idx] = c.helper_text || ('Follow-up ' + (idx + 1));
                     }
                 });
             }
         } catch (e) {}
+
+        // 2. From the live DOM (reflects current / unsaved / reordered entries)
+        var container = $id('follow-ups-list');
+        var entries = container ? container.querySelectorAll('.fu-entry') : [];
+        for (var i = 0; i < entries.length; i++) {
+            var ts = entries[i].querySelector('.fu-type-select');
+            var t = ts ? ts.value : '';
+            var ht = entries[i].querySelector('[name="fu_helper_text"]');
+            var lbl = (ht && ht.value) ? ht.value : ('Follow-up ' + (i + 1));
+            if (t && String(t).indexOf('Single Entry') !== -1) {
+                found[i] = lbl;
+            } else {
+                delete found[i];
+            }
+        }
+
+        Object.keys(found).sort(function(a, b) { return a - b; }).forEach(function(idx) {
+            var val = 'follow_up_' + item.line_code + '_' + idx;
+            opts += '<option value="' + _esc(val) + '"' + ((cfg.unit_source || '') === val ? ' selected' : '') + '>' + _esc('Follow-up: ' + found[idx]) + '</option>';
+        });
+
         if (cfg.unit_source && opts.indexOf('value="' + _esc(cfg.unit_source) + '"') === -1) {
             opts += '<option value="' + _esc(cfg.unit_source) + '" selected>' + _esc(cfg.unit_source) + '</option>';
         }
         return opts;
+    }
+
+    // Refresh every Units Source <select> across all follow-up entries.
+    // Called whenever a follow-up is added, removed, or its type changes,
+    // so the Units Source list always reflects the current Single Entry set.
+    function _refreshAllUnitSources() {
+        var sels = document.querySelectorAll('select[name="fu_unit_source"]');
+        sels.forEach(function(sel) {
+            var cur = sel.value;
+            sel.innerHTML = _unitSourceOptions({ unit_source: cur });
+            sel.value = cur;
+        });
     }
 
     var _followUpTemplates = {
@@ -2785,6 +2831,7 @@ function showViewImageUpload() {
                  }
              }
              _attachFollowUpListeners(existingEntry);
+             _refreshAllUnitSources();
              return;
          }
          
@@ -2810,13 +2857,16 @@ function showViewImageUpload() {
 
         typeSelect.addEventListener('change', function() {
             _renderFollowUpConfig(typeSelect.value, {}, entry);
+            _refreshAllUnitSources();
         });
 
         removeBtn.addEventListener('click', function() {
             entry.remove();
+            _refreshAllUnitSources();
         });
 
         _attachFollowUpListeners(entry);
+        _refreshAllUnitSources();
     }
 
      function _attachFollowUpListeners(entry) {
@@ -2846,6 +2896,14 @@ function showViewImageUpload() {
          if (usSel && usWrap) {
              var toggleStatic = function() { usWrap.style.display = usSel.value ? 'none' : 'block'; };
              usSel.addEventListener('change', toggleStatic);
+             // Refresh options on focus so newly added / reordered Single Entry
+             // follow-ups (including unsaved ones) appear in the list.
+             usSel.addEventListener('focus', function() {
+                 var cur = usSel.value;
+                 usSel.innerHTML = _unitSourceOptions({ unit_source: cur });
+                 usSel.value = cur;
+                 toggleStatic();
+             });
              toggleStatic();
          }
      }
