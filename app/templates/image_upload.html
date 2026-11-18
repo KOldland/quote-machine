@@ -71,6 +71,11 @@ function showToast(message, type) {
             <div class="slot-preview">
                 <img src="{{ uploaded_images['cover_image.jpg'] }}" alt="Cover Image" class="slot-preview-img" />
             </div>
+            {% else %}
+            <div class="slot-preview slot-preview-empty">
+                <span class="slot-preview-icon">🖼️</span>
+                <span class="slot-preview-text">No cover image yet</span>
+            </div>
             {% endif %}
         </div>
     </div>
@@ -89,6 +94,11 @@ function showToast(message, type) {
             <div class="slot-preview">
                 <img src="{{ uploaded_images['cgi_image.jpg'] }}" alt="CGI Image" class="slot-preview-img" />
             </div>
+            {% else %}
+            <div class="slot-preview slot-preview-empty">
+                <span class="slot-preview-icon">🖼️</span>
+                <span class="slot-preview-text">No CGI image yet</span>
+            </div>
             {% endif %}
         </div>
     </div>
@@ -106,6 +116,11 @@ function showToast(message, type) {
             {% if uploaded_images and uploaded_images.get('floorplan_image.jpg') %}
             <div class="slot-preview">
                 <img src="{{ uploaded_images['floorplan_image.jpg'] }}" alt="Floorplan" class="slot-preview-img" />
+            </div>
+            {% else %}
+            <div class="slot-preview slot-preview-empty">
+                <span class="slot-preview-icon">🖼️</span>
+                <span class="slot-preview-text">No floorplan uploaded yet</span>
             </div>
             {% endif %}
         </div>
