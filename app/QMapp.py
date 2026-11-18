@@ -1443,6 +1443,16 @@ def compile_builder_beta_page_to_runtime_schema(page_id):
                 _cfg = block.get('config', {})
                 field_entry.setdefault('builder_beta_meta', {})['cost_group_id'] = _cfg.get('cost_group_id', '')
                 field_entry.setdefault('builder_beta_meta', {})['override_allowed'] = bool(_cfg.get('override_allowed', False))
+            # For image_upload, inject the page-level slot config (which image
+            # to display: cover/cgi/floorplan/site_images) so the form preview
+            # can render the uploaded image.
+            if block_type == 'image_upload':
+                _iu_cfg = _get_page_image_upload_config(page_id)
+                _meta = field_entry.setdefault('builder_beta_meta', {})
+                _meta['image_slot'] = _iu_cfg.get('slot', 'cover_image')
+                _meta['image_label'] = _iu_cfg.get('label') or field_label
+                if _iu_cfg.get('label'):
+                    field_entry['label'] = _iu_cfg['label']
             compiled_fields.append(field_entry)
         else:
             # Renders by block_type in the form templates, so pass the real
@@ -3078,6 +3088,36 @@ def builder_category_details_save():
         return jsonify({'error': str(e)}), 400
     finally:
         conn.close()
+
+
+def _get_page_image_upload_config(page_key: str) -> dict:
+    """Return the page's image_upload module config ({slot, label}).
+
+    The builder stores this in page_templates.metadata_json['image_upload'] via
+    builder_image_upload_save(); the compiled runtime schema needs it so the
+    form can show the image from the correct slot (cover/cgi/floorplan/site).
+    """
+    try:
+        import sqlite3
+        from pathlib import Path
+        db = str(Path(__file__).parent / 'template_store.sqlite3')
+        conn = _get_conn()
+        row = conn.execute(
+            "SELECT metadata_json FROM page_templates WHERE page_key = ? "
+            "AND form_template_version_id IN (SELECT id FROM form_template_versions "
+            "WHERE form_template_id = (SELECT id FROM form_templates WHERE key = ?) "
+            "ORDER BY version DESC LIMIT 1)",
+            (page_key, TEMPLATE_STORE_KEY)
+        ).fetchone()
+        conn.close()
+        if row and row[0]:
+            meta = json.loads(row[0]) if isinstance(row[0], str) else row[0]
+            cfg = meta.get('image_upload')
+            if isinstance(cfg, dict):
+                return cfg
+    except Exception:
+        pass
+    return {}
 
 
 def _get_page_visibility(page_key: str) -> dict:
@@ -5304,6 +5344,11 @@ def dynamic_page(page_id):
     else:
         page_config = page_schema
 
+        # ── Image module: the image_upload block on this page may need to
+        # display an uploaded image (cover / cgi / floorplan / site). Pass
+        # the session's uploaded_images map so the form preview can render it.
+        _iu_uploaded = session.get('uploaded_images', {})
+
         # Compute line-items group data for line_items_by_category blocks
         li_groups_data = None
         saved_cb = session.get('checkbox_data', {})
@@ -5355,6 +5400,7 @@ def dynamic_page(page_id):
         li_categories=_li_cats,
         li_groups=li_groups_data,
         current_page_id=page_id,
+        upload_images=_iu_uploaded,
         # Edit mode needs the same builder context the POST branch passes:
         # builder_state drives the question-type picker, db_pages the sidebar
         # page selector. Without these the type list is empty on this route.
@@ -5805,6 +5851,10 @@ def image_upload_page():
 
     uploaded_images = session.get('uploaded_images', {})
 
+    # Track which individual slot images were uploaded so we don't confuse them
+    # with site-image uploads or builder form submissions below.
+    individual_uploaded = False
+
     # Handle individual image uploads (cover, CGI, floorplan)
     for image_type in ['cover_image', 'cgi_image', 'floorplan_image']:
         if image_type in request.files:
@@ -5818,6 +5868,7 @@ def image_upload_page():
                 uploaded_images[filename] = url_for('static', filename=f'uploads/{safe_title}/{filename}')
                 session['uploaded_images'] = uploaded_images
                 session.modified = True
+                individual_uploaded = True
                 flash(f"{image_type.replace('_', ' ').title()} uploaded successfully.", "success")
 
     # Handle site images upload
@@ -5896,7 +5947,10 @@ def image_upload_page():
         session.modified = True
 
     # ── FORM BUILDER BETA INTEGRATION ──
-    if request.method == 'POST' and not files and not action:
+    # This branch is for plain form submissions (e.g. the image_upload_page
+    # form fields). It must NOT fire when a cover/CGI/floorplan image was just
+    # uploaded — those are handled above and should stay on this page.
+    if request.method == 'POST' and not files and not action and not individual_uploaded:
         state = get_builder_beta_state()
         page = state.get('pages', {}).get('image_upload_page')
         if page:

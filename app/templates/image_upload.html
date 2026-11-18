@@ -67,6 +67,11 @@ function showToast(message, type) {
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="file" name="cover_image" accept="image/*" onchange="this.form.submit()">
             </form>
+            {% if uploaded_images and uploaded_images.get('cover_image.jpg') %}
+            <div class="slot-preview">
+                <img src="{{ uploaded_images['cover_image.jpg'] }}" alt="Cover Image" class="slot-preview-img" />
+            </div>
+            {% endif %}
         </div>
     </div>
 
@@ -80,6 +85,11 @@ function showToast(message, type) {
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="file" name="cgi_image" accept="image/*" onchange="this.form.submit()">
             </form>
+            {% if uploaded_images and uploaded_images.get('cgi_image.jpg') %}
+            <div class="slot-preview">
+                <img src="{{ uploaded_images['cgi_image.jpg'] }}" alt="CGI Image" class="slot-preview-img" />
+            </div>
+            {% endif %}
         </div>
     </div>
 
@@ -93,6 +103,11 @@ function showToast(message, type) {
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="file" name="floorplan_image" accept="image/*" onchange="this.form.submit()">
             </form>
+            {% if uploaded_images and uploaded_images.get('floorplan_image.jpg') %}
+            <div class="slot-preview">
+                <img src="{{ uploaded_images['floorplan_image.jpg'] }}" alt="Floorplan" class="slot-preview-img" />
+            </div>
+            {% endif %}
         </div>
     </div>
 
@@ -138,7 +153,7 @@ function showToast(message, type) {
                 <input type="hidden" name="open_accordion" value="siteImagesSection">
                 <div class="uploaded-images-grid">
                     {% for filename, url in uploaded_images.items() %}
-                    {% if filename.startswith('img_site_') or filename in ['cover_image.jpg', 'cgi_image.jpg', 'floorplan_image.jpg'] %}
+                    {% if filename.startswith('img_site_') %}
                     <div class="image-thumb selectable" data-filename="{{ filename }}">
                         <label>
                             <input type="checkbox" name="selected_images" value="{{ filename }}">
