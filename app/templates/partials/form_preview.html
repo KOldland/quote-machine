@@ -1240,6 +1240,20 @@ document.querySelectorAll('.preview-li-price-input').forEach(function(inp) {
 
 // ── Category-level price overrides ──
 var catOverrides = window._sessionCatOverrides || {};
+
+// Find the sibling follow-up block for a given item code within .preview-li-items.
+function findFollowUpFor(container, itemCode) {
+    if (!container || !itemCode) return null;
+    var found = container.querySelectorAll('.preview-follow-up[data-follow-up-for="' + itemCode + '"]');
+    if (found.length) return found[0];
+    // Robust fallback: attribute selectors can break on unusual codes.
+    var divs = container.querySelectorAll('.preview-follow-up');
+    for (var i = 0; i < divs.length; i++) {
+        if (divs[i].getAttribute('data-follow-up-for') === itemCode) return divs[i];
+    }
+    return null;
+}
+
 function computeCatTotal(categoryName) {
     // Match Jinja2 ID generation: replace spaces with _, & with _and_
     var safeId = categoryName.replace(/ /g, '_').replace(/&/g, '_and_');
@@ -1270,10 +1284,67 @@ function computeCatTotal(categoryName) {
         } else {
             total += (parseFloat(cb.getAttribute('data-unit-cost')) || 0) * units;
         }
-        // ── Add dropdown follow-up prices for this checked item ──
-        var followUpDiv = row.querySelector('.preview-follow-up');
+        // ── Follow-up handling (follow-up block is a SIBLING of the label, inside .preview-li-items) ──
+        var followUpDiv = findFollowUpFor(row.parentElement, cb.value);
         if (followUpDiv) {
+            var fuCfgAttr = cb.getAttribute('data-follow-up-config') || '';
+            var fuConfigs = [];
+            if (fuCfgAttr) {
+                try {
+                    fuConfigs = JSON.parse(fuCfgAttr);
+                } catch (err) {
+                    fuConfigs = [];
+                }
+                if (!Array.isArray(fuConfigs)) fuConfigs = [fuConfigs];
+            }
+
+            var handledPriceInputs = {};  // names of _price inputs already accounted for via per-unit logic
+
+            fuConfigs.forEach(function(cfg, cfgIdx) {
+                if (!cfg || typeof cfg !== 'object' || !cfg.cost_per_unit) return;
+
+                var fuKey = 'follow_up_' + cb.value + '_' + cfgIdx;
+
+                // Determine the per-unit rate. Prefer any confirmed/user price override on this dropdown.
+                var rate = null;
+                var overrideInput = followUpDiv.querySelector('input[name="' + fuKey + '_price"]');
+                if (overrideInput) {
+                    var ov = parseFloat(overrideInput.value);
+                    if (!isNaN(ov)) rate = ov;
+                    handledPriceInputs[fuKey + '_price'] = true;
+                }
+                // Fall back to the price matching the selected choice.
+                var select = followUpDiv.querySelector('select[name="' + fuKey + '"]');
+                if (rate === null && select && select.value && Array.isArray(cfg.choices) && Array.isArray(cfg.prices)) {
+                    var ci = cfg.choices.indexOf(select.value);
+                    if (ci >= 0 && ci < cfg.prices.length) {
+                        var p = parseFloat(cfg.prices[ci]);
+                        if (!isNaN(p)) rate = p;
+                    }
+                }
+
+                // Determine the quantity from the linked Single Entry (unit_source) or static units.
+                var qty = null;
+                if (cfg.unit_source) {
+                    var qtyInput = followUpDiv.querySelector('[name="' + cfg.unit_source + '"]');
+                    if (qtyInput) {
+                        var qv = parseFloat(qtyInput.value);
+                        if (!isNaN(qv)) qty = qv;
+                    }
+                } else if (cfg.unit_static !== undefined && cfg.unit_static !== null && cfg.unit_static !== '') {
+                    var sv = parseFloat(cfg.unit_static);
+                    if (!isNaN(sv)) qty = sv;
+                }
+
+                if (rate !== null && qty !== null) {
+                    total += rate * qty;
+                }
+            });
+
+            // Add any remaining (non per-unit) confirmed follow-up prices.
             followUpDiv.querySelectorAll('.preview-follow-up-input[name$="_price"]').forEach(function(fuPriceInput) {
+                var nm = fuPriceInput.getAttribute('name');
+                if (handledPriceInputs[nm]) return;
                 var confirmed = fuPriceInput.getAttribute('data-price-confirmed');
                 var val = parseFloat(fuPriceInput.value) || 0;
                 if (confirmed === '1' || val > 0) {
@@ -1301,7 +1372,9 @@ document.addEventListener('change', function(e) {
     if (e.target.matches('.preview-li-item input[type="checkbox"]') ||
         e.target.matches('.preview-li-units-input') ||
         e.target.matches('.preview-li-price-input') ||
-        e.target.matches('.preview-follow-up-input[name$="_price"]')) {
+        e.target.matches('.preview-follow-up-input[name$="_price"]') ||
+        e.target.matches('.preview-follow-up-input') ||
+        e.target.matches('.preview-select')) {
         document.querySelectorAll('.preview-li-category-title').forEach(function(titleEl) {
             computeCatTotal(titleEl.textContent.trim());
         });
