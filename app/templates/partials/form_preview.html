@@ -1284,8 +1284,17 @@ function computeCatTotal(categoryName) {
     catDetails.querySelectorAll('.preview-li-item input[type="checkbox"]:checked').forEach(function(cb) {
         var row = cb.closest('.preview-li-item');
         if (!row) return;
-        var priceInput = row.querySelector('.preview-li-price-input');
-        var unitsInput = row.querySelector('.preview-li-units-input');
+        // price & units live in the sibling .preview-li-price-row (NOT inside the label),
+        // so look them up via the shared .preview-li-items container instead of row.querySelector.
+        var itemsContainer = row.parentElement;
+        var priceRow = null;
+        if (itemsContainer) {
+            itemsContainer.querySelectorAll('.preview-li-price-row').forEach(function(pr) {
+                if (!priceRow && pr.getAttribute('data-line-code') === cb.value) priceRow = pr;
+            });
+        }
+        var priceInput = priceRow ? priceRow.querySelector('.preview-li-price-input') : null;
+        var unitsInput = priceRow ? priceRow.querySelector('.preview-li-units-input') : null;
         var price = priceInput ? parseFloat(priceInput.value) || 0 : 0;
         var units = unitsInput ? parseFloat(unitsInput.value) || 1 : 1;
         if (priceInput) {
