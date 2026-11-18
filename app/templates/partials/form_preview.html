@@ -127,12 +127,18 @@ window.builderStateQuestionTypes = {{ builder_state.question_types | default({})
           {% set fu_type = item.follow_up_type or 'Dropdown' %}
           {% set _ = fu_configs.append({'type': fu_type}) %}
       {% endif %}
+      {# Collect follow-up keys referenced as a per-unit "Units Source". These
+         must ALWAYS stay visible, even when the line item is user-priced and
+         the Single Entry itself has "Cost" unchecked — otherwise the quantity
+         input disappears and the per-unit total can't be entered. #}
+      {% set _unit_source_keys = [] %}
+      {% for _c in fu_configs %}{% if _c.get('cost_per_unit') and _c.get('unit_source') %}{% set _ = _unit_source_keys.append(_c.get('unit_source')) %}{% endif %}{% endfor %}
         {% for cfg in fu_configs %}
             {% set fu_type = cfg.get('type', item.follow_up_type or 'Dropdown') %}
             {% set fu_idx = loop.index0 %}
             {% set _fu_key = 'follow_up_' + item.value + '_' + (fu_idx | string) %}
             {% set _fu_val = _saved.get(_fu_key, '') %}
-            <div class="form-input" style="margin-bottom:0.4rem; width:100%; max-width:650px;{% if fu_type and fu_type.startswith('Single') and not cfg.get('dim1_label') and not cfg.get('cost') and item.pricing_visibility == 'user_edit' %}display:none;{% endif %}">
+            <div class="form-input" style="margin-bottom:0.4rem; width:100%; max-width:650px;{% if fu_type and fu_type.startswith('Single') and not cfg.get('dim1_label') and not cfg.get('cost') and item.pricing_visibility == 'user_edit' and _fu_key not in _unit_source_keys %}display:none;{% endif %}">
             {% if fu_type and fu_type.startswith('Dropdown') %}
                 {% set _dd_prices = cfg.prices | default([]) %}
                 {% set _dd_user_edit = cfg.user_edit | default(false) %}
@@ -190,7 +196,10 @@ window.builderStateQuestionTypes = {{ builder_state.question_types | default({})
                         </div>
                     {% endfor %}
                 {% else %}
-                    {% if not (item.pricing_visibility == 'user_edit' and not cfg.cost) %}
+                    {# A Single Entry referenced as a per-unit "Units Source" must stay
+                       visible even when the line item is user-priced and this
+                       entry itself has "Cost" unchecked — it is the quantity input. #}
+                    {% if _fu_key not in _unit_source_keys or not (item.pricing_visibility == 'user_edit' and not cfg.cost) %}
                     <input type="text" class="form-input preview-follow-up-input"
                            name="{{ _fu_key }}"
                            value="{{ _fu_val }}"
