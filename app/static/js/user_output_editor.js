@@ -835,6 +835,7 @@ const IMAGE_FRAMES = [
   function initToolbar() {
     const toolbar = document.getElementById('editorToolbar');
     const textSelect = document.getElementById('textTypeSelect');
+    if (!toolbar) return;
 
     toolbar.addEventListener('click', (e) => {
       const btn = e.target.closest('button[data-command]');
@@ -912,7 +913,11 @@ const IMAGE_FRAMES = [
   }
 
   function initPageNav() {
-    document.getElementById('prevPageBtn').addEventListener('click', () => {
+    const prevBtn = document.getElementById('prevPageBtn');
+    const nextBtn = document.getElementById('nextPageBtn');
+    if (!prevBtn || !nextBtn) return;
+
+    prevBtn.addEventListener('click', () => {
       const current = window.__currentPageIndex || 0;
       if (current > 0) {
         window.__currentPageIndex = current - 1;
@@ -923,7 +928,7 @@ const IMAGE_FRAMES = [
       }
     });
 
-    document.getElementById('nextPageBtn').addEventListener('click', () => {
+    nextBtn.addEventListener('click', () => {
       const current = window.__currentPageIndex || 0;
       if (current < pages.length - 1) {
         window.__currentPageIndex = current + 1;
@@ -1016,13 +1021,19 @@ const IMAGE_FRAMES = [
 
   function initGallery() {
     const modal = document.getElementById('imageGalleryModal');
-    document.getElementById('galleryCloseBtn').addEventListener('click', () => {
+    if (!modal) return;
+    const closeBtn = document.getElementById('galleryCloseBtn');
+    const uploadBtn = document.getElementById('galleryUploadBtn');
+    const fileInput = document.getElementById('galleryFileInput');
+    if (!closeBtn || !uploadBtn || !fileInput) return;
+
+    closeBtn.addEventListener('click', () => {
       modal.style.display = 'none';
     });
-    document.getElementById('galleryUploadBtn').addEventListener('click', () => {
-      document.getElementById('galleryFileInput').click();
+    uploadBtn.addEventListener('click', () => {
+      fileInput.click();
     });
-    document.getElementById('galleryFileInput').addEventListener('change', async (e) => {
+    fileInput.addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
       const formData = new FormData();
@@ -1833,14 +1844,18 @@ const IMAGE_FRAMES = [
   }
 
   function initPreviewNav() {
-    document.getElementById('previewPrevBtn').addEventListener('click', () => {
+    const prevBtn = document.getElementById('previewPrevBtn');
+    const nextBtn = document.getElementById('previewNextBtn');
+    if (!prevBtn || !nextBtn) return;
+
+    prevBtn.addEventListener('click', () => {
       if (previewPageIndex > 0) {
         previewPageIndex--;
         renderPreviewPage();
       }
     });
 
-    document.getElementById('previewNextBtn').addEventListener('click', () => {
+    nextBtn.addEventListener('click', () => {
       if (previewPageIndex < pages.length - 1) {
         previewPageIndex++;
         renderPreviewPage();
@@ -2032,6 +2047,9 @@ const IMAGE_FRAMES = [
   }
 
   function initStylesModal() {
+    const stylesIds = ['closeStylesModal','confirmStylesBtn','saveThemeBtn','confirmSaveThemeBtn','browseThemesBtn','closeSaveThemeModal'];
+    if (stylesIds.some(id => !document.getElementById(id))) return;
+
     buildTypographyRows();
     document.getElementById('closeStylesModal').addEventListener('click', closeStylesModal);
     document.getElementById('confirmStylesBtn').addEventListener('click', confirmStyles);
@@ -2245,6 +2263,10 @@ const IMAGE_FRAMES = [
   }
 
   function initModals() {
+    const ids = ['previewToolbarBtn','sidebarThemeBtn','sidebarExportBtn','sidebarSaveLoadBtn','confirmSaveAsQuoteBtn','saveAsThemeBtn','closeSaveAsQuoteModal','closeLoadModal','closeExportModal','exportPdfBtn','exportDocxBtn','closePreviewModal','confirmSaveAsThemeBtn','closeSaveAsThemeModal'];
+    const els = ids.map(id => document.getElementById(id));
+    if (els.some(el => !el)) return;
+
     document.getElementById('previewToolbarBtn').addEventListener('click', openPreviewModal);
     document.getElementById('sidebarThemeBtn').addEventListener('click', openStylesModal);
     document.getElementById('sidebarExportBtn').addEventListener('click', openExportModal);

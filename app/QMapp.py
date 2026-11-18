@@ -2014,6 +2014,8 @@ def builder_page_details_json(page_key):
         result['modules'] = meta.get('modules', [])
         result['page_total'] = meta.get('page_total', {})
         result['image_upload'] = meta.get('image_upload', {})
+        result['blue_notes'] = meta.get('blue_notes', '')
+        result['description'] = meta.get('description', result.get('description', ''))
         return jsonify(result)
     return jsonify({})
 
