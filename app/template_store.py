@@ -2369,6 +2369,35 @@ def get_theme(theme_id: int, form_key: str, db_path: Optional[Path] = None) -> O
         conn.close()
 
 
+def get_default_theme_styles(form_key: str, db_path: Optional[Path] = None) -> Dict[str, Any]:
+    """Return the *document_styles* (theme typography/colours/layout) for the
+    default theme of *form_key*, or ``{}`` if no theme exists.
+
+    The theme is stored in ``output_templates.css_json`` (the ``document_styles``
+    blob consumed by QUOTE mode PDF/DOCX export).  Ordering by ``is_default``
+    DESC picks the user's chosen default theme.
+    """
+    path = db_path or _default_db_path()
+    conn = _connect(path)
+    try:
+        row = conn.execute(
+            """
+            SELECT ot.id, ot.css_json
+            FROM output_templates ot
+            JOIN form_templates ft ON ft.id = ot.form_template_id
+            WHERE ft.key = ?
+            ORDER BY ot.is_default DESC, ot.name ASC
+            LIMIT 1
+            """,
+            (form_key,),
+        ).fetchone()
+        if not row:
+            return {}
+        return json.loads(row["css_json"] or "{}")
+    finally:
+        conn.close()
+
+
 def apply_theme_to_blocks(theme_id: int, blocks: list, form_key: str, db_path: Optional[Path] = None) -> list:
     """Apply theme block_defaults onto a list of blocks (in-place + returned)."""
     theme = get_theme(theme_id, form_key, db_path=db_path)

@@ -49,6 +49,7 @@ from template_store import (
     get_all_pages,
     get_line_items_for_page,
     get_question_images_for_line_item,
+    get_default_theme_styles,
 )
 
 
@@ -5347,6 +5348,9 @@ def dynamic_page(page_id):
     edit_requested = request.args.get('edit', '').lower() in {'1', 'true', 'yes'}
     edit_mode = session.get('role') == 'admin' and edit_requested
 
+    # ── Theme for form preview (same document_styles used by QUOTE mode export) ──
+    theme_styles = get_default_theme_styles(session.get('template_key') or TEMPLATE_STORE_KEY)
+
     if edit_mode:
         builder_state = get_builder_beta_state()
         current_page = {
@@ -5379,6 +5383,7 @@ def dynamic_page(page_id):
             ),
             pricing_modes=sorted(ALLOWED_BLOCK_PRICING_MODES),
             li_categories=_li_cats,
+            theme_styles=theme_styles,
             **_get_runtime_quote_context()
         )
 
@@ -5444,6 +5449,7 @@ def dynamic_page(page_id):
         page_description=_cust_header_meta['description'],
         page_notes=_cust_header_meta['blue_notes'],
         li_categories=_li_cats,
+        theme_styles=theme_styles,
         li_groups=li_groups_data,
         current_page_id=page_id,
         upload_images=_iu_uploaded,

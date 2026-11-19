@@ -4,6 +4,57 @@ window.builderStateCostGroups = {{ builder_state.cost_groups | default({}) | toj
 window.builderStateQuestionTypes = {{ builder_state.question_types | default({}) | tojson | safe }};
 {% endif %}
 </script>
+{% if theme_styles %}
+<style>
+{% macro typo_css(selector, typo) %}
+{% if typo %}
+{{ selector }} {
+{%- if typo.get('family') %}font-family: {{ typo.family }};{% endif %}
+{%- if typo.get('size') %}font-size: {{ typo.size }}px;{% endif %}
+{%- if typo.get('weight') %}font-weight: {{ typo.weight }};{% endif %}
+{%- if typo.get('bold') %}font-weight: bold;{% endif %}
+{%- if typo.get('italic') %}font-style: italic;{% endif %}
+{%- if typo.get('underline') %}text-decoration: underline;{% endif %}
+{%- if typo.get('color') %}color: {{ typo.color }};{% endif %}
+}
+{% endif %}
+{% endmacro %}
+{% set typo = theme_styles.get('typography', {}) %}
+{{ typo_css('.preview-title', typo.get('h2')) }}
+{{ typo_css('.preview-description', typo.get('notes')) }}
+{{ typo_css('.preview-blue-notes', typo.get('guidance', typo.get('guide'))) }}
+{{ typo_css('.preview-label', typo.get('h3')) }}
+{{ typo_css('.preview-li-category-title', typo.get('h2')) }}
+{{ typo_css('.preview-li-item-label', typo.get('para')) }}
+{% set ff = theme_styles.get('font_family') %}
+{% set fs = theme_styles.get('font_size_base') %}
+{% if ff or fs %}
+.preview-container {
+{%- if ff %}font-family: {{ ff }};{% endif %}
+{%- if fs %}font-size: {{ fs }}px;{% endif %}
+}
+{% endif %}
+{% set lnk = theme_styles.get('links') %}
+{% if lnk and lnk.get('color') %}
+a { color: {{ lnk.color }}; text-decoration: {{ 'underline' if lnk.get('underline', True) else 'none' }}; }
+{% endif %}
+{% set tbl = theme_styles.get('tables') %}
+{% if tbl and (tbl.get('border') or tbl.get('header_bg') or tbl.get('row_bg') or tbl.get('alt_row_bg') or tbl.get('font_size')) %}
+.calc-table { font-size: {{ tbl.get('font_size', 14) }}px; border-collapse: collapse; width: 100%; }
+.calc-table th, .calc-table td { border: {{ tbl.get('border', '1px solid #ccc') }}; padding: 6px; text-align: left; }
+.calc-table th { background: {{ tbl.get('header_bg', '#f5f5f5') }}; }
+.calc-table tbody tr { background: {{ tbl.get('row_bg', '#ffffff') }}; }
+.calc-table tbody tr:nth-child(even) { background: {{ tbl.get('alt_row_bg', '#fafafa') }}; }
+{% endif %}
+{% set img = theme_styles.get('images') %}
+{% if img and (img.get('frame') or img.get('shadow')) %}
+.preview-image-upload-img {
+{%- if img.get('frame') and img.get('frame') != 'none' %}border: {{ img.frame }};{% endif %}
+{%- if img.get('shadow') %}box-shadow: 0 4px 12px rgba(0,0,0,0.2);{% endif %}
+}
+{% endif %}
+</style>
+{% endif %}
 <div class="preview-container">
     <div class="preview-header">
         <h3 class="preview-title">{{ title | default('Form Preview') }}</h3>
