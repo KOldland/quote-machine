@@ -3122,32 +3122,40 @@ def _get_page_image_upload_config(page_key: str) -> dict:
     return {}
 
 
-def _get_page_blue_notes(page_key: str) -> str:
-    """Return the page's Blue Notes text (page_templates.metadata_json['blue_notes']).
+def _get_page_header_meta(page_key: str) -> dict:
+    """Return the page's header text fields ({description, blue_notes}).
 
-    Stored by builder_page_details_save() when the admin edits a page's
-    details; surfaced on the customer-facing form as the subtitle under the
-    page title.
+    Both are stored in page_templates by builder_page_details_save() — the
+    description in its own column (and metadata_json['description']), the
+    blue notes in metadata_json['blue_notes']. Surfaced on the customer-facing
+    form as the subtitle(s) under the page title.
     """
+    result = {'description': '', 'blue_notes': ''}
     try:
         import sqlite3
         from pathlib import Path
         db = str(Path(__file__).parent / 'template_store.sqlite3')
         conn = _get_conn()
         row = conn.execute(
-            "SELECT metadata_json FROM page_templates WHERE page_key = ? "
+            "SELECT description, metadata_json FROM page_templates WHERE page_key = ? "
             "AND form_template_version_id IN (SELECT id FROM form_template_versions "
             "WHERE form_template_id = (SELECT id FROM form_templates WHERE key = ?) "
             "ORDER BY version DESC LIMIT 1)",
             (page_key, TEMPLATE_STORE_KEY)
         ).fetchone()
         conn.close()
-        if row and row[0]:
-            meta = json.loads(row[0]) if isinstance(row[0], str) else row[0]
-            return meta.get('blue_notes', '') or ''
+        if row:
+            meta = {}
+            if row[1]:
+                try:
+                    meta = json.loads(row[1]) if isinstance(row[1], str) else row[1]
+                except Exception:
+                    meta = {}
+            result['description'] = (row[0] or meta.get('description') or '') or ''
+            result['blue_notes'] = meta.get('blue_notes') or ''
     except Exception:
         pass
-    return ''
+    return result
 
 
 def _get_page_visibility(page_key: str) -> dict:
@@ -5352,14 +5360,16 @@ def dynamic_page(page_id):
         )
 
         page_config = page_schema
-        
+        _header_meta = _get_page_header_meta(page_id)
+
         return render_template(
             'form.html',
             page_schema=page_schema,
             page_config=page_config,
             schema_render_mode='full',
             title=page_schema.get('title', page_id.replace('_', ' ').title()),
-            page_notes=_get_page_blue_notes(page_id),
+            page_description=_header_meta['description'],
+            page_notes=_header_meta['blue_notes'],
             builder_state=builder_state,
             current_page=current_page,
             current_page_id=page_id,
@@ -5374,6 +5384,9 @@ def dynamic_page(page_id):
 
     else:
         page_config = page_schema
+
+        # ── Page header subtitle: Page Description + Blue Notes ────────────
+        _cust_header_meta = _get_page_header_meta(page_id)
 
         # ── Image module: the image_upload block on this page may need to
         # display an uploaded image (cover / cgi / floorplan / site). Pass
@@ -5428,7 +5441,8 @@ def dynamic_page(page_id):
         page_config=page_config,
         schema_render_mode='full',
         title=page_schema.get('title', page_id.replace('_', ' ').title()),
-        page_notes=_get_page_blue_notes(page_id),
+        page_description=_cust_header_meta['description'],
+        page_notes=_cust_header_meta['blue_notes'],
         li_categories=_li_cats,
         li_groups=li_groups_data,
         current_page_id=page_id,
