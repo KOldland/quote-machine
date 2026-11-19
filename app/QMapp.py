@@ -3122,6 +3122,34 @@ def _get_page_image_upload_config(page_key: str) -> dict:
     return {}
 
 
+def _get_page_blue_notes(page_key: str) -> str:
+    """Return the page's Blue Notes text (page_templates.metadata_json['blue_notes']).
+
+    Stored by builder_page_details_save() when the admin edits a page's
+    details; surfaced on the customer-facing form as the subtitle under the
+    page title.
+    """
+    try:
+        import sqlite3
+        from pathlib import Path
+        db = str(Path(__file__).parent / 'template_store.sqlite3')
+        conn = _get_conn()
+        row = conn.execute(
+            "SELECT metadata_json FROM page_templates WHERE page_key = ? "
+            "AND form_template_version_id IN (SELECT id FROM form_template_versions "
+            "WHERE form_template_id = (SELECT id FROM form_templates WHERE key = ?) "
+            "ORDER BY version DESC LIMIT 1)",
+            (page_key, TEMPLATE_STORE_KEY)
+        ).fetchone()
+        conn.close()
+        if row and row[0]:
+            meta = json.loads(row[0]) if isinstance(row[0], str) else row[0]
+            return meta.get('blue_notes', '') or ''
+    except Exception:
+        pass
+    return ''
+
+
 def _get_page_visibility(page_key: str) -> dict:
     """Return {form_visible, quote_visible} for a page, defaulting both to True."""
     try:
@@ -5331,6 +5359,7 @@ def dynamic_page(page_id):
             page_config=page_config,
             schema_render_mode='full',
             title=page_schema.get('title', page_id.replace('_', ' ').title()),
+            page_notes=_get_page_blue_notes(page_id),
             builder_state=builder_state,
             current_page=current_page,
             current_page_id=page_id,
@@ -5399,6 +5428,7 @@ def dynamic_page(page_id):
         page_config=page_config,
         schema_render_mode='full',
         title=page_schema.get('title', page_id.replace('_', ' ').title()),
+        page_notes=_get_page_blue_notes(page_id),
         li_categories=_li_cats,
         li_groups=li_groups_data,
         current_page_id=page_id,

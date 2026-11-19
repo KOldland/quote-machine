@@ -7,7 +7,11 @@ window.builderStateQuestionTypes = {{ builder_state.question_types | default({})
 <div class="preview-container">
     <div class="preview-header">
         <h3 class="preview-title">{{ title | default('Form Preview') }}</h3>
+        {% if page_notes %}
+        <p class="preview-description">{{ page_notes }}</p>
+        {% else %}
         <p class="preview-description">Complete the form below to continue</p>
+        {% endif %}
     </div>
 
     <div class="preview-form" id="preview-form">
