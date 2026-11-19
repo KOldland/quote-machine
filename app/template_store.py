@@ -169,7 +169,12 @@ class _CompatConnection:
             return sql
         adapted = sql.replace('?', '%s')
         adapted = adapted.replace('INTEGER PRIMARY KEY AUTOINCREMENT', 'SERIAL PRIMARY KEY')
-        adapted = adapted.replace('INSERT OR IGNORE INTO', 'INSERT INTO ON CONFLICT DO NOTHING')
+        # INSERT OR IGNORE INTO <table> (...) -> INSERT INTO <table> (...) ON CONFLICT DO NOTHING
+        # The ON CONFLICT clause must come AFTER the VALUES clause, so we can't just
+        # prefix-replace; we strip the IGNORE and append the clause at the end.
+        if 'INSERT OR IGNORE INTO' in adapted:
+            adapted = adapted.replace('INSERT OR IGNORE INTO', 'INSERT INTO')
+            adapted = adapted.rstrip().rstrip(';') + ' ON CONFLICT DO NOTHING'
         adapted = adapted.replace('DATETIME DEFAULT CURRENT_TIMESTAMP', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP')
         return adapted
     
@@ -223,6 +228,16 @@ class _CompatConnection:
             self._conn.commit()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is None:
+            try:
+                self._conn.commit()
+            except Exception:
+                pass
+        else:
+            try:
+                self._conn.rollback()
+            except Exception:
+                pass
         self.close()
         return False
 
@@ -479,15 +494,33 @@ def _create_schema(conn: sqlite3.Connection) -> None:
     )
     # Idempotent column migrations (run on every connection, including
     # builder_line_item_save which doesn't go through save_template).
-    for _stmt in (
-        "ALTER TABLE line_items ADD COLUMN output_red_notes TEXT DEFAULT ''",
-        "ALTER TABLE category_templates ADD COLUMN blue_notes TEXT DEFAULT ''",
+    for _table, _column, _definition in (
+        ("line_items", "output_red_notes", "TEXT DEFAULT ''"),
+        ("category_templates", "blue_notes", "TEXT DEFAULT ''"),
     ):
-        try:
-            conn.execute(_stmt)
-        except Exception:
-            pass
+        _ensure_column(conn, _table, _column, _definition)
 
+
+def _ensure_column(conn, table: str, column: str, definition: str) -> None:
+    """Add a column only if it doesn't already exist (SQLite + PostgreSQL).
+
+    On PostgreSQL a failed ``ALTER TABLE ADD COLUMN`` aborts the whole
+    transaction, so we must check ``information_schema.columns`` first instead
+    of relying on try/except.  On SQLite we use ``PRAGMA table_info``.
+    """
+    if conn._is_pg:
+        cur = conn._conn.cursor()
+        cur.execute(
+            "SELECT 1 FROM information_schema.columns WHERE table_name = %s AND column_name = %s",
+            (table, column),
+        )
+        exists = cur.fetchone() is not None
+        cur.close()
+    else:
+        rows = conn.execute("PRAGMA table_info(" + table + ")").fetchall()
+        exists = any(r[1] == column for r in rows)
+    if not exists:
+        conn.execute("ALTER TABLE " + table + " ADD COLUMN " + column + " " + definition)
 
 
 def _upsert_tenant(conn: sqlite3.Connection, slug: str, name: str) -> int:
@@ -677,26 +710,16 @@ def save_template(
     path = db_path or _default_db_path()
     with _connect(path) as conn:
         _create_schema(conn)
-        try:
-            conn.execute("ALTER TABLE line_items ADD COLUMN quantity_source TEXT")
-        except Exception:
-            pass
-        try:
-            conn.execute("ALTER TABLE line_items ADD COLUMN pricing_mode TEXT NOT NULL DEFAULT 'per_unit'")
-        except Exception:
-            pass
-        try:
-            conn.execute("ALTER TABLE line_items ADD COLUMN addon_amount REAL NOT NULL DEFAULT 0.0")
-        except Exception:
-            pass
-        try:
-            conn.execute("ALTER TABLE line_items ADD COLUMN output_red_notes TEXT DEFAULT ''")
-        except Exception:
-            pass
-        try:
-            conn.execute("ALTER TABLE category_templates ADD COLUMN blue_notes TEXT DEFAULT ''")
-        except Exception:
-            pass
+        # Idempotent column migrations (safe on PostgreSQL — a failed ALTER
+        # here would abort the whole transaction, so we check existence first).
+        for _table, _column, _definition in (
+            ("line_items", "quantity_source", "TEXT"),
+            ("line_items", "pricing_mode", "TEXT NOT NULL DEFAULT 'per_unit'"),
+            ("line_items", "addon_amount", "REAL NOT NULL DEFAULT 0.0"),
+            ("line_items", "output_red_notes", "TEXT DEFAULT ''"),
+            ("category_templates", "blue_notes", "TEXT DEFAULT ''"),
+        ):
+            _ensure_column(conn, _table, _column, _definition)
 
         # Resolve or create the form_template row.
         tenant_id = _upsert_tenant(conn, slug="default", name="Default Tenant")
